@@ -150,6 +150,10 @@ make restore FILE=backups/db-YYYYMMDD-HHMMSS.sql.gz
 make monitoring  # запустить Prometheus + Grafana
 ```
 
+Обновление: `make update` (пересборка и перезапуск), схема БД применяется автоматически через
+`prisma db push`. Перед обновлением сделайте бэкап: `make backup`. Настройка отчётов о трафике,
+тарифов и логов нод описана в `docs/install.md`.
+
 ## Конфигурация
 
 Скопируйте `.env.example` в `.env` и задайте минимум:

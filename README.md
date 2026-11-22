@@ -150,6 +150,10 @@ make restore FILE=backups/db-YYYYMMDD-HHMMSS.sql.gz
 make monitoring  # start Prometheus + Grafana
 ```
 
+Upgrades: run `make update` (rebuild + restart); the database schema is applied automatically
+(`prisma db push`). Back up first with `make backup`. See `docs/install.md` for traffic reporting,
+plan provisioning and node log setup.
+
 ## Configuration
 
 Copy `.env.example` to `.env` and set at least:
