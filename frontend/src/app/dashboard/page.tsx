@@ -16,7 +16,7 @@ import {
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import { Icon } from '../../components/icons';
-import { Badge, Button, Card, PageHeader, ProgressBar, SectionTitle, StatCard, formatBytes } from '../../components/ui';
+import { Button, Card, PageHeader, ProgressBar, SectionTitle, StatCard, formatBytes } from '../../components/ui';
 
 type Stats = { total: number; active: number; expired: number; disabled: number; trafficUsed: string };
 type NodeStats = { total: number; online: number; offline: number; error: number };

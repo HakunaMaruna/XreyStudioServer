@@ -211,6 +211,8 @@ const dict = {
     poweredBy: 'Работает на XreyStudioServer',
 
     // New admin sections
+    billing: 'Биллинг',
+    createPayment: 'Новый платёж',
     audit: 'Аудит',
     organizations: 'Организации',
     payments: 'Платежи',
@@ -442,6 +444,8 @@ const dict = {
     noNodesAssigned: 'No nodes assigned',
     poweredBy: 'Powered by XreyStudioServer',
 
+    billing: 'Billing',
+    createPayment: 'New payment',
     audit: 'Audit',
     organizations: 'Organizations',
     payments: 'Payments',

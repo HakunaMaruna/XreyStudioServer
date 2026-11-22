@@ -52,11 +52,21 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       },
       {
         title: t.access,
-        items: [{ href: '/users', label: t.users, icon: 'users' }],
+        items: [
+          { href: '/users', label: t.users, icon: 'users' },
+          { href: '/organizations', label: t.organizations, icon: 'shield' },
+        ],
+      },
+      {
+        title: t.billing,
+        items: [{ href: '/payments', label: t.payments, icon: 'download' }],
       },
       {
         title: t.system,
-        items: [{ href: '/settings', label: t.settings, icon: 'settings' }],
+        items: [
+          { href: '/audit', label: t.audit, icon: 'file' },
+          { href: '/settings', label: t.settings, icon: 'settings' },
+        ],
       },
     ],
     [t],
