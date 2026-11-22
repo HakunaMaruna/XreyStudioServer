@@ -12,7 +12,9 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 
 - Source of truth: `/work/XreyStudioServer` (working copy) and the git repo
   `/tmp/opencode/XSS_REPO` (remote: https://github.com/HakunaMaruna/XreyStudioServer).
-- Published: tag/release `v1.3.0`, bundle `/work/XreyStudioServer/XSS_v1.3.0.bundle`.
+- Published: tag/release `v1.3.0`, release commit `55a5698`,
+  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.3.0,
+  bundle `/work/XreyStudioServer/XSS_v1.3.0.bundle`.
   Previous releases: `v1.2.0` (Argon2id, Grafana alerts, admin CRUD, server paging),
   `v1.1.1` (UI tables/charts, k8s, protocol adapters), `v1.1.0`, `v1.0.0`.
 - Stack: NestJS + Prisma/PostgreSQL + Redis, Next.js 16 + React 19, Node agent, Caddy, Docker Compose.
@@ -57,6 +59,8 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
   container job and now also runs the mock e2e suite; both e2e configs have a 30s timeout.
 - Bumped versions to 1.3.0 (backend/frontend/agent package.json + locks, Swagger, k8s image tags),
   updated README ru/en, docs/api.md, docs/monitoring.md, .env.example.
+- Follow-up CI fix: Dockerfiles use `npm ci` without `--no-bin-links`, so `next`/`nest` binaries
+  exist in the images and the `docker compose build` job passes.
 
 ## Done in v1.2.0
 
