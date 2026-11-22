@@ -2,7 +2,9 @@
 
 ## Components
 - Panel (NestJS): REST API, auth, business logic, config generation, node orchestration.
-- Agent (Node.js): registers, fetches config, applies to Xray, reports metrics.
+- Agent (Node.js): registers, fetches config, applies to Xray and (optionally) sing-box, reports metrics.
+- Protocol adapters: VLESS/VMess/Trojan/Shadowsocks are Xray inbounds; Hysteria2/TUIC/WireGuard are
+  generated as a separate sing-box config in the same revision.
 - Frontend (Next.js): admin UI and public subscription page.
 - PostgreSQL: primary data store.
 - Redis: cache, queues, rate limiting.
@@ -10,12 +12,16 @@
 
 ## Data flow
 1. Admin creates user/node/inbound via Panel.
-2. Panel generates Xray config and sends to Agent over HTTPS/mTLS.
-3. Agent writes config and reloads Xray.
+2. Panel generates Xray config (plus a sing-box config when external protocols are used) and sends it to Agent over HTTPS/mTLS.
+3. Agent validates each engine (`xray run -test`, `sing-box check`), writes configs and reloads the services.
 4. Agent reports metrics to Panel.
 5. Client opens subscription URL; Panel returns format based on User-Agent.
 
+## Deployment
+- Docker Compose for small and medium installations; `k8s/` Kustomize manifests for Kubernetes.
+- Prometheus/Grafana stack under the `monitoring` Compose profile.
+
 ## Security
 - JWT access/refresh, Argon2/bcrypt password hashing.
-- mTLS for panel-agent.
-- Rate limiting, helmet, validation, RBAC, audit logs.
+- mTLS for panel-agent, signed Stripe webhooks.
+- Rate limiting (global, stricter on auth), helmet, validation, RBAC, audit logs.

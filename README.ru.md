@@ -21,6 +21,9 @@ Self-hosted панель управления **Xray-core** с агентами 
 - Платежи, тарифы, триалы, рефералы и реселлеры (расширяемо).
 - Telegram-бот и уведомления (Telegram, email, webhook).
 - Тёмная/светлая темы, русский и английский интерфейс, мобильная адаптивность.
+- Таблицы с поиском, сортировкой и пагинацией, формы редактирования и графики на дашборде.
+- Hysteria2 / TUIC / WireGuard через адаптер sing-box на ноде.
+- Метрики Prometheus и готовый дашборд Grafana; манифесты Kubernetes.
 
 ## Архитектура
 
@@ -64,6 +67,7 @@ Self-hosted панель управления **Xray-core** с агентами 
 | Агент | **Node.js** | Лёгкий, тот же язык, простая установка |
 | Прокси/TLS | **Caddy** | Автоматический HTTPS, простая конфигурация |
 | Контейнеры | **Docker Compose** | Достаточно для 5к пользователей / 20 нод, простота эксплуатации |
+| Контейнеры (альтернатива) | **Kubernetes** | Манифесты Kustomize в `k8s/` с Ingress и TLS |
 
 ## Структура репозитория
 
@@ -78,6 +82,7 @@ XreyStudioServer/
 ├── frontend/                # Next.js админка + страница подписки
 │   └── src/app/{dashboard,sub/[token]}
 ├── agent/                   # Node-агент для нод Xray
+├── k8s/                     # манифесты Kubernetes (Kustomize)
 ├── monitoring/              # конфиги Prometheus и дашборды Grafana
 ├── scripts/                 # скрипты бэкапа и восстановления
 ├── docs/                    # архитектура, установка, API
@@ -155,7 +160,7 @@ AGENT_TOKEN=random-agent-token
 CORS_ORIGIN=https://example.com
 ```
 
-Опционально: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (обязателен для Stripe-вебхуков), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_KEEP`, `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS с агентами).
+Опционально: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (обязателен для Stripe-вебхуков), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_KEEP`, `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS с агентами), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (не-Xray протоколы).
 
 ## API
 
@@ -197,6 +202,8 @@ https://<domain>/sub/<token>
 - JSON
 
 Формат выбирается по `User-Agent` клиента; страница также показывает QR-коды и инструкции для платформ.
+Для Hysteria2, TUIC и WireGuard формируются нативные ссылки `hysteria2://`, `tuic://`,
+`wireguard://` и прокси-записи для Clash Meta / sing-box.
 
 ## Безопасность
 
@@ -227,6 +234,21 @@ make restore FILE=backups/db-20260101-120000.sql.gz
 
 Бэкапы — сжатые дампы PostgreSQL в каталоге `backups/`; `BACKUP_KEEP` задаёт число хранимых копий (по умолчанию 7).
 
+## Адаптеры протоколов
+
+Xray-core поддерживает VLESS, VMess, Trojan и Shadowsocks. Hysteria2, TUIC и WireGuard
+формируются в отдельный конфиг [sing-box](https://sing-box.sagernet.org/), поскольку Xray их не
+реализует. Панель отправляет агенту двойной конфиг (`xray` + `singbox`), агент проверяет каждый
+движок (`xray run -test` / `sing-box check`) и перезапускает нужный сервис. Устанавливайте
+`sing-box` на нодах с такими подключениями; без внешних inbound-ов используется обычный
+одиночный конфиг Xray. В подписках есть нативные ссылки для всех трёх протоколов.
+
+## Kubernetes
+
+В `k8s/` лежат манифесты Kustomize для PostgreSQL, Redis, API, панели, агента и Ingress.
+Шаги по сборке образов, секретам и применению — в `k8s/README.md`. Это альтернатива Compose,
+а не дополнительное требование.
+
 ## Разработка
 
 ```bash
@@ -249,10 +271,9 @@ cd agent && npm install && npm start
 
 ## Планы
 
-- Полный CRUD UI для inbound/hosts/rules.
-- UI проверки и отката конфигураций Xray.
-- Адаптеры Hysteria2 / TUIC / WireGuard.
-- Kubernetes-манифесты.
+- Полный CRUD UI для hosts/rules и UI отката конфигураций Xray.
+- Правила алертинга Grafana и пример cron для бэкапов.
+- Опция хеширования паролей Argon2id.
 
 ## Лицензия
 

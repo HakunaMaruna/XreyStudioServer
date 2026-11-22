@@ -49,6 +49,24 @@ export class SubscriptionsService {
         const userInfo = this.encodeBase64(`${method}:${user.subscriptionToken}`);
         return `ss://${userInfo}@${host}:${port}#${tag}`;
       }
+      case 'hysteria2': {
+        const external = new URLSearchParams();
+        if (settings.sni || settings.serverName) external.set('sni', settings.sni || settings.serverName);
+        if (settings.obfs) external.set('obfs', settings.obfs);
+        return `hysteria2://${encodeURIComponent(user.subscriptionToken)}@${host}:${port}?${external.toString()}#${tag}`;
+      }
+      case 'tuic': {
+        const external = new URLSearchParams();
+        if (settings.sni || settings.serverName) external.set('sni', settings.sni || settings.serverName);
+        external.set('congestion_control', settings.congestionControl || 'cubic');
+        return `tuic://${user.id}:${encodeURIComponent(user.subscriptionToken)}@${host}:${port}?${external.toString()}#${tag}`;
+      }
+      case 'wireguard': {
+        const external = new URLSearchParams();
+        external.set('privatekey', settings.privateKey || '');
+        if (settings.peers?.[0]?.public_key) external.set('peerkey', settings.peers[0].public_key);
+        return `wireguard://${host}:${port}?${external.toString()}#${tag}`;
+      }
       case 'vmess': {
         const vmess = {
           v: '2',
@@ -148,7 +166,9 @@ export class SubscriptionsService {
   async clash(token: string) {
     const data = await this.getStatus(token);
     const proxies = data.links
-      .filter((l: any) => l.protocol === 'vless' || l.protocol === 'trojan' || l.protocol === 'ss' || l.protocol === 'vmess')
+      .filter((l: any) =>
+        ['vless', 'trojan', 'ss', 'vmess', 'hysteria2', 'tuic', 'wireguard'].includes(l.protocol),
+      )
       .map((l: any) => {
         const name = l.tag.replace(/[:"']/g, '');
         if (l.protocol === 'vless') {
@@ -177,6 +197,43 @@ export class SubscriptionsService {
             `    port: ${url.port}`,
             `    password: ${url.password || url.username}`,
             `    sni: ${url.searchParams.get('sni') || ''}`,
+          ].join('\n');
+        }
+        if (l.protocol === 'hysteria2') {
+          const url = new URL(l.link);
+          return [
+            `  - name: "${name}"`,
+            '    type: hysteria2',
+            `    server: ${url.hostname}`,
+            `    port: ${url.port}`,
+            `    password: ${decodeURIComponent(url.username)}`,
+            `    sni: ${url.searchParams.get('sni') || ''}`,
+            '    skip-cert-verify: true',
+          ].join('\n');
+        }
+        if (l.protocol === 'tuic') {
+          const url = new URL(l.link);
+          return [
+            `  - name: "${name}"`,
+            '    type: tuic',
+            `    server: ${url.hostname}`,
+            `    port: ${url.port}`,
+            `    uuid: ${url.username}`,
+            `    token: ${decodeURIComponent(url.password)}`,
+            `    sni: ${url.searchParams.get('sni') || ''}`,
+            '    skip-cert-verify: true',
+          ].join('\n');
+        }
+        if (l.protocol === 'wireguard') {
+          const url = new URL(l.link);
+          return [
+            `  - name: "${name}"`,
+            '    type: wireguard',
+            `    server: ${url.hostname}`,
+            `    port: ${url.port}`,
+            `    private-key: ${url.searchParams.get('privatekey') || ''}`,
+            `    public-key: ${url.searchParams.get('peerkey') || ''}`,
+            '    allowed-ips: ["0.0.0.0/0", "::/0"]',
           ].join('\n');
         }
         return `  - name: "${name}"\n    type: ${l.protocol}`;
@@ -233,6 +290,45 @@ export class SubscriptionsService {
           server_port: Number(url.port),
           password: url.password || url.username,
           tls: { enabled: true, server_name: url.searchParams.get('sni') || undefined },
+        };
+      }
+      if (l.protocol === 'hysteria2') {
+        const url = new URL(l.link);
+        return {
+          type: 'hysteria2',
+          tag: l.tag,
+          server: url.hostname,
+          server_port: Number(url.port),
+          password: decodeURIComponent(url.username),
+          tls: { enabled: true, server_name: url.searchParams.get('sni') || undefined },
+          ...(url.searchParams.get('obfs')
+            ? { obfs: { type: 'salamander', password: url.searchParams.get('obfs') } }
+            : {}),
+        };
+      }
+      if (l.protocol === 'tuic') {
+        const url = new URL(l.link);
+        return {
+          type: 'tuic',
+          tag: l.tag,
+          server: url.hostname,
+          server_port: Number(url.port),
+          uuid: url.username,
+          token: decodeURIComponent(url.password),
+          congestion_control: url.searchParams.get('congestion_control') || 'cubic',
+          tls: { enabled: true, server_name: url.searchParams.get('sni') || undefined },
+        };
+      }
+      if (l.protocol === 'wireguard') {
+        const url = new URL(l.link);
+        return {
+          type: 'wireguard',
+          tag: l.tag,
+          server: url.hostname,
+          server_port: Number(url.port),
+          private_key: url.searchParams.get('privatekey') || '',
+          peer_public_key: url.searchParams.get('peerkey') || '',
+          local_address: ['10.0.0.2/32'],
         };
       }
       return { type: l.protocol, tag: l.tag };

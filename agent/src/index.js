@@ -15,8 +15,12 @@ const CONFIG_PATH = process.env.XRAY_CONFIG_PATH || '/etc/xray/config.json';
 const XRAY_BIN = process.env.XRAY_BIN || 'xray';
 const XRAY_SERVICE = process.env.XRAY_SERVICE || 'xray';
 const BACKUP_DIR = process.env.BACKUP_DIR || path.join(path.dirname(CONFIG_PATH), 'backups');
+const SINGBOX_CONFIG_PATH = process.env.SINGBOX_CONFIG_PATH || '/etc/sing-box/config.json';
+const SINGBOX_BIN = process.env.SINGBOX_BIN || 'sing-box';
+const SINGBOX_SERVICE = process.env.SINGBOX_SERVICE || 'sing-box';
 
 let xrayStatus = 'unknown';
+let singboxStatus = 'unknown';
 let lastGood = null;
 let lastConfigVersion = 0;
 let lastNet = null;
@@ -64,7 +68,40 @@ function validateConfig(config) {
   }
 }
 
+function validateSingbox(config) {
+  if (!config || typeof config !== 'object') throw new Error('Sing-box config must be an object');
+  if (!Array.isArray(config.inbounds)) throw new Error('sing-box inbounds must be an array');
+  if (!Array.isArray(config.outbounds)) throw new Error('sing-box outbounds must be an array');
+}
+
+async function applySingboxConfig(config, version) {
+  validateSingbox(config);
+  fs.mkdirSync(path.dirname(SINGBOX_CONFIG_PATH), { recursive: true });
+  const tmp = path.join(path.dirname(SINGBOX_CONFIG_PATH), `singbox-candidate-${Date.now()}.json`);
+  fs.writeFileSync(tmp, JSON.stringify(config, null, 2));
+  const test = await run(SINGBOX_BIN, ['check', '-c', tmp], 8000);
+  if (!test.ok && !test.error?.includes('ENOENT')) {
+    fs.unlinkSync(tmp);
+    throw new Error(`sing-box config check failed: ${test.stderr || test.error}`);
+  }
+  fs.copyFileSync(tmp, SINGBOX_CONFIG_PATH);
+  fs.unlinkSync(tmp);
+  const reload = await run('systemctl', ['reload-or-restart', SINGBOX_SERVICE], 10000);
+  singboxStatus = reload.ok ? 'running' : 'error';
+  return { engine: 'sing-box', applied: true, reloaded: reload.ok, version: version || lastConfigVersion };
+}
+
 async function applyConfig(config, version) {
+  if (config && (config.xray || config.singbox)) {
+    const results = [];
+    if (config.xray) results.push(await applyXrayConfig(config.xray, version));
+    if (config.singbox) results.push(await applySingboxConfig(config.singbox, version));
+    return { applied: true, engines: results, version: version || lastConfigVersion };
+  }
+  return applyXrayConfig(config, version);
+}
+
+async function applyXrayConfig(config, version) {
   validateConfig(config);
   ensureDirs();
   const tmp = path.join(BACKUP_DIR, `candidate-${Date.now()}.json`);
@@ -116,6 +153,7 @@ async function collectMetrics() {
     trafficDown,
     connections: 0,
     xray: xrayStatus,
+    singbox: singboxStatus,
   };
 }
 
@@ -161,7 +199,13 @@ async function pullConfig() {
 }
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', nodeId: NODE_ID, xray: xrayStatus, version: lastConfigVersion });
+  res.json({
+    status: 'ok',
+    nodeId: NODE_ID,
+    xray: xrayStatus,
+    singbox: singboxStatus,
+    version: lastConfigVersion,
+  });
 });
 
 app.get('/metrics', auth, async (req, res) => {

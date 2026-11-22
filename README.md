@@ -21,6 +21,9 @@ Self-hosted control panel for **Xray-core** with multi-node agents, client manag
 - Payments, plans, trials, referrals and resellers (extensible).
 - Telegram bot and notifications (Telegram, email, webhook).
 - Dark/light theme, Russian and English UI, mobile responsive.
+- Searchable, sortable, paginated tables; user edit forms and dashboard charts.
+- Hysteria2 / TUIC / WireGuard via a sing-box adapter on the node.
+- Prometheus metrics and a pre-provisioned Grafana dashboard; Kubernetes manifests.
 
 ## Architecture
 
@@ -64,6 +67,7 @@ Self-hosted control panel for **Xray-core** with multi-node agents, client manag
 | Agent | **Node.js** | Lightweight, same language as backend, simple deployment |
 | Proxy / TLS | **Caddy** | Automatic HTTPS, simple config |
 | Containers | **Docker Compose** | Sufficient for 5k users / 20 nodes, simple ops |
+| Containers (alt) | **Kubernetes** | `k8s/` Kustomize manifests with Ingress and TLS |
 
 ## Repository structure
 
@@ -78,6 +82,7 @@ XreyStudioServer/
 ├── frontend/                # Next.js admin + subscription page
 │   └── src/app/{dashboard,sub/[token]}
 ├── agent/                   # Node agent for Xray nodes
+├── k8s/                     # Kubernetes (Kustomize) manifests
 ├── monitoring/              # Prometheus config and Grafana dashboards
 ├── scripts/                 # backup and restore helpers
 ├── docs/                    # architecture, install, API
@@ -155,7 +160,7 @@ AGENT_TOKEN=random-agent-token
 CORS_ORIGIN=https://example.com
 ```
 
-Optional: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (required for Stripe webhooks), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_KEEP`, `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS to agents).
+Optional: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (required for Stripe webhooks), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_KEEP`, `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS to agents), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (non-Xray protocols).
 
 ## API
 
@@ -197,6 +202,8 @@ Supported outputs:
 - JSON
 
 The format is selected by the client `User-Agent`; the page also provides QR codes and per-platform instructions.
+Hysteria2, TUIC and WireGuard clients are exported as native `hysteria2://`, `tuic://` and
+`wireguard://` links plus Clash Meta / sing-box proxy entries.
 
 ## Security
 
@@ -227,6 +234,21 @@ make restore FILE=backups/db-20260101-120000.sql.gz
 
 Backups are gzip-compressed PostgreSQL dumps stored in `backups/`; `BACKUP_KEEP` controls retention (default 7).
 
+## Protocol adapters
+
+Xray-core handles VLESS, VMess, Trojan and Shadowsocks. Hysteria2, TUIC and WireGuard are
+generated as a separate [sing-box](https://sing-box.sagernet.org/) config because Xray does not
+implement them. The panel sends a dual config (`xray` + `singbox`) to the agent, which validates
+each engine (`xray run -test` / `sing-box check`) and restarts the corresponding service. Install
+`sing-box` on nodes that use these protocols; nodes without external inbounds keep the legacy
+single-engine Xray config. Subscription exports include native links for all three protocols.
+
+## Kubernetes
+
+`k8s/` contains Kustomize manifests for PostgreSQL, Redis, API, panel, agent and Ingress.
+See `k8s/README.md` for image builds, secrets and apply steps. It is an alternative to Compose,
+not an additional requirement.
+
 ## Development
 
 ```bash
@@ -249,10 +271,9 @@ cd agent && npm install && npm start
 
 ## Roadmap
 
-- Full CRUD UI for inbounds/hosts/rules.
-- Xray config validation and rollback UI.
-- Hysteria2 / TUIC / WireGuard adapters.
-- Kubernetes manifests.
+- Full CRUD UI for hosts/rules and Xray config rollback.
+- Grafana alerting rules and scheduled backup cron example.
+- Argon2id password hashing option.
 
 ## License
 

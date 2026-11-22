@@ -1,12 +1,24 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
+import DataTable from '../../components/data-table';
+
+type InboundRow = {
+  id: string;
+  tag: string;
+  protocol: string;
+  port: number;
+  transport?: string;
+  security?: string;
+  node?: { name: string } | null;
+};
 
 export default function InboundsPage() {
   const { t } = useLang();
-  const [inbounds, setInbounds] = useState<any[]>([]);
-  const [nodes, setNodes] = useState<any[]>([]);
+  const [inbounds, setInbounds] = useState<InboundRow[]>([]);
+  const [nodes, setNodes] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [tag, setTag] = useState('');
   const [protocol, setProtocol] = useState('vless');
@@ -55,6 +67,37 @@ export default function InboundsPage() {
     }
   };
 
+  const remove = async (id: string) => {
+    if (!confirm('Delete inbound?')) return;
+    await api.delete(`/api/inbounds/${id}`);
+    load();
+  };
+
+  const columns = useMemo<ColumnDef<InboundRow>[]>(
+    () => [
+      { accessorKey: 'tag', header: t.name },
+      { accessorKey: 'protocol', header: 'Protocol' },
+      { accessorKey: 'port', header: t.port },
+      {
+        id: 'node',
+        header: 'Node',
+        accessorFn: (row) => row.node?.name || 'Global',
+        enableSorting: false,
+      },
+      {
+        id: 'actions',
+        header: t.actions,
+        enableSorting: false,
+        cell: ({ row }) => (
+          <button onClick={() => remove(row.original.id)} className="text-red-500">
+            {t.delete}
+          </button>
+        ),
+      },
+    ],
+    [t],
+  );
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">{t.inbounds}</h1>
@@ -67,7 +110,11 @@ export default function InboundsPage() {
           className="rounded border px-3 py-2 dark:bg-gray-800"
           required
         />
-        <select value={protocol} onChange={(e) => setProtocol(e.target.value)} className="rounded border px-3 py-2 dark:bg-gray-800">
+        <select
+          value={protocol}
+          onChange={(e) => setProtocol(e.target.value)}
+          className="rounded border px-3 py-2 dark:bg-gray-800"
+        >
           <option value="vless">VLESS</option>
           <option value="vmess">VMess</option>
           <option value="trojan">Trojan</option>
@@ -75,48 +122,31 @@ export default function InboundsPage() {
         </select>
         <input
           type="number"
+          min={1}
+          max={65535}
           placeholder={t.port}
           value={port}
           onChange={(e) => setPort(Number(e.target.value))}
           className="w-24 rounded border px-3 py-2 dark:bg-gray-800"
         />
-        <select value={nodeId} onChange={(e) => setNodeId(e.target.value)} className="rounded border px-3 py-2 dark:bg-gray-800">
+        <select
+          value={nodeId}
+          onChange={(e) => setNodeId(e.target.value)}
+          className="rounded border px-3 py-2 dark:bg-gray-800"
+        >
           <option value="">Global</option>
           {nodes.map((node) => (
-            <option key={node.id} value={node.id}>{node.name}</option>
+            <option key={node.id} value={node.id}>
+              {node.name}
+            </option>
           ))}
         </select>
-        <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">{t.create}</button>
+        <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">
+          {t.create}
+        </button>
       </form>
 
-      <div className="overflow-x-auto rounded border bg-white dark:bg-gray-900">
-        <table className="w-full text-sm">
-          <thead className="border-b bg-gray-50 dark:bg-gray-800">
-            <tr>
-              <th className="p-2 text-left">{t.name}</th>
-              <th className="p-2 text-left">Protocol</th>
-              <th className="p-2 text-left">{t.port}</th>
-              <th className="p-2 text-left">Node</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td className="p-4" colSpan={4}>{t.loading}</td></tr>
-            ) : inbounds.length === 0 ? (
-              <tr><td className="p-4" colSpan={4}>{t.noData}</td></tr>
-            ) : (
-              inbounds.map((inbound) => (
-                <tr key={inbound.id} className="border-b">
-                  <td className="p-2">{inbound.tag}</td>
-                  <td className="p-2">{inbound.protocol}</td>
-                  <td className="p-2">{inbound.port}</td>
-                  <td className="p-2">{inbound.node?.name || 'Global'}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable data={inbounds} columns={columns} loading={loading} getRowId={(row) => row.id} />
     </div>
   );
 }

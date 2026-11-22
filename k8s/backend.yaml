@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: xss
+spec:
+  selector:
+    app: backend
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: xss
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      initContainers:
+        - name: migrate
+          image: xss-backend:1.1.1
+          command: ["npx", "prisma", "db", "push", "--skip-generate"]
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: xss-secrets
+                  key: POSTGRES_PASSWORD
+            - name: DATABASE_URL
+              value: "postgres://xss:$(POSTGRES_PASSWORD)@postgres:5432/xss"
+      containers:
+        - name: backend
+          image: xss-backend:1.1.1
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: xss-config
+            - secretRef:
+                name: xss-secrets
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: xss-secrets
+                  key: POSTGRES_PASSWORD
+            - name: DATABASE_URL
+              value: "postgres://xss:$(POSTGRES_PASSWORD)@postgres:5432/xss"
+            - name: REDIS_URL
+              value: "redis://redis:6379"
+          readinessProbe:
+            httpGet:
+              path: /api/health/ready
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health/live
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 20

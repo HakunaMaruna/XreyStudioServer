@@ -1,11 +1,21 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
+import DataTable from '../../components/data-table';
+
+type NodeRow = {
+  id: string;
+  name: string;
+  address: string;
+  port: number;
+  status: string;
+};
 
 export default function NodesPage() {
   const { t } = useLang();
-  const [nodes, setNodes] = useState<any[]>([]);
+  const [nodes, setNodes] = useState<NodeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
@@ -54,6 +64,42 @@ export default function NodesPage() {
     load();
   };
 
+  const columns = useMemo<ColumnDef<NodeRow>[]>(
+    () => [
+      { accessorKey: 'name', header: t.name },
+      {
+        id: 'address',
+        header: t.address,
+        accessorFn: (row) => `${row.address}:${row.port}`,
+      },
+      {
+        accessorKey: 'status',
+        header: t.status,
+        cell: ({ row }) => (
+          <span className={row.original.status === 'ONLINE' ? 'text-green-500' : 'text-gray-500'}>
+            {row.original.status}
+          </span>
+        ),
+      },
+      {
+        id: 'actions',
+        header: t.actions,
+        enableSorting: false,
+        cell: ({ row }) => (
+          <div className="space-x-3">
+            <button onClick={() => apply(row.original.id)} className="text-blue-500">
+              {t.apply}
+            </button>
+            <button onClick={() => restart(row.original.id)} className="text-orange-500">
+              {t.restart}
+            </button>
+          </div>
+        ),
+      },
+    ],
+    [t],
+  );
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">{t.nodes}</h1>
@@ -73,44 +119,12 @@ export default function NodesPage() {
           className="rounded border px-3 py-2 dark:bg-gray-800"
           required
         />
-        <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">{t.create}</button>
+        <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">
+          {t.create}
+        </button>
       </form>
 
-      <div className="overflow-x-auto rounded border bg-white dark:bg-gray-900">
-        <table className="w-full text-sm">
-          <thead className="border-b bg-gray-50 dark:bg-gray-800">
-            <tr>
-              <th className="p-2 text-left">{t.name}</th>
-              <th className="p-2 text-left">{t.address}</th>
-              <th className="p-2 text-left">{t.status}</th>
-              <th className="p-2 text-left">{t.actions}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td className="p-4" colSpan={4}>{t.loading}</td></tr>
-            ) : nodes.length === 0 ? (
-              <tr><td className="p-4" colSpan={4}>{t.noData}</td></tr>
-            ) : (
-              nodes.map((node) => (
-                <tr key={node.id} className="border-b">
-                  <td className="p-2">{node.name}</td>
-                  <td className="p-2">{node.address}:{node.port}</td>
-                  <td className="p-2">
-                    <span className={node.status === 'ONLINE' ? 'text-green-500' : 'text-gray-500'}>
-                      {node.status}
-                    </span>
-                  </td>
-                  <td className="p-2 space-x-2">
-                    <button onClick={() => apply(node.id)} className="text-blue-500">{t.apply}</button>
-                    <button onClick={() => restart(node.id)} className="text-orange-500">{t.restart}</button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable data={nodes} columns={columns} loading={loading} getRowId={(row) => row.id} />
     </div>
   );
 }

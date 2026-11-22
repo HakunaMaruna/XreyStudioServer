@@ -2,6 +2,8 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { PrismaService } from '../../prisma/prisma.service';
 import { AgentClientService } from './agent-client.service';
 
+const EXTERNAL_PROTOCOLS = ['hysteria2', 'tuic', 'wireguard'];
+
 @Injectable()
 export class ConfigGeneratorService {
   private readonly logger = new Logger(ConfigGeneratorService.name);
@@ -74,6 +76,57 @@ export class ConfigGeneratorService {
     return stream;
   }
 
+  private buildSingbox(inbounds: any[], users: any[]) {
+    return {
+      log: { level: 'warn' },
+      inbounds: inbounds.map((inbound) => {
+        const settings = (inbound.settings || {}) as any;
+        const selected = inbound.userId
+          ? users.filter((u) => u.id === inbound.userId)
+          : users;
+        const base = {
+          type: inbound.protocol,
+          tag: inbound.tag,
+          listen: settings.listen || '::',
+          listen_port: inbound.port,
+        };
+        if (inbound.protocol === 'hysteria2') {
+          return {
+            ...base,
+            users: selected.map((u) => ({ name: u.email, password: u.subscriptionToken })),
+            tls: {
+              enabled: true,
+              certificate_path: settings.certPath || '/etc/sing-box/cert.pem',
+              key_path: settings.keyPath || '/etc/sing-box/key.pem',
+            },
+          };
+        }
+        if (inbound.protocol === 'tuic') {
+          return {
+            ...base,
+            users: selected.map((u) => ({
+              name: u.email,
+              uuid: u.id,
+              password: u.subscriptionToken,
+            })),
+            congestion_control: settings.congestionControl || 'cubic',
+            tls: {
+              enabled: true,
+              certificate_path: settings.certPath || '/etc/sing-box/cert.pem',
+              key_path: settings.keyPath || '/etc/sing-box/key.pem',
+            },
+          };
+        }
+        return {
+          ...base,
+          private_key: settings.privateKey || '',
+          peers: settings.peers || [],
+        };
+      }),
+      outbounds: [{ type: 'direct', tag: 'direct' }],
+    };
+  }
+
   async generateConfig(nodeId: string) {
     const node = await this.prisma.node.findUnique({
       where: { id: nodeId },
@@ -90,7 +143,10 @@ export class ConfigGeneratorService {
     });
     const rules = await this.prisma.rule.findMany({ where: { enabled: true } });
 
-    const inbounds = node.inbounds.map((inbound) => {
+    const externalInbounds = node.inbounds.filter((i) => EXTERNAL_PROTOCOLS.includes(i.protocol));
+    const xrayInbounds = node.inbounds.filter((i) => !EXTERNAL_PROTOCOLS.includes(i.protocol));
+
+    const inbounds = xrayInbounds.map((inbound) => {
       const settings = (inbound.settings || {}) as any;
       const selected = inbound.userId
         ? users.filter((u) => u.id === inbound.userId)
@@ -139,12 +195,28 @@ export class ConfigGeneratorService {
       },
     };
 
-    this.validateConfig(config);
-    return { node, config };
+    const dualConfig = {
+      xray: config,
+      singbox: externalInbounds.length ? this.buildSingbox(externalInbounds, users) : null,
+    };
+    this.validateConfig(externalInbounds.length ? dualConfig : config);
+    return { node, config: externalInbounds.length ? dualConfig : config };
   }
 
   validateConfig(config: any) {
     if (!config || typeof config !== 'object') throw new BadRequestException('Invalid config');
+    if (config.xray || config.singbox) {
+      if (config.xray) this.validateConfig(config.xray);
+      if (config.singbox) {
+        if (!Array.isArray(config.singbox.inbounds)) {
+          throw new BadRequestException('singbox.inbounds must be an array');
+        }
+        if (!Array.isArray(config.singbox.outbounds)) {
+          throw new BadRequestException('singbox.outbounds must be an array');
+        }
+      }
+      return true;
+    }
     if (!Array.isArray(config.inbounds)) throw new BadRequestException('inbounds must be an array');
     if (!Array.isArray(config.outbounds)) throw new BadRequestException('outbounds must be an array');
     const tags = new Set<string>();
