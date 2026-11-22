@@ -1,4 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -66,6 +72,7 @@ export class PaymentsService {
   async markPaid(id: string) {
     const payment = await this.prisma.payment.findUnique({ where: { id } });
     if (!payment) throw new NotFoundException('Payment not found');
+    if (payment.status === 'paid') return payment;
     const updated = await this.prisma.payment.update({
       where: { id },
       data: { status: 'paid' },
@@ -77,6 +84,49 @@ export class PaymentsService {
       status: updated.status,
     });
     return updated;
+  }
+
+  private verifyStripeSignature(payload: Buffer | undefined, header: string | undefined) {
+    const secret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!secret) {
+      throw new InternalServerErrorException('STRIPE_WEBHOOK_SECRET is not configured');
+    }
+    if (!payload || !header) {
+      throw new BadRequestException('Missing Stripe signature');
+    }
+
+    const parts = header.split(',').map((part) => part.split('='));
+    const timestamp = Number(parts.find(([key]) => key === 't')?.[1]);
+    const signatures = parts.filter(([key]) => key === 'v1').map(([, value]) => value);
+    if (!Number.isSafeInteger(timestamp) || signatures.length === 0) {
+      throw new BadRequestException('Invalid Stripe signature header');
+    }
+    if (Math.abs(Date.now() / 1000 - timestamp) > 300) {
+      throw new BadRequestException('Stripe timestamp outside tolerance');
+    }
+
+    const expected = createHmac('sha256', secret)
+      .update(`${timestamp}.`)
+      .update(payload)
+      .digest();
+    const valid = signatures.some((signature) => {
+      const provided = Buffer.from(signature, 'hex');
+      return provided.length === expected.length && timingSafeEqual(provided, expected);
+    });
+    if (!valid) {
+      throw new BadRequestException('Invalid Stripe signature');
+    }
+  }
+
+  async handleWebhook(rawBody: Buffer | undefined, signature: string | undefined) {
+    this.verifyStripeSignature(rawBody, signature);
+    let payload: any;
+    try {
+      payload = JSON.parse(rawBody!.toString('utf8'));
+    } catch {
+      throw new BadRequestException('Invalid payload');
+    }
+    return this.webhook(payload);
   }
 
   async webhook(payload: any) {

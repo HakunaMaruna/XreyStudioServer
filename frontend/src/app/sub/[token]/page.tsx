@@ -1,25 +1,38 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useLang } from '../../lib/i18n';
+import { useParams } from 'next/navigation';
+import { useLang } from '../../../lib/i18n';
 
-export default function SubscriptionPage({ params }: { params: { token: string } }) {
+type SubNode = { id: string; name: string; address: string };
+type SubLink = { id: string; tag: string; protocol: string; link: string };
+type SubData = {
+  status: string;
+  expiresAt: string | null;
+  trafficUsed: number;
+  trafficLimit: number;
+  nodes?: SubNode[];
+  links?: SubLink[];
+};
+
+export default function SubscriptionPage() {
   const { t } = useLang();
-  const [data, setData] = useState<any>(null);
+  const { token } = useParams<{ token: string }>();
+  const [data, setData] = useState<SubData | null>(null);
   const [format, setFormat] = useState('json');
   const [output, setOutput] = useState('');
 
   useEffect(() => {
     const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
-    fetch(`${apiBase}/api/subscriptions/${params.token}?format=json`)
+    fetch(`${apiBase}/api/subscriptions/${token}?format=json`)
       .then((r) => r.json())
       .then(setData)
       .catch(() => setData(null));
-  }, [params.token]);
+  }, [token]);
 
   const loadFormat = async (value: string) => {
     setFormat(value);
     const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
-    const res = await fetch(`${apiBase}/api/subscriptions/${params.token}?format=${value}`);
+    const res = await fetch(`${apiBase}/api/subscriptions/${token}?format=${value}`);
     setOutput(await res.text());
   };
 
@@ -38,7 +51,7 @@ export default function SubscriptionPage({ params }: { params: { token: string }
 
       <div className="rounded border bg-white p-4 shadow-sm dark:bg-gray-900">
         <h2 className="mb-2 text-lg font-semibold">{t.connections}</h2>
-        {data.nodes?.map((node: any) => (
+        {data.nodes?.map((node) => (
           <div key={node.id} className="rounded border p-3">
             <p className="font-medium">{node.name}</p>
             <p className="text-sm text-gray-500">{node.address}</p>
@@ -67,7 +80,7 @@ export default function SubscriptionPage({ params }: { params: { token: string }
       <div className="rounded border bg-white p-4 shadow-sm dark:bg-gray-900">
         <h2 className="mb-2 text-lg font-semibold">{t.links}</h2>
         <div className="space-y-2">
-          {data.links?.map((link: any) => (
+          {data.links?.map((link) => (
             <div key={link.id} className="rounded border p-2">
               <p className="text-xs font-medium">{link.tag} ({link.protocol})</p>
               <code className="break-all text-xs">{link.link}</code>
@@ -75,6 +88,6 @@ export default function SubscriptionPage({ params }: { params: { token: string }
           ))}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

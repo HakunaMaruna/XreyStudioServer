@@ -64,7 +64,7 @@ async function request<T = any>(path: string, options: RequestInit = {}, retry =
 }
 
 export const api = {
-  get: <T = any>(path: string) => request<T>(path),
+  get: <T = any>(path: string, options?: RequestInit) => request<T>(path, options),
   post: <T = any>(path: string, body?: Json) =>
     request<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
   patch: <T = any>(path: string, body?: Json) =>

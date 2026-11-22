@@ -177,7 +177,7 @@ export class ConfigGeneratorService {
     const node = await this.prisma.node.findUnique({ where: { id: nodeId } });
     if (!node) throw new NotFoundException('Node not found');
 
-    let revision = revisionId
+    const revision = revisionId
       ? await this.prisma.configRevision.findFirst({ where: { id: revisionId, nodeId } })
       : await this.createRevision(nodeId);
     if (!revision) throw new NotFoundException('Revision not found');

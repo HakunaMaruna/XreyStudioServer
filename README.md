@@ -78,6 +78,8 @@ XreyStudioServer/
 ├── frontend/                # Next.js admin + subscription page
 │   └── src/app/{dashboard,sub/[token]}
 ├── agent/                   # Node agent for Xray nodes
+├── monitoring/              # Prometheus config and Grafana dashboards
+├── scripts/                 # backup and restore helpers
 ├── docs/                    # architecture, install, API
 ├── .github/workflows/ci.yml # lint, typecheck, build, docker
 ├── docker-compose.yml
@@ -130,8 +132,9 @@ make up          # docker compose up -d
 make down        # docker compose down
 make logs        # follow logs
 make update      # pull, rebuild, restart
-make backup      # PostgreSQL dump
-make restore FILE=backups/db.sql
+make backup      # compressed PostgreSQL dump (keeps last 7)
+make restore FILE=backups/db-YYYYMMDD-HHMMSS.sql.gz
+make monitoring  # start Prometheus + Grafana
 ```
 
 ## Configuration
@@ -152,7 +155,7 @@ AGENT_TOKEN=random-agent-token
 CORS_ORIGIN=https://example.com
 ```
 
-Optional: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `STRIPE_SECRET_KEY`.
+Optional: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (required for Stripe webhooks), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_KEEP`, `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS to agents).
 
 ## API
 
@@ -172,6 +175,8 @@ GET  /api/nodes/:id/health
 GET  /api/subscriptions/:token
 GET  /api/subscriptions/:token/raw
 GET  /api/subscriptions/:token/base64
+GET  /api/metrics
+POST /api/payments/webhook
 GET  /api/health
 ```
 
@@ -198,7 +203,8 @@ The format is selected by the client `User-Agent`; the page also provides QR cod
 - HTTPS is mandatory (Caddy).
 - JWT access + refresh tokens.
 - Password hashing with bcrypt (Argon2id supported).
-- Rate limiting for API and subscription endpoints.
+- Global API rate limiting plus stricter limits on login/refresh.
+- Verified Stripe webhook signatures (HMAC-SHA256, 5-minute tolerance).
 - CSRF/XSS/SQL-injection/IDOR protections.
 - Encrypted node secrets in database.
 - mTLS or signed tokens between panel and agent.
@@ -209,14 +215,17 @@ The format is selected by the client `User-Agent`; the page also provides QR cod
 
 - Built-in node metrics: CPU, RAM, disk, traffic, active connections, Xray state.
 - Health checks and alerts for offline nodes.
-- Prometheus-compatible metrics endpoint (optional extension).
+- Prometheus-compatible endpoint: `GET /api/metrics` (set `METRICS_TOKEN` and send `X-Metrics-Token` when exposed).
+- Optional Prometheus + Grafana stack via `make monitoring`: Prometheus at `:9091`, Grafana at `:3002` with the pre-provisioned `XreyStudioServer — Overview` dashboard.
 
 ## Backup and restore
 
 ```bash
 make backup
-make restore FILE=backups/db-2026-01-01.sql
+make restore FILE=backups/db-20260101-120000.sql.gz
 ```
+
+Backups are gzip-compressed PostgreSQL dumps stored in `backups/`; `BACKUP_KEEP` controls retention (default 7).
 
 ## Development
 
@@ -233,8 +242,8 @@ cd agent && npm install && npm start
 
 ## Testing and CI
 
-- Backend typecheck and tests.
-- Frontend build.
+- `cd backend && npm run typecheck && npm test && npm run build`
+- `cd frontend && npm run lint && npm run build`
 - Docker image build.
 - GitHub Actions workflow: `.github/workflows/ci.yml`.
 
@@ -242,7 +251,6 @@ cd agent && npm install && npm start
 
 - Full CRUD UI for inbounds/hosts/rules.
 - Xray config validation and rollback UI.
-- Prometheus/Grafana dashboards.
 - Hysteria2 / TUIC / WireGuard adapters.
 - Kubernetes manifests.
 

@@ -78,6 +78,8 @@ XreyStudioServer/
 ├── frontend/                # Next.js админка + страница подписки
 │   └── src/app/{dashboard,sub/[token]}
 ├── agent/                   # Node-агент для нод Xray
+├── monitoring/              # конфиги Prometheus и дашборды Grafana
+├── scripts/                 # скрипты бэкапа и восстановления
 ├── docs/                    # архитектура, установка, API
 ├── .github/workflows/ci.yml # lint, typecheck, build, docker
 ├── docker-compose.yml
@@ -130,8 +132,9 @@ make up          # docker compose up -d
 make down        # docker compose down
 make logs        # логи
 make update      # pull, rebuild, restart
-make backup      # дамп PostgreSQL
-make restore FILE=backups/db.sql
+make backup      # сжатый дамп PostgreSQL (последние 7 копий)
+make restore FILE=backups/db-YYYYMMDD-HHMMSS.sql.gz
+make monitoring  # запустить Prometheus + Grafana
 ```
 
 ## Конфигурация
@@ -152,7 +155,7 @@ AGENT_TOKEN=random-agent-token
 CORS_ORIGIN=https://example.com
 ```
 
-Опционально: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `STRIPE_SECRET_KEY`.
+Опционально: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (обязателен для Stripe-вебхуков), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_KEEP`, `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS с агентами).
 
 ## API
 
@@ -172,6 +175,8 @@ GET  /api/nodes/:id/health
 GET  /api/subscriptions/:token
 GET  /api/subscriptions/:token/raw
 GET  /api/subscriptions/:token/base64
+GET  /api/metrics
+POST /api/payments/webhook
 GET  /api/health
 ```
 
@@ -198,7 +203,8 @@ https://<domain>/sub/<token>
 - HTTPS обязателен (Caddy).
 - JWT access + refresh токены.
 - Хеширование паролей bcrypt (поддерживается Argon2id).
-- Rate limiting для API и подписок.
+- Глобальный rate limiting API + отдельные лимиты на логин/refresh.
+- Проверка подписи Stripe-вебхуков (HMAC-SHA256, допуск 5 минут).
 - Защита от CSRF/XSS/SQL-инъекций/IDOR.
 - Шифрование секретов нод в БД.
 - mTLS или подписанные токены между панелью и агентом.
@@ -209,14 +215,17 @@ https://<domain>/sub/<token>
 
 - Встроенные метрики нод: CPU, RAM, диск, трафик, активные подключения, состояние Xray.
 - Health checks и алерты при недоступности нод.
-- Prometheus-совместимый endpoint (опционально).
+- Prometheus-совместимый endpoint `GET /api/metrics` (при публичном доступе задайте `METRICS_TOKEN` и передавайте заголовок `X-Metrics-Token`).
+- Опциональный стек Prometheus + Grafana через `make monitoring`: Prometheus `:9091`, Grafana `:3002` с предустановленным дашбордом `XreyStudioServer — Overview`.
 
 ## Бэкап и восстановление
 
 ```bash
 make backup
-make restore FILE=backups/db-2026-01-01.sql
+make restore FILE=backups/db-20260101-120000.sql.gz
 ```
+
+Бэкапы — сжатые дампы PostgreSQL в каталоге `backups/`; `BACKUP_KEEP` задаёт число хранимых копий (по умолчанию 7).
 
 ## Разработка
 
@@ -233,8 +242,8 @@ cd agent && npm install && npm start
 
 ## Тесты и CI
 
-- Typecheck и тесты backend.
-- Сборка frontend.
+- `cd backend && npm run typecheck && npm test && npm run build`
+- `cd frontend && npm run lint && npm run build`
 - Сборка Docker-образов.
 - GitHub Actions: `.github/workflows/ci.yml`.
 
@@ -242,7 +251,6 @@ cd agent && npm install && npm start
 
 - Полный CRUD UI для inbound/hosts/rules.
 - UI проверки и отката конфигураций Xray.
-- Дашборды Prometheus/Grafana.
 - Адаптеры Hysteria2 / TUIC / WireGuard.
 - Kubernetes-манифесты.
 

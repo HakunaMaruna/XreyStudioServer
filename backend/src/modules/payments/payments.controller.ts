@@ -1,5 +1,17 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import type { RawBodyRequest } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import type { Request } from 'express';
 import { Role } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -10,8 +22,12 @@ export class PaymentsController {
   constructor(private service: PaymentsService) {}
 
   @Post('webhook')
-  webhook(@Body() body: any) {
-    return this.service.webhook(body);
+  @HttpCode(200)
+  webhook(
+    @Req() req: RawBodyRequest<Request>,
+    @Headers('stripe-signature') signature: string,
+  ) {
+    return this.service.handleWebhook(req.rawBody, signature);
   }
 
   @Get()

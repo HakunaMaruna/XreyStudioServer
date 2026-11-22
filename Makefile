@@ -1,4 +1,4 @@
-.PHONY: install up down logs update backup restore
+.PHONY: install up down logs update backup restore monitoring
 
 install:
 	bash install.sh
@@ -12,11 +12,15 @@ down:
 logs:
 	docker compose logs -f
 
+monitoring:
+	docker compose --profile monitoring up -d prometheus grafana
+
 update:
 	git pull && docker compose build && docker compose up -d
 
 backup:
-	mkdir -p backups && docker compose exec -T postgres pg_dump -U $$POSTGRES_USER $$POSTGRES_DB > backups/db-$$(date +%F).sql
+	bash scripts/backup.sh
 
 restore:
-	@echo "Usage: make restore FILE=backups/db.sql"; docker compose exec -T postgres psql -U $$POSTGRES_USER $$POSTGRES_DB < $$FILE
+	@test -n "$(FILE)" || (echo "Usage: make restore FILE=backups/db-YYYYMMDD-HHMMSS.sql.gz" >&2; exit 1)
+	bash scripts/restore.sh "$(FILE)"

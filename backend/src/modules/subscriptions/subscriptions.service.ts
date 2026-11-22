@@ -5,7 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class SubscriptionsService {
   constructor(private prisma: PrismaService) {}
 
-  private base64(value: string) {
+  private encodeBase64(value: string) {
     return Buffer.from(value).toString('base64').replace(/=+$/, '');
   }
 
@@ -46,7 +46,7 @@ export class SubscriptionsService {
         return `trojan://${user.subscriptionToken}@${host}:${port}?${params.toString()}#${tag}`;
       case 'shadowsocks': {
         const method = settings.method || 'aes-256-gcm';
-        const userInfo = this.base64(`${method}:${user.subscriptionToken}`);
+        const userInfo = this.encodeBase64(`${method}:${user.subscriptionToken}`);
         return `ss://${userInfo}@${host}:${port}#${tag}`;
       }
       case 'vmess': {

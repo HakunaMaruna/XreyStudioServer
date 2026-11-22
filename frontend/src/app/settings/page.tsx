@@ -15,7 +15,7 @@ export default function SettingsPage() {
     }
     const stored = localStorage.getItem('xss_theme') || 'light';
     setTheme(stored);
-    api.get('/api/metrics', { headers: { 'X-Metrics-Token': process.env.NEXT_PUBLIC_METRICS_TOKEN || '' } } as any)
+    api.get('/api/metrics', { headers: { 'X-Metrics-Token': process.env.NEXT_PUBLIC_METRICS_TOKEN || '' } })
       .then((value) => setMetrics(String(value)))
       .catch(() => setMetrics(''));
   }, []);

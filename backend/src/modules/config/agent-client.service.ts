@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { readFileSync } from 'fs';
 import * as http from 'http';
 import * as https from 'https';
 import { URL } from 'url';
@@ -25,9 +26,9 @@ export class AgentClientService {
         timeout: timeoutMs,
         ...(isHttps
           ? {
-              ca: process.env.AGENT_CA ? require('fs').readFileSync(process.env.AGENT_CA) : undefined,
-              cert: process.env.AGENT_CERT ? require('fs').readFileSync(process.env.AGENT_CERT) : undefined,
-              key: process.env.AGENT_KEY ? require('fs').readFileSync(process.env.AGENT_KEY) : undefined,
+              ca: process.env.AGENT_CA ? readFileSync(process.env.AGENT_CA) : undefined,
+              cert: process.env.AGENT_CERT ? readFileSync(process.env.AGENT_CERT) : undefined,
+              key: process.env.AGENT_KEY ? readFileSync(process.env.AGENT_KEY) : undefined,
             }
           : {}),
       };

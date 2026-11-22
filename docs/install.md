@@ -11,9 +11,28 @@
 - all-in-one: everything
 
 ## Steps
-1. Copy `.env.example` to `.env`
-2. Run `./install.sh <mode> <domain>`
-3. Open `https://<domain>`
+1. Copy `.env.example` to `.env` and set secrets (JWT, admin, POSTGRES_PASSWORD).
+2. Run `./install.sh <mode> <domain>`.
+3. Open `https://<domain>`.
 
 ## Makefile
-- `make install`, `make up`, `make down`, `make logs`, `make update`, `make backup`, `make restore`
+- `make install`, `make up`, `make down`, `make logs`, `make update`
+- `make backup` — gzip PostgreSQL dump into `backups/` (retention: `BACKUP_KEEP`, default 7)
+- `make restore FILE=backups/db-YYYYMMDD-HHMMSS.sql.gz`
+- `make monitoring` — Prometheus (`:9091`) + Grafana (`:3002`, password `GRAFANA_PASSWORD`)
+
+## Monitoring
+The monitoring services are behind the `monitoring` Compose profile and are not started by
+`docker compose up` unless the profile is enabled. Grafana comes with the Prometheus datasource
+and the `XreyStudioServer — Overview` dashboard pre-provisioned from `monitoring/`.
+If you set `METRICS_TOKEN`, pass the same value as `X-Metrics-Token` in the Prometheus scrape
+configuration (or leave it unset and keep `backend:3000` reachable only inside the Compose network).
+
+## Stripe webhooks
+Set both `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`. The webhook endpoint verifies the
+`Stripe-Signature` header against the raw request body (HMAC-SHA256, 5-minute tolerance) and
+ignores duplicate `checkout.session.completed` events for already paid invoices.
+
+## Agent mTLS
+For HTTPS agent URLs, set `AGENT_CA`, `AGENT_CERT` and `AGENT_KEY` to PEM file paths readable by
+the backend container. Without these, signed `AGENT_TOKEN`/`AGENT_SECRET` headers are used.

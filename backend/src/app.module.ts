@@ -22,7 +22,12 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: Number(process.env.THROTTLE_TTL ?? 60_000),
+        limit: Number(process.env.THROTTLE_LIMIT ?? 120),
+      },
+    ]),
     PrismaModule,
     AuthModule,
     UsersModule,

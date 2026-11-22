@@ -9,7 +9,10 @@ jobs:
         with:
           node-version: 20
       - run: cd backend && npm ci
-      - run: cd backend && npx tsc --noEmit
+      - run: cd backend && npm run typecheck
+      - run: cd backend && npm run lint
+      - run: cd backend && npm test -- --runInBand
+      - run: cd backend && npm run build
   frontend:
     runs-on: ubuntu-latest
     steps:
@@ -18,6 +21,7 @@ jobs:
         with:
           node-version: 20
       - run: cd frontend && npm ci
+      - run: cd frontend && npm run lint
       - run: cd frontend && npm run build
   docker:
     runs-on: ubuntu-latest

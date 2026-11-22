@@ -48,6 +48,7 @@ const dict = {
     expiry: 'Действует до',
     availableFormats: 'Форматы подписки',
     instructions: 'Инструкции',
+    links: 'Ссылки',
   },
   en: {
     dashboard: 'Dashboard',
@@ -95,6 +96,7 @@ const dict = {
     expiry: 'Expires',
     availableFormats: 'Subscription formats',
     instructions: 'Instructions',
+    links: 'Links',
   },
 };
 
