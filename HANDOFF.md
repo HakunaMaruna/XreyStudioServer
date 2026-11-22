@@ -8,15 +8,15 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 Self-hosted control panel for Xray-core: web UI, multi-node agents, clients, subscriptions,
 payments, notifications, monitoring, Docker Compose installation. Target scale: 5k users / 20 nodes.
 
-## Current state (v1.4.0, 2026-11-22)
+## Current state (v1.4.1, 2026-11-22)
 
 - Source of truth: `/work/XreyStudioServer` (working copy) and the git repo
   `/tmp/opencode/XSS_REPO` (remote: https://github.com/HakunaMaruna/XreyStudioServer).
-- Published: tag/release `v1.4.0`,
-  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.4.0,
-  bundle `/work/XreyStudioServer/XSS_v1.4.0.bundle`.
-  Previous releases: `v1.3.0` (notifications, alert history, sorting, real PostgreSQL e2e),
-  `v1.2.0`, `v1.1.1`, `v1.1.0`, `v1.0.0`.
+- Published: tag/release `v1.4.1` (hotfix),
+  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.4.1,
+  bundle `/work/XreyStudioServer/XSS_v1.4.1.bundle`.
+  Previous releases: `v1.4.0` (traffic, logs, admin UI), `v1.3.0` (notifications, alert history,
+  sorting, real PostgreSQL e2e), `v1.2.0`, `v1.1.1`, `v1.1.0`, `v1.0.0`.
 - Stack: NestJS + Prisma/PostgreSQL + Redis, Next.js 16 + React 19, Node agent, Caddy, Docker Compose.
 - Backend modules: auth (JWT + refresh + RBAC + Argon2id/bcrypt), users, nodes, inbounds, hosts,
   rules, config generator (revisions/apply/rollback), subscriptions (raw/base64/clash/singbox/json),
@@ -42,6 +42,12 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
   run locally (CI builds the images). Node here is v20.15.1; Next 16 wants >=20.19, but the
   production build passed.
 - GitHub push works via the credential store in `/root/.git-credentials`.
+
+## Done in v1.4.1
+
+- Hotfix: subscription status now reports `exceeded` before checking `status === EXPIRED`, so a
+  quota-triggered expiry is distinguishable from an admin-set expiry (the real-PostgreSQL e2e
+  failure in v1.4.0). Versions bumped to 1.4.1.
 
 ## Done in v1.4.0
 

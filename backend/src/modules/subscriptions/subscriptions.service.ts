@@ -128,14 +128,14 @@ export class SubscriptionsService {
       token,
       user: { id: user.id, email: user.email },
       status:
-        user.status !== 'ACTIVE'
-          ? user.status === 'DISABLED'
-            ? 'disabled'
-            : 'expired'
-          : user.expiresAt && user.expiresAt.getTime() <= Date.now()
-            ? 'expired'
-            : user.trafficLimit > 0n && user.trafficUsed >= user.trafficLimit
-              ? 'exceeded'
+        user.trafficLimit > 0n && user.trafficUsed >= user.trafficLimit
+          ? 'exceeded'
+          : user.status !== 'ACTIVE'
+            ? user.status === 'DISABLED'
+              ? 'disabled'
+              : 'expired'
+            : user.expiresAt && user.expiresAt.getTime() <= Date.now()
+              ? 'expired'
               : 'active',
       expiresAt: user.expiresAt,
       trafficUsed: Number(user.trafficUsed),
