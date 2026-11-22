@@ -12,6 +12,9 @@ import {
 
 type NodeRow = { id: string; name: string; address: string; port: number; status: string };
 type RevisionRow = { id: string; version: number; applied: boolean; createdAt: string };
+type LogEntry = { timestamp: string; level: string; message: string };
+type NodeLogs = { nodeId: string; logs: LogEntry[] };
+
 type NodeHealth = {
   nodeId: string;
   status: string;
@@ -42,6 +45,9 @@ export default function NodesPage() {
   const [healthNode, setHealthNode] = useState<NodeRow | null>(null);
   const [health, setHealth] = useState<NodeHealth | null>(null);
   const [healthLoading, setHealthLoading] = useState(false);
+  const [logsNode, setLogsNode] = useState<NodeRow | null>(null);
+  const [logsData, setLogsData] = useState<NodeLogs | null>(null);
+  const [logsLoading, setLogsLoading] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
@@ -145,6 +151,20 @@ export default function NodesPage() {
     }
   };
 
+  const openLogs = async (node: NodeRow) => {
+    setLogsNode(node);
+    setLogsData(null);
+    setLogsLoading(true);
+    try {
+      const data = await api.get(`/api/nodes/${node.id}/logs?limit=200`);
+      setLogsData(data);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
   const columns = useMemo<ColumnDef<NodeRow>[]>(
     () => [
       {
@@ -180,6 +200,7 @@ export default function NodesPage() {
         cell: ({ row }) => (
           <div className="flex items-center gap-1">
             <IconButton icon="activity" label={t.health} onClick={() => openHealth(row.original)} />
+            <IconButton icon="terminal" label={t.logs} onClick={() => openLogs(row.original)} />
             <IconButton icon="play" label={t.apply} tone="brand" onClick={() => apply(row.original.id)} />
             <IconButton icon="refresh" label={t.restart} onClick={() => restart(row.original.id)} />
             <IconButton icon="history" label={t.revisions} onClick={() => openRevisions(row.original)} />
@@ -310,6 +331,35 @@ export default function NodesPage() {
           </div>
         ) : (
           <div className="py-12 text-center text-xs text-subtle">{t.noData}</div>
+        )}
+      </Modal>
+
+      <Modal
+        open={Boolean(logsNode)}
+        onClose={() => { setLogsNode(null); setLogsData(null); }}
+        title={t.logs}
+        subtitle={logsNode?.name}
+        icon={<Icon name="terminal" size={16} />}
+        size="lg"
+      >
+        {logsLoading ? (
+          <div className="flex items-center justify-center gap-2 py-12 text-xs text-muted">
+            <Icon name="refresh" size={15} className="animate-spin text-brand" />{t.loading}
+          </div>
+        ) : logsData?.logs?.length ? (
+          <div className="mono max-h-[60vh] space-y-1 overflow-y-auto rounded-xl border border-line bg-app/70 p-3 text-[11px] leading-relaxed">
+            {logsData.logs.map((entry, index) => (
+              <div key={`${entry.timestamp}-${index}`} className="flex gap-3">
+                <span className="shrink-0 text-subtle">{new Date(entry.timestamp).toLocaleTimeString()}</span>
+                <span className={entry.level === 'error' ? 'shrink-0 text-danger' : entry.level === 'warn' ? 'shrink-0 text-warning' : 'shrink-0 text-brand'}>
+                  {entry.level.toUpperCase()}
+                </span>
+                <span className="min-w-0 break-all text-muted">{entry.message}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="py-12 text-center text-xs text-subtle">{t.noLogs}</div>
         )}
       </Modal>
     </>

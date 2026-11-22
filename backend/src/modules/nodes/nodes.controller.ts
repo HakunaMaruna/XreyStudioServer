@@ -125,6 +125,13 @@ export class NodesController {
     return this.service.health(id, user);
   }
 
+  @Get(':id/logs')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  logs(@Param('id') id: string, @CurrentUser() user: AuthUser, @Query('limit') limit?: string) {
+    return this.service.logs(id, user, Number(limit) || 200);
+  }
+
   @Post(':id/apply')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN, Role.OPERATOR)

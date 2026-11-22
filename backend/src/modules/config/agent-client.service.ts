@@ -4,25 +4,36 @@ import * as http from 'http';
 import * as https from 'https';
 import { URL } from 'url';
 
+type AgentNode = { address: string; agentUrl?: string | null };
+
 @Injectable()
 export class AgentClientService {
   private readonly logger = new Logger(AgentClientService.name);
 
-  private request(url: string, payload: any, timeoutMs = 5000): Promise<any> {
+  private request(
+    url: string,
+    options: { method?: string; payload?: any; timeoutMs?: number } = {},
+  ): Promise<any> {
+    const { method = 'POST', payload, timeoutMs = 5000 } = options;
     return new Promise((resolve, reject) => {
       const target = new URL(url);
-      const body = JSON.stringify(payload);
+      const body = payload === undefined ? undefined : JSON.stringify(payload);
       const isHttps = target.protocol === 'https:';
-      const options: https.RequestOptions = {
-        method: 'POST',
+      const secret = process.env.AGENT_SECRET || process.env.AGENT_TOKEN || '';
+      const headers: Record<string, string | number> = {
+        Authorization: `Bearer ${secret}`,
+        'X-Agent-Secret': secret,
+      };
+      if (body !== undefined) {
+        headers['Content-Type'] = 'application/json';
+        headers['Content-Length'] = Buffer.byteLength(body);
+      }
+      const requestOptions: https.RequestOptions = {
+        method,
         hostname: target.hostname,
         port: target.port || (isHttps ? 443 : 80),
-        path: target.pathname,
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(body),
-          'X-Agent-Secret': process.env.AGENT_SECRET || process.env.AGENT_TOKEN || '',
-        },
+        path: `${target.pathname}${target.search}`,
+        headers,
         timeout: timeoutMs,
         ...(isHttps
           ? {
@@ -32,7 +43,7 @@ export class AgentClientService {
             }
           : {}),
       };
-      const req = (isHttps ? https : http).request(options, (res) => {
+      const req = (isHttps ? https : http).request(requestOptions, (res) => {
         let data = '';
         res.on('data', (chunk) => (data += chunk));
         res.on('end', () => {
@@ -49,23 +60,29 @@ export class AgentClientService {
       });
       req.on('timeout', () => req.destroy(new Error('Agent request timeout')));
       req.on('error', reject);
-      req.write(body);
+      if (body !== undefined) req.write(body);
       req.end();
     });
   }
 
-  async applyConfig(node: { address: string; agentUrl?: string | null }, config: any, version: number) {
-    const base = node.agentUrl || `http://${node.address}:9090`;
+  private base(node: AgentNode) {
+    return (node.agentUrl || `http://${node.address}:9090`).replace(/\/$/, '');
+  }
+
+  async applyConfig(node: AgentNode, config: any, version: number) {
     try {
-      return await this.request(`${base.replace(/\/$/, '')}/config`, { version, config });
+      return await this.request(`${this.base(node)}/config`, { payload: { version, config } });
     } catch (e: any) {
       this.logger.warn(`Config push failed for ${node.address}: ${e.message}`);
       return { applied: false, error: e.message };
     }
   }
 
-  async restart(node: { address: string; agentUrl?: string | null }) {
-    const base = node.agentUrl || `http://${node.address}:9090`;
-    return this.request(`${base.replace(/\/$/, '')}/restart-xray`, {});
+  async restart(node: AgentNode) {
+    return this.request(`${this.base(node)}/restart-xray`, { payload: {} });
+  }
+
+  async logs(node: AgentNode, limit = 200) {
+    return this.request(`${this.base(node)}/logs?limit=${limit}`, { method: 'GET' });
   }
 }

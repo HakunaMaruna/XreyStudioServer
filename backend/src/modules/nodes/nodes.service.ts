@@ -205,6 +205,16 @@ export class NodesService {
     return disabled;
   }
 
+  async logs(id: string, actor: AuthUser, limit = 200) {
+    const node = await this.findOne(id, actor);
+    if (!node) throw new NotFoundException('Node not found');
+    try {
+      return await this.agentClient.logs(node as any, limit);
+    } catch (e: any) {
+      throw new BadRequestException(`Agent logs unavailable: ${e.message}`);
+    }
+  }
+
   async health(id: string, actor?: AuthUser) {
     const node = actor ? await this.findOne(id, actor) : await this.prisma.node.findUnique({ where: { id } });
     if (!node) throw new NotFoundException('Node not found');

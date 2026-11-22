@@ -90,12 +90,13 @@ Done in the current cycle:
 3. Inbound editing and a node health panel.
 4. Redis-backed shared rate limiting with in-memory fallback, initial Prisma migration,
    Prometheus/Grafana manifests for k8s, and a redesigned dark SaaS admin UI with full RU/EN strings.
+5. Node log viewer (agent ring buffer + authenticated proxy API + UI) and backup automation
+   in the UI (create/list/download/delete via backend API).
 
 Still open:
 
-1. Node log viewer (requires a new agent/backend log API) and backup automation in the UI.
-2. Validate the k8s monitoring stack against a live cluster.
-3. After each change: sync edited files into `/tmp/opencode/XSS_REPO`, commit, push, update
+1. Validate the k8s monitoring stack against a live cluster.
+2. After each change: sync edited files into `/tmp/opencode/XSS_REPO`, commit, push, update
    README (ru/en), docs and this HANDOFF file. Tag a new release when the stage is complete.
 
 ## Commands

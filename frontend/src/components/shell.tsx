@@ -65,6 +65,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         title: t.system,
         items: [
           { href: '/audit', label: t.audit, icon: 'file' },
+          { href: '/backups', label: t.backups, icon: 'database' },
           { href: '/settings', label: t.settings, icon: 'settings' },
         ],
       },

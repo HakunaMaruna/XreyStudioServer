@@ -30,6 +30,19 @@ let lastNet = null;
 let lastAppliedConfig = null;
 const lastUserStats = new Map();
 
+const logs = [];
+const LOG_LIMIT = 500;
+function pushLog(level, message) {
+  logs.push({ timestamp: new Date().toISOString(), level, message: String(message).slice(0, 1000) });
+  if (logs.length > LOG_LIMIT) logs.shift();
+}
+const originalLog = console.log;
+const originalError = console.error;
+const originalWarn = console.warn;
+console.log = (...args) => { pushLog('info', args.join(' ')); originalLog(...args); };
+console.error = (...args) => { pushLog('error', args.join(' ')); originalError(...args); };
+console.warn = (...args) => { pushLog('warn', args.join(' ')); originalWarn(...args); };
+
 const app = express();
 app.use(express.json({ limit: '20mb' }));
 
@@ -244,6 +257,11 @@ async function pullConfig() {
     console.error('pull config failed', e.message);
   }
 }
+
+app.get('/logs', auth, (req, res) => {
+  const limit = Math.min(LOG_LIMIT, Math.max(1, Number(req.query.limit) || 200));
+  res.json({ nodeId: NODE_ID, logs: logs.slice(-limit) });
+});
 
 app.get('/health', (req, res) => {
   res.json({

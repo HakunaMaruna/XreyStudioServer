@@ -44,6 +44,12 @@ ignores duplicate `checkout.session.completed` events for already paid invoices.
 For HTTPS agent URLs, set `AGENT_CA`, `AGENT_CERT` and `AGENT_KEY` to PEM file paths readable by
 the backend container. Without these, signed `AGENT_TOKEN`/`AGENT_SECRET` headers are used.
 
+## Backups
+The panel can list, create, download and delete PostgreSQL snapshots under **System → Backups**.
+The backend runs `pg_dump` (installed in the image via `postgresql-client`), compresses the dump
+with gzip and stores it in `BACKUP_DIR` (`backups/` by default). Only ADMIN users can use the API.
+The existing `make backup` / `make restore` scripts remain available for shell workflows.
+
 ## Per-user traffic accounting
 Set `XRAY_STATS_ENABLED=true` to add a loopback Xray API inbound to every generated config and
 collect per-client uplink/downlink on the agent. The agent reads `xray api statsq` every 15 s,
