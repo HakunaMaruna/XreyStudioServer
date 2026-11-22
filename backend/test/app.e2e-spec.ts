@@ -1,6 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import * as bcrypt from 'bcryptjs';
+import { createHash } from 'crypto';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { SeedService } from '../src/common/seed.service';
@@ -58,7 +59,26 @@ describe('XSS API (e2e)', () => {
     },
     nodeMetric: { findMany: jest.fn().mockResolvedValue([]) },
     configRevision: { findMany: jest.fn().mockResolvedValue([{ id: 'rev-1', version: 1, applied: true, createdAt: new Date() }]) },
-    payment: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+    payment: {
+      count: jest.fn().mockResolvedValue(0),
+      findMany: jest.fn().mockResolvedValue([]),
+      findUnique: jest.fn().mockResolvedValue({
+        id: 'pay-1', userId: 'admin-1', amount: '10', currency: 'USD', status: 'pending', planId: 'plan-1',
+      }),
+      update: jest.fn().mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'pay-1', amount: '10', currency: 'USD', status: 'pending', ...data }),
+      ),
+    },
+    subscriptionPlan: {
+      findUnique: jest.fn().mockResolvedValue({ id: 'plan-1', name: 'Pro', trafficGb: 10, durationDays: 30 }),
+      update: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'plan-1', ...data })),
+    },
+    userTraffic: {
+      create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'traffic-1', ...data })),
+      findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
+      aggregate: jest.fn().mockResolvedValue({ _sum: { bytesUp: 0n, bytesDown: 0n } }),
+    },
     auditLog: { create: jest.fn().mockResolvedValue({}) },
     alertHistory: {
       create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'alert-1', ...data })),
@@ -199,5 +219,56 @@ describe('XSS API (e2e)', () => {
       .expect(200);
     expect(channels.body).toHaveProperty('telegram');
     expect(channels.body).toHaveProperty('signal');
+  });
+
+  it('records per-user traffic from an authorized node', async () => {
+    const tokenHash = createHash('sha256').update('e2e-node-token').digest('hex');
+    prisma.node.findUnique.mockResolvedValue({ id: 'node-1', tokenHash });
+
+    await request(app.getHttpServer())
+      .post('/api/nodes/node-1/traffic')
+      .set('Authorization', 'Bearer wrong-token')
+      .send({ entries: [{ email: 'u1@example.com', up: 10 }] })
+      .expect(403);
+
+    const res = await request(app.getHttpServer())
+      .post('/api/nodes/node-1/traffic')
+      .set('Authorization', 'Bearer e2e-node-token')
+      .send({ entries: [{ email: 'u1@example.com', up: 100, down: 50 }] })
+      .expect(201);
+    expect(res.body).toMatchObject({ recorded: 1, skipped: 0 });
+    expect(prisma.userTraffic.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ nodeId: 'node-1', bytesUp: 100n, bytesDown: 50n }),
+      }),
+    );
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ trafficUsed: { increment: 150n } }) }),
+    );
+
+    const history = await request(app.getHttpServer())
+      .get('/api/traffic?page=1&limit=10')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(history.body).toMatchObject({ page: 1, limit: 10 });
+  });
+
+  it('updates plans and provisions a subscription when a payment is paid', async () => {
+    const plan = await request(app.getHttpServer())
+      .patch('/api/payments/plans/plan-1')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ enabled: false })
+      .expect(200);
+    expect(plan.body).toMatchObject({ id: 'plan-1', enabled: false });
+
+    await request(app.getHttpServer())
+      .post('/api/payments/pay-1/paid')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(201);
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: 'ACTIVE', trafficLimit: 10n * 1024n ** 3n, trafficUsed: 0n }),
+      }),
+    );
   });
 });

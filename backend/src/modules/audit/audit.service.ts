@@ -30,12 +30,13 @@ export class AuditService {
     }
   }
 
-  findAll(params: { page?: number; limit?: number; entity?: string; userId?: string }) {
+  findAll(params: { page?: number; limit?: number; entity?: string; userId?: string; action?: string }) {
     const page = Math.max(1, Number(params.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(params.limit) || 20));
     const where: any = {};
     if (params.entity) where.entity = params.entity;
     if (params.userId) where.userId = params.userId;
+    if (params.action) where.action = { contains: params.action, mode: 'insensitive' };
     return Promise.all([
       this.prisma.auditLog.findMany({
         where,

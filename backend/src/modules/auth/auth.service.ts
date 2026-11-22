@@ -89,6 +89,9 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
     if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException('User unavailable');
+    if (user.expiresAt && user.expiresAt.getTime() < Date.now()) {
+      throw new UnauthorizedException('Subscription expired');
+    }
     return this.issueTokens(user);
   }
 

@@ -238,6 +238,25 @@ app.post('/restart-xray', auth, async (req, res) => {
   res.json({ restarted: result.ok, error: result.ok ? null : result.stderr });
 });
 
+app.get('/logs', auth, async (req, res) => {
+  const singbox = req.query.service === 'singbox';
+  const service = singbox ? SINGBOX_SERVICE : XRAY_SERVICE;
+  const lines = Math.min(1000, Math.max(1, Number(req.query.lines) || 200));
+  const result = await run('journalctl', ['-u', service, '-n', String(lines), '--no-pager', '-o', 'cat'], 10000);
+  let output = result.ok ? result.stdout : '';
+  const logPath = singbox ? process.env.SINGBOX_LOG_PATH : process.env.XRAY_LOG_PATH;
+  if (!output && logPath && fs.existsSync(logPath)) {
+    output = fs.readFileSync(logPath, 'utf8').split('\n').slice(-lines).join('\n');
+  }
+  res.json({
+    service,
+    lines,
+    output: String(output || '').slice(-200000),
+    source: result.ok ? 'journalctl' : logPath ? 'file' : 'unavailable',
+    error: result.ok || output ? null : result.stderr || result.error || null,
+  });
+});
+
 register();
 setInterval(sendMetrics, 15000);
 setInterval(pullConfig, 30000);

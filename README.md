@@ -27,6 +27,9 @@ Self-hosted control panel for **Xray-core** with multi-node agents, client manag
 - Alert history stored in PostgreSQL with an admin UI and a channel-status overview.
 - Provisioned Grafana alerts delivered through a token-protected webhook.
 - Argon2id password hashing with transparent compatibility for existing bcrypt hashes.
+- Per-user traffic reports from nodes, stored per period with automatic quota enforcement.
+- Admin UI for audit logs, organizations, payments, subscription plans, inbound editing and node logs.
+- Paid plans automatically activate users, reset traffic and set the expiry date.
 - Hysteria2 / TUIC / WireGuard via a sing-box adapter on the node.
 - Prometheus metrics and a pre-provisioned Grafana dashboard; Kubernetes manifests.
 
@@ -165,7 +168,7 @@ AGENT_TOKEN=random-agent-token
 CORS_ORIGIN=https://example.com
 ```
 
-Optional: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (required for Stripe webhooks), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` by default, `bcrypt` to keep new hashes bcrypt), `ALERT_WEBHOOK_TOKEN` (shared secret for Grafana alerts), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS to agents), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (non-Xray protocols).
+Optional: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (required for Stripe webhooks), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` by default, `bcrypt` to keep new hashes bcrypt), `ALERT_WEBHOOK_TOKEN` (shared secret for Grafana alerts), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS to agents), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (non-Xray protocols), `XRAY_LOG_PATH`/`SINGBOX_LOG_PATH` (agent log fallback when `journalctl` is unavailable).
 
 ## API
 
@@ -185,6 +188,11 @@ GET  /api/nodes/:id/health
 GET  /api/subscriptions/:token
 GET  /api/subscriptions/:token/raw
 GET  /api/subscriptions/:token/base64
+POST /api/nodes/:id/traffic
+GET  /api/nodes/:id/logs
+GET  /api/traffic
+GET  /api/audit
+GET  /api/payments/plans
 GET  /api/metrics
 POST /api/payments/webhook
 GET  /api/health
@@ -280,9 +288,8 @@ cd agent && npm install && npm start
 
 ## Roadmap
 
-- Per-user traffic accounting from node metrics, UI for audit logs, organizations, payments and plans.
-- Node log viewer, inbound editing, backup automation in the UI.
-- Broader Redis usage (rate limiting/cache) and monitoring stack validation in Kubernetes.
+- Backup automation and restore in the UI; per-user traffic charts and exportable reports.
+- Broader Redis usage (rate limiting/cache) and validation of the monitoring stack in Kubernetes.
 
 ## License
 

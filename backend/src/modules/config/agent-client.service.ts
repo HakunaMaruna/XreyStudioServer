@@ -8,20 +8,21 @@ import { URL } from 'url';
 export class AgentClientService {
   private readonly logger = new Logger(AgentClientService.name);
 
-  private request(url: string, payload: any, timeoutMs = 5000): Promise<any> {
+  private request(url: string, payload: any, timeoutMs = 5000, method = 'POST'): Promise<any> {
     return new Promise((resolve, reject) => {
       const target = new URL(url);
-      const body = JSON.stringify(payload);
+      const body = method === 'GET' ? '' : JSON.stringify(payload || {});
       const isHttps = target.protocol === 'https:';
       const options: https.RequestOptions = {
-        method: 'POST',
+        method,
         hostname: target.hostname,
         port: target.port || (isHttps ? 443 : 80),
-        path: target.pathname,
+        path: `${target.pathname}${target.search}`,
         headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(body),
           'X-Agent-Secret': process.env.AGENT_SECRET || process.env.AGENT_TOKEN || '',
+          ...(method === 'GET'
+            ? {}
+            : { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }),
         },
         timeout: timeoutMs,
         ...(isHttps
@@ -49,7 +50,7 @@ export class AgentClientService {
       });
       req.on('timeout', () => req.destroy(new Error('Agent request timeout')));
       req.on('error', reject);
-      req.write(body);
+      if (method !== 'GET') req.write(body);
       req.end();
     });
   }
@@ -67,5 +68,15 @@ export class AgentClientService {
   async restart(node: { address: string; agentUrl?: string | null }) {
     const base = node.agentUrl || `http://${node.address}:9090`;
     return this.request(`${base.replace(/\/$/, '')}/restart-xray`, {});
+  }
+
+  async getLogs(
+    node: { address: string; agentUrl?: string | null },
+    service: 'xray' | 'singbox',
+    lines: number,
+  ) {
+    const base = node.agentUrl || `http://${node.address}:9090`;
+    const query = new URLSearchParams({ service, lines: String(lines) });
+    return this.request(`${base.replace(/\/$/, '')}/logs?${query}`, undefined, 15000, 'GET');
   }
 }

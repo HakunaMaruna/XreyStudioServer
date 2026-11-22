@@ -15,8 +15,9 @@
 1. Admin creates user/node/inbound via Panel.
 2. Panel generates Xray config (plus a sing-box config when external protocols are used) and sends it to Agent over HTTPS/mTLS.
 3. Agent validates each engine (`xray run -test`, `sing-box check`), writes configs and reloads the services.
-4. Agent reports metrics to Panel.
-5. Client opens subscription URL; Panel returns format based on User-Agent.
+4. Agent reports node metrics and per-user traffic to Panel; Panel checks quotas and can expire users.
+5. Admin can tail node logs through the panel (agent `journalctl`/log-file reader).
+6. Client opens subscription URL; Panel returns format based on User-Agent (403 when quota is spent).
 
 ## Deployment
 - Docker Compose for small and medium installations; `k8s/` Kustomize manifests for Kubernetes.

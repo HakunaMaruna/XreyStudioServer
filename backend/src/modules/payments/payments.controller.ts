@@ -5,6 +5,7 @@ import {
   Headers,
   HttpCode,
   Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -15,6 +16,7 @@ import type { Request } from 'express';
 import { Role } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { CreatePaymentDto, CreatePlanDto, UpdatePlanDto } from './dto/payment.dto';
 import { PaymentsService } from './payments.service';
 
 @Controller('payments')
@@ -47,17 +49,22 @@ export class PaymentsController {
   @Post('plans')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN)
-  createPlan(@Body() body: { name: string; price: number; trafficGb: number; durationDays: number }) {
+  createPlan(@Body() body: CreatePlanDto) {
     return this.service.createPlan(body);
+  }
+
+  @Patch('plans/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN)
+  updatePlan(@Param('id') id: string, @Body() body: UpdatePlanDto) {
+    return this.service.updatePlan(id, body);
   }
 
   @Post()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN, Role.OPERATOR)
-  create(
-    @Body() body: { userId: string; amount: number; currency?: string; provider?: string },
-  ) {
-    return this.service.create(body.userId, body.amount, body.currency, body.provider);
+  create(@Body() body: CreatePaymentDto) {
+    return this.service.create(body.userId, body.amount, body.currency, body.provider, body.planId);
   }
 
   @Post(':id/paid')

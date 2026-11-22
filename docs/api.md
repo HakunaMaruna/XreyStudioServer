@@ -34,18 +34,30 @@ All admin endpoints require `Authorization: Bearer <accessToken>` and, where not
 - `GET /nodes/:id/revisions` — last 50 config revisions
 - `POST /nodes/:id/rollback/:revisionId` — apply an older revision
 - `POST /nodes/register`, `POST /nodes/:id/metrics`, `GET /nodes/:id/config` — agent endpoints
+- `POST /nodes/:id/traffic` — node-token-authenticated per-user traffic report:
+  `{ "entries": [{ "subscriptionToken" | "userId" | "email", "up": 100, "down": 50 }] }`.
+  Creates `UserTraffic` rows, increments `User.trafficUsed` and sets status `EXPIRED` when the
+  quota is reached.
+- `GET /nodes/:id/logs?service=xray|singbox&lines=200` — tail agent logs through the panel (ADMIN/OPERATOR)
 - `GET /hosts`, `POST /hosts`, `GET /hosts/:id`, `PATCH /hosts/:id`, `DELETE /hosts/:id`
 - `GET /rules`, `POST /rules`, `GET /rules/:id`, `PATCH /rules/:id`, `DELETE /rules/:id`
 
 ## Subscriptions and payments
 
-- `GET /subscriptions/:token` — subscription status (format by User-Agent)
+- `GET /subscriptions/:token` — subscription status (format by User-Agent); status may be
+  `active`, `disabled`, `expired` or `exceeded` (traffic quota spent)
+- Config export endpoints return `403` when the subscription is not `active`
 - `GET /subscriptions/:token/raw` — raw links
 - `GET /subscriptions/:token/base64` — base64 links
 - `GET /subscriptions/:token/clash`, `.../singbox`, `.../json` — client config exports
 - `GET /payments` — list payments (ADMIN/OPERATOR)
+- `POST /payments` — create a payment; optional `planId` provisions that plan when paid
+- `POST /payments/:id/paid` — mark paid; with `planId` activates the user, resets traffic and sets `expiresAt`
+- `GET /payments/plans`, `POST /payments/plans`, `PATCH /payments/plans/:id` — subscription plans
 - `POST /payments/webhook` — Stripe webhook; requires a valid `Stripe-Signature` header and
   `STRIPE_WEBHOOK_SECRET` on the server
+- `GET /traffic?userId=&page=&limit=` — per-user traffic report history with byte totals (ADMIN/OPERATOR)
+- `GET /audit?page=&limit=&entity=&action=&userId=` — audit log with filters (ADMIN/OPERATOR)
 
 ## Operations
 

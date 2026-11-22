@@ -30,6 +30,11 @@ export default function NodesPage() {
   const [revisionsNode, setRevisionsNode] = useState<NodeRow | null>(null);
   const [revisions, setRevisions] = useState<RevisionRow[]>([]);
   const [revisionsLoading, setRevisionsLoading] = useState(false);
+  const [logsNode, setLogsNode] = useState<NodeRow | null>(null);
+  const [logService, setLogService] = useState('xray');
+  const [logLines, setLogLines] = useState(200);
+  const [logOutput, setLogOutput] = useState('');
+  const [logsLoading, setLogsLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -111,6 +116,21 @@ export default function NodesPage() {
     }
   };
 
+  const loadLogs = async (node: NodeRow, service = logService, lines = logLines) => {
+    setLogsNode(node);
+    setLogService(service);
+    setLogLines(lines);
+    setLogsLoading(true);
+    try {
+      const data = await api.get(`/api/nodes/${node.id}/logs?service=${service}&lines=${lines}`);
+      setLogOutput(data.output || data.error || t.noData);
+    } catch (e: any) {
+      setLogOutput(e.message);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
   const columns = useMemo<ColumnDef<NodeRow>[]>(
     () => [
       { accessorKey: 'name', header: t.name },
@@ -142,6 +162,9 @@ export default function NodesPage() {
             </button>
             <button onClick={() => openRevisions(row.original)} className="text-purple-500">
               {t.revisions}
+            </button>
+            <button onClick={() => loadLogs(row.original)} className="text-teal-500">
+              {t.logs}
             </button>
           </div>
         ),
@@ -231,6 +254,48 @@ export default function NodesPage() {
                 </table>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {logsNode && (
+        <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-3xl space-y-3 rounded bg-white p-5 dark:bg-gray-900">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg font-semibold">{t.logs} — {logsNode.name}</h2>
+              <button onClick={() => setLogsNode(null)} className="rounded border px-3 py-1">
+                {t.close}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <select
+                value={logService}
+                onChange={(e) => loadLogs(logsNode, e.target.value, logLines)}
+                className="rounded border px-3 py-1 dark:bg-gray-800"
+              >
+                <option value="xray">Xray</option>
+                <option value="singbox">sing-box</option>
+              </select>
+              <select
+                value={logLines}
+                onChange={(e) => loadLogs(logsNode, logService, Number(e.target.value))}
+                className="rounded border px-3 py-1 dark:bg-gray-800"
+              >
+                {[100, 200, 500, 1000].map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => loadLogs(logsNode)}
+                className="rounded border px-3 py-1"
+                disabled={logsLoading}
+              >
+                {t.refresh}
+              </button>
+            </div>
+            <pre className="max-h-[60vh] overflow-auto rounded bg-gray-100 p-3 text-xs dark:bg-gray-800">
+              {logsLoading ? t.loading : logOutput}
+            </pre>
           </div>
         </div>
       )}

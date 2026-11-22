@@ -29,6 +29,9 @@ Self-hosted панель управления **Xray-core** с агентами 
 - Серверный поиск, сортировка, фильтрация и пагинация для больших списков пользователей.
 - Алерты Grafana с доставкой через защищённый токеном webhook.
 - Хеширование паролей Argon2id с прозрачной поддержкой существующих bcrypt-хешей.
+- Учёт трафика пользователей по отчётам нод с хранением по периодам и автоматическим лимитом.
+- UI аудита, организаций, платежей, тарифов, редактирование inbound и просмотр логов нод.
+- Оплаченный тариф автоматически активирует пользователя, сбрасывает трафик и задаёт срок действия.
 
 ## Архитектура
 
@@ -165,7 +168,7 @@ AGENT_TOKEN=random-agent-token
 CORS_ORIGIN=https://example.com
 ```
 
-Опционально: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (обязателен для Stripe-вебхуков), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` по умолчанию, `bcrypt` для новых хешей), `ALERT_WEBHOOK_TOKEN` (общий секрет для алертов Grafana), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS с агентами), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (не-Xray протоколы).
+Опционально: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (обязателен для Stripe-вебхуков), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` по умолчанию, `bcrypt` для новых хешей), `ALERT_WEBHOOK_TOKEN` (общий секрет для алертов Grafana), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS с агентами), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (не-Xray протоколы), `XRAY_LOG_PATH`/`SINGBOX_LOG_PATH` (резервный источник логов агента, если нет `journalctl`).
 
 ## API
 
@@ -185,6 +188,11 @@ GET  /api/nodes/:id/health
 GET  /api/subscriptions/:token
 GET  /api/subscriptions/:token/raw
 GET  /api/subscriptions/:token/base64
+POST /api/nodes/:id/traffic
+GET  /api/nodes/:id/logs
+GET  /api/traffic
+GET  /api/audit
+GET  /api/payments/plans
 GET  /api/metrics
 POST /api/payments/webhook
 GET  /api/health
@@ -280,8 +288,7 @@ cd agent && npm install && npm start
 
 ## Планы
 
-- Персональный учёт трафика по метрикам нод, UI для аудита, организаций, платежей и тарифов.
-- Просмотр логов нод, редактирование inbound, автоматизация бэкапов в UI.
+- Автоматизация бэкапов и восстановления в UI; графики трафика и экспорт отчётов.
 - Шире использовать Redis (rate limiting/кэш) и проверить стек мониторинга в Kubernetes.
 
 ## Лицензия

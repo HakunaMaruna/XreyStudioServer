@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -128,12 +128,15 @@ export class SubscriptionsService {
       token,
       user: { id: user.id, email: user.email },
       status:
-        user.status === 'ACTIVE' &&
-        (!user.expiresAt || user.expiresAt.getTime() > Date.now())
-          ? 'active'
-          : user.status === 'DISABLED'
+        user.status !== 'ACTIVE'
+          ? user.status === 'DISABLED'
             ? 'disabled'
-            : 'expired',
+            : 'expired'
+          : user.expiresAt && user.expiresAt.getTime() <= Date.now()
+            ? 'expired'
+            : user.trafficLimit > 0n && user.trafficUsed >= user.trafficLimit
+              ? 'exceeded'
+              : 'active',
       expiresAt: user.expiresAt,
       trafficUsed: Number(user.trafficUsed),
       trafficLimit: Number(user.trafficLimit),
@@ -150,8 +153,14 @@ export class SubscriptionsService {
     };
   }
 
-  async raw(token: string) {
+  async assertUsable(token: string) {
     const data = await this.getStatus(token);
+    if (data.status !== 'active') throw new ForbiddenException(`Subscription is ${data.status}`);
+    return data;
+  }
+
+  async raw(token: string) {
+    const data = await this.assertUsable(token);
     return data.links.map((l: any) => l.link).join('\n');
   }
 
@@ -164,7 +173,7 @@ export class SubscriptionsService {
   }
 
   async clash(token: string) {
-    const data = await this.getStatus(token);
+    const data = await this.assertUsable(token);
     const proxies = data.links
       .filter((l: any) =>
         ['vless', 'trojan', 'ss', 'vmess', 'hysteria2', 'tuic', 'wireguard'].includes(l.protocol),
@@ -256,7 +265,7 @@ export class SubscriptionsService {
   }
 
   async singbox(token: string) {
-    const data = await this.getStatus(token);
+    const data = await this.assertUsable(token);
     const outbounds = data.links.map((l: any) => {
       const url = new URL(l.link);
       if (l.protocol === 'vless') {

@@ -33,6 +33,7 @@ model User {
   inbounds          Inbound[]
   auditLogs         AuditLog[]
   payments          Payment[]
+  trafficReports    UserTraffic[]
   refreshTokens     RefreshToken[]
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -178,6 +179,8 @@ model Payment {
   id        String   @id @default(uuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id])
+  planId    String?
+  plan      SubscriptionPlan? @relation(fields: [planId], references: [id])
   amount    Decimal  @db.Decimal(10, 2)
   currency  String   @default("USD")
   status    String
@@ -186,6 +189,7 @@ model Payment {
   createdAt DateTime @default(now())
 
   @@index([userId])
+  @@index([planId])
 }
 
 model SubscriptionPlan {
@@ -196,6 +200,21 @@ model SubscriptionPlan {
   durationDays Int
   enabled      Boolean  @default(true)
   createdAt    DateTime @default(now())
+  payments     Payment[]
+}
+
+model UserTraffic {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nodeId    String?
+  period    String
+  bytesUp   BigInt   @default(0)
+  bytesDown BigInt   @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([period])
 }
 
 model AlertHistory {

@@ -43,6 +43,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     { href: '/hosts', label: t.hosts },
     { href: '/rules', label: t.rules },
     { href: '/alerts', label: t.alerts },
+    { href: '/audit', label: t.audit },
+    { href: '/organizations', label: t.organizations },
+    { href: '/payments', label: t.payments },
+    { href: '/plans', label: t.plans },
     { href: '/settings', label: t.settings },
   ];
 

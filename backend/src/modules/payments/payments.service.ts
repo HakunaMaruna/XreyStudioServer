@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'crypto';
+import { UserStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -16,7 +17,11 @@ export class PaymentsService {
   ) {}
 
   list() {
-    return this.prisma.payment.findMany({ orderBy: { createdAt: 'desc' }, take: 100 });
+    return this.prisma.payment.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: { plan: true },
+    });
   }
 
   plans() {
@@ -34,9 +39,19 @@ export class PaymentsService {
     });
   }
 
-  async create(userId: string, amount: number, currency = 'USD', provider = 'manual') {
+  updatePlan(id: string, data: Partial<{ name: string; price: number; trafficGb: number; durationDays: number; enabled: boolean }>) {
+    return this.prisma.subscriptionPlan.update({ where: { id }, data });
+  }
+
+  async create(
+    userId: string,
+    amount: number,
+    currency = 'USD',
+    provider = 'manual',
+    planId?: string,
+  ) {
     const payment = await this.prisma.payment.create({
-      data: { userId, amount, currency, status: 'pending', provider },
+      data: { userId, amount, currency, status: 'pending', provider, planId: planId || null },
     });
     let checkoutUrl: string | null = null;
     if (provider === 'stripe' && process.env.STRIPE_SECRET_KEY) {
@@ -77,6 +92,23 @@ export class PaymentsService {
       where: { id },
       data: { status: 'paid' },
     });
+
+    if (payment.planId) {
+      const plan = await this.prisma.subscriptionPlan.findUnique({ where: { id: payment.planId } });
+      if (plan) {
+        const expiresAt = new Date(Date.now() + plan.durationDays * 86_400_000);
+        await this.prisma.user.update({
+          where: { id: payment.userId },
+          data: {
+            status: UserStatus.ACTIVE,
+            trafficLimit: BigInt(plan.trafficGb) * 1024n ** 3n,
+            trafficUsed: 0n,
+            expiresAt,
+          },
+        });
+      }
+    }
+
     await this.notifications.notifyPayment({
       id: updated.id,
       amount: updated.amount.toString(),

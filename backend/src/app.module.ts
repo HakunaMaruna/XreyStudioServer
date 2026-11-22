@@ -19,6 +19,7 @@ import { MetricsModule } from './modules/metrics/metrics.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { TrafficModule } from './modules/traffic/traffic.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
     NotificationsModule,
     PaymentsModule,
     OrganizationsModule,
+    TrafficModule,
   ],
   providers: [
     SeedService,

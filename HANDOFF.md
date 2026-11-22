@@ -8,27 +8,28 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 Self-hosted control panel for Xray-core: web UI, multi-node agents, clients, subscriptions,
 payments, notifications, monitoring, Docker Compose installation. Target scale: 5k users / 20 nodes.
 
-## Current state (v1.3.0, 2026-11-22)
+## Current state (v1.4.0, 2026-11-22)
 
 - Source of truth: `/work/XreyStudioServer` (working copy) and the git repo
   `/tmp/opencode/XSS_REPO` (remote: https://github.com/HakunaMaruna/XreyStudioServer).
-- Published: tag/release `v1.3.0`, release commit `55a5698`,
-  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.3.0,
-  bundle `/work/XreyStudioServer/XSS_v1.3.0.bundle`.
-  Previous releases: `v1.2.0` (Argon2id, Grafana alerts, admin CRUD, server paging),
-  `v1.1.1` (UI tables/charts, k8s, protocol adapters), `v1.1.0`, `v1.0.0`.
+- Published: tag/release `v1.4.0`,
+  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.4.0,
+  bundle `/work/XreyStudioServer/XSS_v1.4.0.bundle`.
+  Previous releases: `v1.3.0` (notifications, alert history, sorting, real PostgreSQL e2e),
+  `v1.2.0`, `v1.1.1`, `v1.1.0`, `v1.0.0`.
 - Stack: NestJS + Prisma/PostgreSQL + Redis, Next.js 16 + React 19, Node agent, Caddy, Docker Compose.
 - Backend modules: auth (JWT + refresh + RBAC + Argon2id/bcrypt), users, nodes, inbounds, hosts,
   rules, config generator (revisions/apply/rollback), subscriptions (raw/base64/clash/singbox/json),
   metrics (Prometheus text), payments (Stripe + signed webhook), notifications (Telegram/webhook/
   SMTP/Signal + token-protected Grafana alert receiver + `AlertHistory` persistence), organizations,
-  audit.
-- Frontend pages: login, dashboard, users, nodes (with config revision modal), inbounds, hosts,
-  rules, alerts, settings, public `/sub/[token]` (with QR code); i18n ru/en, dark/light theme.
+  audit, traffic (per-user reports + quota enforcement).
+- Frontend pages: login, dashboard, users, nodes (revision + log modals), inbounds (with edit modal),
+  hosts, rules, alerts, audit, organizations, payments, plans, settings, public `/sub/[token]`
+  (with QR code); i18n ru/en, dark/light theme.
   Tables use `@tanstack/react-table` via `frontend/src/components/data-table.tsx`; the users page
   uses server-side search/filter/sorting/pagination (`page`, `limit`, `search`, `status`, `role`,
   `sortBy`, `sortOrder`) and controlled sorting via `sorting`/`onSortingChange`/`manualSorting`.
-- Agent: config validation/apply/rollback/restart/metrics/pull, TLS/mTLS env options; detects a
+- Agent: config validation/apply/rollback/restart/metrics/pull/logs, TLS/mTLS env options; detects a
   dual config (`{ xray, singbox }`), validates each engine and restarts xray/sing-box services.
 
 ## Environment constraints (important)
@@ -41,6 +42,24 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
   run locally (CI builds the images). Node here is v20.15.1; Next 16 wants >=20.19, but the
   production build passed.
 - GitHub push works via the credential store in `/root/.git-credentials`.
+
+## Done in v1.4.0
+
+- Per-user traffic: `UserTraffic` model + `TrafficModule`; `POST /nodes/:id/traffic` (node token)
+  accepts `{ entries: [{ subscriptionToken|userId|email, up, down }] }`, writes rows, increments
+  `User.trafficUsed` and sets status `EXPIRED` when the limit is reached. `GET /traffic` exposes
+  paged history with byte totals. Subscription config exports return 403 for `exceeded`;
+  `getStatus()` can report `exceeded`, and `refresh` now checks expiry too.
+- Node logs: agent `GET /logs?service=xray|singbox&lines=N` (journalctl with `XRAY_LOG_PATH` /
+  `SINGBOX_LOG_PATH` file fallback), panel proxy `GET /nodes/:id/logs` and a log viewer modal.
+- Plans and payments: `Payment.planId`, optional `planId` on `POST /payments`, `PATCH /payments/plans/:id`,
+  and automatic provisioning on `markPaid` (ACTIVE, traffic reset, new `expiresAt`). UI pages for
+  payments and plans.
+- More admin UI: audit log filtering, organizations CRUD, inbound edit modal, navigation links and
+  i18n keys.
+- Dockerfiles use `npm ci` with `.dockerignore` files; versions bumped to 1.4.0.
+- E2E coverage: mock suite tests traffic reporting and plan provisioning; real-PostgreSQL suite
+  verifies quota enforcement and paid-plan activation.
 
 ## Done in v1.3.0
 
@@ -82,11 +101,10 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 
 ## Remaining plan (next work)
 
-1. Per-user traffic accounting derived from node metrics, with quota enforcement.
-2. UI for audit logs, organizations, payments and subscription plans.
-3. Node log viewer, inbound editing, backup automation in the UI.
-4. Broader Redis usage (rate limiting/cache) and validation of the monitoring stack in k8s.
-5. After each change: sync edited files into `/tmp/opencode/XSS_REPO`, commit, push, update
+1. Backup automation and restore in the UI.
+2. Advanced reporting: per-user traffic charts, exportable audit/payment reports.
+3. Broader Redis usage (rate limiting/cache) and validation of the monitoring stack in k8s.
+4. After each change: sync edited files into `/tmp/opencode/XSS_REPO`, commit, push, update
    README (ru/en), docs and this HANDOFF file. Tag a new release when the stage is complete.
 
 ## Commands

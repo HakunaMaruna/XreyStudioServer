@@ -17,6 +17,7 @@ import { AuthUser, CurrentUser } from '../../common/decorators/current-user.deco
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { AuditService } from '../audit/audit.service';
+import { AgentClientService } from '../config/agent-client.service';
 import { CreateNodeDto, NodeMetricsDto, RegisterNodeDto, UpdateNodeDto } from './dto/node.dto';
 import { NodesService } from './nodes.service';
 
@@ -29,6 +30,7 @@ export class NodesController {
   constructor(
     private service: NodesService,
     private audit: AuditService,
+    private agent: AgentClientService,
   ) {}
 
   @Post('register')
@@ -123,6 +125,23 @@ export class NodesController {
   @Roles(Role.ADMIN, Role.OPERATOR)
   health(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.service.health(id, user);
+  }
+
+  @Get(':id/logs')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  async logs(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Query('service') service?: string,
+    @Query('lines') lines?: string,
+  ) {
+    const node = await this.service.findOne(id, user);
+    return this.agent.getLogs(
+      node,
+      service === 'singbox' ? 'singbox' : 'xray',
+      Math.min(1000, Math.max(1, Number(lines) || 200)),
+    );
   }
 
   @Post(':id/apply')

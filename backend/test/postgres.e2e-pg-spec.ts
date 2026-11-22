@@ -1,5 +1,6 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { createHash } from 'crypto';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -156,5 +157,51 @@ describe('XSS API (e2e, real PostgreSQL)', () => {
     const channels = await auth(request(app.getHttpServer()).get('/api/notifications/channels')).expect(200);
     expect(Object.keys(channels.body).sort()).toEqual(['email', 'signal', 'telegram', 'webhook']);
     expect(JSON.stringify(channels.body)).not.toContain(process.env.ALERT_WEBHOOK_TOKEN as string);
+  });
+
+  it('records per-user traffic, enforces the quota and provisions paid plans', async () => {
+    const node = await prisma.node.create({
+      data: {
+        name: 'e2e-node',
+        address: '127.0.0.1',
+        tokenHash: createHash('sha256').update('pg-node-token').digest('hex'),
+      },
+    });
+    const user = await prisma.user.findFirstOrThrow({ where: { email: 'alpha@example.com' } });
+    await prisma.user.update({ where: { id: user.id }, data: { trafficLimit: 120n } });
+
+    await request(app.getHttpServer())
+      .post(`/api/nodes/${node.id}/traffic`)
+      .set('Authorization', 'Bearer pg-node-token')
+      .send({ entries: [{ subscriptionToken: user.subscriptionToken, up: 100, down: 30 }] })
+      .expect(201);
+
+    const refreshed = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(refreshed.trafficUsed).toBe(130n);
+    expect(refreshed.status).toBe('EXPIRED');
+
+    const status = await request(app.getHttpServer())
+      .get(`/api/subscriptions/${user.subscriptionToken}?format=json`)
+      .expect(200);
+    expect(status.body.status).toBe('exceeded');
+    await request(app.getHttpServer()).get(`/api/subscriptions/${user.subscriptionToken}/raw`).expect(403);
+
+    const plan = await auth(
+      request(app.getHttpServer())
+        .post('/api/payments/plans')
+        .send({ name: 'Pro', price: 10, trafficGb: 50, durationDays: 30 }),
+    ).expect(201);
+    const payment = await auth(
+      request(app.getHttpServer())
+        .post('/api/payments')
+        .send({ userId: user.id, amount: 10, planId: plan.body.id }),
+    ).expect(201);
+    await auth(request(app.getHttpServer()).post(`/api/payments/${payment.body.id}/paid`)).expect(201);
+
+    const provisioned = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(provisioned.status).toBe('ACTIVE');
+    expect(provisioned.trafficUsed).toBe(0n);
+    expect(provisioned.trafficLimit).toBe(50n * 1024n ** 3n);
+    expect(provisioned.expiresAt).toBeTruthy();
   });
 });

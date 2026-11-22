@@ -26,7 +26,8 @@ export class SubscriptionsController {
   }
 
   @Get(':token/json')
-  getJson(@Param('token') token: string) {
+  async getJson(@Param('token') token: string) {
+    await this.service.assertUsable(token);
     return this.service.json(token);
   }
 
