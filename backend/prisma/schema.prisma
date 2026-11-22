@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  branding  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+  nodes     Node[]
+}
+
+model User {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  passwordHash   String
+  role           Role      @default(USER)
+  status         UserStatus @default(ACTIVE)
+  trafficLimit   BigInt    @default(0)
+  trafficUsed    BigInt    @default(0)
+  expiresAt      DateTime?
+  subscriptionToken String  @unique @default(uuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  inbounds       Inbound[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  auditLogs      AuditLog[]
+}
+
+enum Role {
+  ADMIN
+  OPERATOR
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+  EXPIRED
+}
+
+model Node {
+  id          String     @id @default(uuid())
+  name        String
+  address     String
+  port        Int        @default(443)
+  tokenHash   String
+  status      NodeStatus @default(OFFLINE)
+  lastSeenAt  DateTime?
+  metrics     NodeMetric[]
+  inbounds    Inbound[]
+  organizationId String?
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+enum NodeStatus {
+  ONLINE
+  OFFLINE
+  ERROR
+}
+
+model NodeMetric {
+  id        String   @id @default(uuid())
+  nodeId    String
+  node      Node     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  cpu       Float
+  ram       Float
+  disk      Float
+  trafficUp BigInt
+  trafficDown BigInt
+  connections Int
+  createdAt DateTime @default(now())
+}
+
+model Inbound {
+  id        String   @id @default(uuid())
+  nodeId    String?
+  node      Node?    @relation(fields: [nodeId], references: [id])
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  protocol  String
+  port      Int
+  settings  Json
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Host {
+  id        String   @id @default(uuid())
+  address   String
+  port      Int
+  sni       String?
+  path      String?
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Rule {
+  id        String   @id @default(uuid())
+  name      String
+  type      String
+  payload   Json
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model ConfigRevision {
+  id        String   @id @default(uuid())
+  nodeId    String
+  version   Int
+  content   String
+  applied   Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  ip        String?
+  createdAt DateTime @default(now())
+}
+
+model Payment {
+  id        String   @id @default(uuid())
+  userId    String
+  amount    Decimal  @db.Decimal(10,2)
+  currency  String   @default("USD")
+  status    String
+  provider  String
+  createdAt DateTime @default(now())
+}
+
+model SubscriptionPlan {
+  id          String   @id @default(uuid())
+  name        String
+  price       Decimal  @db.Decimal(10,2)
+  trafficGb   Int
+  durationDays Int
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
