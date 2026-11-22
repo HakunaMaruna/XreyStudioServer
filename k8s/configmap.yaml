@@ -11,3 +11,4 @@ data:
   POSTGRES_USER: "xss"
   POSTGRES_DB: "xss"
   PORT: "3000"
+  PASSWORD_HASHER: "argon2id"

@@ -2,19 +2,55 @@
 
 Base path: `/api`
 
+## Authentication
+
 - `POST /auth/login` — login (rate limited: 5 requests/minute)
 - `POST /auth/refresh` — refresh token (rate limited: 10 requests/minute)
-- `GET /users` — list users
+- `POST /auth/logout` — revoke a refresh token
+- `GET /auth/me` — current user
+
+All admin endpoints require `Authorization: Bearer <accessToken>` and, where noted, an
+`ADMIN` or `OPERATOR` role.
+
+## Users
+
+- `GET /users` — paginated list; query parameters `page`, `limit`, `search`, `status`, `role`.
+  Response: `{ data, total, page, limit }`
 - `POST /users` — create user
-- `GET /nodes` — list nodes
-- `POST /nodes` — create node
-- `GET /nodes/:id/health` — node health
+- `GET /users/stats` — aggregated counters
+- `GET /users/:id` — user details
+- `PATCH /users/:id` — update user (including password reset)
+- `DELETE /users/:id` — delete user (ADMIN)
+- `POST /users/bulk` — bulk `disable`, `enable`, `resetTraffic` or `delete`
+
+## Nodes and configuration
+
+- `GET /nodes`, `POST /nodes`, `GET /nodes/stats`
+- `GET /nodes/:id`, `PATCH /nodes/:id`, `DELETE /nodes/:id`
+- `GET /nodes/:id/health`, `POST /nodes/:id/restart`
+- `POST /nodes/:id/apply` — generate a new revision and apply it, or apply `{ revisionId }`
+- `GET /nodes/:id/revisions` — last 50 config revisions
+- `POST /nodes/:id/rollback/:revisionId` — apply an older revision
+- `POST /nodes/register`, `POST /nodes/:id/metrics`, `GET /nodes/:id/config` — agent endpoints
+- `GET /hosts`, `POST /hosts`, `GET /hosts/:id`, `PATCH /hosts/:id`, `DELETE /hosts/:id`
+- `GET /rules`, `POST /rules`, `GET /rules/:id`, `PATCH /rules/:id`, `DELETE /rules/:id`
+
+## Subscriptions and payments
+
 - `GET /subscriptions/:token` — subscription status (format by User-Agent)
 - `GET /subscriptions/:token/raw` — raw links
 - `GET /subscriptions/:token/base64` — base64 links
+- `GET /subscriptions/:token/clash`, `.../singbox`, `.../json` — client config exports
 - `GET /payments` — list payments (ADMIN/OPERATOR)
 - `POST /payments/webhook` — Stripe webhook; requires a valid `Stripe-Signature` header and
   `STRIPE_WEBHOOK_SECRET` on the server
+
+## Operations
+
+- `POST /notifications/test` — send a test notification (ADMIN)
+- `POST /notifications/alerts` — Grafana alert webhook; requires
+  `Authorization: Bearer $ALERT_WEBHOOK_TOKEN`. Returns `{ received, sent }` and forwards
+  alerts to the configured Telegram chat.
 - `GET /metrics` — Prometheus text exposition; optional `X-Metrics-Token` header when
   `METRICS_TOKEN` is set
 - `GET /health`, `GET /health/live`, `GET /health/ready` — health checks

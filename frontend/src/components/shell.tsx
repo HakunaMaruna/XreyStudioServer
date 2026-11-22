@@ -40,6 +40,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     { href: '/users', label: t.users },
     { href: '/nodes', label: t.nodes },
     { href: '/inbounds', label: t.inbounds },
+    { href: '/hosts', label: t.hosts },
+    { href: '/rules', label: t.rules },
     { href: '/settings', label: t.settings },
   ];
 

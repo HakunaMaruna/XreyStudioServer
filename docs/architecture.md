@@ -2,6 +2,7 @@
 
 ## Components
 - Panel (NestJS): REST API, auth, business logic, config generation, node orchestration.
+  Passwords are hashed by a shared `PasswordService` (Argon2id by default, bcrypt-compatible).
 - Agent (Node.js): registers, fetches config, applies to Xray and (optionally) sing-box, reports metrics.
 - Protocol adapters: VLESS/VMess/Trojan/Shadowsocks are Xray inbounds; Hysteria2/TUIC/WireGuard are
   generated as a separate sing-box config in the same revision.
@@ -19,9 +20,10 @@
 
 ## Deployment
 - Docker Compose for small and medium installations; `k8s/` Kustomize manifests for Kubernetes.
-- Prometheus/Grafana stack under the `monitoring` Compose profile.
+- Prometheus/Grafana stack under the `monitoring` Compose profile, with file-provisioned alert
+  rules delivered to the token-protected `POST /api/notifications/alerts` endpoint.
 
 ## Security
-- JWT access/refresh, Argon2/bcrypt password hashing.
-- mTLS for panel-agent, signed Stripe webhooks.
+- JWT access/refresh, Argon2id password hashing (bcrypt hashes remain valid).
+- mTLS for panel-agent, signed Stripe webhooks and a shared-secret Grafana alert webhook.
 - Rate limiting (global, stricter on auth), helmet, validation, RBAC, audit logs.

@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { PasswordService } from './password.service';
 
 @Injectable()
 export class SeedService implements OnApplicationBootstrap {
@@ -10,6 +10,7 @@ export class SeedService implements OnApplicationBootstrap {
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
+    private passwords: PasswordService,
   ) {}
 
   async onApplicationBootstrap() {
@@ -28,7 +29,7 @@ export class SeedService implements OnApplicationBootstrap {
     await this.prisma.user.create({
       data: {
         email,
-        passwordHash: await bcrypt.hash(password, 12),
+        passwordHash: await this.passwords.hash(password),
         role: 'ADMIN',
         organizationId: organization.id,
       },

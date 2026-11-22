@@ -13,6 +13,13 @@ type NodeRow = {
   status: string;
 };
 
+type RevisionRow = {
+  id: string;
+  version: number;
+  applied: boolean;
+  createdAt: string;
+};
+
 export default function NodesPage() {
   const { t } = useLang();
   const [nodes, setNodes] = useState<NodeRow[]>([]);
@@ -20,6 +27,9 @@ export default function NodesPage() {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [error, setError] = useState('');
+  const [revisionsNode, setRevisionsNode] = useState<NodeRow | null>(null);
+  const [revisions, setRevisions] = useState<RevisionRow[]>([]);
+  const [revisionsLoading, setRevisionsLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -64,6 +74,43 @@ export default function NodesPage() {
     load();
   };
 
+  const openRevisions = async (node: NodeRow) => {
+    setRevisionsNode(node);
+    setRevisions([]);
+    setError('');
+    setRevisionsLoading(true);
+    try {
+      const data = await api.get(`/api/nodes/${node.id}/revisions`);
+      setRevisions(Array.isArray(data) ? data : data.data || []);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setRevisionsLoading(false);
+    }
+  };
+
+  const applyRevision = async (revisionId: string) => {
+    if (!revisionsNode) return;
+    try {
+      await api.post(`/api/nodes/${revisionsNode.id}/apply`, { revisionId });
+      await openRevisions(revisionsNode);
+      await load();
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
+  const rollback = async (revisionId: string) => {
+    if (!revisionsNode) return;
+    try {
+      await api.post(`/api/nodes/${revisionsNode.id}/rollback/${revisionId}`, {});
+      await openRevisions(revisionsNode);
+      await load();
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
   const columns = useMemo<ColumnDef<NodeRow>[]>(
     () => [
       { accessorKey: 'name', header: t.name },
@@ -92,6 +139,9 @@ export default function NodesPage() {
             </button>
             <button onClick={() => restart(row.original.id)} className="text-orange-500">
               {t.restart}
+            </button>
+            <button onClick={() => openRevisions(row.original)} className="text-purple-500">
+              {t.revisions}
             </button>
           </div>
         ),
@@ -125,6 +175,65 @@ export default function NodesPage() {
       </form>
 
       <DataTable data={nodes} columns={columns} loading={loading} getRowId={(row) => row.id} />
+
+      {revisionsNode && (
+        <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl space-y-3 rounded bg-white p-5 dark:bg-gray-900">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">
+                {t.revisions} — {revisionsNode.name}
+              </h2>
+              <button onClick={() => setRevisionsNode(null)} className="rounded border px-3 py-1">
+                {t.close}
+              </button>
+            </div>
+            <button
+              onClick={() => applyRevision('')}
+              className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-40"
+              disabled={revisionsLoading}
+            >
+              {t.apply}
+            </button>
+            {revisionsLoading ? (
+              <p className="text-sm text-gray-500">{t.loading}</p>
+            ) : revisions.length === 0 ? (
+              <p className="text-sm text-gray-500">{t.noData}</p>
+            ) : (
+              <div className="overflow-x-auto rounded border">
+                <table className="w-full text-sm">
+                  <thead className="border-b bg-gray-50 dark:bg-gray-800">
+                    <tr>
+                      <th className="p-2 text-left">{t.version}</th>
+                      <th className="p-2 text-left">{t.applied}</th>
+                      <th className="p-2 text-left">{t.createdAt}</th>
+                      <th className="p-2 text-left">{t.actions}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {revisions.map((revision) => (
+                      <tr key={revision.id} className="border-b">
+                        <td className="p-2">v{revision.version}</td>
+                        <td className="p-2">{revision.applied ? '✓' : '—'}</td>
+                        <td className="p-2">{new Date(revision.createdAt).toLocaleString()}</td>
+                        <td className="p-2">
+                          <div className="space-x-3">
+                            <button onClick={() => applyRevision(revision.id)} className="text-blue-500">
+                              {t.apply}
+                            </button>
+                            <button onClick={() => rollback(revision.id)} className="text-purple-500">
+                              {t.rollback}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

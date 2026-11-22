@@ -1,13 +1,16 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, Role, UserStatus } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
+import { PasswordService } from '../../common/password.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BulkUsersDto, CreateUserDto, UpdateUserDto, UsersQueryDto } from './dto/user.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private passwords: PasswordService,
+  ) {}
 
   private tenantWhere(user: AuthUser): Prisma.UserWhereInput {
     if (user.role === Role.ADMIN) return {};
@@ -81,7 +84,7 @@ export class UsersService {
     return this.prisma.user.create({
       data: {
         email,
-        passwordHash: await bcrypt.hash(dto.password, 12),
+        passwordHash: await this.passwords.hash(dto.password),
         role: dto.role || Role.USER,
         status: dto.status || UserStatus.ACTIVE,
         trafficLimit: BigInt(dto.trafficLimit || 0),
@@ -109,7 +112,7 @@ export class UsersService {
     }
     const data: Prisma.UserUpdateInput = {};
     if (dto.email) data.email = dto.email.toLowerCase();
-    if (dto.password) data.passwordHash = await bcrypt.hash(dto.password, 12);
+    if (dto.password) data.passwordHash = await this.passwords.hash(dto.password);
     if (dto.role) data.role = dto.role;
     if (dto.status) data.status = dto.status;
     if (dto.trafficLimit !== undefined) data.trafficLimit = BigInt(dto.trafficLimit);

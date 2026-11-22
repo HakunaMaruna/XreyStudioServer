@@ -22,6 +22,10 @@ Self-hosted control panel for **Xray-core** with multi-node agents, client manag
 - Telegram bot and notifications (Telegram, email, webhook).
 - Dark/light theme, Russian and English UI, mobile responsive.
 - Searchable, sortable, paginated tables; user edit forms and dashboard charts.
+- Full CRUD forms for hosts and routing rules, plus a config revision browser with rollback.
+- Server-side search, filtering and pagination for large user lists.
+- Provisioned Grafana alerts delivered to Telegram via a token-protected webhook.
+- Argon2id password hashing with transparent compatibility for existing bcrypt hashes.
 - Hysteria2 / TUIC / WireGuard via a sing-box adapter on the node.
 - Prometheus metrics and a pre-provisioned Grafana dashboard; Kubernetes manifests.
 
@@ -83,8 +87,8 @@ XreyStudioServer/
 │   └── src/app/{dashboard,sub/[token]}
 ├── agent/                   # Node agent for Xray nodes
 ├── k8s/                     # Kubernetes (Kustomize) manifests
-├── monitoring/              # Prometheus config and Grafana dashboards
-├── scripts/                 # backup and restore helpers
+├── monitoring/              # Prometheus config, Grafana dashboard and alert rules
+├── scripts/                 # backup/restore helpers and cron example docs
 ├── docs/                    # architecture, install, API
 ├── .github/workflows/ci.yml # lint, typecheck, build, docker
 ├── docker-compose.yml
@@ -160,7 +164,7 @@ AGENT_TOKEN=random-agent-token
 CORS_ORIGIN=https://example.com
 ```
 
-Optional: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (required for Stripe webhooks), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_KEEP`, `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS to agents), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (non-Xray protocols).
+Optional: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (required for Stripe webhooks), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` by default, `bcrypt` to keep new hashes bcrypt), `ALERT_WEBHOOK_TOKEN` (shared secret for Grafana alerts), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS to agents), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (non-Xray protocols).
 
 ## API
 
@@ -209,7 +213,7 @@ Hysteria2, TUIC and WireGuard clients are exported as native `hysteria2://`, `tu
 
 - HTTPS is mandatory (Caddy).
 - JWT access + refresh tokens.
-- Password hashing with bcrypt (Argon2id supported).
+- Password hashing with Argon2id (bcrypt hashes remain valid).
 - Global API rate limiting plus stricter limits on login/refresh.
 - Verified Stripe webhook signatures (HMAC-SHA256, 5-minute tolerance).
 - CSRF/XSS/SQL-injection/IDOR protections.
@@ -224,6 +228,7 @@ Hysteria2, TUIC and WireGuard clients are exported as native `hysteria2://`, `tu
 - Health checks and alerts for offline nodes.
 - Prometheus-compatible endpoint: `GET /api/metrics` (set `METRICS_TOKEN` and send `X-Metrics-Token` when exposed).
 - Optional Prometheus + Grafana stack via `make monitoring`: Prometheus at `:9091`, Grafana at `:3002` with the pre-provisioned `XreyStudioServer — Overview` dashboard.
+- Provisioned alert rules (`monitoring/grafana/provisioning/alerting/alerts.yml`) cover a down backend, offline nodes, high backend memory and high node CPU. Alerts are sent to `POST /api/notifications/alerts` with `Authorization: Bearer $ALERT_WEBHOOK_TOKEN` and forwarded to Telegram; set both `ALERT_WEBHOOK_TOKEN` and the Telegram variables to receive them.
 
 ## Backup and restore
 
@@ -232,7 +237,7 @@ make backup
 make restore FILE=backups/db-20260101-120000.sql.gz
 ```
 
-Backups are gzip-compressed PostgreSQL dumps stored in `backups/`; `BACKUP_KEEP` controls retention (default 7).
+Backups are gzip-compressed PostgreSQL dumps stored in `backups/`; `BACKUP_DIR` sets the directory and `BACKUP_KEEP` controls retention (default 7). See `docs/backup.md` for a cron example and off-site copying.
 
 ## Protocol adapters
 
@@ -264,16 +269,16 @@ cd agent && npm install && npm start
 
 ## Testing and CI
 
-- `cd backend && npm run typecheck && npm test && npm run build`
+- `cd backend && npm run typecheck && npm run lint && npm test && npm run build && npm run test:e2e`
 - `cd frontend && npm run lint && npm run build`
 - Docker image build.
 - GitHub Actions workflow: `.github/workflows/ci.yml`.
 
 ## Roadmap
 
-- Full CRUD UI for hosts/rules and Xray config rollback.
-- Grafana alerting rules and scheduled backup cron example.
-- Argon2id password hashing option.
+- End-to-end API tests against a real disposable PostgreSQL instance.
+- Client-side column sorting combined with server-side user paging.
+- Email and Signal notification channels.
 
 ## License
 

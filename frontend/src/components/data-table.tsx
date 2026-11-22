@@ -8,9 +8,19 @@ import {
   getSortedRowModel,
   useReactTable,
   type ColumnDef,
+  type OnChangeFn,
+  type PaginationState,
   type SortingState,
 } from '@tanstack/react-table';
 import { useLang } from '../lib/i18n';
+
+export type ServerPagination = {
+  pageIndex: number;
+  pageSize: number;
+  pageCount: number;
+  onPageChange: (pageIndex: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
+};
 
 type DataTableProps<T> = {
   data: T[];
@@ -18,6 +28,8 @@ type DataTableProps<T> = {
   loading?: boolean;
   searchPlaceholder?: string;
   getRowId?: (row: T) => string;
+  serverPagination?: ServerPagination;
+  hideSearch?: boolean;
 };
 
 export default function DataTable<T>({
@@ -26,36 +38,65 @@ export default function DataTable<T>({
   loading = false,
   searchPlaceholder,
   getRowId,
+  serverPagination,
+  hideSearch = false,
 }: DataTableProps<T>) {
   const { t } = useLang();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
 
+  const pagination = serverPagination
+    ? { pageIndex: serverPagination.pageIndex, pageSize: serverPagination.pageSize }
+    : undefined;
+
+  const handlePaginationChange: OnChangeFn<PaginationState> = (updater) => {
+    if (!serverPagination) return;
+    const next =
+      typeof updater === 'function'
+        ? updater({
+            pageIndex: serverPagination.pageIndex,
+            pageSize: serverPagination.pageSize,
+          })
+        : updater;
+    serverPagination.onPageChange(next.pageIndex);
+    serverPagination.onPageSizeChange?.(next.pageSize);
+  };
+
   const table = useReactTable({
     data,
     columns,
-    state: { sorting, globalFilter },
+    state: {
+      sorting,
+      globalFilter,
+      ...(pagination ? { pagination } : {}),
+    },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
+    ...(serverPagination ? { onPaginationChange: handlePaginationChange } : {}),
+    manualPagination: Boolean(serverPagination),
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    ...(serverPagination ? {} : { getPaginationRowModel: getPaginationRowModel() }),
     initialState: { pagination: { pageSize: 10 } },
     ...(getRowId ? { getRowId } : {}),
   });
 
   const rows = table.getRowModel().rows;
   const colCount = useMemo(() => columns.length, [columns]);
+  const pageCount = serverPagination ? serverPagination.pageCount : table.getPageCount();
+  const pageIndex = serverPagination ? serverPagination.pageIndex : table.getState().pagination.pageIndex;
 
   return (
     <div className="space-y-3">
-      <input
-        value={globalFilter ?? ''}
-        onChange={(e) => setGlobalFilter(e.target.value)}
-        placeholder={searchPlaceholder || t.search}
-        className="w-full max-w-sm rounded border px-3 py-2 dark:bg-gray-800"
-      />
+      {!hideSearch && (
+        <input
+          value={globalFilter ?? ''}
+          onChange={(e) => setGlobalFilter(e.target.value)}
+          placeholder={searchPlaceholder || t.search}
+          className="w-full max-w-sm rounded border px-3 py-2 dark:bg-gray-800"
+        />
+      )}
       <div className="overflow-x-auto rounded border bg-white dark:bg-gray-900">
         <table className="w-full text-sm">
           <thead className="border-b bg-gray-50 dark:bg-gray-800">
@@ -107,7 +148,7 @@ export default function DataTable<T>({
           </tbody>
         </table>
       </div>
-      <div className="flex items-center gap-3 text-sm">
+      <div className="flex flex-wrap items-center gap-3 text-sm">
         <button
           onClick={() => table.previousPage()}
           disabled={!table.getCanPreviousPage()}
@@ -116,7 +157,7 @@ export default function DataTable<T>({
           {t.previous}
         </button>
         <span>
-          {t.page} {table.getState().pagination.pageIndex + 1} {t.of} {table.getPageCount() || 1}
+          {t.page} {pageIndex + 1} {t.of} {pageCount || 1}
         </span>
         <button
           onClick={() => table.nextPage()}
@@ -125,6 +166,22 @@ export default function DataTable<T>({
         >
           {t.next}
         </button>
+        {serverPagination?.onPageSizeChange && (
+          <label className="ml-auto flex items-center gap-2">
+            {t.pageSize}
+            <select
+              value={serverPagination.pageSize}
+              onChange={(e) => serverPagination.onPageSizeChange?.(Number(e.target.value))}
+              className="rounded border px-2 py-1 dark:bg-gray-800"
+            >
+              {[10, 20, 50, 100].map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
     </div>
   );

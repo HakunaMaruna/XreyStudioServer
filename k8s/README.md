@@ -5,10 +5,10 @@ Alternative to Docker Compose. Requires an NGINX Ingress Controller and cert-man
 1. Build and publish the images (or load them into your cluster):
 
 ```bash
-docker build -t xss-backend:1.1.1 ./backend
-docker build -t xss-frontend:1.1.1 ./frontend
-docker build -t xss-agent:1.1.1 ./agent
-# example for kind: kind load docker-image xss-backend:1.1.1 ...
+docker build -t xss-backend:1.2.0 ./backend
+docker build -t xss-frontend:1.2.0 ./frontend
+docker build -t xss-agent:1.2.0 ./agent
+# example for kind: kind load docker-image xss-backend:1.2.0 ...
 ```
 
 2. Replace placeholders in `secret.yaml` (or, preferably, create the secret with `kubectl create
@@ -28,4 +28,6 @@ Notes:
 - Run one agent Deployment per Xray node or replace it with a DaemonSet with `hostNetwork: true`
   when agents live on the same hosts as Xray.
 - Prometheus/Grafana from `monitoring/` are not included here; deploy them separately or point
-  your cluster Prometheus at `backend.xss.svc.cluster.local:3000/api/metrics`.
+   your cluster Prometheus at `backend.xss.svc.cluster.local:3000/api/metrics`.
+- `configmap.yaml` sets `PASSWORD_HASHER=argon2id`; `secret.yaml` contains `ALERT_WEBHOOK_TOKEN`
+   for the Grafana alert receiver. Replace it when deploying alerting in the cluster.

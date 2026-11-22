@@ -23,7 +23,11 @@ Self-hosted панель управления **Xray-core** с агентами 
 - Тёмная/светлая темы, русский и английский интерфейс, мобильная адаптивность.
 - Таблицы с поиском, сортировкой и пагинацией, формы редактирования и графики на дашборде.
 - Hysteria2 / TUIC / WireGuard через адаптер sing-box на ноде.
-- Метрики Prometheus и готовый дашборд Grafana; манифесты Kubernetes.
+- Метрики Prometheus, готовый дашборд и правила алертов Grafana; манифесты Kubernetes.
+- Полный CRUD UI для хостов и правил маршрутизации, просмотр ревизий конфига с откатом.
+- Серверный поиск, фильтрация и пагинация для больших списков пользователей.
+- Алерты Grafana с доставкой в Telegram через защищённый токеном webhook.
+- Хеширование паролей Argon2id с прозрачной поддержкой существующих bcrypt-хешей.
 
 ## Архитектура
 
@@ -83,8 +87,8 @@ XreyStudioServer/
 │   └── src/app/{dashboard,sub/[token]}
 ├── agent/                   # Node-агент для нод Xray
 ├── k8s/                     # манифесты Kubernetes (Kustomize)
-├── monitoring/              # конфиги Prometheus и дашборды Grafana
-├── scripts/                 # скрипты бэкапа и восстановления
+├── monitoring/              # конфиги Prometheus, дашборд и алерты Grafana
+├── scripts/                 # скрипты бэкапа/восстановления, пример cron в docs
 ├── docs/                    # архитектура, установка, API
 ├── .github/workflows/ci.yml # lint, typecheck, build, docker
 ├── docker-compose.yml
@@ -160,7 +164,7 @@ AGENT_TOKEN=random-agent-token
 CORS_ORIGIN=https://example.com
 ```
 
-Опционально: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (обязателен для Stripe-вебхуков), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_KEEP`, `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS с агентами), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (не-Xray протоколы).
+Опционально: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (обязателен для Stripe-вебхуков), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` по умолчанию, `bcrypt` для новых хешей), `ALERT_WEBHOOK_TOKEN` (общий секрет для алертов Grafana), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS с агентами), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (не-Xray протоколы).
 
 ## API
 
@@ -209,7 +213,7 @@ https://<domain>/sub/<token>
 
 - HTTPS обязателен (Caddy).
 - JWT access + refresh токены.
-- Хеширование паролей bcrypt (поддерживается Argon2id).
+- Хеширование паролей Argon2id (существующие bcrypt-хеши продолжают работать).
 - Глобальный rate limiting API + отдельные лимиты на логин/refresh.
 - Проверка подписи Stripe-вебхуков (HMAC-SHA256, допуск 5 минут).
 - Защита от CSRF/XSS/SQL-инъекций/IDOR.
@@ -224,6 +228,7 @@ https://<domain>/sub/<token>
 - Health checks и алерты при недоступности нод.
 - Prometheus-совместимый endpoint `GET /api/metrics` (при публичном доступе задайте `METRICS_TOKEN` и передавайте заголовок `X-Metrics-Token`).
 - Опциональный стек Prometheus + Grafana через `make monitoring`: Prometheus `:9091`, Grafana `:3002` с предустановленным дашбордом `XreyStudioServer — Overview`.
+- Правила алертов (`monitoring/grafana/provisioning/alerting/alerts.yml`)покрывают : недоступность backend, офлайн-ноды, высокий расход памяти backend и CPU ноды. Алерты уходят на `POST /api/notifications/alerts` с заголовком `Authorization: Bearer $ALERT_WEBHOOK_TOKEN` и пересылаются в Telegram; задайте `ALERT_WEBHOOK_TOKEN` и переменные Telegram.
 
 ## Бэкап и восстановление
 
@@ -232,7 +237,7 @@ make backup
 make restore FILE=backups/db-20260101-120000.sql.gz
 ```
 
-Бэкапы — сжатые дампы PostgreSQL в каталоге `backups/`; `BACKUP_KEEP` задаёт число хранимых копий (по умолчанию 7).
+Бэкапы — сжатые дампы PostgreSQL в каталоге `backups/`; `BACKUP_DIR` задаёт каталог, `BACKUP_KEEP` — число хранимых копий (по умолчанию 7). Пример cron и копирование на удалённое хранилище — в `docs/backup.md`.
 
 ## Адаптеры протоколов
 
@@ -264,16 +269,16 @@ cd agent && npm install && npm start
 
 ## Тесты и CI
 
-- `cd backend && npm run typecheck && npm test && npm run build`
+- `cd backend && npm run typecheck && npm run lint && npm test && npm run build && npm run test:e2e`
 - `cd frontend && npm run lint && npm run build`
 - Сборка Docker-образов.
 - GitHub Actions: `.github/workflows/ci.yml`.
 
 ## Планы
 
-- Полный CRUD UI для hosts/rules и UI отката конфигураций Xray.
-- Правила алертинга Grafana и пример cron для бэкапов.
-- Опция хеширования паролей Argon2id.
+- E2E-тесты API против временной PostgreSQL-инстанции.
+- Клиентская сортировка колонок вместе с серверной пагинацией пользователей.
+- Каналы уведомлений Email и Signal.
 
 ## Лицензия
 

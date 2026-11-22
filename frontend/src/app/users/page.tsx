@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
@@ -17,6 +17,13 @@ export default function UsersPage() {
   const { t } = useLang();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [role, setRole] = useState('');
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
+  const [total, setTotal] = useState(0);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [trafficLimit, setTrafficLimit] = useState(100);
@@ -26,25 +33,43 @@ export default function UsersPage() {
   const [editStatus, setEditStatus] = useState('ACTIVE');
   const [editTraffic, setEditTraffic] = useState(100);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
+    const params = new URLSearchParams({
+      page: String(pageIndex + 1),
+      limit: String(pageSize),
+    });
+    if (appliedSearch) params.set('search', appliedSearch);
+    if (status) params.set('status', status);
+    if (role) params.set('role', role);
     try {
-      const data = await api.get('/api/users');
-      setUsers(data.data || data);
+      const data = await api.get(`/api/users?${params.toString()}`);
+      setUsers(data.data || []);
+      setTotal(Number(data.total || 0));
     } catch (e: any) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [appliedSearch, status, role, pageIndex, pageSize]);
 
   useEffect(() => {
     if (!isLoggedIn()) {
       window.location.href = '/login';
-      return;
     }
-    load();
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAppliedSearch(search);
+      setPageIndex(0);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search, status, role]);
+
+  useEffect(() => {
+    if (isLoggedIn()) load();
+  }, [load]);
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +79,7 @@ export default function UsersPage() {
       setEmail('');
       setPassword('');
       setTrafficLimit(100);
-      load();
+      await load();
     } catch (e: any) {
       setError(e.message);
     }
@@ -63,7 +88,7 @@ export default function UsersPage() {
   const remove = async (id: string) => {
     if (!confirm('Delete user?')) return;
     await api.delete(`/api/users/${id}`);
-    load();
+    await load();
   };
 
   const startEdit = (user: UserRow) => {
@@ -83,7 +108,7 @@ export default function UsersPage() {
         trafficLimit: editTraffic * 1024 ** 3,
       });
       setEditing(null);
-      load();
+      await load();
     } catch (e: any) {
       setError(e.message);
     }
@@ -91,12 +116,13 @@ export default function UsersPage() {
 
   const columns = useMemo<ColumnDef<UserRow>[]>(
     () => [
-      { accessorKey: 'email', header: t.email },
-      { accessorKey: 'role', header: t.role },
-      { accessorKey: 'status', header: t.status },
+      { accessorKey: 'email', header: t.email, enableSorting: false },
+      { accessorKey: 'role', header: t.role, enableSorting: false },
+      { accessorKey: 'status', header: t.status, enableSorting: false },
       {
         accessorKey: 'trafficLimit',
         header: t.trafficLimit,
+        enableSorting: false,
         cell: ({ row }) => `${Math.round(Number(row.original.trafficLimit) / 1024 ** 3)} GB`,
       },
       {
@@ -153,7 +179,55 @@ export default function UsersPage() {
         </button>
       </form>
 
-      <DataTable data={users} columns={columns} loading={loading} getRowId={(row) => row.id} />
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t.search}
+          className="rounded border px-3 py-2 dark:bg-gray-800"
+        />
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="rounded border px-3 py-2 dark:bg-gray-800"
+        >
+          <option value="">{t.all} {t.status}</option>
+          <option value="ACTIVE">ACTIVE</option>
+          <option value="DISABLED">DISABLED</option>
+          <option value="EXPIRED">EXPIRED</option>
+        </select>
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          className="rounded border px-3 py-2 dark:bg-gray-800"
+        >
+          <option value="">{t.all} {t.role}</option>
+          <option value="ADMIN">ADMIN</option>
+          <option value="OPERATOR">OPERATOR</option>
+          <option value="USER">USER</option>
+        </select>
+        <span className="text-gray-500">
+          {t.total}: {total}
+        </span>
+      </div>
+
+      <DataTable
+        data={users}
+        columns={columns}
+        loading={loading}
+        getRowId={(row) => row.id}
+        hideSearch
+        serverPagination={{
+          pageIndex,
+          pageSize,
+          pageCount: Math.max(1, Math.ceil(total / pageSize)),
+          onPageChange: setPageIndex,
+          onPageSizeChange: (size) => {
+            setPageSize(size);
+            setPageIndex(0);
+          },
+        }}
+      />
 
       {editing && (
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
