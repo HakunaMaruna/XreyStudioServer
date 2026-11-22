@@ -1,9 +1,13 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { AppModule } from './app.module';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import { AppModule } from './app.module';
+
+(BigInt.prototype as any).toJSON = function () {
+  return this.toString();
+};
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -16,7 +20,7 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('XreyStudioServer API')
     .setDescription('Xray Control Panel API')
-    .setVersion('1.0.0')
+    .setVersion('1.1.0')
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);

@@ -19,21 +19,26 @@ model Organization {
 }
 
 model User {
-  id             String    @id @default(uuid())
-  email          String    @unique
-  passwordHash   String
-  role           Role      @default(USER)
-  status         UserStatus @default(ACTIVE)
-  trafficLimit   BigInt    @default(0)
-  trafficUsed    BigInt    @default(0)
-  expiresAt      DateTime?
-  subscriptionToken String  @unique @default(uuid())
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id])
-  inbounds       Inbound[]
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  auditLogs      AuditLog[]
+  id                String    @id @default(uuid())
+  email             String    @unique
+  passwordHash      String
+  role              Role      @default(USER)
+  status            UserStatus @default(ACTIVE)
+  trafficLimit      BigInt    @default(0)
+  trafficUsed       BigInt    @default(0)
+  expiresAt         DateTime?
+  subscriptionToken String    @unique @default(uuid())
+  organizationId    String?
+  organization      Organization? @relation(fields: [organizationId], references: [id])
+  inbounds          Inbound[]
+  auditLogs         AuditLog[]
+  payments          Payment[]
+  refreshTokens     RefreshToken[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
 }
 
 enum Role {
@@ -48,20 +53,38 @@ enum UserStatus {
   EXPIRED
 }
 
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
 model Node {
-  id          String     @id @default(uuid())
-  name        String
-  address     String
-  port        Int        @default(443)
-  tokenHash   String
-  status      NodeStatus @default(OFFLINE)
-  lastSeenAt  DateTime?
-  metrics     NodeMetric[]
-  inbounds    Inbound[]
+  id             String     @id @default(uuid())
+  name           String
+  address        String
+  port           Int        @default(443)
+  agentUrl       String?
+  tokenHash      String
+  status         NodeStatus @default(OFFLINE)
+  lastSeenAt     DateTime?
+  lastError      String?
+  xrayVersion    String?
+  metrics        NodeMetric[]
+  inbounds       Inbound[]
+  revisions      ConfigRevision[]
   organizationId String?
-  organization Organization? @relation(fields: [organizationId], references: [id])
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
 }
 
 enum NodeStatus {
@@ -71,30 +94,38 @@ enum NodeStatus {
 }
 
 model NodeMetric {
-  id        String   @id @default(uuid())
-  nodeId    String
-  node      Node     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
-  cpu       Float
-  ram       Float
-  disk      Float
-  trafficUp BigInt
-  trafficDown BigInt
-  connections Int
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid())
+  nodeId      String
+  node        Node     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  cpu         Float
+  ram         Float
+  disk        Float
+  trafficUp   BigInt   @default(0)
+  trafficDown BigInt   @default(0)
+  connections Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([nodeId, createdAt])
 }
 
 model Inbound {
   id        String   @id @default(uuid())
+  tag       String   @unique
   nodeId    String?
   node      Node?    @relation(fields: [nodeId], references: [id])
   userId    String?
   user      User?    @relation(fields: [userId], references: [id])
   protocol  String
+  transport String   @default("tcp")
+  security  String   @default("none")
   port      Int
   settings  Json
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([nodeId])
+  @@index([userId])
 }
 
 model Host {
@@ -119,10 +150,13 @@ model Rule {
 model ConfigRevision {
   id        String   @id @default(uuid())
   nodeId    String
+  node      Node     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
   version   Int
   content   String
   applied   Boolean  @default(false)
   createdAt DateTime @default(now())
+
+  @@index([nodeId, version])
 }
 
 model AuditLog {
@@ -133,25 +167,33 @@ model AuditLog {
   entity    String
   entityId  String?
   ip        String?
+  metadata  Json?
   createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([entity, entityId])
 }
 
 model Payment {
   id        String   @id @default(uuid())
   userId    String
-  amount    Decimal  @db.Decimal(10,2)
+  user      User     @relation(fields: [userId], references: [id])
+  amount    Decimal  @db.Decimal(10, 2)
   currency  String   @default("USD")
   status    String
   provider  String
+  externalId String?
   createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model SubscriptionPlan {
-  id          String   @id @default(uuid())
-  name        String
-  price       Decimal  @db.Decimal(10,2)
-  trafficGb   Int
+  id           String   @id @default(uuid())
+  name         String
+  price        Decimal  @db.Decimal(10, 2)
+  trafficGb    Int
   durationDays Int
-  enabled     Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
 }

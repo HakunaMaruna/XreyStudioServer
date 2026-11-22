@@ -1,42 +1,80 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useLang } from '../../lib/i18n';
 
 export default function SubscriptionPage({ params }: { params: { token: string } }) {
+  const { t } = useLang();
   const [data, setData] = useState<any>(null);
+  const [format, setFormat] = useState('json');
+  const [output, setOutput] = useState('');
+
   useEffect(() => {
-    fetch(`/api/subscriptions/${params.token}`).then((r) => r.json()).then(setData).catch(() => setData(null));
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
+    fetch(`${apiBase}/api/subscriptions/${params.token}?format=json`)
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => setData(null));
   }, [params.token]);
 
-  if (!data) return <div className="p-6">Loading...</div>;
+  const loadFormat = async (value: string) => {
+    setFormat(value);
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
+    const res = await fetch(`${apiBase}/api/subscriptions/${params.token}?format=${value}`);
+    setOutput(await res.text());
+  };
+
+  if (!data) return <div className="p-6">{t.loading}</div>;
+
+  const statusColor = data.status === 'active' ? 'text-green-500' : 'text-red-500';
 
   return (
-    <main className="max-w-3xl mx-auto p-6 space-y-4">
-      <h1 className="text-2xl font-bold">XreyStudioServer Subscription</h1>
-      <div className="rounded border p-4">
-        <p>Status: {data.status}</p>
-        <p>Expires: {data.expiresAt}</p>
-        <p>Traffic: {data.trafficUsed} / {data.trafficLimit} GB</p>
+    <main className="mx-auto max-w-3xl space-y-6 p-6">
+      <h1 className="text-2xl font-bold">{t.subscriptionPage}</h1>
+      <div className="rounded border bg-white p-4 shadow-sm dark:bg-gray-900">
+        <p className={`font-semibold ${statusColor}`}>{t.status}: {data.status}</p>
+        <p>{t.expiry}: {data.expiresAt ? new Date(data.expiresAt).toLocaleString() : '-'}</p>
+        <p>{t.traffic}: {data.trafficUsed} / {data.trafficLimit} GB</p>
       </div>
-      <div className="space-y-2">
-        <h2 className="text-xl font-semibold">Connections</h2>
-        {data.nodes?.map((n: any) => (
-          <div key={n.id} className="rounded border p-3">
-            <p>{n.name} ({n.address})</p>
-            <p className="text-sm text-gray-500">{n.protocols?.join(', ')}</p>
+
+      <div className="rounded border bg-white p-4 shadow-sm dark:bg-gray-900">
+        <h2 className="mb-2 text-lg font-semibold">{t.connections}</h2>
+        {data.nodes?.map((node: any) => (
+          <div key={node.id} className="rounded border p-3">
+            <p className="font-medium">{node.name}</p>
+            <p className="text-sm text-gray-500">{node.address}</p>
           </div>
         ))}
       </div>
-      <div className="space-y-2">
-        <h2 className="text-xl font-semibold">Links</h2>
-        {Object.entries(data.links || {}).map(([k, v]) => (
-          <div key={k} className="flex items-center gap-2">
-            <code className="text-xs break-all">{String(v)}</code>
-          </div>
-        ))}
+
+      <div className="rounded border bg-white p-4 shadow-sm dark:bg-gray-900">
+        <h2 className="mb-2 text-lg font-semibold">{t.availableFormats}</h2>
+        <div className="flex flex-wrap gap-2">
+          {['raw', 'base64', 'clash', 'singbox', 'json'].map((item) => (
+            <button
+              key={item}
+              onClick={() => loadFormat(item)}
+              className={`rounded border px-3 py-1 ${format === item ? 'bg-blue-600 text-white' : ''}`}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+        {output && (
+          <pre className="mt-3 max-h-64 overflow-auto rounded bg-gray-100 p-3 text-xs dark:bg-gray-800">{output}</pre>
+        )}
       </div>
-      <div className="text-sm text-gray-500">
-        Formats: base64, Clash, sing-box, JSON, raw. User-Agent auto-detection enabled.
+
+      <div className="rounded border bg-white p-4 shadow-sm dark:bg-gray-900">
+        <h2 className="mb-2 text-lg font-semibold">{t.links}</h2>
+        <div className="space-y-2">
+          {data.links?.map((link: any) => (
+            <div key={link.id} className="rounded border p-2">
+              <p className="text-xs font-medium">{link.tag} ({link.protocol})</p>
+              <code className="break-all text-xs">{link.link}</code>
+            </div>
+          ))}
+        </div>
       </div>
-    </main>
+    </div>
   );
 }

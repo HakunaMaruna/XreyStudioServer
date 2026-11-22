@@ -1,33 +1,136 @@
 require('dotenv').config();
 const express = require('express');
-const fetch = require('node-fetch');
+const fs = require('fs');
+const path = require('path');
+const https = require('https');
+const { execFile } = require('child_process');
 const si = require('systeminformation');
 
-const PANEL_URL = process.env.PANEL_URL || 'http://localhost:3000';
+const PANEL_URL = (process.env.PANEL_URL || 'http://localhost:3000').replace(/\/$/, '');
 const AGENT_TOKEN = process.env.AGENT_TOKEN || '';
+const AGENT_SECRET = process.env.AGENT_SECRET || process.env.AGENT_TOKEN || '';
 const NODE_ID = process.env.NODE_ID || '';
-const PORT = process.env.PORT || 9090;
+const PORT = Number(process.env.PORT || 9090);
+const CONFIG_PATH = process.env.XRAY_CONFIG_PATH || '/etc/xray/config.json';
+const XRAY_BIN = process.env.XRAY_BIN || 'xray';
+const XRAY_SERVICE = process.env.XRAY_SERVICE || 'xray';
+const BACKUP_DIR = process.env.BACKUP_DIR || path.join(path.dirname(CONFIG_PATH), 'backups');
+
+let xrayStatus = 'unknown';
+let lastGood = null;
+let lastConfigVersion = 0;
+let lastNet = null;
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
 
-let currentConfig = null;
-let xrayStatus = 'unknown';
+function run(cmd, args, timeout = 5000) {
+  return new Promise((resolve) => {
+    execFile(cmd, args, { timeout }, (error, stdout, stderr) => {
+      resolve({ ok: !error, stdout: stdout || '', stderr: stderr || '', error: error?.message });
+    });
+  });
+}
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', nodeId: NODE_ID, xray: xrayStatus });
-});
+function auth(req, res, next) {
+  const header = req.headers['x-agent-secret'] || (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  if (!AGENT_SECRET || header !== AGENT_SECRET) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  next();
+}
 
-app.post('/config', (req, res) => {
-  currentConfig = req.body;
-  xrayStatus = 'reloaded';
-  res.json({ applied: true, version: req.body?.version || 0 });
-});
+function ensureDirs() {
+  fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
+  fs.mkdirSync(BACKUP_DIR, { recursive: true });
+}
 
-app.post('/restart-xray', (req, res) => {
-  xrayStatus = 'restarted';
-  res.json({ restarted: true });
-});
+function backupCurrent() {
+  if (!fs.existsSync(CONFIG_PATH)) return null;
+  const target = path.join(BACKUP_DIR, `config-${Date.now()}.json`);
+  fs.copyFileSync(CONFIG_PATH, target);
+  lastGood = target;
+  return target;
+}
+
+function validateConfig(config) {
+  if (!config || typeof config !== 'object') throw new Error('Config must be an object');
+  if (!Array.isArray(config.inbounds)) throw new Error('inbounds must be an array');
+  if (!Array.isArray(config.outbounds)) throw new Error('outbounds must be an array');
+  for (const inbound of config.inbounds) {
+    if (!inbound.tag || !inbound.port || !inbound.protocol) {
+      throw new Error('Inbound must have tag, port and protocol');
+    }
+  }
+}
+
+async function applyConfig(config, version) {
+  validateConfig(config);
+  ensureDirs();
+  const tmp = path.join(BACKUP_DIR, `candidate-${Date.now()}.json`);
+  fs.writeFileSync(tmp, JSON.stringify(config, null, 2));
+  const test = await run(XRAY_BIN, ['run', '-test', '-c', tmp], 8000);
+  if (!test.ok) {
+    fs.unlinkSync(tmp);
+    throw new Error(`Xray config test failed: ${test.stderr || test.error}`);
+  }
+  backupCurrent();
+  fs.copyFileSync(tmp, CONFIG_PATH);
+  fs.unlinkSync(tmp);
+  lastConfigVersion = version || lastConfigVersion;
+  const reload = await run('systemctl', ['reload-or-restart', XRAY_SERVICE], 10000);
+  if (!reload.ok) {
+    const restart = await run('systemctl', ['restart', XRAY_SERVICE], 10000);
+    xrayStatus = restart.ok ? 'running' : 'error';
+    return { applied: true, reloaded: restart.ok, error: restart.ok ? null : restart.stderr };
+  }
+  xrayStatus = 'running';
+  return { applied: true, reloaded: true, version: lastConfigVersion };
+}
+
+async function collectMetrics() {
+  const [cpu, mem, fsSize, net] = await Promise.all([
+    si.currentLoad(),
+    si.mem(),
+    si.fsSize(),
+    si.networkStats(),
+  ]);
+  let up = 0;
+  let down = 0;
+  for (const iface of net || []) {
+    up += iface.tx_bytes || 0;
+    down += iface.rx_bytes || 0;
+  }
+  let trafficUp = 0;
+  let trafficDown = 0;
+  if (lastNet) {
+    trafficUp = Math.max(0, up - lastNet.up);
+    trafficDown = Math.max(0, down - lastNet.down);
+  }
+  lastNet = { up, down };
+  return {
+    cpu: Number(cpu.currentLoad?.toFixed(2) || 0),
+    ram: Number((((mem.used || 0) / (mem.total || 1)) * 100).toFixed(2)),
+    disk: Number(fsSize?.[0]?.use || 0),
+    trafficUp,
+    trafficDown,
+    connections: 0,
+    xray: xrayStatus,
+  };
+}
+
+async function sendMetrics() {
+  try {
+    const metrics = await collectMetrics();
+    await fetch(`${PANEL_URL}/api/nodes/${NODE_ID}/metrics`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AGENT_TOKEN}` },
+      body: JSON.stringify(metrics),
+    });
+  } catch (e) {
+    console.error('metrics failed', e.message);
+  }
+}
 
 async function register() {
   try {
@@ -36,34 +139,80 @@ async function register() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AGENT_TOKEN}` },
       body: JSON.stringify({ nodeId: NODE_ID, address: process.env.NODE_ADDRESS }),
     });
-    console.log('register:', await res.text());
+    console.log('register:', res.status, await res.text());
   } catch (e) {
     console.error('register failed', e.message);
   }
 }
 
-async function sendMetrics() {
+async function pullConfig() {
   try {
-    const cpu = await si.currentLoad();
-    const mem = await si.mem();
-    const fs = await si.fsSize();
-    await fetch(`${PANEL_URL}/api/nodes/${NODE_ID}/metrics`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AGENT_TOKEN}` },
-      body: JSON.stringify({
-        cpu: cpu.currentLoad,
-        ram: (mem.used / mem.total) * 100,
-        disk: fs[0] ? fs[0].use : 0,
-        connections: 0,
-        xray: xrayStatus,
-      }),
+    const res = await fetch(`${PANEL_URL}/api/nodes/${NODE_ID}/config`, {
+      headers: { Authorization: `Bearer ${AGENT_TOKEN}` },
     });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.config || data.version <= lastConfigVersion) return;
+    const result = await applyConfig(data.config, data.version);
+    console.log('pulled config', result);
   } catch (e) {
-    console.error('metrics failed', e.message);
+    console.error('pull config failed', e.message);
   }
 }
 
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', nodeId: NODE_ID, xray: xrayStatus, version: lastConfigVersion });
+});
+
+app.get('/metrics', auth, async (req, res) => {
+  res.json(await collectMetrics());
+});
+
+app.post('/config', auth, async (req, res) => {
+  try {
+    const config = req.body.config || req.body;
+    const result = await applyConfig(config, req.body.version || 0);
+    res.json(result);
+  } catch (e) {
+    xrayStatus = 'error';
+    res.status(400).json({ applied: false, error: e.message });
+  }
+});
+
+app.post('/rollback', auth, async (req, res) => {
+  if (!lastGood || !fs.existsSync(lastGood)) {
+    return res.status(400).json({ error: 'No backup available' });
+  }
+  fs.copyFileSync(lastGood, CONFIG_PATH);
+  const result = await run('systemctl', ['reload-or-restart', XRAY_SERVICE], 10000);
+  res.json({ rolledBack: true, reloaded: result.ok });
+});
+
+app.post('/restart-xray', auth, async (req, res) => {
+  const result = await run('systemctl', ['restart', XRAY_SERVICE], 10000);
+  xrayStatus = result.ok ? 'running' : 'error';
+  res.json({ restarted: result.ok, error: result.ok ? null : result.stderr });
+});
+
 register();
 setInterval(sendMetrics, 15000);
+setInterval(pullConfig, 30000);
+setTimeout(sendMetrics, 1000);
+setTimeout(pullConfig, 3000);
 
-app.listen(PORT, () => console.log(`XSS agent listening on ${PORT}`));
+const tlsCert = process.env.AGENT_TLS_CERT;
+const tlsKey = process.env.AGENT_TLS_KEY;
+const server = tlsCert && tlsKey
+  ? https.createServer(
+      {
+        cert: fs.readFileSync(tlsCert),
+        key: fs.readFileSync(tlsKey),
+        ca: process.env.AGENT_TLS_CA ? fs.readFileSync(process.env.AGENT_TLS_CA) : undefined,
+        requestCert: Boolean(process.env.AGENT_TLS_CA),
+        rejectUnauthorized: Boolean(process.env.AGENT_TLS_CA),
+      },
+      app,
+    )
+  : app;
+
+server.listen(PORT, () => console.log(`XSS agent listening on ${PORT}`));

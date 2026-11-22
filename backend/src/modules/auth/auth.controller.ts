@@ -1,19 +1,31 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 import { AuthService } from './auth.service';
+import { LoginDto, RefreshDto } from './dto/login.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private auth: AuthService) {}
 
   @Post('login')
-  async login(@Body() body: { email: string; password: string }) {
-    const token = await this.auth.login({ sub: body.email, role: 'ADMIN' });
-    return token;
+  login(@Body() dto: LoginDto) {
+    return this.auth.login(dto);
   }
 
   @Post('refresh')
-  async refresh(@Body() body: { refreshToken: string }) {
-    const payload = this.auth.verifyToken(body.refreshToken);
-    return this.auth.login({ sub: payload.sub, role: payload.role });
+  refresh(@Body() dto: RefreshDto) {
+    return this.auth.refresh(dto.refreshToken);
+  }
+
+  @Post('logout')
+  logout(@Body() dto: RefreshDto) {
+    return this.auth.logout(dto.refreshToken);
+  }
+
+  @Get('me')
+  @UseGuards(AuthGuard('jwt'))
+  me(@CurrentUser() user: AuthUser) {
+    return this.auth.me(user.userId);
   }
 }

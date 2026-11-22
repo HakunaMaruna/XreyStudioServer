@@ -1,37 +1,171 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { Role } from '@prisma/client';
+import { AuthUser, CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { AuditService } from '../audit/audit.service';
+import { CreateNodeDto, NodeMetricsDto, RegisterNodeDto, UpdateNodeDto } from './dto/node.dto';
 import { NodesService } from './nodes.service';
+
+function bearer(value?: string) {
+  return (value || '').replace(/^Bearer\s+/i, '');
+}
 
 @Controller('nodes')
 export class NodesController {
-  constructor(private service: NodesService) {}
+  constructor(
+    private service: NodesService,
+    private audit: AuditService,
+  ) {}
+
+  @Post('register')
+  register(@Body() body: RegisterNodeDto, @Headers('authorization') auth?: string) {
+    return this.service.register(body, bearer(auth));
+  }
+
+  @Post(':id/metrics')
+  metrics(
+    @Param('id') id: string,
+    @Body() body: NodeMetricsDto,
+    @Headers('authorization') auth?: string,
+  ) {
+    return this.service.metrics(id, body, bearer(auth));
+  }
+
+  @Get(':id/config')
+  agentConfig(@Param('id') id: string, @Headers('authorization') auth?: string) {
+    return this.service.agentConfig(id, bearer(auth));
+  }
 
   @Get()
-  list() {
-    return this.service.findAll();
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  list(@CurrentUser() user: AuthUser) {
+    return this.service.findAll(user);
+  }
+
+  @Get('stats')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  stats(@CurrentUser() user: AuthUser) {
+    return this.service.stats(user);
   }
 
   @Post()
-  create(@Body() body: any) {
-    return this.service.create(body);
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  async create(@Body() body: CreateNodeDto, @CurrentUser() user: AuthUser, @Req() req: any) {
+    const created = await this.service.create(body, user);
+    await this.audit.log({
+      userId: user.userId,
+      action: 'node.create',
+      entity: 'Node',
+      entityId: created.id,
+      ip: req.ip,
+    });
+    return created;
   }
 
   @Get(':id')
-  get(@Param('id') id: string) {
-    return this.service.findOne(id);
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  get(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.findOne(id, user);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: any) {
-    return this.service.update(id, body);
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  async update(
+    @Param('id') id: string,
+    @Body() body: UpdateNodeDto,
+    @CurrentUser() user: AuthUser,
+    @Req() req: any,
+  ) {
+    const updated = await this.service.update(id, body, user);
+    await this.audit.log({ userId: user.userId, action: 'node.update', entity: 'Node', entityId: id, ip: req.ip });
+    return updated;
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.service.remove(id);
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN)
+  async remove(@Param('id') id: string, @CurrentUser() user: AuthUser, @Req() req: any) {
+    const result = await this.service.remove(id, user);
+    await this.audit.log({ userId: user.userId, action: 'node.delete', entity: 'Node', entityId: id, ip: req.ip });
+    return result;
+  }
+
+  @Post(':id/rotate-token')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN)
+  async rotate(@Param('id') id: string, @CurrentUser() user: AuthUser, @Req() req: any) {
+    const result = await this.service.rotateToken(id, user);
+    await this.audit.log({ userId: user.userId, action: 'node.rotateToken', entity: 'Node', entityId: id, ip: req.ip });
+    return result;
   }
 
   @Get(':id/health')
-  health(@Param('id') id: string) {
-    return this.service.health(id);
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  health(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.health(id, user);
+  }
+
+  @Post(':id/apply')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  async apply(
+    @Param('id') id: string,
+    @Body() body: { revisionId?: string },
+    @CurrentUser() user: AuthUser,
+    @Req() req: any,
+  ) {
+    const result = await this.service.applyConfig(id, user, body?.revisionId);
+    await this.audit.log({ userId: user.userId, action: 'node.applyConfig', entity: 'Node', entityId: id, ip: req.ip });
+    return result;
+  }
+
+  @Get(':id/revisions')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  revisions(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.revisions(id, user);
+  }
+
+  @Post(':id/rollback/:revisionId')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  async rollback(
+    @Param('id') id: string,
+    @Param('revisionId') revisionId: string,
+    @CurrentUser() user: AuthUser,
+    @Req() req: any,
+  ) {
+    const result = await this.service.rollback(id, revisionId, user);
+    await this.audit.log({ userId: user.userId, action: 'node.rollback', entity: 'Node', entityId: id, ip: req.ip });
+    return result;
+  }
+
+  @Post(':id/restart')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  async restart(@Param('id') id: string, @CurrentUser() user: AuthUser, @Req() req: any) {
+    const result = await this.service.restart(id, user);
+    await this.audit.log({ userId: user.userId, action: 'node.restartXray', entity: 'Node', entityId: id, ip: req.ip });
+    return result;
   }
 }
