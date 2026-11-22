@@ -1,0 +1,305 @@
+[
+  {
+    "apiVersion": "v1",
+    "kind": "ConfigMap",
+    "metadata": {
+      "name": "prometheus-config",
+      "namespace": "xss"
+    },
+    "data": {
+      "prometheus.yml": "global:\n  scrape_interval: 15s\n  evaluation_interval: 15s\n\nscrape_configs:\n  - job_name: xss-backend\n    metrics_path: /api/metrics\n    static_configs:\n      - targets: [\"backend:3000\"]\n\n  - job_name: prometheus\n    static_configs:\n      - targets: [\"localhost:9090\"]\n"
+    }
+  },
+  {
+    "apiVersion": "v1",
+    "kind": "ConfigMap",
+    "metadata": {
+      "name": "grafana-datasources",
+      "namespace": "xss"
+    },
+    "data": {
+      "prometheus.yml": "apiVersion: 1\n\ndatasources:\n  - name: Prometheus\n    type: prometheus\n    uid: prometheus\n    access: proxy\n    url: http://prometheus:9090\n    isDefault: true\n    editable: false\n"
+    }
+  },
+  {
+    "apiVersion": "v1",
+    "kind": "ConfigMap",
+    "metadata": {
+      "name": "grafana-dashboards",
+      "namespace": "xss"
+    },
+    "data": {
+      "dashboards.yml": "apiVersion: 1\n\nproviders:\n  - name: XSS\n    orgId: 1\n    folder: XSS\n    type: file\n    disableDeletion: false\n    updateIntervalSeconds: 30\n    allowUiUpdates: false\n    options:\n      path: /var/lib/grafana/dashboards\n"
+    }
+  },
+  {
+    "apiVersion": "v1",
+    "kind": "ConfigMap",
+    "metadata": {
+      "name": "grafana-dashboard-definitions",
+      "namespace": "xss"
+    },
+    "data": {
+      "xss-overview.json": "{\n  \"uid\": \"xss-overview\",\n  \"title\": \"XreyStudioServer — Overview\",\n  \"tags\": [\"xss\", \"xray\"],\n  \"timezone\": \"browser\",\n  \"schemaVersion\": 39,\n  \"version\": 1,\n  \"refresh\": \"30s\",\n  \"time\": { \"from\": \"now-6h\", \"to\": \"now\" },\n  \"templating\": {\n    \"list\": [\n      {\n        \"name\": \"node\",\n        \"label\": \"Node\",\n        \"type\": \"query\",\n        \"datasource\": { \"type\": \"prometheus\", \"uid\": \"prometheus\" },\n        \"query\": \"label_values(xss_node_cpu_percent, node)\",\n        \"refresh\": 1,\n        \"includeAll\": true,\n        \"multi\": true,\n        \"current\": { \"selected\": true, \"text\": \"All\", \"value\": \"$__all\" }\n      }\n    ]\n  },\n  \"panels\": [\n    {\n      \"id\": 1,\n      \"title\": \"Users\",\n      \"type\": \"stat\",\n      \"gridPos\": { \"h\": 4, \"w\": 4, \"x\": 0, \"y\": 0 },\n      \"targets\": [{ \"expr\": \"xss_users_total\", \"refId\": \"A\" }]\n    },\n    {\n      \"id\": 2,\n      \"title\": \"Active users\",\n      \"type\": \"stat\",\n      \"gridPos\": { \"h\": 4, \"w\": 4, \"x\": 4, \"y\": 0 },\n      \"targets\": [{ \"expr\": \"xss_users_active\", \"refId\": \"A\" }]\n    },\n    {\n      \"id\": 3,\n      \"title\": \"Nodes online\",\n      \"type\": \"stat\",\n      \"gridPos\": { \"h\": 4, \"w\": 4, \"x\": 8, \"y\": 0 },\n      \"targets\": [{ \"expr\": \"xss_nodes_online\", \"refId\": \"A\" }]\n    },\n    {\n      \"id\": 4,\n      \"title\": \"Payments\",\n      \"type\": \"stat\",\n      \"gridPos\": { \"h\": 4, \"w\": 4, \"x\": 12, \"y\": 0 },\n      \"targets\": [{ \"expr\": \"xss_payments_total\", \"refId\": \"A\" }]\n    },\n    {\n      \"id\": 5,\n      \"title\": \"Backend memory\",\n      \"type\": \"timeseries\",\n      \"gridPos\": { \"h\": 8, \"w\": 8, \"x\": 16, \"y\": 0 },\n      \"targets\": [\n        { \"expr\": \"xss_process_memory_bytes{type=\\\"rss\\\"}\", \"legendFormat\": \"RSS\", \"refId\": \"A\" },\n        { \"expr\": \"xss_process_memory_bytes{type=\\\"heapUsed\\\"}\", \"legendFormat\": \"Heap\", \"refId\": \"B\" }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": { \"unit\": \"bytes\" },\n        \"overrides\": []\n      }\n    },\n    {\n      \"id\": 6,\n      \"title\": \"Node CPU (%)\",\n      \"type\": \"timeseries\",\n      \"gridPos\": { \"h\": 8, \"w\": 12, \"x\": 0, \"y\": 4 },\n      \"targets\": [\n        {\n          \"expr\": \"xss_node_cpu_percent{node=~\\\"$node\\\"}\",\n          \"legendFormat\": \"{{node}}\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"fieldConfig\": { \"defaults\": { \"unit\": \"percent\" }, \"overrides\": [] }\n    },\n    {\n      \"id\": 7,\n      \"title\": \"Node RAM (%)\",\n      \"type\": \"timeseries\",\n      \"gridPos\": { \"h\": 8, \"w\": 12, \"x\": 12, \"y\": 4 },\n      \"targets\": [\n        {\n          \"expr\": \"xss_node_ram_percent{node=~\\\"$node\\\"}\",\n          \"legendFormat\": \"{{node}}\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"fieldConfig\": { \"defaults\": { \"unit\": \"percent\" }, \"overrides\": [] }\n    },\n    {\n      \"id\": 8,\n      \"title\": \"Node disk (%)\",\n      \"type\": \"timeseries\",\n      \"gridPos\": { \"h\": 8, \"w\": 12, \"x\": 0, \"y\": 12 },\n      \"targets\": [\n        {\n          \"expr\": \"xss_node_disk_percent{node=~\\\"$node\\\"}\",\n          \"legendFormat\": \"{{node}}\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"fieldConfig\": { \"defaults\": { \"unit\": \"percent\" }, \"overrides\": [] }\n    },\n    {\n      \"id\": 9,\n      \"title\": \"Connections\",\n      \"type\": \"timeseries\",\n      \"gridPos\": { \"h\": 8, \"w\": 12, \"x\": 12, \"y\": 12 },\n      \"targets\": [\n        {\n          \"expr\": \"xss_node_connections{node=~\\\"$node\\\"}\",\n          \"legendFormat\": \"{{node}}\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"fieldConfig\": { \"defaults\": { \"unit\": \"short\" }, \"overrides\": [] }\n    }\n  ]\n}\n"
+    }
+  },
+  {
+    "apiVersion": "v1",
+    "kind": "ConfigMap",
+    "metadata": {
+      "name": "grafana-alerting",
+      "namespace": "xss"
+    },
+    "data": {
+      "alerts.yml": "apiVersion: 1\n\ncontactPoints:\n  - orgId: 1\n    name: xss-webhook\n    receivers:\n      - uid: xss-webhook-receiver\n        type: webhook\n        settings:\n          url: http://backend:3000/api/notifications/alerts\n          httpMethod: POST\n          authorization_scheme: Bearer\n          authorization_credentials: $ALERT_WEBHOOK_TOKEN\n\npolicies:\n  - orgId: 1\n    receiver: xss-webhook\n    group_by: ['alertname', 'severity']\n    group_wait: 30s\n    group_interval: 5m\n    repeat_interval: 12h\n\ngroups:\n  - orgId: 1\n    name: xss-availability\n    folder: XSS\n    interval: 1m\n    rules:\n      - uid: xss-backend-down\n        title: XSS backend is down\n        condition: B\n        for: 1m\n        noDataState: Alerting\n        execErrState: Alerting\n        annotations:\n          summary: XSS backend target is down\n          description: Prometheus cannot scrape the XSS backend for more than one minute.\n        labels:\n          severity: critical\n        data:\n          - refId: A\n            relativeTimeRange:\n              from: 300\n              to: 0\n            datasourceUid: prometheus\n            model:\n              datasource:\n                type: prometheus\n                uid: prometheus\n              editorMode: code\n              expr: up{job=\"xss-backend\"} == bool 0\n              instant: true\n              range: false\n              rawQuery: true\n          - refId: B\n            datasourceUid: __expr__\n            model:\n              conditions:\n                - evaluator:\n                    params: [0]\n                    type: gt\n                  operator:\n                    type: and\n                  query:\n                    params: [B]\n                  reducer:\n                    type: last\n                  type: query\n              datasource:\n                type: __expr__\n                uid: __expr__\n              expression: A\n              reducer: last\n              type: reduce\n\n      - uid: xss-node-offline\n        title: XSS node offline\n        condition: B\n        for: 2m\n        noDataState: OK\n        execErrState: Alerting\n        annotations:\n          summary: One or more XSS nodes are offline\n          description: The number of online nodes is lower than the number of registered nodes.\n        labels:\n          severity: critical\n        data:\n          - refId: A\n            relativeTimeRange:\n              from: 300\n              to: 0\n            datasourceUid: prometheus\n            model:\n              datasource:\n                type: prometheus\n                uid: prometheus\n              editorMode: code\n              expr: (xss_nodes_total - xss_nodes_online) > bool 0\n              instant: true\n              range: false\n              rawQuery: true\n          - refId: B\n            datasourceUid: __expr__\n            model:\n              conditions:\n                - evaluator:\n                    params: [0]\n                    type: gt\n                  operator:\n                    type: and\n                  query:\n                    params: [B]\n                  reducer:\n                    type: last\n                  type: query\n              datasource:\n                type: __expr__\n                uid: __expr__\n              expression: A\n              reducer: last\n              type: reduce\n\n  - orgId: 1\n    name: xss-capacity\n    folder: XSS\n    interval: 1m\n    rules:\n      - uid: xss-backend-memory\n        title: XSS backend memory high\n        condition: B\n        for: 5m\n        noDataState: OK\n        execErrState: Alerting\n        annotations:\n          summary: XSS backend RSS memory above 512 MiB\n          description: Consider scaling the backend or checking for a memory leak.\n        labels:\n          severity: warning\n        data:\n          - refId: A\n            relativeTimeRange:\n              from: 300\n              to: 0\n            datasourceUid: prometheus\n            model:\n              datasource:\n                type: prometheus\n                uid: prometheus\n              editorMode: code\n              expr: xss_process_memory_bytes{type=\"rss\"} > 536870912\n              instant: true\n              range: false\n              rawQuery: true\n          - refId: B\n            datasourceUid: __expr__\n            model:\n              conditions:\n                - evaluator:\n                    params: [0]\n                    type: gt\n                  operator:\n                    type: and\n                  query:\n                    params: [B]\n                  reducer:\n                    type: last\n                  type: query\n              datasource:\n                type: __expr__\n                uid: __expr__\n              expression: A\n              reducer: last\n              type: reduce\n\n      - uid: xss-node-cpu-high\n        title: XSS node CPU high\n        condition: B\n        for: 5m\n        noDataState: OK\n        execErrState: Alerting\n        annotations:\n          summary: Node CPU usage above 85%\n          description: A node reports sustained high CPU usage.\n        labels:\n          severity: warning\n        data:\n          - refId: A\n            relativeTimeRange:\n              from: 300\n              to: 0\n            datasourceUid: prometheus\n            model:\n              datasource:\n                type: prometheus\n                uid: prometheus\n              editorMode: code\n              expr: xss_node_cpu_percent > 85\n              instant: true\n              range: false\n              rawQuery: true\n          - refId: B\n            datasourceUid: __expr__\n            model:\n              conditions:\n                - evaluator:\n                    params: [0]\n                    type: gt\n                  operator:\n                    type: and\n                  query:\n                    params: [B]\n                  reducer:\n                    type: last\n                  type: query\n              datasource:\n                type: __expr__\n                uid: __expr__\n              expression: A\n              reducer: last\n              type: reduce\n"
+    }
+  },
+  {
+    "apiVersion": "v1",
+    "kind": "Service",
+    "metadata": {
+      "name": "prometheus",
+      "namespace": "xss"
+    },
+    "spec": {
+      "selector": {
+        "app": "prometheus"
+      },
+      "ports": [
+        {
+          "name": "http",
+          "port": 9090,
+          "targetPort": 9090
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "apps/v1",
+    "kind": "Deployment",
+    "metadata": {
+      "name": "prometheus",
+      "namespace": "xss"
+    },
+    "spec": {
+      "replicas": 1,
+      "selector": {
+        "matchLabels": {
+          "app": "prometheus"
+        }
+      },
+      "template": {
+        "metadata": {
+          "labels": {
+            "app": "prometheus"
+          }
+        },
+        "spec": {
+          "containers": [
+            {
+              "name": "prometheus",
+              "image": "prom/prometheus:v2.53.0",
+              "args": [
+                "--config.file=/etc/prometheus/prometheus.yml",
+                "--storage.tsdb.path=/prometheus"
+              ],
+              "ports": [
+                {
+                  "containerPort": 9090,
+                  "name": "http"
+                }
+              ],
+              "volumeMounts": [
+                {
+                  "name": "config",
+                  "mountPath": "/etc/prometheus",
+                  "readOnly": true
+                },
+                {
+                  "name": "data",
+                  "mountPath": "/prometheus"
+                }
+              ]
+            }
+          ],
+          "volumes": [
+            {
+              "name": "config",
+              "configMap": {
+                "name": "prometheus-config"
+              }
+            },
+            {
+              "name": "data",
+              "persistentVolumeClaim": {
+                "claimName": "prometheus-data"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "apiVersion": "v1",
+    "kind": "PersistentVolumeClaim",
+    "metadata": {
+      "name": "prometheus-data",
+      "namespace": "xss"
+    },
+    "spec": {
+      "accessModes": [
+        "ReadWriteOnce"
+      ],
+      "resources": {
+        "requests": {
+          "storage": "10Gi"
+        }
+      }
+    }
+  },
+  {
+    "apiVersion": "v1",
+    "kind": "Service",
+    "metadata": {
+      "name": "grafana",
+      "namespace": "xss"
+    },
+    "spec": {
+      "selector": {
+        "app": "grafana"
+      },
+      "ports": [
+        {
+          "name": "http",
+          "port": 3000,
+          "targetPort": 3000
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "apps/v1",
+    "kind": "Deployment",
+    "metadata": {
+      "name": "grafana",
+      "namespace": "xss"
+    },
+    "spec": {
+      "replicas": 1,
+      "selector": {
+        "matchLabels": {
+          "app": "grafana"
+        }
+      },
+      "template": {
+        "metadata": {
+          "labels": {
+            "app": "grafana"
+          }
+        },
+        "spec": {
+          "containers": [
+            {
+              "name": "grafana",
+              "image": "grafana/grafana:11.2.0",
+              "ports": [
+                {
+                  "containerPort": 3000,
+                  "name": "http"
+                }
+              ],
+              "env": [
+                {
+                  "name": "GF_SECURITY_ADMIN_PASSWORD",
+                  "valueFrom": {
+                    "secretKeyRef": {
+                      "name": "xss-secrets",
+                      "key": "GRAFANA_PASSWORD"
+                    }
+                  }
+                }
+              ],
+              "volumeMounts": [
+                {
+                  "name": "datasources",
+                  "mountPath": "/etc/grafana/provisioning/datasources",
+                  "readOnly": true
+                },
+                {
+                  "name": "dashboards",
+                  "mountPath": "/etc/grafana/provisioning/dashboards",
+                  "readOnly": true
+                },
+                {
+                  "name": "definitions",
+                  "mountPath": "/var/lib/grafana/dashboards",
+                  "readOnly": true
+                },
+                {
+                  "name": "alerting",
+                  "mountPath": "/etc/grafana/provisioning/alerting",
+                  "readOnly": true
+                },
+                {
+                  "name": "data",
+                  "mountPath": "/var/lib/grafana"
+                }
+              ]
+            }
+          ],
+          "volumes": [
+            {
+              "name": "datasources",
+              "configMap": {
+                "name": "grafana-datasources"
+              }
+            },
+            {
+              "name": "dashboards",
+              "configMap": {
+                "name": "grafana-dashboards"
+              }
+            },
+            {
+              "name": "definitions",
+              "configMap": {
+                "name": "grafana-dashboard-definitions"
+              }
+            },
+            {
+              "name": "alerting",
+              "configMap": {
+                "name": "grafana-alerting"
+              }
+            },
+            {
+              "name": "data",
+              "persistentVolumeClaim": {
+                "claimName": "grafana-data"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "apiVersion": "v1",
+    "kind": "PersistentVolumeClaim",
+    "metadata": {
+      "name": "grafana-data",
+      "namespace": "xss"
+    },
+    "spec": {
+      "accessModes": [
+        "ReadWriteOnce"
+      ],
+      "resources": {
+        "requests": {
+          "storage": "5Gi"
+        }
+      }
+    }
+  }
+]

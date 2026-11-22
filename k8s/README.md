@@ -27,7 +27,11 @@ Notes:
 - PostgreSQL uses a `StatefulSet` with a 10Gi PVC; Redis uses `emptyDir` (cache only).
 - Run one agent Deployment per Xray node or replace it with a DaemonSet with `hostNetwork: true`
   when agents live on the same hosts as Xray.
-- Prometheus/Grafana from `monitoring/` are not included here; deploy them separately or point
-   your cluster Prometheus at `backend.xss.svc.cluster.local:3000/api/metrics`.
+- Prometheus and Grafana are included via `monitoring.json` (Prometheus on `:9090`,
+  Grafana on `:3000`, both with 10Gi/5Gi PVCs). The provisioning files are generated from
+  `monitoring/` — after editing them run `node k8s/generate-monitoring.mjs`.
+  Grafana admin password comes from the `GRAFANA_PASSWORD` key of `xss-secrets`.
 - `configmap.yaml` sets `PASSWORD_HASHER=argon2id`; `secret.yaml` contains `ALERT_WEBHOOK_TOKEN`
-   for the Grafana alert receiver. Replace it when deploying alerting in the cluster.
+  for the Grafana alert receiver. Replace it when deploying alerting in the cluster.
+- Existing databases created with `prisma db push` must be baselined once before using
+  migrations: `npx prisma migrate resolve --applied 20261123000000_init`.
