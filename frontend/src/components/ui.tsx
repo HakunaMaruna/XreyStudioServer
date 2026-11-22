@@ -6,10 +6,17 @@ export function cn(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(' ');
 }
 
-type CardProps = { children: ReactNode; className?: string; padded?: boolean };
+type CardProps = { children: ReactNode; className?: string; padded?: boolean; delay?: number };
 
-export function Card({ children, className, padded = true }: CardProps) {
-  return <section className={cn('panel', padded && 'p-5', className)}>{children}</section>;
+export function Card({ children, className, padded = true, delay }: CardProps) {
+  return (
+    <section
+      className={cn('panel animate-fade-up', padded && 'p-5', className)}
+      style={delay ? { animationDelay: `${delay}ms` } : undefined}
+    >
+      {children}
+    </section>
+  );
 }
 
 export function SectionTitle({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
@@ -38,7 +45,7 @@ export function PageHeader({
   eyebrow?: string;
 }) {
   return (
-    <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+    <div className="animate-fade-up mb-7 flex flex-wrap items-end justify-between gap-4">
       <div className="flex items-center gap-3.5">
         {icon && (
           <div className="grid h-11 w-11 place-items-center rounded-xl border border-brand/25 bg-brand-soft text-brand shadow-[0_0_24px_-8px_var(--brand)]">
@@ -182,15 +189,17 @@ export function StatCard({
   icon,
   tone = 'brand',
   hint,
+  delay,
 }: {
   label: string;
   value: ReactNode;
   icon: IconName;
   tone?: Tone;
   hint?: string;
+  delay?: number;
 }) {
   return (
-    <Card className="group relative overflow-hidden">
+    <Card delay={delay} className="group relative overflow-hidden">
       <div className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-brand/5 blur-2xl transition-opacity group-hover:opacity-100" />
       <div className="relative flex items-start justify-between gap-3">
         <div>
@@ -307,8 +316,8 @@ export function Modal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-app/80 backdrop-blur-sm" onClick={onClose} />
-      <div className={cn('panel relative flex max-h-[88vh] w-full flex-col overflow-hidden p-0', widths[size])}>
+      <div className="animate-fade-in absolute inset-0 bg-app/80 backdrop-blur-sm" onClick={onClose} />
+      <div className={cn('panel animate-modal-in relative flex max-h-[88vh] w-full flex-col overflow-hidden p-0', widths[size])}>
         <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
           <div className="flex items-start gap-3">
             {icon && <span className="mt-0.5 grid h-8 w-8 place-items-center rounded-lg border border-brand/25 bg-brand-soft text-brand">{icon}</span>}

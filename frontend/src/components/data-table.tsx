@@ -159,7 +159,7 @@ export default function DataTable<T>({
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <tr key={row.id} className="group transition-colors hover:bg-surface-2/60">
+                  <tr key={row.id} className="animate-fade-in group transition-colors hover:bg-surface-2/60">
                     {row.getVisibleCells().map((cell) => (
                       <td key={cell.id} className="whitespace-nowrap px-4 py-3 text-[13px] text-muted group-hover:text-fg">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}

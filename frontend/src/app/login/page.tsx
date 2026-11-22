@@ -37,7 +37,7 @@ export default function LoginPage() {
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden p-4 sm:p-8">
       <div className="pointer-events-none absolute inset-0 grid-fade opacity-40" />
-      <div className="relative grid w-full max-w-5xl overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_40px_100px_-40px_rgba(0,0,0,.9)] lg:grid-cols-2">
+      <div className="animate-fade-up relative grid w-full max-w-5xl overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_40px_100px_-40px_rgba(0,0,0,.9)] lg:grid-cols-2">
         <div className="relative hidden flex-col justify-between overflow-hidden border-r border-line bg-gradient-to-br from-brand/15 via-surface to-surface p-10 lg:flex">
           <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-brand/25 blur-3xl" />
           <div className="absolute -bottom-32 -right-16 h-72 w-72 rounded-full bg-brand-2/15 blur-3xl" />

@@ -83,7 +83,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   };
 
   const sidebar = (
-    <div className="flex h-full flex-col border-r border-line bg-surface/70 backdrop-blur-xl">
+    <div className="animate-slide-left flex h-full flex-col border-r border-line bg-surface/70 backdrop-blur-xl">
       <div className="flex h-16 items-center gap-3 border-b border-line px-5">
         <div className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-brand to-brand-2 text-white shadow-[0_6px_20px_-8px_var(--brand)]">
           <Icon name="zap" size={18} className="fill-white/20" />
