@@ -1,30 +1,79 @@
 'use client';
 import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import { useLang } from '../lib/i18n';
 import { clearTokens, isLoggedIn } from '../lib/api';
-import { useRouter, usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { getTheme, applyTheme, type Theme } from '../lib/theme';
+import { Icon, type IconName } from './icons';
+import { Avatar, Badge, IconButton, cn } from './ui';
+
+type NavItem = { href: string; label: string; icon: IconName };
+type NavSection = { title: string; items: NavItem[] };
 
 export default function Shell({ children }: { children: React.ReactNode }) {
-  const { t, toggle } = useLang();
+  const { t, lang, toggle } = useLang();
   const router = useRouter();
   const pathname = usePathname();
-  const [dark, setDark] = useState(false);
+  const [theme, setTheme] = useState<Theme>('dark');
   const [authed, setAuthed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     setAuthed(isLoggedIn());
-    const stored = localStorage.getItem('xss_theme');
-    const isDark = stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    setDark(isDark);
-    document.documentElement.classList.toggle('dark', isDark);
+    setTheme(getTheme());
   }, []);
 
-  const toggleTheme = () => {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.classList.toggle('dark', next);
-    localStorage.setItem('xss_theme', next ? 'dark' : 'light');
+  useEffect(() => {
+    setMobileOpen(false);
+    setSearchOpen(false);
+    setQuery('');
+  }, [pathname]);
+
+  const sections: NavSection[] = useMemo(
+    () => [
+      {
+        title: 'Overview',
+        items: [
+          { href: '/dashboard', label: t.dashboard, icon: 'grid' },
+          { href: '/alerts', label: t.alerts, icon: 'bell' },
+        ],
+      },
+      {
+        title: 'Infrastructure',
+        items: [
+          { href: '/nodes', label: t.nodes, icon: 'server' },
+          { href: '/inbounds', label: t.inbounds, icon: 'plug' },
+          { href: '/hosts', label: t.hosts, icon: 'globe' },
+          { href: '/rules', label: t.rules, icon: 'route' },
+        ],
+      },
+      {
+        title: 'Access',
+        items: [{ href: '/users', label: t.users, icon: 'users' }],
+      },
+      {
+        title: 'System',
+        items: [{ href: '/settings', label: t.settings, icon: 'settings' }],
+      },
+    ],
+    [t],
+  );
+
+  const allItems = useMemo(() => sections.flatMap((section) => section.items), [sections]);
+  const current = allItems.find((item) => item.href === pathname);
+  const results = query.trim()
+    ? allItems.filter((item) => item.label.toLowerCase().includes(query.trim().toLowerCase()))
+    : [];
+
+  if (pathname === '/login' || pathname.startsWith('/sub/')) return <>{children}</>;
+
+  const switchTheme = () => {
+    const next: Theme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    applyTheme(next);
   };
 
   const logout = () => {
@@ -33,49 +82,142 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     router.push('/login');
   };
 
-  if (pathname === '/login') return <>{children}</>;
+  const sidebar = (
+    <div className="flex h-full flex-col border-r border-line bg-surface/70 backdrop-blur-xl">
+      <div className="flex h-16 items-center gap-3 border-b border-line px-5">
+        <div className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-brand to-brand-2 text-white shadow-[0_6px_20px_-8px_var(--brand)]">
+          <Icon name="zap" size={18} className="fill-white/20" />
+        </div>
+        <div className="leading-tight">
+          <p className="text-sm font-semibold tracking-tight text-fg">XreyStudio</p>
+          <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-subtle">Control panel</p>
+        </div>
+      </div>
 
-  const nav = [
-    { href: '/dashboard', label: t.dashboard },
-    { href: '/users', label: t.users },
-    { href: '/nodes', label: t.nodes },
-    { href: '/inbounds', label: t.inbounds },
-    { href: '/hosts', label: t.hosts },
-    { href: '/rules', label: t.rules },
-    { href: '/alerts', label: t.alerts },
-    { href: '/settings', label: t.settings },
-  ];
-
-  return (
-    <div className="min-h-screen">
-      <header className="border-b bg-white dark:bg-gray-900">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-6">
-            <Link href="/dashboard" className="text-lg font-bold">XSS</Link>
-            <nav className="hidden gap-4 md:flex">
-              {nav.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`text-sm ${pathname === item.href ? 'font-semibold text-blue-600' : 'text-gray-600 dark:text-gray-300'}`}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
+      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
+        {sections.map((section) => (
+          <div key={section.title}>
+            <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-subtle">{section.title}</p>
+            <div className="space-y-1">
+              {section.items.map((item) => {
+                const active = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all',
+                      active
+                        ? 'bg-brand-soft font-medium text-brand'
+                        : 'text-muted hover:bg-surface-2 hover:text-fg',
+                    )}
+                  >
+                    {active && <span className="absolute -left-3 h-5 w-0.5 rounded-r-full bg-brand" />}
+                    <Icon name={item.icon} size={17} className={active ? 'text-brand' : 'text-subtle group-hover:text-fg'} />
+                    {item.label}
+                    {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-brand" />}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button onClick={toggle} className="rounded border px-2 py-1 text-xs">{t.language}</button>
-            <button onClick={toggleTheme} className="rounded border px-2 py-1 text-xs">{dark ? '☀️' : '🌙'}</button>
-            {authed ? (
-              <button onClick={logout} className="rounded border px-2 py-1 text-xs">{t.logout}</button>
-            ) : (
-              <Link href="/login" className="rounded border px-2 py-1 text-xs">{t.login}</Link>
-            )}
+        ))}
+      </nav>
+
+      <div className="space-y-3 border-t border-line p-3">
+        <div className="rounded-xl border border-line bg-surface-2 p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-medium text-muted">System status</span>
+            <Badge tone="success" dot>Online</Badge>
+          </div>
+          <div className="mt-3 space-y-1.5">
+            <div className="flex justify-between text-[10px] text-subtle"><span>Backend API</span><span className="text-success">healthy</span></div>
+            <div className="flex justify-between text-[10px] text-subtle"><span>Version</span><span>v1.3.0</span></div>
           </div>
         </div>
-      </header>
-      <main className="mx-auto max-w-7xl p-4">{children}</main>
+        <div className="flex items-center gap-3 rounded-xl border border-line bg-surface-2 p-2.5">
+          <Avatar label="AD" size="sm" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-medium text-fg">Administrator</p>
+            <p className="truncate text-[10px] text-subtle">Full access</p>
+          </div>
+          {authed && <IconButton icon="logout" label="Logout" onClick={logout} />}
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="relative min-h-screen">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[248px] lg:block">{sidebar}</aside>
+
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-app/80 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <aside className="absolute inset-y-0 left-0 w-[264px]">{sidebar}</aside>
+        </div>
+      )}
+
+      <div className="lg:pl-[248px]">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-app/80 px-4 backdrop-blur-xl sm:px-6">
+          <IconButton icon="menu" label="Menu" className="lg:hidden" onClick={() => setMobileOpen(true)} />
+
+          <div className="hidden items-center gap-2 text-sm sm:flex">
+            <span className="text-subtle">Workspace</span>
+            <Icon name="chevronRight" size={13} className="text-subtle" />
+            <span className="font-medium text-fg">{current?.label ?? 'Dashboard'}</span>
+          </div>
+
+          <div className="relative ml-auto w-full max-w-[260px]">
+            <Icon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
+            <input
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setSearchOpen(true);
+              }}
+              onFocus={() => setSearchOpen(true)}
+              onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+              placeholder="Search pages..."
+              className="field pl-9 pr-8"
+            />
+            <kbd className="mono pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-line bg-surface-3 px-1.5 py-0.5 text-[9px] text-subtle">/</kbd>
+            {searchOpen && query.trim() && (
+              <div className="panel absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden p-1.5">
+                {results.length === 0 ? (
+                  <p className="px-3 py-2 text-xs text-muted">No pages found</p>
+                ) : (
+                  results.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-muted hover:bg-surface-2 hover:text-fg"
+                    >
+                      <Icon name={item.icon} size={15} className="text-brand" />
+                      {item.label}
+                    </Link>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="hidden h-5 w-px bg-line md:block" />
+          <div className="hidden items-center gap-2 md:flex">
+            <span className="h-2 w-2 rounded-full bg-success shadow-[0_0_8px_var(--success)]" />
+            <span className="text-[11px] text-muted">All systems operational</span>
+          </div>
+          <button
+            onClick={toggle}
+            className="rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-[11px] font-semibold text-muted transition-colors hover:text-fg"
+          >
+            {lang.toUpperCase()}
+          </button>
+          <IconButton icon={theme === 'dark' ? 'sun' : 'moon'} label="Toggle theme" onClick={switchTheme} />
+        </header>
+
+        <main className="relative z-10 mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:px-8">{children}</main>
+      </div>
     </div>
   );
 }

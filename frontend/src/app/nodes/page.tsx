@@ -4,32 +4,26 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
+import { Icon } from '../../components/icons';
+import {
+  Badge, Button, Card, Field, IconButton, Modal, PageHeader,
+  SectionTitle, StatusBadge,
+} from '../../components/ui';
 
-type NodeRow = {
-  id: string;
-  name: string;
-  address: string;
-  port: number;
-  status: string;
-};
-
-type RevisionRow = {
-  id: string;
-  version: number;
-  applied: boolean;
-  createdAt: string;
-};
+type NodeRow = { id: string; name: string; address: string; port: number; status: string };
+type RevisionRow = { id: string; version: number; applied: boolean; createdAt: string };
 
 export default function NodesPage() {
   const { t } = useLang();
   const [nodes, setNodes] = useState<NodeRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [form, setForm] = useState({ name: '', address: '' });
   const [error, setError] = useState('');
   const [revisionsNode, setRevisionsNode] = useState<NodeRow | null>(null);
   const [revisions, setRevisions] = useState<RevisionRow[]>([]);
   const [revisionsLoading, setRevisionsLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -54,24 +48,31 @@ export default function NodesPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setBusy(true);
     try {
-      await api.post('/api/nodes', { name, address });
-      setName('');
-      setAddress('');
-      load();
+      await api.post('/api/nodes', form);
+      setForm({ name: '', address: '' });
+      setCreateOpen(false);
+      await load();
     } catch (e: any) {
       setError(e.message);
+    } finally {
+      setBusy(false);
     }
   };
 
   const apply = async (id: string) => {
+    setBusy(true);
     await api.post(`/api/nodes/${id}/apply`, {});
-    load();
+    await load();
+    setBusy(false);
   };
 
   const restart = async (id: string) => {
+    setBusy(true);
     await api.post(`/api/nodes/${id}/restart`, {});
-    load();
+    await load();
+    setBusy(false);
   };
 
   const openRevisions = async (node: NodeRow) => {
@@ -92,7 +93,7 @@ export default function NodesPage() {
   const applyRevision = async (revisionId: string) => {
     if (!revisionsNode) return;
     try {
-      await api.post(`/api/nodes/${revisionsNode.id}/apply`, { revisionId });
+      await api.post(`/api/nodes/${revisionsNode.id}/apply`, revisionId ? { revisionId } : {});
       await openRevisions(revisionsNode);
       await load();
     } catch (e: any) {
@@ -113,36 +114,41 @@ export default function NodesPage() {
 
   const columns = useMemo<ColumnDef<NodeRow>[]>(
     () => [
-      { accessorKey: 'name', header: t.name },
+      {
+        accessorKey: 'name',
+        header: t.name,
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3">
+            <div className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface-2 text-brand">
+              <Icon name="server" size={15} />
+            </div>
+            <div>
+              <p className="font-medium text-fg">{row.original.name}</p>
+              <p className="text-[10px] text-subtle">ID {row.original.id.slice(0, 8)}</p>
+            </div>
+          </div>
+        ),
+      },
       {
         id: 'address',
         header: t.address,
         accessorFn: (row) => `${row.address}:${row.port}`,
+        cell: ({ row }) => <span className="mono text-xs text-muted">{row.original.address}:{row.original.port}</span>,
       },
       {
         accessorKey: 'status',
         header: t.status,
-        cell: ({ row }) => (
-          <span className={row.original.status === 'ONLINE' ? 'text-green-500' : 'text-gray-500'}>
-            {row.original.status}
-          </span>
-        ),
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
       {
         id: 'actions',
         header: t.actions,
         enableSorting: false,
         cell: ({ row }) => (
-          <div className="space-x-3">
-            <button onClick={() => apply(row.original.id)} className="text-blue-500">
-              {t.apply}
-            </button>
-            <button onClick={() => restart(row.original.id)} className="text-orange-500">
-              {t.restart}
-            </button>
-            <button onClick={() => openRevisions(row.original)} className="text-purple-500">
-              {t.revisions}
-            </button>
+          <div className="flex items-center gap-1">
+            <IconButton icon="play" label={t.apply} tone="brand" onClick={() => apply(row.original.id)} />
+            <IconButton icon="refresh" label={t.restart} onClick={() => restart(row.original.id)} />
+            <IconButton icon="history" label={t.revisions} onClick={() => openRevisions(row.original)} />
           </div>
         ),
       },
@@ -150,90 +156,80 @@ export default function NodesPage() {
     [t],
   );
 
+  const online = nodes.filter((node) => node.status === 'ONLINE').length;
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t.nodes}</h1>
-      {error && <p className="text-sm text-red-500">{error}</p>}
-      <form onSubmit={create} className="flex flex-wrap gap-2 rounded border bg-white p-4 dark:bg-gray-900">
-        <input
-          placeholder={t.name}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="rounded border px-3 py-2 dark:bg-gray-800"
-          required
-        />
-        <input
-          placeholder={t.address}
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          className="rounded border px-3 py-2 dark:bg-gray-800"
-          required
-        />
-        <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">
-          {t.create}
-        </button>
-      </form>
+    <>
+      <PageHeader
+        eyebrow="Infrastructure"
+        title={t.nodes}
+        subtitle="Deploy, monitor and roll back Xray configurations"
+        icon="server"
+        actions={<Button icon="plus" variant="primary" onClick={() => setCreateOpen(true)}>Add node</Button>}
+      />
+
+      {error && (
+        <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+          <Icon name="alert" size={15} /> {error}
+        </div>
+      )}
+
+      <div className="mb-5 grid gap-4 sm:grid-cols-3">
+        <Card className="flex items-center gap-3 p-4">
+          <div className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-surface-2 text-muted"><Icon name="server" size={17} /></div>
+          <div><p className="text-[10px] uppercase tracking-wider text-subtle">Total nodes</p><p className="text-lg font-semibold text-fg tabular-nums">{nodes.length}</p></div>
+        </Card>
+        <Card className="flex items-center gap-3 p-4">
+          <div className="grid h-9 w-9 place-items-center rounded-lg border border-success/25 bg-success/10 text-success"><Icon name="activity" size={17} /></div>
+          <div><p className="text-[10px] uppercase tracking-wider text-subtle">Online</p><p className="text-lg font-semibold text-fg tabular-nums">{online}</p></div>
+        </Card>
+        <Card className="flex items-center gap-3 p-4">
+          <div className="grid h-9 w-9 place-items-center rounded-lg border border-warning/25 bg-warning/10 text-warning"><Icon name="pulse" size={17} /></div>
+          <div><p className="text-[10px] uppercase tracking-wider text-subtle">Availability</p><p className="text-lg font-semibold text-fg tabular-nums">{nodes.length ? Math.round((online / nodes.length) * 100) : 0}%</p></div>
+        </Card>
+      </div>
 
       <DataTable data={nodes} columns={columns} loading={loading} getRowId={(row) => row.id} />
 
-      {revisionsNode && (
-        <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl space-y-3 rounded bg-white p-5 dark:bg-gray-900">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">
-                {t.revisions} — {revisionsNode.name}
-              </h2>
-              <button onClick={() => setRevisionsNode(null)} className="rounded border px-3 py-1">
-                {t.close}
-              </button>
-            </div>
-            <button
-              onClick={() => applyRevision('')}
-              className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-40"
-              disabled={revisionsLoading}
-            >
-              {t.apply}
-            </button>
-            {revisionsLoading ? (
-              <p className="text-sm text-gray-500">{t.loading}</p>
-            ) : revisions.length === 0 ? (
-              <p className="text-sm text-gray-500">{t.noData}</p>
-            ) : (
-              <div className="overflow-x-auto rounded border">
-                <table className="w-full text-sm">
-                  <thead className="border-b bg-gray-50 dark:bg-gray-800">
-                    <tr>
-                      <th className="p-2 text-left">{t.version}</th>
-                      <th className="p-2 text-left">{t.applied}</th>
-                      <th className="p-2 text-left">{t.createdAt}</th>
-                      <th className="p-2 text-left">{t.actions}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {revisions.map((revision) => (
-                      <tr key={revision.id} className="border-b">
-                        <td className="p-2">v{revision.version}</td>
-                        <td className="p-2">{revision.applied ? '✓' : '—'}</td>
-                        <td className="p-2">{new Date(revision.createdAt).toLocaleString()}</td>
-                        <td className="p-2">
-                          <div className="space-x-3">
-                            <button onClick={() => applyRevision(revision.id)} className="text-blue-500">
-                              {t.apply}
-                            </button>
-                            <button onClick={() => rollback(revision.id)} className="text-purple-500">
-                              {t.rollback}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+      <Modal open={createOpen} onClose={() => { setCreateOpen(false); setForm({ name: '', address: '' }); }} title="Register node" subtitle="Connect a new Xray agent to the panel" icon={<Icon name="server" size={16} />}
+        footer={<><Button onClick={() => setCreateOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="plus" onClick={create} loading={busy}>{t.create}</Button></>}>
+        <form onSubmit={create} className="space-y-4">
+          <Field label={t.name}><input placeholder="node-eu-01" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="field" required /></Field>
+          <Field label={t.address} hint="Hostname or IP of the agent"><input placeholder="10.0.0.5" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="field" required /></Field>
+          <div className="rounded-lg border border-info/20 bg-info/5 p-3 text-[11px] leading-relaxed text-muted">
+            After registration the panel will generate a one-time agent token. Store it securely on the node.
           </div>
-        </div>
-      )}
-    </div>
+        </form>
+      </Modal>
+
+      <Modal open={Boolean(revisionsNode)} onClose={() => setRevisionsNode(null)} title={`${t.revisions} — ${revisionsNode?.name || ''}`} subtitle="Version history and deployment control" size="lg">
+        <SectionTitle title="Configuration history" action={<Button size="sm" icon="play" onClick={() => applyRevision('')} loading={revisionsLoading}>Apply latest</Button>} />
+        {revisionsLoading ? (
+          <div className="flex items-center justify-center gap-2 py-10 text-xs text-muted"><Icon name="refresh" size={15} className="animate-spin text-brand" />{t.loading}</div>
+        ) : revisions.length === 0 ? (
+          <div className="py-10 text-center text-xs text-subtle">{t.noData}</div>
+        ) : (
+          <div className="relative space-y-3 pl-6">
+            <div className="absolute bottom-3 left-[7px] top-3 w-px bg-line" />
+            {revisions.map((revision) => (
+              <div key={revision.id} className="relative rounded-xl border border-line bg-surface-2/50 p-3.5">
+                <span className="absolute -left-[22px] top-5 h-2.5 w-2.5 rounded-full border-2 border-surface bg-brand" />
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <Badge tone="brand">v{revision.version}</Badge>
+                    {revision.applied && <Badge tone="success" dot>Applied</Badge>}
+                    <span className="text-[11px] text-subtle">{new Date(revision.createdAt).toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" icon="play" onClick={() => applyRevision(revision.id)}>{t.apply}</Button>
+                    <Button size="sm" variant="ghost" icon="history" onClick={() => rollback(revision.id)}>{t.rollback}</Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
+    </>
   );
 }

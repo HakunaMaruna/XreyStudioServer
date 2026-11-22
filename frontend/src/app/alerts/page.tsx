@@ -4,18 +4,18 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
+import { Icon, type IconName } from '../../components/icons';
+import { Badge, Card, PageHeader, cn } from '../../components/ui';
 
 type AlertRow = {
-  id: string;
-  status: string;
-  title: string;
-  message: string | null;
-  severity: string | null;
-  source: string;
-  createdAt: string;
+  id: string; status: string; title: string; message: string | null;
+  severity: string | null; source: string; createdAt: string;
 };
-
 type Channels = Record<'telegram' | 'webhook' | 'email' | 'signal', boolean>;
+
+const channelIcons: Record<keyof Channels, IconName> = {
+  telegram: 'zap', webhook: 'link', email: 'box', signal: 'pulse',
+};
 
 export default function AlertsPage() {
   const { t } = useLang();
@@ -52,61 +52,68 @@ export default function AlertsPage() {
     api.get<Channels>('/api/notifications/channels').then(setChannels).catch(() => undefined);
   }, [load]);
 
-  useEffect(() => {
-    setPageIndex(0);
-  }, [status]);
+  useEffect(() => { setPageIndex(0); }, [status]);
 
   const columns = useMemo<ColumnDef<AlertRow>[]>(
     () => [
       {
-        accessorKey: 'status',
-        header: t.status,
-        cell: ({ row }) => (
-          <span className={row.original.status === 'resolved' ? 'text-green-500' : 'text-red-500'}>
-            {row.original.status}
-          </span>
-        ),
+        accessorKey: 'status', header: t.status,
+        cell: ({ row }) => row.original.status === 'resolved'
+          ? <Badge tone="success" dot>Resolved</Badge>
+          : <Badge tone="danger" dot>Firing</Badge>,
       },
-      { accessorKey: 'title', header: t.title },
-      { accessorKey: 'severity', header: t.severity, cell: ({ row }) => row.original.severity || '-' },
-      { accessorKey: 'source', header: t.source },
-      { accessorKey: 'message', header: t.message, cell: ({ row }) => row.original.message || '-' },
-      {
-        accessorKey: 'createdAt',
-        header: t.createdAt,
-        cell: ({ row }) => new Date(row.original.createdAt).toLocaleString(),
-      },
+      { accessorKey: 'title', header: t.title, cell: ({ row }) => <p className="font-medium text-fg">{row.original.title}</p> },
+      { accessorKey: 'severity', header: t.severity, cell: ({ row }) => <Badge tone={row.original.severity === 'critical' ? 'danger' : 'warning'}>{row.original.severity || '—'}</Badge> },
+      { accessorKey: 'source', header: t.source, cell: ({ row }) => <span className="mono text-[11px] text-muted">{row.original.source}</span> },
+      { accessorKey: 'message', header: t.message, cell: ({ row }) => <span className="text-xs text-muted">{row.original.message || '—'}</span> },
+      { accessorKey: 'createdAt', header: t.createdAt, cell: ({ row }) => <span className="text-xs text-muted">{new Date(row.original.createdAt).toLocaleString()}</span> },
     ],
     [t],
   );
 
-  return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t.alerts}</h1>
-      {error && <p className="text-sm text-red-500">{error}</p>}
+  const enabledCount = channels ? Object.values(channels).filter(Boolean).length : 0;
 
-      {channels && (
-        <div className="flex flex-wrap gap-3 rounded border bg-white p-3 text-sm dark:bg-gray-900">
-          <span className="font-medium">{t.channels}:</span>
-          {(Object.keys(channels) as (keyof Channels)[]).map((key) => (
-            <span key={key} className={channels[key] ? 'text-green-500' : 'text-gray-400'}>
-              {key} {channels[key] ? '✓' : '—'}
-            </span>
-          ))}
+  return (
+    <>
+      <PageHeader
+        eyebrow="Overview"
+        title={t.alerts}
+        subtitle="Alert history and notification channel health"
+        icon="bell"
+        actions={<Badge tone={total > 0 ? 'warning' : 'success'} dot>{total} events</Badge>}
+      />
+
+      {error && (
+        <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+          <Icon name="alert" size={15} /> {error}
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="rounded border px-3 py-2 dark:bg-gray-800"
-        >
+      <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {channels ? (Object.keys(channels) as (keyof Channels)[]).map((key) => (
+          <Card key={key} className="flex items-center gap-3 p-4">
+            <div className={cn('grid h-9 w-9 place-items-center rounded-lg border', channels[key] ? 'border-success/25 bg-success/10 text-success' : 'border-line bg-surface-2 text-subtle')}>
+              <Icon name={channelIcons[key]} size={16} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium capitalize text-fg">{key}</p>
+              <p className="text-[10px] text-subtle">{channels[key] ? 'Connected' : 'Not configured'}</p>
+            </div>
+            <span className={cn('h-2 w-2 rounded-full', channels[key] ? 'bg-success shadow-[0_0_8px_var(--success)]' : 'bg-line-2')} />
+          </Card>
+        )) : (
+          <div className="col-span-full py-4 text-center text-xs text-subtle">Loading channels…</div>
+        )}
+      </div>
+
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <select value={status} onChange={(e) => setStatus(e.target.value)} className="field w-auto min-w-[180px]">
           <option value="">{t.all} {t.status}</option>
           <option value="firing">{t.firing}</option>
           <option value="resolved">{t.resolved}</option>
         </select>
-        <span className="text-gray-500">{t.total}: {total}</span>
+        <Badge tone="neutral">{t.total}: {total}</Badge>
+        <Badge tone="brand">{enabledCount}/4 channels active</Badge>
       </div>
 
       <DataTable
@@ -116,16 +123,12 @@ export default function AlertsPage() {
         getRowId={(row) => row.id}
         hideSearch
         serverPagination={{
-          pageIndex,
-          pageSize,
+          pageIndex, pageSize,
           pageCount: Math.max(1, Math.ceil(total / pageSize)),
           onPageChange: setPageIndex,
-          onPageSizeChange: (size) => {
-            setPageSize(size);
-            setPageIndex(0);
-          },
+          onPageSizeChange: (size) => { setPageSize(size); setPageIndex(0); },
         }}
       />
-    </div>
+    </>
   );
 }
