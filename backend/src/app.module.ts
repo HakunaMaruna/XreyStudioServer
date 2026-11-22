@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { getStorageToken, ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.service';
 import { PasswordModule } from './common/password.module';
 import { SeedService } from './common/seed.service';
+import { RedisThrottlerStorage } from './common/redis-throttler.storage';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { NodesModule } from './modules/nodes/nodes.module';
@@ -48,6 +49,7 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
   ],
   providers: [
     SeedService,
+    { provide: getStorageToken(), useClass: RedisThrottlerStorage },
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
