@@ -13,6 +13,7 @@ jobs:
       - run: cd backend && npm run lint
       - run: cd backend && npm test -- --runInBand
       - run: cd backend && npm run build
+      - run: cd backend && npm run test:e2e
   frontend:
     runs-on: ubuntu-latest
     steps:
@@ -23,6 +24,31 @@ jobs:
       - run: cd frontend && npm ci
       - run: cd frontend && npm run lint
       - run: cd frontend && npm run build
+  e2e-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: xss
+          POSTGRES_PASSWORD: xss
+          POSTGRES_DB: xss_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U xss"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://xss:xss@127.0.0.1:5432/xss_e2e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: cd backend && npm ci
+      - run: cd backend && npm run test:e2e:pg
   docker:
     runs-on: ubuntu-latest
     steps:

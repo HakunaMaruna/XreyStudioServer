@@ -197,3 +197,17 @@ model SubscriptionPlan {
   enabled      Boolean  @default(true)
   createdAt    DateTime @default(now())
 }
+
+model AlertHistory {
+  id        String   @id @default(uuid())
+  status    String
+  title     String
+  message   String?
+  severity  String?
+  source    String   @default("grafana")
+  labels    Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([status, createdAt])
+}

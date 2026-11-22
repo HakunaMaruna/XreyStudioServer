@@ -35,14 +35,49 @@ export class AlertWebhookController {
   async receive(@Body() body: GrafanaPayload, @Headers('authorization') authorization?: string) {
     this.authorized(authorization);
     const alerts = Array.isArray(body?.alerts) ? body.alerts : [];
-    const lines = alerts.map((alert) => {
-      const labels = alert.labels || {};
-      const annotations = alert.annotations || {};
-      const name = labels.alertname || annotations.summary || body?.title || 'XSS alert';
-      const value = annotations.description || annotations.message || body?.message || '';
-      return `${alert.status === 'resolved' ? '✅' : '🔴'} ${name}${value ? ` — ${value}` : ''}`;
-    });
+    const entries = alerts.length
+      ? alerts
+      : [
+          {
+            status: body?.status || 'firing',
+            labels: { alertname: body?.title || 'XSS alert' },
+            annotations: { description: body?.message },
+          },
+        ];
+
+    const records = await Promise.all(
+      entries.map((alert) => {
+        const labels = alert.labels || {};
+        const annotations = alert.annotations || {};
+        return this.notifications.recordAlert({
+          status: alert.status || body?.status || 'firing',
+          title: labels.alertname || annotations.summary || body?.title || 'XSS alert',
+          message: annotations.description || annotations.message || body?.message || null,
+          severity: labels.severity || null,
+          source: 'grafana',
+          labels,
+        });
+      }),
+    );
+
+    const lines = alertlines(body, alerts);
     const text = lines.length ? lines.join('\n') : `🔴 ${body?.title || body?.message || 'XSS alert'}`;
-    return { received: alerts.length, ...(await this.notifications.sendTelegram(text)) };
+    const channels = await this.notifications.broadcast({
+      text,
+      plainText: lines.length ? lines.join('\n') : `${body?.title || body?.message || 'XSS alert'}`,
+      subject: body?.title || 'XSS alert',
+      webhook: { event: 'alert', status: body?.status, title: body?.title, alerts },
+    });
+    return { received: alerts.length, persisted: records.length, ...channels };
   }
+}
+
+function alertlines(body: GrafanaPayload, alerts: GrafanaAlert[]): string[] {
+  return alerts.map((alert) => {
+    const labels = alert.labels || {};
+    const annotations = alert.annotations || {};
+    const name = labels.alertname || annotations.summary || body?.title || 'XSS alert';
+    const value = annotations.description || annotations.message || body?.message || '';
+    return `${alert.status === 'resolved' ? '✅' : '🔴'} ${name}${value ? ` — ${value}` : ''}`;
+  });
 }

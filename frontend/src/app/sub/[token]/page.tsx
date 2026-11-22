@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { QRCodeSVG } from 'qrcode.react';
 import { useLang } from '../../../lib/i18n';
 
 type SubNode = { id: string; name: string; address: string };
@@ -39,6 +40,8 @@ export default function SubscriptionPage() {
   if (!data) return <div className="p-6">{t.loading}</div>;
 
   const statusColor = data.status === 'active' ? 'text-green-500' : 'text-red-500';
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
+  const subscriptionUrl = `${apiBase}/api/subscriptions/${token}?format=base64`;
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-6">
@@ -47,6 +50,14 @@ export default function SubscriptionPage() {
         <p className={`font-semibold ${statusColor}`}>{t.status}: {data.status}</p>
         <p>{t.expiry}: {data.expiresAt ? new Date(data.expiresAt).toLocaleString() : '-'}</p>
         <p>{t.traffic}: {data.trafficUsed} / {data.trafficLimit} GB</p>
+      </div>
+
+      <div className="rounded border bg-white p-4 shadow-sm dark:bg-gray-900">
+        <h2 className="mb-2 text-lg font-semibold">{t.qrCode}</h2>
+        <div className="flex flex-wrap items-center gap-4">
+          <QRCodeSVG value={subscriptionUrl} size={160} />
+          <code className="break-all text-xs text-gray-500">{subscriptionUrl}</code>
+        </div>
       </div>
 
       <div className="rounded border bg-white p-4 shadow-sm dark:bg-gray-900">

@@ -21,14 +21,25 @@ alerting resources from `monitoring/grafana/provisioning/`.
 
 The provisioned contact point posts to `http://backend:3000/api/notifications/alerts` with
 `Authorization: Bearer $ALERT_WEBHOOK_TOKEN`. The backend validates the token with a constant-time
-comparison and forwards a formatted message through `NotificationsService` (Telegram and the
-optional `WEBHOOK_URL`).
+comparison, stores every alert in the `AlertHistory` table and broadcasts a formatted message
+through `NotificationsService`. Available channels:
+
+| Channel | Required variables | Notes |
+|---|---|---|
+| Telegram | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | HTML formatted message |
+| Webhook | `WEBHOOK_URL` | generic JSON, also used for node/payment events |
+| Email | `SMTP_HOST`, `EMAIL_FROM` (optionally `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`), `ALERT_EMAIL_TO` | plain text via SMTP |
+| Signal | `SIGNAL_API_URL`, `SIGNAL_PHONE_NUMBER`, `SIGNAL_RECIPIENT` | `signal-cli-rest-api` `/v2/send` |
+
+Unconfigured channels are skipped; the response reports the result per channel. Alerts can be
+reviewed in the panel on the **Alerts** page (`/alerts`), which also shows which channels are
+configured (`GET /api/notifications/channels`).
 
 Setup:
 
 1. Set `ALERT_WEBHOOK_TOKEN` in `.env` to a long random value (the same value is passed to
    Grafana by `docker-compose.yml`).
-2. Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` to receive alerts in Telegram.
+2. Configure at least one delivery channel from the table above (Telegram is optional).
 3. Restart the stack: `docker compose --profile monitoring up -d`.
 
 If the token is missing, the endpoint responds `503`; a wrong token responds `401`. Alert rules

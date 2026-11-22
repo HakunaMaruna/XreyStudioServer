@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef, OnChangeFn, SortingState } from '@tanstack/react-table';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
@@ -23,6 +23,7 @@ export default function UsersPage() {
   const [role, setRole] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(20);
+  const [sorting, setSorting] = useState<SortingState>([]);
   const [total, setTotal] = useState(0);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,6 +43,10 @@ export default function UsersPage() {
     if (appliedSearch) params.set('search', appliedSearch);
     if (status) params.set('status', status);
     if (role) params.set('role', role);
+    if (sorting[0]) {
+      params.set('sortBy', sorting[0].id);
+      params.set('sortOrder', sorting[0].desc ? 'desc' : 'asc');
+    }
     try {
       const data = await api.get(`/api/users?${params.toString()}`);
       setUsers(data.data || []);
@@ -51,7 +56,7 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [appliedSearch, status, role, pageIndex, pageSize]);
+  }, [appliedSearch, status, role, pageIndex, pageSize, sorting]);
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -114,15 +119,19 @@ export default function UsersPage() {
     }
   };
 
+  const handleSortingChange: OnChangeFn<SortingState> = (updater) => {
+    setSorting(updater);
+    setPageIndex(0);
+  };
+
   const columns = useMemo<ColumnDef<UserRow>[]>(
     () => [
-      { accessorKey: 'email', header: t.email, enableSorting: false },
-      { accessorKey: 'role', header: t.role, enableSorting: false },
-      { accessorKey: 'status', header: t.status, enableSorting: false },
+      { accessorKey: 'email', header: t.email },
+      { accessorKey: 'role', header: t.role },
+      { accessorKey: 'status', header: t.status },
       {
         accessorKey: 'trafficLimit',
         header: t.trafficLimit,
-        enableSorting: false,
         cell: ({ row }) => `${Math.round(Number(row.original.trafficLimit) / 1024 ** 3)} GB`,
       },
       {
@@ -217,6 +226,9 @@ export default function UsersPage() {
         loading={loading}
         getRowId={(row) => row.id}
         hideSearch
+        sorting={sorting}
+        onSortingChange={handleSortingChange}
+        manualSorting
         serverPagination={{
           pageIndex,
           pageSize,

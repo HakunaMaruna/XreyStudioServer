@@ -19,14 +19,15 @@ Self-hosted панель управления **Xray-core** с агентами 
 - Multi-tenant организации и white-label брендирование.
 - Аудит действий, резервное копирование и восстановление.
 - Платежи, тарифы, триалы, рефералы и реселлеры (расширяемо).
-- Telegram-бот и уведомления (Telegram, email, webhook).
+- Уведомления через Telegram, webhook, SMTP email и Signal (`signal-cli-rest-api`).
 - Тёмная/светлая темы, русский и английский интерфейс, мобильная адаптивность.
 - Таблицы с поиском, сортировкой и пагинацией, формы редактирования и графики на дашборде.
+- История алертов в PostgreSQL с интерфейсом просмотра и статусом каналов уведомлений.
 - Hysteria2 / TUIC / WireGuard через адаптер sing-box на ноде.
 - Метрики Prometheus, готовый дашборд и правила алертов Grafana; манифесты Kubernetes.
 - Полный CRUD UI для хостов и правил маршрутизации, просмотр ревизий конфига с откатом.
-- Серверный поиск, фильтрация и пагинация для больших списков пользователей.
-- Алерты Grafana с доставкой в Telegram через защищённый токеном webhook.
+- Серверный поиск, сортировка, фильтрация и пагинация для больших списков пользователей.
+- Алерты Grafana с доставкой через защищённый токеном webhook.
 - Хеширование паролей Argon2id с прозрачной поддержкой существующих bcrypt-хешей.
 
 ## Архитектура
@@ -164,7 +165,7 @@ AGENT_TOKEN=random-agent-token
 CORS_ORIGIN=https://example.com
 ```
 
-Опционально: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (обязателен для Stripe-вебхуков), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` по умолчанию, `bcrypt` для новых хешей), `ALERT_WEBHOOK_TOKEN` (общий секрет для алертов Grafana), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS с агентами), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (не-Xray протоколы).
+Опционально: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (обязателен для Stripe-вебхуков), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` по умолчанию, `bcrypt` для новых хешей), `ALERT_WEBHOOK_TOKEN` (общий секрет для алертов Grafana), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS с агентами), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (не-Xray протоколы).
 
 ## API
 
@@ -228,7 +229,9 @@ https://<domain>/sub/<token>
 - Health checks и алерты при недоступности нод.
 - Prometheus-совместимый endpoint `GET /api/metrics` (при публичном доступе задайте `METRICS_TOKEN` и передавайте заголовок `X-Metrics-Token`).
 - Опциональный стек Prometheus + Grafana через `make monitoring`: Prometheus `:9091`, Grafana `:3002` с предустановленным дашбордом `XreyStudioServer — Overview`.
-- Правила алертов (`monitoring/grafana/provisioning/alerting/alerts.yml`)покрывают : недоступность backend, офлайн-ноды, высокий расход памяти backend и CPU ноды. Алерты уходят на `POST /api/notifications/alerts` с заголовком `Authorization: Bearer $ALERT_WEBHOOK_TOKEN` и пересылаются в Telegram; задайте `ALERT_WEBHOOK_TOKEN` и переменные Telegram.
+- Правила алертов (`monitoring/grafana/provisioning/alerting/alerts.yml`)покрывают : недоступность backend, офлайн-ноды, высокий расход памяти backend и CPU ноды. Алерты уходят на `POST /api/notifications/alerts` с заголовком `Authorization: Bearer $ALERT_WEBHOOK_TOKEN` и пересылаются в Telegram, webhook, email (SMTP) и Signal. Каждый алерт сохраняется в таблице
+`AlertHistory` и доступен на странице **Оповещения** (`/alerts`), где также показаны настроенные
+каналы. Настройка каналов описана в `docs/monitoring.md`.
 
 ## Бэкап и восстановление
 
@@ -270,15 +273,16 @@ cd agent && npm install && npm start
 ## Тесты и CI
 
 - `cd backend && npm run typecheck && npm run lint && npm test && npm run build && npm run test:e2e`
+- `DATABASE_URL=postgres://xss:xss@127.0.0.1:5432/xss_e2e npm run test:e2e:pg` — API-тесты против реальной PostgreSQL (схема создаётся автоматически; используйте временную БД).
 - `cd frontend && npm run lint && npm run build`
 - Сборка Docker-образов.
-- GitHub Actions: `.github/workflows/ci.yml`.
+- GitHub Actions (`.github/workflows/ci.yml`): линтеры, typecheck, юнит-тесты, оба e2e-набора (с сервисом PostgreSQL 16), сборки и Compose.
 
 ## Планы
 
-- E2E-тесты API против временной PostgreSQL-инстанции.
-- Клиентская сортировка колонок вместе с серверной пагинацией пользователей.
-- Каналы уведомлений Email и Signal.
+- Персональный учёт трафика по метрикам нод, UI для аудита, организаций, платежей и тарифов.
+- Просмотр логов нод, редактирование inbound, автоматизация бэкапов в UI.
+- Шире использовать Redis (rate limiting/кэш) и проверить стек мониторинга в Kubernetes.
 
 ## Лицензия
 

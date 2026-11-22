@@ -60,6 +60,13 @@ describe('XSS API (e2e)', () => {
     configRevision: { findMany: jest.fn().mockResolvedValue([{ id: 'rev-1', version: 1, applied: true, createdAt: new Date() }]) },
     payment: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
     auditLog: { create: jest.fn().mockResolvedValue({}) },
+    alertHistory: {
+      create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'alert-1', ...data })),
+      findMany: jest.fn().mockResolvedValue([
+        { id: 'alert-1', status: 'firing', title: 'XSS node offline', source: 'grafana', createdAt: new Date() },
+      ]),
+      count: jest.fn().mockResolvedValue(1),
+    },
   };
 
   beforeAll(async () => {
@@ -169,6 +176,28 @@ describe('XSS API (e2e)', () => {
       .send(payload)
       .expect(201);
     expect(res.body.received).toBe(1);
+    expect(res.body.persisted).toBe(1);
+    expect(prisma.alertHistory.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: 'firing', title: 'XSS node offline', source: 'grafana' }),
+      }),
+    );
     delete process.env.ALERT_WEBHOOK_TOKEN;
+  });
+
+  it('returns alert history and channel status to admins', async () => {
+    const history = await request(app.getHttpServer())
+      .get('/api/notifications/alerts?page=1&limit=10')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(history.body).toMatchObject({ page: 1, limit: 10, total: 1 });
+    expect(history.body.data[0]).toMatchObject({ id: 'alert-1', title: 'XSS node offline' });
+
+    const channels = await request(app.getHttpServer())
+      .get('/api/notifications/channels')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(channels.body).toHaveProperty('telegram');
+    expect(channels.body).toHaveProperty('signal');
   });
 });

@@ -7,6 +7,7 @@ import {
   MinLength,
   Min,
   IsDateString,
+  IsIn,
 } from 'class-validator';
 import { Role, UserStatus } from '@prisma/client';
 
@@ -90,6 +91,14 @@ export class UsersQueryDto {
 
   @IsOptional()
   limit?: string;
+
+  @IsOptional()
+  @IsIn(['email', 'role', 'status', 'trafficLimit', 'trafficUsed', 'expiresAt', 'createdAt'])
+  sortBy?: string;
+
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  sortOrder?: 'asc' | 'desc';
 }
 
 export class BulkUsersDto {

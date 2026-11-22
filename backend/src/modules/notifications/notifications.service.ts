@@ -1,10 +1,49 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import * as nodemailer from 'nodemailer';
+import type { Transporter } from 'nodemailer';
+import { PrismaService } from '../../prisma/prisma.service';
+
+export type ChannelResult = { sent: boolean; reason?: string; error?: string };
+
+export type AlertInput = {
+  status: string;
+  title: string;
+  message?: string | null;
+  severity?: string | null;
+  source?: string;
+  labels?: Record<string, unknown> | null;
+};
+
+export type BroadcastOptions = {
+  text: string;
+  plainText?: string;
+  subject?: string;
+  webhook?: Record<string, unknown>;
+};
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
+  private mailer?: Transporter;
 
-  async sendTelegram(text: string) {
+  constructor(private prisma: PrismaService) {}
+
+  private get mailTransport(): Transporter {
+    if (!this.mailer) {
+      this.mailer = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT || 587),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: process.env.SMTP_USER
+          ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD || '' }
+          : undefined,
+      });
+    }
+    return this.mailer;
+  }
+
+  async sendTelegram(text: string): Promise<ChannelResult> {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
     if (!token || !chatId) return { sent: false, reason: 'telegram not configured' };
@@ -14,14 +53,14 @@ export class NotificationsService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
       });
-      return { sent: res.ok };
+      return { sent: res.ok, ...(res.ok ? {} : { error: await res.text() }) };
     } catch (e: any) {
       this.logger.warn(`Telegram failed: ${e.message}`);
       return { sent: false, error: e.message };
     }
   }
 
-  async sendWebhook(payload: Record<string, unknown>) {
+  async sendWebhook(payload: Record<string, unknown>): Promise<ChannelResult> {
     const url = process.env.WEBHOOK_URL;
     if (!url) return { sent: false, reason: 'webhook not configured' };
     try {
@@ -30,32 +69,110 @@ export class NotificationsService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      return { sent: res.ok };
+      return { sent: res.ok, ...(res.ok ? {} : { error: await res.text() }) };
     } catch (e: any) {
       this.logger.warn(`Webhook failed: ${e.message}`);
       return { sent: false, error: e.message };
     }
   }
 
-  async sendEmail(to: string, subject: string, text: string) {
-    // SMTP integration can be plugged in here without changing callers.
-    this.logger.log(`Email to ${to}: ${subject} — ${text}`);
-    return { sent: false, reason: 'email transport not configured' };
+  async sendEmail(to: string | undefined, subject: string, text: string): Promise<ChannelResult> {
+    const host = process.env.SMTP_HOST;
+    const from = process.env.EMAIL_FROM || process.env.SMTP_USER;
+    if (!to || !host || !from) return { sent: false, reason: 'smtp not configured' };
+    try {
+      await this.mailTransport.sendMail({ from, to, subject, text });
+      return { sent: true };
+    } catch (e: any) {
+      this.logger.warn(`Email failed: ${e.message}`);
+      return { sent: false, error: e.message };
+    }
+  }
+
+  async sendSignal(text: string): Promise<ChannelResult> {
+    const url = process.env.SIGNAL_API_URL;
+    const number = process.env.SIGNAL_PHONE_NUMBER;
+    const recipient = process.env.SIGNAL_RECIPIENT;
+    if (!url || !number || !recipient) return { sent: false, reason: 'signal not configured' };
+    try {
+      const res = await fetch(`${url.replace(/\/$/, '')}/v2/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, number, recipients: [recipient] }),
+      });
+      return { sent: res.ok, ...(res.ok ? {} : { error: await res.text() }) };
+    } catch (e: any) {
+      this.logger.warn(`Signal failed: ${e.message}`);
+      return { sent: false, error: e.message };
+    }
+  }
+
+  async broadcast(options: BroadcastOptions): Promise<Record<string, ChannelResult>> {
+    const plain = options.plainText || options.text.replace(/<[^>]*>/g, '');
+    const [telegram, signal, webhook, email] = await Promise.all([
+      this.sendTelegram(options.text),
+      this.sendSignal(plain),
+      this.sendWebhook(options.webhook || { event: 'notification', text: plain }),
+      this.sendEmail(process.env.ALERT_EMAIL_TO, options.subject || 'XSS notification', plain),
+    ]);
+    return { telegram, signal, webhook, email };
+  }
+
+  channels() {
+    return {
+      telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID),
+      webhook: Boolean(process.env.WEBHOOK_URL),
+      email: Boolean(process.env.SMTP_HOST && (process.env.EMAIL_FROM || process.env.SMTP_USER)),
+      signal: Boolean(process.env.SIGNAL_API_URL && process.env.SIGNAL_PHONE_NUMBER && process.env.SIGNAL_RECIPIENT),
+    };
+  }
+
+  async recordAlert(alert: AlertInput) {
+    return this.prisma.alertHistory.create({
+      data: {
+        status: alert.status,
+        title: alert.title,
+        message: alert.message ?? null,
+        severity: alert.severity ?? null,
+        source: alert.source || 'grafana',
+        labels: (alert.labels ?? undefined) as Prisma.InputJsonValue | undefined,
+      },
+    });
+  }
+
+  async listAlerts(query: { page?: string | number; limit?: string | number; status?: string }) {
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
+    const where = query.status ? { status: query.status } : {};
+    const [data, total] = await Promise.all([
+      this.prisma.alertHistory.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.alertHistory.count({ where }),
+    ]);
+    return { data, total, page, limit };
   }
 
   async notifyNodeOffline(node: { id: string; name: string; address: string }) {
     const text = `🔴 Node offline: <b>${node.name}</b> (${node.address})`;
-    await Promise.all([
-      this.sendTelegram(text),
-      this.sendWebhook({ event: 'node.offline', node }),
-    ]);
+    return this.broadcast({
+      text,
+      plainText: `Node offline: ${node.name} (${node.address})`,
+      subject: `XSS: node offline — ${node.name}`,
+      webhook: { event: 'node.offline', node },
+    });
   }
 
   async notifyPayment(payment: { id: string; amount: string; currency: string; status: string }) {
     const text = `💳 Payment ${payment.id}: ${payment.amount} ${payment.currency} — ${payment.status}`;
-    await Promise.all([
-      this.sendTelegram(text),
-      this.sendWebhook({ event: 'payment', payment }),
-    ]);
+    return this.broadcast({
+      text,
+      plainText: `Payment ${payment.id}: ${payment.amount} ${payment.currency} — ${payment.status}`,
+      subject: `XSS: payment ${payment.id}`,
+      webhook: { event: 'payment', payment },
+    });
   }
 }

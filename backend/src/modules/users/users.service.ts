@@ -28,10 +28,17 @@ export class UsersService {
         ? { email: { contains: query.search, mode: 'insensitive' } }
         : {}),
     };
+    const sortFields = ['email', 'role', 'status', 'trafficLimit', 'trafficUsed', 'expiresAt', 'createdAt'];
+    const field = sortFields.includes(query.sortBy || '') ? query.sortBy! : 'createdAt';
+    const sortOrder: Prisma.SortOrder = query.sortOrder === 'asc' ? 'asc' : 'desc';
+    const orderBy: Prisma.UserOrderByWithRelationInput[] = [
+      { [field]: sortOrder } as Prisma.UserOrderByWithRelationInput,
+      { id: sortOrder },
+    ];
     const [data, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip: (page - 1) * limit,
         take: limit,
         select: {

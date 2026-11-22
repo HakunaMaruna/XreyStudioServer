@@ -30,6 +30,9 @@ type DataTableProps<T> = {
   getRowId?: (row: T) => string;
   serverPagination?: ServerPagination;
   hideSearch?: boolean;
+  sorting?: SortingState;
+  onSortingChange?: OnChangeFn<SortingState>;
+  manualSorting?: boolean;
 };
 
 export default function DataTable<T>({
@@ -40,10 +43,19 @@ export default function DataTable<T>({
   getRowId,
   serverPagination,
   hideSearch = false,
+  sorting: controlledSorting,
+  onSortingChange: controlledOnSortingChange,
+  manualSorting = false,
 }: DataTableProps<T>) {
   const { t } = useLang();
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [internalSorting, setInternalSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
+  const sorting = controlledSorting ?? internalSorting;
+
+  const handleSortingChange: OnChangeFn<SortingState> = (updater) => {
+    if (controlledOnSortingChange) controlledOnSortingChange(updater);
+    else setInternalSorting(updater);
+  };
 
   const pagination = serverPagination
     ? { pageIndex: serverPagination.pageIndex, pageSize: serverPagination.pageSize }
@@ -70,10 +82,11 @@ export default function DataTable<T>({
       globalFilter,
       ...(pagination ? { pagination } : {}),
     },
-    onSortingChange: setSorting,
+    onSortingChange: handleSortingChange,
     onGlobalFilterChange: setGlobalFilter,
     ...(serverPagination ? { onPaginationChange: handlePaginationChange } : {}),
     manualPagination: Boolean(serverPagination),
+    manualSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),

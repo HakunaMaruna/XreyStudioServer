@@ -19,12 +19,13 @@ Self-hosted control panel for **Xray-core** with multi-node agents, client manag
 - Multi-tenant organizations and white-label branding.
 - Audit log, backups and restore.
 - Payments, plans, trials, referrals and resellers (extensible).
-- Telegram bot and notifications (Telegram, email, webhook).
+- Notifications via Telegram, generic webhook, SMTP email and Signal (`signal-cli-rest-api`).
 - Dark/light theme, Russian and English UI, mobile responsive.
 - Searchable, sortable, paginated tables; user edit forms and dashboard charts.
 - Full CRUD forms for hosts and routing rules, plus a config revision browser with rollback.
-- Server-side search, filtering and pagination for large user lists.
-- Provisioned Grafana alerts delivered to Telegram via a token-protected webhook.
+- Server-side search, sorting, filtering and pagination for large user lists.
+- Alert history stored in PostgreSQL with an admin UI and a channel-status overview.
+- Provisioned Grafana alerts delivered through a token-protected webhook.
 - Argon2id password hashing with transparent compatibility for existing bcrypt hashes.
 - Hysteria2 / TUIC / WireGuard via a sing-box adapter on the node.
 - Prometheus metrics and a pre-provisioned Grafana dashboard; Kubernetes manifests.
@@ -164,7 +165,7 @@ AGENT_TOKEN=random-agent-token
 CORS_ORIGIN=https://example.com
 ```
 
-Optional: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (required for Stripe webhooks), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` by default, `bcrypt` to keep new hashes bcrypt), `ALERT_WEBHOOK_TOKEN` (shared secret for Grafana alerts), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS to agents), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (non-Xray protocols).
+Optional: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (required for Stripe webhooks), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` by default, `bcrypt` to keep new hashes bcrypt), `ALERT_WEBHOOK_TOKEN` (shared secret for Grafana alerts), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS to agents), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (non-Xray protocols).
 
 ## API
 
@@ -228,7 +229,9 @@ Hysteria2, TUIC and WireGuard clients are exported as native `hysteria2://`, `tu
 - Health checks and alerts for offline nodes.
 - Prometheus-compatible endpoint: `GET /api/metrics` (set `METRICS_TOKEN` and send `X-Metrics-Token` when exposed).
 - Optional Prometheus + Grafana stack via `make monitoring`: Prometheus at `:9091`, Grafana at `:3002` with the pre-provisioned `XreyStudioServer — Overview` dashboard.
-- Provisioned alert rules (`monitoring/grafana/provisioning/alerting/alerts.yml`) cover a down backend, offline nodes, high backend memory and high node CPU. Alerts are sent to `POST /api/notifications/alerts` with `Authorization: Bearer $ALERT_WEBHOOK_TOKEN` and forwarded to Telegram; set both `ALERT_WEBHOOK_TOKEN` and the Telegram variables to receive them.
+- Provisioned alert rules (`monitoring/grafana/provisioning/alerting/alerts.yml`) cover a down backend, offline nodes, high backend memory and high node CPU. Alerts are sent to `POST /api/notifications/alerts` with `Authorization: Bearer $ALERT_WEBHOOK_TOKEN` and forwarded to Telegram, webhook, SMTP email and Signal. Every alert is persisted in the
+`AlertHistory` table and can be reviewed on the **Alerts** page (`/alerts`), which also shows which
+channels are configured. See `docs/monitoring.md` for channel setup.
 
 ## Backup and restore
 
@@ -270,15 +273,16 @@ cd agent && npm install && npm start
 ## Testing and CI
 
 - `cd backend && npm run typecheck && npm run lint && npm test && npm run build && npm run test:e2e`
+- `DATABASE_URL=postgres://xss:xss@127.0.0.1:5432/xss_e2e npm run test:e2e:pg` — API tests against a real PostgreSQL database (the schema is pushed automatically; use a disposable DB).
 - `cd frontend && npm run lint && npm run build`
 - Docker image build.
-- GitHub Actions workflow: `.github/workflows/ci.yml`.
+- GitHub Actions (`.github/workflows/ci.yml`) runs lint, typecheck, unit tests, both e2e suites (with a PostgreSQL 16 service container), builds and the Compose build.
 
 ## Roadmap
 
-- End-to-end API tests against a real disposable PostgreSQL instance.
-- Client-side column sorting combined with server-side user paging.
-- Email and Signal notification channels.
+- Per-user traffic accounting from node metrics, UI for audit logs, organizations, payments and plans.
+- Node log viewer, inbound editing, backup automation in the UI.
+- Broader Redis usage (rate limiting/cache) and monitoring stack validation in Kubernetes.
 
 ## License
 

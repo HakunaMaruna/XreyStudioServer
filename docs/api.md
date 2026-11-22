@@ -14,7 +14,9 @@ All admin endpoints require `Authorization: Bearer <accessToken>` and, where not
 
 ## Users
 
-- `GET /users` — paginated list; query parameters `page`, `limit`, `search`, `status`, `role`.
+- `GET /users` — paginated list; query parameters `page`, `limit`, `search`, `status`, `role`,
+  `sortBy` (`email`, `role`, `status`, `trafficLimit`, `trafficUsed`, `expiresAt`, `createdAt`)
+  and `sortOrder` (`asc` | `desc`, default `desc`). Sorting happens in the database before paging.
   Response: `{ data, total, page, limit }`
 - `POST /users` — create user
 - `GET /users/stats` — aggregated counters
@@ -47,10 +49,13 @@ All admin endpoints require `Authorization: Bearer <accessToken>` and, where not
 
 ## Operations
 
-- `POST /notifications/test` — send a test notification (ADMIN)
+- `POST /notifications/test` — broadcast a test notification to all configured channels (ADMIN)
+- `GET /notifications/channels` — which channels are configured (no secrets)
+- `GET /notifications/alerts?page&limit&status` — persisted alert history (ADMIN)
 - `POST /notifications/alerts` — Grafana alert webhook; requires
-  `Authorization: Bearer $ALERT_WEBHOOK_TOKEN`. Returns `{ received, sent }` and forwards
-  alerts to the configured Telegram chat.
+  `Authorization: Bearer $ALERT_WEBHOOK_TOKEN`. Persists each alert in `AlertHistory`, returns
+  `{ received, persisted, telegram, signal, webhook, email }` and forwards the message to all
+  configured channels.
 - `GET /metrics` — Prometheus text exposition; optional `X-Metrics-Token` header when
   `METRICS_TOKEN` is set
 - `GET /health`, `GET /health/live`, `GET /health/ready` — health checks
