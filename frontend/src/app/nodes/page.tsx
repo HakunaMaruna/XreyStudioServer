@@ -7,11 +7,27 @@ import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
 import {
   Badge, Button, Card, Field, IconButton, Modal, PageHeader,
-  SectionTitle, StatusBadge,
+  SectionTitle, StatusBadge, formatBytes,
 } from '../../components/ui';
 
 type NodeRow = { id: string; name: string; address: string; port: number; status: string };
 type RevisionRow = { id: string; version: number; applied: boolean; createdAt: string };
+type NodeHealth = {
+  nodeId: string;
+  status: string;
+  online: boolean;
+  lastSeenAt: string | null;
+  lastError: string | null;
+  latestMetric: {
+    cpu: number;
+    ram: number;
+    disk: number;
+    trafficUp: string;
+    trafficDown: string;
+    connections: number;
+    createdAt: string;
+  } | null;
+};
 
 export default function NodesPage() {
   const { t } = useLang();
@@ -23,6 +39,9 @@ export default function NodesPage() {
   const [revisionsNode, setRevisionsNode] = useState<NodeRow | null>(null);
   const [revisions, setRevisions] = useState<RevisionRow[]>([]);
   const [revisionsLoading, setRevisionsLoading] = useState(false);
+  const [healthNode, setHealthNode] = useState<NodeRow | null>(null);
+  const [health, setHealth] = useState<NodeHealth | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
@@ -112,6 +131,20 @@ export default function NodesPage() {
     }
   };
 
+  const openHealth = async (node: NodeRow) => {
+    setHealthNode(node);
+    setHealth(null);
+    setHealthLoading(true);
+    try {
+      const data = await api.get(`/api/nodes/${node.id}/health`);
+      setHealth(data);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setHealthLoading(false);
+    }
+  };
+
   const columns = useMemo<ColumnDef<NodeRow>[]>(
     () => [
       {
@@ -146,6 +179,7 @@ export default function NodesPage() {
         enableSorting: false,
         cell: ({ row }) => (
           <div className="flex items-center gap-1">
+            <IconButton icon="activity" label={t.health} onClick={() => openHealth(row.original)} />
             <IconButton icon="play" label={t.apply} tone="brand" onClick={() => apply(row.original.id)} />
             <IconButton icon="refresh" label={t.restart} onClick={() => restart(row.original.id)} />
             <IconButton icon="history" label={t.revisions} onClick={() => openRevisions(row.original)} />
@@ -228,6 +262,54 @@ export default function NodesPage() {
               </div>
             ))}
           </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={Boolean(healthNode)}
+        onClose={() => { setHealthNode(null); setHealth(null); }}
+        title={t.nodeHealth}
+        subtitle={healthNode?.name}
+        icon={<Icon name="activity" size={16} />}
+      >
+        {healthLoading ? (
+          <div className="flex items-center justify-center gap-2 py-12 text-xs text-muted">
+            <Icon name="refresh" size={15} className="animate-spin text-brand" />{t.loading}
+          </div>
+        ) : health ? (
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge status={health.status} />
+              <Badge tone={health.online ? 'success' : 'danger'} dot>{health.online ? t.online : t.offline}</Badge>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                { label: t.lastSeen, value: health.lastSeenAt ? new Date(health.lastSeenAt).toLocaleString() : '—' },
+                { label: t.cpu, value: health.latestMetric ? `${Number(health.latestMetric.cpu).toFixed(1)}%` : '—' },
+                { label: t.ram, value: health.latestMetric ? `${Number(health.latestMetric.ram).toFixed(1)}%` : '—' },
+                { label: t.disk, value: health.latestMetric ? `${Number(health.latestMetric.disk).toFixed(1)}%` : '—' },
+                { label: t.trafficUsed, value: health.latestMetric ? formatBytes(health.latestMetric.trafficUp) : '—' },
+                { label: t.connections, value: health.latestMetric ? String(health.latestMetric.connections) : '—' },
+              ].map((item) => (
+                <div key={item.label} className="rounded-xl border border-line bg-surface-2/50 p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-subtle">{item.label}</p>
+                  <p className="mt-1.5 text-sm font-medium text-fg tabular-nums">{item.value}</p>
+                </div>
+              ))}
+            </div>
+            <div>
+              <p className="mb-2 text-[10px] uppercase tracking-wider text-subtle">{t.lastError}</p>
+              {health.lastError ? (
+                <div className="flex items-start gap-2 rounded-lg border border-danger/25 bg-danger/10 p-3 text-xs text-danger">
+                  <Icon name="alert" size={14} className="mt-0.5 shrink-0" />{health.lastError}
+                </div>
+              ) : (
+                <p className="text-xs text-subtle">{t.noErrors}</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="py-12 text-center text-xs text-subtle">{t.noData}</div>
         )}
       </Modal>
     </>
