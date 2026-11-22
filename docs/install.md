@@ -44,6 +44,14 @@ ignores duplicate `checkout.session.completed` events for already paid invoices.
 For HTTPS agent URLs, set `AGENT_CA`, `AGENT_CERT` and `AGENT_KEY` to PEM file paths readable by
 the backend container. Without these, signed `AGENT_TOKEN`/`AGENT_SECRET` headers are used.
 
+## Per-user traffic accounting
+Set `XRAY_STATS_ENABLED=true` to add a loopback Xray API inbound to every generated config and
+collect per-client uplink/downlink on the agent. The agent reads `xray api statsq` every 15 s,
+converts cumulative counters to deltas and submits them with node metrics. The panel stores daily
+per-user/per-node totals in `UserTraffic`, increments `User.trafficUsed` and disables an account
+once its `trafficLimit` is reached; the next config push removes that client from the nodes.
+`XRAY_API_HOST` / `XRAY_API_PORT` control the agent-side API address (defaults `127.0.0.1:8080`).
+
 ## Database migrations
 An initial Prisma migration is checked in at `backend/prisma/migrations/20261123000000_init`.
 For a fresh database apply it with:

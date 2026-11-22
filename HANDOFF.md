@@ -82,11 +82,20 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 
 ## Remaining plan (next work)
 
-1. Per-user traffic accounting derived from node metrics, with quota enforcement.
+Done in the current cycle:
+
+1. Per-user traffic accounting from the Xray Stats API with quota enforcement (opt-in via
+   `XRAY_STATS_ENABLED=true`).
 2. UI for audit logs, organizations, payments and subscription plans.
-3. Node log viewer, inbound editing, backup automation in the UI.
-4. Broader Redis usage (rate limiting/cache) and validation of the monitoring stack in k8s.
-5. After each change: sync edited files into `/tmp/opencode/XSS_REPO`, commit, push, update
+3. Inbound editing and a node health panel.
+4. Redis-backed shared rate limiting with in-memory fallback, initial Prisma migration,
+   Prometheus/Grafana manifests for k8s, and a redesigned dark SaaS admin UI with full RU/EN strings.
+
+Still open:
+
+1. Node log viewer (requires a new agent/backend log API) and backup automation in the UI.
+2. Validate the k8s monitoring stack against a live cluster.
+3. After each change: sync edited files into `/tmp/opencode/XSS_REPO`, commit, push, update
    README (ru/en), docs and this HANDOFF file. Tag a new release when the stage is complete.
 
 ## Commands

@@ -1,4 +1,13 @@
-import { IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 
 export class CreateNodeDto {
   @IsString()
@@ -55,6 +64,17 @@ export class RegisterNodeDto {
   xrayVersion?: string;
 }
 
+export class UserTrafficDto {
+  @IsString()
+  email: string;
+
+  @IsNumber()
+  uplink: number;
+
+  @IsNumber()
+  downlink: number;
+}
+
 export class NodeMetricsDto {
   @IsOptional()
   @IsNumber()
@@ -83,4 +103,11 @@ export class NodeMetricsDto {
   @IsOptional()
   @IsString()
   xray?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5000)
+  @ValidateNested({ each: true })
+  @Type(() => UserTrafficDto)
+  users?: UserTrafficDto[];
 }

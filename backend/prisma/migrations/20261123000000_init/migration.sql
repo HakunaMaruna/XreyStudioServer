@@ -192,6 +192,20 @@ CREATE TABLE "AlertHistory" (
     CONSTRAINT "AlertHistory_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "UserTraffic" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "nodeId" TEXT NOT NULL,
+    "uplink" BIGINT NOT NULL DEFAULT 0,
+    "downlink" BIGINT NOT NULL DEFAULT 0,
+    "date" DATE NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "UserTraffic_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Organization_slug_key" ON "Organization"("slug");
 
@@ -249,6 +263,15 @@ CREATE INDEX "AlertHistory_createdAt_idx" ON "AlertHistory"("createdAt");
 -- CreateIndex
 CREATE INDEX "AlertHistory_status_createdAt_idx" ON "AlertHistory"("status", "createdAt");
 
+-- CreateIndex
+CREATE INDEX "UserTraffic_userId_date_idx" ON "UserTraffic"("userId", "date");
+
+-- CreateIndex
+CREATE INDEX "UserTraffic_nodeId_date_idx" ON "UserTraffic"("nodeId", "date");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserTraffic_userId_nodeId_date_key" ON "UserTraffic"("userId", "nodeId", "date");
+
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
@@ -275,4 +298,10 @@ ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_userId_fkey" FOREIGN KEY ("userI
 
 -- AddForeignKey
 ALTER TABLE "Payment" ADD CONSTRAINT "Payment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserTraffic" ADD CONSTRAINT "UserTraffic_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserTraffic" ADD CONSTRAINT "UserTraffic_nodeId_fkey" FOREIGN KEY ("nodeId") REFERENCES "Node"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

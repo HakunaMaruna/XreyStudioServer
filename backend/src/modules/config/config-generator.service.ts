@@ -172,7 +172,7 @@ export class ConfigGeneratorService {
       };
     });
 
-    const config = {
+    const config: any = {
       log: { loglevel: 'warning' },
       dns: {
         servers: ['1.1.1.1', '8.8.8.8', 'localhost'],
@@ -194,6 +194,20 @@ export class ConfigGeneratorService {
         levels: { '0': { handshake: 4, connIdle: 300, uplinkOnly: 2, downlinkOnly: 5 } },
       },
     };
+
+    // Optional Xray API inbound for per-user traffic statistics (agent reads it via `xray api statsq`).
+    if (process.env.XRAY_STATS_ENABLED === 'true') {
+      const apiPort = Number(process.env.XRAY_API_PORT || 8080);
+      config.api = { tag: 'api', services: ['HandlerService', 'StatsService'] };
+      config.inbounds.unshift({
+        tag: 'api-in',
+        listen: '127.0.0.1',
+        port: apiPort,
+        protocol: 'dokodemo-door',
+        settings: { address: '127.0.0.1', port: apiPort, network: 'tcp' },
+      });
+      config.routing.rules.unshift({ type: 'field', inboundTag: ['api-in'], outboundTag: 'api' });
+    }
 
     const dualConfig = {
       xray: config,

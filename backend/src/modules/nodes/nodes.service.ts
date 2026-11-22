@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { NodeStatus, Prisma, Role } from '@prisma/client';
@@ -14,6 +15,8 @@ import { CreateNodeDto, NodeMetricsDto, RegisterNodeDto, UpdateNodeDto } from '.
 
 @Injectable()
 export class NodesService {
+  private readonly logger = new Logger(NodesService.name);
+
   constructor(
     private prisma: PrismaService,
     private configGenerator: ConfigGeneratorService,
@@ -145,7 +148,61 @@ export class NodesService {
       where: { id: nodeId },
       data: { status: NodeStatus.ONLINE, lastSeenAt: new Date(), lastError: null },
     });
+
+    const disabled = await this.recordUserTraffic(nodeId, dto.users || []);
+    if (disabled.length) {
+      // Remove quota-exceeded clients from the next generated config.
+      this.configGenerator.applyRevision(nodeId).catch((error) => {
+        this.logger.warn(`Failed to push config after quota enforcement: ${error.message}`);
+      });
+    }
+
     return metric;
+  }
+
+  private async recordUserTraffic(nodeId: string, reports: { email: string; uplink: number; downlink: number }[]) {
+    if (!reports.length) return [];
+
+    const emails = reports.map((report) => report.email.toLowerCase());
+    const users = await this.prisma.user.findMany({
+      where: { email: { in: emails } },
+      select: { id: true, email: true, status: true, trafficUsed: true, trafficLimit: true },
+    });
+    const byEmail = new Map(users.map((user) => [user.email.toLowerCase(), user]));
+
+    const date = new Date();
+    date.setUTCHours(0, 0, 0, 0);
+    const disabled: string[] = [];
+
+    for (const report of reports) {
+      const user = byEmail.get(report.email.toLowerCase());
+      if (!user) continue;
+
+      const uplink = BigInt(Math.max(0, Math.round(report.uplink || 0)));
+      const downlink = BigInt(Math.max(0, Math.round(report.downlink || 0)));
+      const delta = uplink + downlink;
+      if (delta <= 0n) continue;
+
+      const exceedsQuota =
+        user.trafficLimit > 0n && user.trafficUsed + delta >= user.trafficLimit && user.status === 'ACTIVE';
+      if (exceedsQuota) disabled.push(user.id);
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          trafficUsed: { increment: delta },
+          ...(exceedsQuota ? { status: 'DISABLED' as const } : {}),
+        },
+      });
+
+      await this.prisma.userTraffic.upsert({
+        where: { userId_nodeId_date: { userId: user.id, nodeId, date } },
+        create: { userId: user.id, nodeId, date, uplink, downlink },
+        update: { uplink: { increment: uplink }, downlink: { increment: downlink } },
+      });
+    }
+
+    return disabled;
   }
 
   async health(id: string, actor?: AuthUser) {
