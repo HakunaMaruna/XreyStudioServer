@@ -2,6 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { PasswordService } from './password.service';
+import { getBootstrapAdminPassword } from './env';
 
 @Injectable()
 export class SeedService implements OnApplicationBootstrap {
@@ -15,7 +16,7 @@ export class SeedService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap() {
     const email = (this.config.get<string>('ADMIN_EMAIL') || 'admin@example.com').toLowerCase();
-    const password = this.config.get<string>('ADMIN_PASSWORD') || 'admin12345';
+    const password = getBootstrapAdminPassword();
     const existing = await this.prisma.user.findFirst({ where: { role: 'ADMIN' } });
     if (existing) return;
 

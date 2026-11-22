@@ -43,3 +43,21 @@ ignores duplicate `checkout.session.completed` events for already paid invoices.
 ## Agent mTLS
 For HTTPS agent URLs, set `AGENT_CA`, `AGENT_CERT` and `AGENT_KEY` to PEM file paths readable by
 the backend container. Without these, signed `AGENT_TOKEN`/`AGENT_SECRET` headers are used.
+
+## Database migrations
+An initial Prisma migration is checked in at `backend/prisma/migrations/20261123000000_init`.
+For a fresh database apply it with:
+
+```bash
+cd backend && npx prisma migrate deploy
+```
+
+Existing installations created with `prisma db push` do not have the `_prisma_migrations`
+table. Baseline them once instead of re-creating the schema:
+
+```bash
+cd backend && npx prisma migrate resolve --applied 20261123000000_init
+```
+
+`npm run prisma:migrate` creates future migrations during development,
+`npm run prisma:deploy` applies them in production.
