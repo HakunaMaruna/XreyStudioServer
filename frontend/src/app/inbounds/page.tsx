@@ -88,23 +88,23 @@ export default function InboundsPage() {
             <div className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface-2 text-cyan"><Icon name="plug" size={15} /></div>
             <div>
               <p className="font-medium text-fg">{row.original.tag}</p>
-              <p className="text-[10px] text-subtle">{row.original.security || 'no security'} / {row.original.transport || 'tcp'}</p>
+              <p className="text-[10px] text-subtle">{row.original.security || t.noSecurity} / {row.original.transport || 'tcp'}</p>
             </div>
           </div>
         ),
       },
       {
         accessorKey: 'protocol',
-        header: 'Protocol',
+        header: t.protocol,
         cell: ({ row }) => <Badge tone="brand">{row.original.protocol.toUpperCase()}</Badge>,
       },
       { accessorKey: 'port', header: t.port, cell: ({ row }) => <span className="mono text-xs text-fg">{row.original.port}</span> },
       {
         id: 'node',
-        header: 'Node',
-        accessorFn: (row) => row.node?.name || 'Global',
+        header: t.node,
+        accessorFn: (row) => row.node?.name || t.global,
         enableSorting: false,
-        cell: ({ row }) => <span className="text-xs text-muted">{row.original.node?.name || 'Global'}</span>,
+        cell: ({ row }) => <span className="text-xs text-muted">{row.original.node?.name || t.global}</span>,
       },
       {
         id: 'actions',
@@ -125,7 +125,7 @@ export default function InboundsPage() {
         title={t.inbounds}
         subtitle="Listening ports and protocol adapters on your nodes"
         icon="plug"
-        actions={<Button icon="plus" variant="primary" onClick={() => setOpen(true)}>New inbound</Button>}
+        actions={<Button icon="plus" variant="primary" onClick={() => setOpen(true)}>{t.newInbound}</Button>}
       />
 
       {error && (
@@ -136,12 +136,12 @@ export default function InboundsPage() {
 
       <DataTable data={inbounds} columns={columns} loading={loading} getRowId={(row) => row.id} />
 
-      <Modal open={open} onClose={() => setOpen(false)} title="New inbound" subtitle="Expose a protocol on a node or globally" icon={<Icon name="plug" size={16} />}
+      <Modal open={open} onClose={() => setOpen(false)} title={t.newInbound} subtitle={t.exposeProtocol} icon={<Icon name="plug" size={16} />}
         footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="plus" onClick={create} loading={busy}>{t.create}</Button></>}>
         <form onSubmit={create} className="space-y-4">
           <Field label={t.name}><input placeholder="vless-reality-in" value={form.tag} onChange={(e) => setForm({ ...form, tag: e.target.value })} className="field" required /></Field>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Protocol">
+            <Field label={t.protocol}>
               <select value={form.protocol} onChange={(e) => setForm({ ...form, protocol: e.target.value })} className="field">
                 <option value="vless">VLESS</option><option value="vmess">VMess</option>
                 <option value="trojan">Trojan</option><option value="shadowsocks">Shadowsocks</option>
@@ -149,9 +149,9 @@ export default function InboundsPage() {
             </Field>
             <Field label={t.port}><input type="number" min={1} max={65535} value={form.port} onChange={(e) => setForm({ ...form, port: Number(e.target.value) })} className="field" /></Field>
           </div>
-          <Field label="Node" hint="Leave empty to apply to all nodes">
+          <Field label={t.node} hint={t.leaveEmptyGlobal}>
             <select value={form.nodeId} onChange={(e) => setForm({ ...form, nodeId: e.target.value })} className="field">
-              <option value="">Global</option>
+              <option value="">{t.global}</option>
               {nodes.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}
             </select>
           </Field>

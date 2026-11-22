@@ -102,7 +102,7 @@ export default function RulesPage() {
         id: 'payload', header: t.payload, enableSorting: false,
         cell: ({ row }) => <code className="mono text-[11px] text-muted">{JSON.stringify(row.original.payload)}</code>,
       },
-      { accessorKey: 'enabled', header: t.enabled, cell: ({ row }) => row.original.enabled ? <Badge tone="success" dot>Enabled</Badge> : <Badge tone="neutral" dot>Disabled</Badge> },
+      { accessorKey: 'enabled', header: t.enabled, cell: ({ row }) => row.original.enabled ? <Badge tone="success" dot>{t.enabled}</Badge> : <Badge tone="neutral" dot>{t.disabled}</Badge> },
       {
         id: 'actions', header: t.actions, enableSorting: false,
         cell: ({ row }) => (
@@ -121,9 +121,9 @@ export default function RulesPage() {
       <PageHeader
         eyebrow="Infrastructure"
         title={t.rules}
-        subtitle="Routing logic and traffic matching rules"
+        subtitle={t.rulesSubtitle}
         icon="route"
-        actions={<Button icon="plus" variant="primary" onClick={() => { setEditing(null); setForm(emptyForm); setOpen(true); }}>New rule</Button>}
+        actions={<Button icon="plus" variant="primary" onClick={() => { setEditing(null); setForm(emptyForm); setOpen(true); }}>{t.newRule}</Button>}
       />
 
       {error && (
@@ -134,7 +134,7 @@ export default function RulesPage() {
 
       <DataTable data={rules} columns={columns} loading={loading} getRowId={(row) => row.id} />
 
-      <Modal open={open} onClose={() => { setOpen(false); setEditing(null); setForm(emptyForm); }} title={editing ? 'Edit rule' : 'New rule'} subtitle="Define a routing rule with a JSON payload" size="lg" icon={<Icon name="route" size={16} />}
+      <Modal open={open} onClose={() => { setOpen(false); setEditing(null); setForm(emptyForm); }} title={editing ? t.editRule : t.newRule} subtitle={t.routingRuleJson} size="lg" icon={<Icon name="route" size={16} />}
         footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="check" onClick={submit} loading={busy}>{editing ? t.save : t.create}</Button></>}>
         <form onSubmit={submit} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -147,7 +147,7 @@ export default function RulesPage() {
           <Toggle checked={form.enabled} onChange={(value) => setForm({ ...form, enabled: value })} label={t.enabled} />
           {form.payloadText.trim() && (
             <div>
-              <p className="mb-2 text-[10px] uppercase tracking-wider text-subtle">Preview</p>
+              <p className="mb-2 text-[10px] uppercase tracking-wider text-subtle">{t.preview}</p>
               <CodeBlock>{JSON.stringify((() => { try { return JSON.parse(form.payloadText); } catch { return { error: t.invalidJson }; } })(), null, 2)}</CodeBlock>
             </div>
           )}

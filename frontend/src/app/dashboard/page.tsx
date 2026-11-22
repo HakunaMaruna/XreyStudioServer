@@ -91,22 +91,22 @@ export default function DashboardPage() {
         icon="grid"
         actions={
           <>
-            <Badge tone="success" dot>Live</Badge>
-            <Button icon="refresh" size="sm" onClick={load} loading={refreshing}>Refresh</Button>
+            <Badge tone="success" dot>{t.live}</Badge>
+            <Button icon="refresh" size="sm" onClick={load} loading={refreshing}>{t.refresh}</Button>
           </>
         }
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label={t.totalUsers} value={stats?.total ?? '—'} icon="users" tone="brand" hint="Registered accounts" />
-        <StatCard label={t.activeUsers} value={stats?.active ?? '—'} icon="checkCircle" tone="success" hint={totalUsers ? `${Math.round(((stats?.active || 0) / totalUsers) * 100)}% of all users` : undefined} />
-        <StatCard label={t.totalNodes} value={nodeStats?.total ?? '—'} icon="server" tone="cyan" hint="Configured nodes" />
-        <StatCard label={t.onlineNodes} value={nodeStats?.online ?? '—'} icon="activity" tone="success" hint={totalNodes ? `${Math.round(((nodeStats?.online || 0) / totalNodes) * 100)}% availability` : undefined} />
+        <StatCard label={t.totalUsers} value={stats?.total ?? '—'} icon="users" tone="brand" hint={t.registeredAccounts} />
+        <StatCard label={t.activeUsers} value={stats?.active ?? '—'} icon="checkCircle" tone="success" hint={totalUsers ? `${Math.round(((stats?.active || 0) / totalUsers) * 100)}${t.percentOfUsers}` : undefined} />
+        <StatCard label={t.totalNodes} value={nodeStats?.total ?? '—'} icon="server" tone="cyan" hint={t.configuredNodes} />
+        <StatCard label={t.onlineNodes} value={nodeStats?.online ?? '—'} icon="activity" tone="success" hint={totalNodes ? `${Math.round(((nodeStats?.online || 0) / totalNodes) * 100)}% ${t.availability}` : undefined} />
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
         <Card>
-          <SectionTitle title={t.usersByStatus} subtitle="Distribution of subscriber states" />
+          <SectionTitle title={t.usersByStatus} subtitle={t.distributionStatuses} />
           <div className="flex items-center gap-4">
             <div className="relative h-[190px] w-[190px] shrink-0">
               <ResponsiveContainer width="100%" height="100%">
@@ -121,7 +121,7 @@ export default function DashboardPage() {
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-2xl font-semibold tracking-tight text-fg tabular-nums">{totalUsers}</span>
-                <span className="text-[10px] uppercase tracking-widest text-subtle">Total</span>
+                <span className="text-[10px] uppercase tracking-widest text-subtle">{t.total}</span>
               </div>
             </div>
             <div className="flex-1 space-y-3">
@@ -142,7 +142,7 @@ export default function DashboardPage() {
         </Card>
 
         <Card>
-          <SectionTitle title={t.nodesByStatus} subtitle="Health across all locations" />
+          <SectionTitle title={t.nodesByStatus} subtitle={t.healthAcrossLocations} />
           <ResponsiveContainer width="100%" height={224}>
             <BarChart data={nodeStatus} barSize={42}>
               <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 3" />
@@ -161,9 +161,9 @@ export default function DashboardPage() {
 
       <div className="mt-5 grid gap-5 xl:grid-cols-3">
         <Card className="xl:col-span-2">
-          <SectionTitle title={t.nodeLoad} subtitle="CPU and memory utilisation by node" />
+          <SectionTitle title={t.nodeLoad} subtitle={t.cpuRamByNode} />
           {loads.length === 0 ? (
-            <div className="grid h-[220px] place-items-center text-xs text-subtle">No node metrics available yet</div>
+            <div className="grid h-[220px] place-items-center text-xs text-subtle">{t.noNodeMetrics}</div>
           ) : (
             <ResponsiveContainer width="100%" height={224}>
               <BarChart data={loads} barGap={4}>
@@ -179,7 +179,7 @@ export default function DashboardPage() {
         </Card>
 
         <Card>
-          <SectionTitle title="Traffic overview" subtitle="Aggregated usage across all accounts" />
+          <SectionTitle title={t.trafficOverview} subtitle={t.aggregatedUsage} />
           <div className="rounded-xl border border-line bg-surface-2/60 p-4">
             <div className="flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-xl border border-cyan/25 bg-cyan/10 text-cyan">
@@ -192,22 +192,22 @@ export default function DashboardPage() {
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3 border-t border-line pt-4">
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-subtle">Active</p>
+                <p className="text-[10px] uppercase tracking-wider text-subtle">{t.active}</p>
                 <p className="mt-1 text-sm font-medium text-fg tabular-nums">{stats?.active ?? '—'}</p>
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-subtle">Online</p>
+                <p className="text-[10px] uppercase tracking-wider text-subtle">{t.online}</p>
                 <p className="mt-1 text-sm font-medium text-fg tabular-nums">{nodeStats?.online ?? '—'}</p>
               </div>
             </div>
           </div>
           <div className="mt-4 space-y-2">
             <Link href="/users" className="flex items-center justify-between rounded-lg border border-line bg-surface-2/40 px-3 py-2.5 text-xs text-muted transition-colors hover:border-brand/30 hover:text-fg">
-              <span className="flex items-center gap-2"><Icon name="users" size={14} className="text-brand" /> Manage subscribers</span>
+              <span className="flex items-center gap-2"><Icon name="users" size={14} className="text-brand" /> {t.manageSubscribers}</span>
               <Icon name="arrowUpRight" size={13} />
             </Link>
             <Link href="/nodes" className="flex items-center justify-between rounded-lg border border-line bg-surface-2/40 px-3 py-2.5 text-xs text-muted transition-colors hover:border-brand/30 hover:text-fg">
-              <span className="flex items-center gap-2"><Icon name="server" size={14} className="text-cyan" /> Inspect nodes</span>
+              <span className="flex items-center gap-2"><Icon name="server" size={14} className="text-cyan" /> {t.inspectNodes}</span>
               <Icon name="arrowUpRight" size={13} />
             </Link>
           </div>

@@ -6,15 +6,14 @@ import { useLang } from '../../lib/i18n';
 import { Icon } from '../../components/icons';
 import { Button, Field } from '../../components/ui';
 
-const features = [
-  { icon: 'server', title: 'Multi-node control', text: 'Manage every Xray node from a single plane' },
-  { icon: 'shield', title: 'Secure by default', text: 'Hashed agent tokens, RBAC and audit trail' },
-  { icon: 'activity', title: 'Live observability', text: 'Metrics, alerts and configuration revisions' },
-] as const;
-
 export default function LoginPage() {
   const { t } = useLang();
   const router = useRouter();
+  const features = [
+    { icon: 'server', title: t.feature1Title, text: t.feature1Text },
+    { icon: 'shield', title: t.feature2Title, text: t.feature2Text },
+    { icon: 'activity', title: t.feature3Title, text: t.feature3Text },
+  ] as const;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -56,12 +55,10 @@ export default function LoginPage() {
           <div className="relative space-y-8 py-12">
             <div>
               <h2 className="max-w-sm text-3xl font-semibold leading-tight tracking-tight text-fg">
-                Your infrastructure,<br />
-                <span className="bg-gradient-to-r from-brand to-cyan bg-clip-text text-transparent">under control.</span>
+                {t.brandTitle1}<br />
+                <span className="bg-gradient-to-r from-brand to-cyan bg-clip-text text-transparent">{t.brandTitle2}</span>
               </h2>
-              <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted">
-                A single place to manage nodes, subscribers, subscriptions and alerts — built for self-hosted Xray deployments.
-              </p>
+              <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted">{t.brandDescription}</p>
             </div>
             <div className="space-y-4">
               {features.map((feature) => (
@@ -88,7 +85,7 @@ export default function LoginPage() {
                 <Icon name="zap" size={19} />
               </div>
               <h1 className="text-2xl font-semibold tracking-tight text-fg">{t.signIn}</h1>
-              <p className="mt-1.5 text-sm text-muted">Enter your credentials to continue</p>
+              <p className="mt-1.5 text-sm text-muted">{t.credentialsSubtitle}</p>
             </div>
 
             <Field label={t.email}>
@@ -136,12 +133,10 @@ export default function LoginPage() {
 
             <div className="flex items-center gap-3 py-1">
               <span className="h-px flex-1 bg-line" />
-              <span className="text-[10px] uppercase tracking-widest text-subtle">Secure access</span>
+              <span className="text-[10px] uppercase tracking-widest text-subtle">{t.secureAccess}</span>
               <span className="h-px flex-1 bg-line" />
             </div>
-            <p className="text-center text-[11px] leading-relaxed text-subtle">
-              Access is restricted to authorised administrators only.
-            </p>
+            <p className="text-center text-[11px] leading-relaxed text-subtle">{t.restrictedAccess}</p>
           </form>
         </div>
       </div>

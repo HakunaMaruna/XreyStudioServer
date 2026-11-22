@@ -34,13 +34,13 @@ export default function SettingsPage() {
       <PageHeader
         eyebrow="System"
         title={t.settings}
-        subtitle="Appearance, language and runtime diagnostics"
+        subtitle={t.settingsSubtitle}
         icon="settings"
       />
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Card>
-          <SectionTitle title="Appearance" subtitle="Choose how the control panel looks on this device" />
+          <SectionTitle title={t.appearance} subtitle={t.chooseAppearance} />
           <div className="space-y-5">
             <div>
               <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-subtle">{t.theme}</p>
@@ -57,20 +57,20 @@ export default function SettingsPage() {
               <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-subtle">{t.language}</p>
               <div className="flex items-center gap-3">
                 <Button icon="globe" onClick={toggle}>{lang === 'ru' ? 'Русский' : 'English'}</Button>
-                <Badge tone="neutral">Current: {lang.toUpperCase()}</Badge>
+                <Badge tone="neutral">{t.current}: {lang.toUpperCase()}</Badge>
               </div>
             </div>
           </div>
         </Card>
 
         <Card>
-          <SectionTitle title="Panel" subtitle="Build and runtime information" />
+          <SectionTitle title={t.panel} subtitle={t.buildRuntime} />
           <div className="space-y-3">
             {[
-              { label: 'Product', value: 'XreyStudioServer' },
-              { label: 'Version', value: '1.3.0' },
+              { label: t.product, value: 'XreyStudioServer' },
+              { label: t.version, value: '1.3.0' },
               { label: 'API', value: '/api' },
-              { label: 'Docs', value: '/docs' },
+              { label: t.docs, value: '/docs' },
             ].map((row) => (
               <div key={row.label} className="flex items-center justify-between rounded-lg border border-line bg-surface-2/50 px-3 py-2.5 text-xs">
                 <span className="text-muted">{row.label}</span>
@@ -82,13 +82,13 @@ export default function SettingsPage() {
       </div>
 
       <Card className="mt-5">
-        <SectionTitle title="Prometheus metrics" subtitle="Raw output of the backend metrics endpoint" action={<Badge tone="brand">/api/metrics</Badge>} />
+        <SectionTitle title={t.prometheusMetrics} subtitle={t.rawMetrics} action={<Badge tone="brand">/api/metrics</Badge>} />
         {metricsLoading ? (
-          <div className="flex items-center gap-2 py-8 text-xs text-muted"><Icon name="refresh" size={15} className="animate-spin text-brand" />Loading metrics…</div>
+          <div className="flex items-center gap-2 py-8 text-xs text-muted"><Icon name="refresh" size={15} className="animate-spin text-brand" />{t.loading}</div>
         ) : metrics ? (
           <CodeBlock className="max-h-[420px]">{metrics}</CodeBlock>
         ) : (
-          <div className="py-8 text-center text-xs text-subtle">Metrics are unavailable. Check METRICS_TOKEN configuration.</div>
+          <div className="py-8 text-center text-xs text-subtle">{t.metricsUnavailable}</div>
         )}
       </Card>
     </>

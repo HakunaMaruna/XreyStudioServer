@@ -124,7 +124,7 @@ export default function NodesPage() {
             </div>
             <div>
               <p className="font-medium text-fg">{row.original.name}</p>
-              <p className="text-[10px] text-subtle">ID {row.original.id.slice(0, 8)}</p>
+              <p className="text-[10px] text-subtle">{t.idLabel} {row.original.id.slice(0, 8)}</p>
             </div>
           </div>
         ),
@@ -163,9 +163,9 @@ export default function NodesPage() {
       <PageHeader
         eyebrow="Infrastructure"
         title={t.nodes}
-        subtitle="Deploy, monitor and roll back Xray configurations"
+        subtitle={t.nodesSubtitle}
         icon="server"
-        actions={<Button icon="plus" variant="primary" onClick={() => setCreateOpen(true)}>Add node</Button>}
+        actions={<Button icon="plus" variant="primary" onClick={() => setCreateOpen(true)}>{t.addNode}</Button>}
       />
 
       {error && (
@@ -177,33 +177,33 @@ export default function NodesPage() {
       <div className="mb-5 grid gap-4 sm:grid-cols-3">
         <Card className="flex items-center gap-3 p-4">
           <div className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-surface-2 text-muted"><Icon name="server" size={17} /></div>
-          <div><p className="text-[10px] uppercase tracking-wider text-subtle">Total nodes</p><p className="text-lg font-semibold text-fg tabular-nums">{nodes.length}</p></div>
+          <div><p className="text-[10px] uppercase tracking-wider text-subtle">{t.totalNodesLabel}</p><p className="text-lg font-semibold text-fg tabular-nums">{nodes.length}</p></div>
         </Card>
         <Card className="flex items-center gap-3 p-4">
           <div className="grid h-9 w-9 place-items-center rounded-lg border border-success/25 bg-success/10 text-success"><Icon name="activity" size={17} /></div>
-          <div><p className="text-[10px] uppercase tracking-wider text-subtle">Online</p><p className="text-lg font-semibold text-fg tabular-nums">{online}</p></div>
+          <div><p className="text-[10px] uppercase tracking-wider text-subtle">{t.online}</p><p className="text-lg font-semibold text-fg tabular-nums">{online}</p></div>
         </Card>
         <Card className="flex items-center gap-3 p-4">
           <div className="grid h-9 w-9 place-items-center rounded-lg border border-warning/25 bg-warning/10 text-warning"><Icon name="pulse" size={17} /></div>
-          <div><p className="text-[10px] uppercase tracking-wider text-subtle">Availability</p><p className="text-lg font-semibold text-fg tabular-nums">{nodes.length ? Math.round((online / nodes.length) * 100) : 0}%</p></div>
+          <div><p className="text-[10px] uppercase tracking-wider text-subtle">{t.availability}</p><p className="text-lg font-semibold text-fg tabular-nums">{nodes.length ? Math.round((online / nodes.length) * 100) : 0}%</p></div>
         </Card>
       </div>
 
       <DataTable data={nodes} columns={columns} loading={loading} getRowId={(row) => row.id} />
 
-      <Modal open={createOpen} onClose={() => { setCreateOpen(false); setForm({ name: '', address: '' }); }} title="Register node" subtitle="Connect a new Xray agent to the panel" icon={<Icon name="server" size={16} />}
+      <Modal open={createOpen} onClose={() => { setCreateOpen(false); setForm({ name: '', address: '' }); }} title={t.registerNode} subtitle={t.connectAgent} icon={<Icon name="server" size={16} />}
         footer={<><Button onClick={() => setCreateOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="plus" onClick={create} loading={busy}>{t.create}</Button></>}>
         <form onSubmit={create} className="space-y-4">
           <Field label={t.name}><input placeholder="node-eu-01" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="field" required /></Field>
           <Field label={t.address} hint="Hostname or IP of the agent"><input placeholder="10.0.0.5" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="field" required /></Field>
           <div className="rounded-lg border border-info/20 bg-info/5 p-3 text-[11px] leading-relaxed text-muted">
-            After registration the panel will generate a one-time agent token. Store it securely on the node.
+            {t.oneTimeTokenNote}
           </div>
         </form>
       </Modal>
 
       <Modal open={Boolean(revisionsNode)} onClose={() => setRevisionsNode(null)} title={`${t.revisions} — ${revisionsNode?.name || ''}`} subtitle="Version history and deployment control" size="lg">
-        <SectionTitle title="Configuration history" action={<Button size="sm" icon="play" onClick={() => applyRevision('')} loading={revisionsLoading}>Apply latest</Button>} />
+        <SectionTitle title={t.configHistory} action={<Button size="sm" icon="play" onClick={() => applyRevision('')} loading={revisionsLoading}>{t.applyLatest}</Button>} />
         {revisionsLoading ? (
           <div className="flex items-center justify-center gap-2 py-10 text-xs text-muted"><Icon name="refresh" size={15} className="animate-spin text-brand" />{t.loading}</div>
         ) : revisions.length === 0 ? (
@@ -217,7 +217,7 @@ export default function NodesPage() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <Badge tone="brand">v{revision.version}</Badge>
-                    {revision.applied && <Badge tone="success" dot>Applied</Badge>}
+                    {revision.applied && <Badge tone="success" dot>{t.applied}</Badge>}
                     <span className="text-[11px] text-subtle">{new Date(revision.createdAt).toLocaleString()}</span>
                   </div>
                   <div className="flex items-center gap-1">

@@ -35,14 +35,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const sections: NavSection[] = useMemo(
     () => [
       {
-        title: 'Overview',
+        title: t.overview,
         items: [
           { href: '/dashboard', label: t.dashboard, icon: 'grid' },
           { href: '/alerts', label: t.alerts, icon: 'bell' },
         ],
       },
       {
-        title: 'Infrastructure',
+        title: t.infrastructure,
         items: [
           { href: '/nodes', label: t.nodes, icon: 'server' },
           { href: '/inbounds', label: t.inbounds, icon: 'plug' },
@@ -51,11 +51,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         ],
       },
       {
-        title: 'Access',
+        title: t.access,
         items: [{ href: '/users', label: t.users, icon: 'users' }],
       },
       {
-        title: 'System',
+        title: t.system,
         items: [{ href: '/settings', label: t.settings, icon: 'settings' }],
       },
     ],
@@ -127,19 +127,19 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       <div className="space-y-3 border-t border-line p-3">
         <div className="rounded-xl border border-line bg-surface-2 p-3">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-muted">System status</span>
-            <Badge tone="success" dot>Online</Badge>
+            <span className="text-[11px] font-medium text-muted">{t.systemStatus}</span>
+            <Badge tone="success" dot>{t.online}</Badge>
           </div>
           <div className="mt-3 space-y-1.5">
-            <div className="flex justify-between text-[10px] text-subtle"><span>Backend API</span><span className="text-success">healthy</span></div>
-            <div className="flex justify-between text-[10px] text-subtle"><span>Version</span><span>v1.3.0</span></div>
+            <div className="flex justify-between text-[10px] text-subtle"><span>{t.backendApi}</span><span className="text-success">{t.healthy}</span></div>
+            <div className="flex justify-between text-[10px] text-subtle"><span>{t.version}</span><span>v1.3.0</span></div>
           </div>
         </div>
         <div className="flex items-center gap-3 rounded-xl border border-line bg-surface-2 p-2.5">
           <Avatar label="AD" size="sm" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium text-fg">Administrator</p>
-            <p className="truncate text-[10px] text-subtle">Full access</p>
+            <p className="truncate text-xs font-medium text-fg">{t.administrator}</p>
+            <p className="truncate text-[10px] text-subtle">{t.fullAccess}</p>
           </div>
           {authed && <IconButton icon="logout" label="Logout" onClick={logout} />}
         </div>
@@ -163,7 +163,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <IconButton icon="menu" label="Menu" className="lg:hidden" onClick={() => setMobileOpen(true)} />
 
           <div className="hidden items-center gap-2 text-sm sm:flex">
-            <span className="text-subtle">Workspace</span>
+            <span className="text-subtle">{t.workspace}</span>
             <Icon name="chevronRight" size={13} className="text-subtle" />
             <span className="font-medium text-fg">{current?.label ?? 'Dashboard'}</span>
           </div>
@@ -178,14 +178,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               }}
               onFocus={() => setSearchOpen(true)}
               onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
-              placeholder="Search pages..."
+              placeholder={t.searchPages}
               className="field pl-9 pr-8"
             />
             <kbd className="mono pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-line bg-surface-3 px-1.5 py-0.5 text-[9px] text-subtle">/</kbd>
             {searchOpen && query.trim() && (
               <div className="panel absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden p-1.5">
                 {results.length === 0 ? (
-                  <p className="px-3 py-2 text-xs text-muted">No pages found</p>
+                  <p className="px-3 py-2 text-xs text-muted">{t.noPagesFound}</p>
                 ) : (
                   results.map((item) => (
                     <Link
@@ -205,7 +205,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <div className="hidden h-5 w-px bg-line md:block" />
           <div className="hidden items-center gap-2 md:flex">
             <span className="h-2 w-2 rounded-full bg-success shadow-[0_0_8px_var(--success)]" />
-            <span className="text-[11px] text-muted">All systems operational</span>
+            <span className="text-[11px] text-muted">{t.allSystemsOperational}</span>
           </div>
           <button
             onClick={toggle}

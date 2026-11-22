@@ -139,7 +139,7 @@ export default function UsersPage() {
             <Avatar label={row.original.email.slice(0, 2).toUpperCase()} size="sm" />
             <div>
               <p className="font-medium text-fg">{row.original.email}</p>
-              <p className="text-[10px] text-subtle">ID {row.original.id.slice(0, 8)}</p>
+              <p className="text-[10px] text-subtle">{t.idLabel} {row.original.id.slice(0, 8)}</p>
             </div>
           </div>
         ),
@@ -183,7 +183,7 @@ export default function UsersPage() {
       <PageHeader
         eyebrow="Access"
         title={t.users}
-        subtitle="Manage accounts, roles and traffic allowances"
+        subtitle={t.usersSubtitle}
         icon="users"
         actions={<Button icon="plus" variant="primary" onClick={() => setCreateOpen(true)}>{t.create}</Button>}
       />
@@ -234,16 +234,16 @@ export default function UsersPage() {
         }}
       />
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="New user" subtitle="Create an account and issue a subscription" icon={<Icon name="users" size={16} />}
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t.newUser} subtitle={t.createAccount} icon={<Icon name="users" size={16} />}
         footer={<><Button onClick={() => setCreateOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="plus" onClick={create} loading={saving}>{t.create}</Button></>}>
         <form onSubmit={create} className="space-y-4">
           <Field label={t.email}><input type="email" placeholder="user@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="field" required /></Field>
-          <Field label={t.password} hint="At least 6 characters"><input type="password" minLength={6} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="field" required /></Field>
-          <Field label={t.trafficLimit} hint="Value in GB"><input type="number" min={1} value={form.trafficLimit} onChange={(e) => setForm({ ...form, trafficLimit: Number(e.target.value) })} className="field" /></Field>
+          <Field label={t.password} hint={t.atLeast6Chars}><input type="password" minLength={6} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="field" required /></Field>
+          <Field label={t.trafficLimit} hint={t.valueInGB}><input type="number" min={1} value={form.trafficLimit} onChange={(e) => setForm({ ...form, trafficLimit: Number(e.target.value) })} className="field" /></Field>
         </form>
       </Modal>
 
-      <Modal open={Boolean(editing)} onClose={() => setEditing(null)} title={editing?.email || ''} subtitle="Edit role, status and traffic allowance"
+      <Modal open={Boolean(editing)} onClose={() => setEditing(null)} title={editing?.email || ''} subtitle={t.editUserSubtitle}
         footer={<><Button onClick={() => setEditing(null)}>{t.cancel}</Button><Button variant="primary" icon="check" onClick={save} loading={saving}>{t.save}</Button></>}>
         <form onSubmit={save} className="space-y-4">
           <Field label={t.role}>
@@ -256,7 +256,7 @@ export default function UsersPage() {
               <option value="ACTIVE">ACTIVE</option><option value="DISABLED">DISABLED</option>
             </select>
           </Field>
-          <Field label={t.trafficLimit} hint="Value in GB">
+          <Field label={t.trafficLimit} hint={t.valueInGB}>
             <input type="number" min={0} value={editForm.trafficLimit} onChange={(e) => setEditForm({ ...editForm, trafficLimit: Number(e.target.value) })} className="field" />
           </Field>
         </form>

@@ -58,8 +58,8 @@ export default function SubscriptionPage() {
           <div className="mx-auto mb-4 grid h-11 w-11 place-items-center rounded-xl border border-danger/25 bg-danger/10 text-danger">
             <Icon name="alert" size={20} />
           </div>
-          <p className="text-sm font-medium text-fg">Subscription unavailable</p>
-          <p className="mt-1 text-xs text-muted">The link is invalid, expired or revoked.</p>
+          <p className="text-sm font-medium text-fg">{t.subscriptionUnavailable}</p>
+          <p className="mt-1 text-xs text-muted">{t.linkInvalid}</p>
         </Card>
       </main>
     );
@@ -109,18 +109,18 @@ export default function SubscriptionPage() {
       </Card>
 
       <Card>
-        <SectionTitle title={t.qrCode} subtitle="Scan with your preferred client app" />
+        <SectionTitle title={t.qrCode} subtitle={t.scanClient} />
         <div className="flex flex-wrap items-center gap-5">
           <div className="rounded-xl border border-line bg-white p-3">
             <QRCodeSVG value={subscriptionUrl} size={140} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="mb-2 text-[10px] uppercase tracking-wider text-subtle">Subscription URL</p>
+            <p className="mb-2 text-[10px] uppercase tracking-wider text-subtle">{t.subscriptionUrl}</p>
             <div className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 p-2">
               <code className="mono min-w-0 flex-1 truncate text-[11px] text-muted">{subscriptionUrl}</code>
               <IconButton icon={copied ? 'check' : 'copy'} label={t.copy} tone={copied ? 'brand' : 'default'} onClick={() => copy(subscriptionUrl)} />
             </div>
-            <p className="mt-2 text-[11px] text-subtle">Keep this link private — it grants access to your subscription.</p>
+            <p className="mt-2 text-[11px] text-subtle">{t.keepPrivate}</p>
           </div>
         </div>
       </Card>
@@ -146,7 +146,7 @@ export default function SubscriptionPage() {
         </Card>
 
         <Card>
-          <SectionTitle title={t.connections} subtitle="Available locations" />
+          <SectionTitle title={t.connections} subtitle={t.locationsSubtitle} />
           {data.nodes?.length ? (
             <div className="space-y-2">
               {data.nodes.map((node) => (
@@ -160,14 +160,14 @@ export default function SubscriptionPage() {
               ))}
             </div>
           ) : (
-            <p className="py-8 text-center text-xs text-subtle">No nodes assigned</p>
+            <p className="py-8 text-center text-xs text-subtle">{t.noNodesAssigned}</p>
           )}
         </Card>
       </div>
 
       {data.links?.length ? (
         <Card>
-          <SectionTitle title={t.links} subtitle="Individual connection links" />
+          <SectionTitle title={t.links} subtitle={t.individualLinks} />
           <div className="space-y-2">
             {data.links.map((link) => (
               <div key={link.id} className="flex items-center gap-3 rounded-lg border border-line bg-surface-2/50 p-3">
@@ -181,7 +181,7 @@ export default function SubscriptionPage() {
         </Card>
       ) : null}
 
-      <p className="pb-6 text-center text-[10px] text-subtle">Powered by XreyStudioServer · v1.3.0</p>
+      <p className="pb-6 text-center text-[10px] text-subtle">{t.poweredBy} · v1.3.0</p>
     </main>
   );
 }

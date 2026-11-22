@@ -59,8 +59,8 @@ export default function AlertsPage() {
       {
         accessorKey: 'status', header: t.status,
         cell: ({ row }) => row.original.status === 'resolved'
-          ? <Badge tone="success" dot>Resolved</Badge>
-          : <Badge tone="danger" dot>Firing</Badge>,
+          ? <Badge tone="success" dot>{t.resolved}</Badge>
+          : <Badge tone="danger" dot>{t.firing}</Badge>,
       },
       { accessorKey: 'title', header: t.title, cell: ({ row }) => <p className="font-medium text-fg">{row.original.title}</p> },
       { accessorKey: 'severity', header: t.severity, cell: ({ row }) => <Badge tone={row.original.severity === 'critical' ? 'danger' : 'warning'}>{row.original.severity || '—'}</Badge> },
@@ -78,9 +78,9 @@ export default function AlertsPage() {
       <PageHeader
         eyebrow="Overview"
         title={t.alerts}
-        subtitle="Alert history and notification channel health"
+        subtitle={t.alertsSubtitle}
         icon="bell"
-        actions={<Badge tone={total > 0 ? 'warning' : 'success'} dot>{total} events</Badge>}
+        actions={<Badge tone={total > 0 ? 'warning' : 'success'} dot>{total} {t.events}</Badge>}
       />
 
       {error && (
@@ -97,12 +97,12 @@ export default function AlertsPage() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-medium capitalize text-fg">{key}</p>
-              <p className="text-[10px] text-subtle">{channels[key] ? 'Connected' : 'Not configured'}</p>
+              <p className="text-[10px] text-subtle">{channels[key] ? t.connected : t.notConfigured}</p>
             </div>
             <span className={cn('h-2 w-2 rounded-full', channels[key] ? 'bg-success shadow-[0_0_8px_var(--success)]' : 'bg-line-2')} />
           </Card>
         )) : (
-          <div className="col-span-full py-4 text-center text-xs text-subtle">Loading channels…</div>
+          <div className="col-span-full py-4 text-center text-xs text-subtle">{t.loadingChannels}</div>
         )}
       </div>
 
@@ -113,7 +113,7 @@ export default function AlertsPage() {
           <option value="resolved">{t.resolved}</option>
         </select>
         <Badge tone="neutral">{t.total}: {total}</Badge>
-        <Badge tone="brand">{enabledCount}/4 channels active</Badge>
+        <Badge tone="brand">{enabledCount}/4 {t.channelsActive}</Badge>
       </div>
 
       <DataTable

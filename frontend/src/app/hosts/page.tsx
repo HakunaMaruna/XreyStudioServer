@@ -94,7 +94,7 @@ export default function HostsPage() {
             <div className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface-2 text-brand"><Icon name="globe" size={15} /></div>
             <div>
               <p className="mono font-medium text-fg">{row.original.address}</p>
-              <p className="text-[10px] text-subtle">{row.original.sni || 'no SNI'}</p>
+              <p className="text-[10px] text-subtle">{row.original.sni || t.noSni}</p>
             </div>
           </div>
         ),
@@ -104,7 +104,7 @@ export default function HostsPage() {
       { accessorKey: 'path', header: t.path, cell: ({ row }) => row.original.path ? <code className="mono text-[11px] text-cyan">{row.original.path}</code> : <span className="text-subtle">—</span> },
       {
         accessorKey: 'enabled', header: t.enabled,
-        cell: ({ row }) => row.original.enabled ? <Badge tone="success" dot>Enabled</Badge> : <Badge tone="neutral" dot>Disabled</Badge>,
+        cell: ({ row }) => row.original.enabled ? <Badge tone="success" dot>{t.enabled}</Badge> : <Badge tone="neutral" dot>{t.disabled}</Badge>,
       },
       {
         id: 'actions', header: t.actions, enableSorting: false,
@@ -124,9 +124,9 @@ export default function HostsPage() {
       <PageHeader
         eyebrow="Infrastructure"
         title={t.hosts}
-        subtitle="Destination addresses, SNI values and paths"
+        subtitle={t.hostsSubtitle}
         icon="globe"
-        actions={<Button icon="plus" variant="primary" onClick={() => { setEditing(null); setForm(emptyForm); setOpen(true); }}>New host</Button>}
+        actions={<Button icon="plus" variant="primary" onClick={() => { setEditing(null); setForm(emptyForm); setOpen(true); }}>{t.newHost}</Button>}
       />
 
       {error && (
@@ -137,7 +137,7 @@ export default function HostsPage() {
 
       <DataTable data={hosts} columns={columns} loading={loading} getRowId={(row) => row.id} />
 
-      <Modal open={open} onClose={() => { setOpen(false); setEditing(null); setForm(emptyForm); }} title={editing ? 'Edit host' : 'New host'} subtitle="Configure a routing destination" icon={<Icon name="globe" size={16} />}
+      <Modal open={open} onClose={() => { setOpen(false); setEditing(null); setForm(emptyForm); }} title={editing ? t.editHost : t.newHost} subtitle={t.routingDestination} icon={<Icon name="globe" size={16} />}
         footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="check" onClick={submit} loading={busy}>{editing ? t.save : t.create}</Button></>}>
         <form onSubmit={submit} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
