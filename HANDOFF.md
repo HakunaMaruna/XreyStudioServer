@@ -12,9 +12,8 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 
 - Source of truth: `/work/XreyStudioServer` (working copy) and the git repo
   `/tmp/opencode/XSS_REPO` (remote: https://github.com/HakunaMaruna/XreyStudioServer).
-- Last published: commit `e309d28`, tag/release `v1.1.0`, bundle `XSS_v1.1.0.bundle`.
-  Uncommitted stage after that: UI tables/charts, Kubernetes manifests, protocol adapters —
-  version `v1.1.1` (commit/push pending at the time this file was updated).
+- Published: commit `95cf23f`, tag/release `v1.1.1`, bundle `/work/XreyStudioServer/XSS_v1.1.1.bundle`.
+  Previous release: `e309d28` / `v1.1.0`. GitHub description updated.
 - Stack: NestJS + Prisma/PostgreSQL + Redis, Next.js 16 + React 19, Node agent, Caddy, Docker Compose.
 - Backend modules: auth (JWT + refresh + RBAC), users, nodes, inbounds, hosts, rules, config
   generator (revisions/apply/rollback), subscriptions (raw/base64/clash/singbox/json),
