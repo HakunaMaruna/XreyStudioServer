@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import { getTheme, applyTheme, type Theme } from '../../lib/theme';
+import { APP_VERSION } from '../../lib/version';
 import { Icon } from '../../components/icons';
 import { Badge, Button, Card, CodeBlock, PageHeader, SectionTitle, Segmented } from '../../components/ui';
 
@@ -68,7 +69,7 @@ export default function SettingsPage() {
           <div className="space-y-3">
             {[
               { label: t.product, value: 'XreyStudioServer' },
-              { label: t.version, value: '1.3.0' },
+              { label: t.version, value: APP_VERSION },
               { label: 'API', value: '/api' },
               { label: t.docs, value: '/docs' },
             ].map((row) => (

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { login } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
+import { APP_VERSION } from '../../lib/version';
 import { Icon } from '../../components/icons';
 import { Button, Field } from '../../components/ui';
 
@@ -75,7 +76,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <p className="relative text-[10px] text-subtle">© 2026 XreyStudio · v1.3.0</p>
+          <p className="relative text-[10px] text-subtle">© 2026 XreyStudio · v{APP_VERSION}</p>
         </div>
 
         <div className="flex items-center justify-center p-8 sm:p-12">

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import { useLang } from '../../../lib/i18n';
+import { APP_VERSION } from '../../../lib/version';
 import { Icon } from '../../../components/icons';
 import { Badge, Card, CodeBlock, IconButton, SectionTitle, cn, formatBytes } from '../../../components/ui';
 
@@ -181,7 +182,7 @@ export default function SubscriptionPage() {
         </Card>
       ) : null}
 
-      <p className="pb-6 text-center text-[10px] text-subtle">{t.poweredBy} · v1.3.0</p>
+      <p className="pb-6 text-center text-[10px] text-subtle">{t.poweredBy} · v{APP_VERSION}</p>
     </main>
   );
 }

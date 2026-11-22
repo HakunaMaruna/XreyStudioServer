@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLang } from '../lib/i18n';
 import { clearTokens, isLoggedIn } from '../lib/api';
 import { getTheme, applyTheme, type Theme } from '../lib/theme';
+import { APP_VERSION } from '../lib/version';
 import { Icon, type IconName } from './icons';
 import { Avatar, Badge, IconButton, cn } from './ui';
 
@@ -143,7 +144,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="mt-3 space-y-1.5">
             <div className="flex justify-between text-[10px] text-subtle"><span>{t.backendApi}</span><span className="text-success">{t.healthy}</span></div>
-            <div className="flex justify-between text-[10px] text-subtle"><span>{t.version}</span><span>v1.3.0</span></div>
+            <div className="flex justify-between text-[10px] text-subtle"><span>{t.version}</span><span>v{APP_VERSION}</span></div>
           </div>
         </div>
         <div className="flex items-center gap-3 rounded-xl border border-line bg-surface-2 p-2.5">

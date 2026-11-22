@@ -17,6 +17,16 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
   bundle `/work/XreyStudioServer/XSS_v1.3.0.bundle`.
   Previous releases: `v1.2.0` (Argon2id, Grafana alerts, admin CRUD, server paging),
   `v1.1.1` (UI tables/charts, k8s, protocol adapters), `v1.1.0`, `v1.0.0`.
+
+## v1.4.0 (2026-11-23, branch `design/dark-admin-ui`)
+
+- Redesigned admin UI: dark SaaS design system, sidebar/topbar, modal forms, animations, full RU/EN.
+- New pages: audit, organizations, payments/plans, backups, node health and logs; editable inbounds.
+- Backend: Redis-backed shared rate limiting, fail-fast secret validation, initial Prisma migration,
+  per-user traffic accounting with quota enforcement (Xray Stats API), backup API, node log proxy.
+- k8s: Prometheus + Grafana manifests generated from `monitoring/`.
+- Versions bumped to 1.4.0 in packages, Swagger and k8s image tags.
+
 - Stack: NestJS + Prisma/PostgreSQL + Redis, Next.js 16 + React 19, Node agent, Caddy, Docker Compose.
 - Backend modules: auth (JWT + refresh + RBAC + Argon2id/bcrypt), users, nodes, inbounds, hosts,
   rules, config generator (revisions/apply/rollback), subscriptions (raw/base64/clash/singbox/json),
