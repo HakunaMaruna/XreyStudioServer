@@ -72,6 +72,15 @@ keep exports within that cap. Headers:
 - audit: `createdAt,userId,action,entity,entityId,ip,metadata`
 - payments: `createdAt,userId,email,amount,currency,status,provider,plan,externalId`
 
+## Reports
+
+- `GET /reports/organizations?from&to` — per-tenant users, active users, nodes, online nodes and
+  traffic totals (includes a bucket for users/nodes without an organization)
+- `GET /reports/protocols` — inbound counts, enabled counts and distinct users/nodes by protocol
+- `GET /reports/organizations.csv?from&to`, `GET /reports/protocols.csv` — CSV exports
+
+All report endpoints require JWT with `ADMIN` or `OPERATOR` role.
+
 ## Operations
 
 - `POST /notifications/test` — broadcast a test notification to all configured channels (ADMIN)

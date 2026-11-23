@@ -29,6 +29,7 @@ Self-hosted control panel for **Xray-core** with multi-node agents, client manag
 - Provisioned Grafana alerts delivered through a token-protected webhook.
 - Argon2id password hashing with transparent compatibility for existing bcrypt hashes.
 - Per-user traffic reports from nodes, stored per period with automatic quota enforcement.
+- Reports by organization and protocol with CSV export.
 - Admin UI for audit logs, organizations, payments, subscription plans, inbound editing and node logs.
 - Paid plans automatically activate users, reset traffic and set the expiry date.
 - Hysteria2 / TUIC / WireGuard via a sing-box adapter on the node.

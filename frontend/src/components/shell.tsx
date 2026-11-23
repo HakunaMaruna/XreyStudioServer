@@ -39,6 +39,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         title: t.overview,
         items: [
           { href: '/dashboard', label: t.dashboard, icon: 'grid' },
+          { href: '/reports', label: t.reports, icon: 'gauge' },
           { href: '/alerts', label: t.alerts, icon: 'bell' },
         ],
       },
