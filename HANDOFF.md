@@ -209,7 +209,7 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 1. Validate in a real cluster: pod rollout, in-cluster DNS `backend:3000`, `xss-backend-down`
    alert firing, Grafana ingress/TLS. Not possible in this sandbox (see constraints above).
 2. Revisit the deferred major upgrades when capacity allows: NestJS 12 (`@nestjs/common` +
-   `@nestjs/passport` and the rest of the platform), TypeScript 7, `@eslint/js` 10 and
+   `@nestjs/passport` and the rest of the platform), TypeScript 7 and
    `@tanstack/react-table` 9. Each needs a coordinated migration and green CI.
 3. Load/soak test at the target scale (5k users / 20 nodes) before production rollout. The local
    scale harness above is a first baseline; run the soak knobs from `docs/runbooks/load-test.md`
