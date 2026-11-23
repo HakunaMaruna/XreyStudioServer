@@ -2,7 +2,7 @@
 
 Self-hosted control panel for **Xray-core** with multi-node agents, client management, subscription delivery, payments, Telegram integration and monitoring.
 
-> Short name: **XSS** · Repository: `XreyStudioServer` · Current version: **v2.0.1**
+> Short name: **XSS** · Repository: `XreyStudioServer` · Current version: **v2.1.0**
 
 ---
 
