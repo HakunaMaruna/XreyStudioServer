@@ -4,6 +4,8 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
+import { Icon } from '../../components/icons';
+import { Badge, Button, Field, IconButton, Modal, PageHeader, Toggle } from '../../components/ui';
 
 type InboundRow = {
   id: string;
@@ -12,21 +14,25 @@ type InboundRow = {
   port: number;
   transport?: string;
   security?: string;
-  nodeId?: string | null;
   enabled?: boolean;
-  settings?: unknown;
+  settings?: Record<string, unknown>;
   node?: { name: string } | null;
 };
 
-type EditForm = {
+type InboundForm = {
   tag: string;
   protocol: string;
-  transport: string;
-  security: string;
   port: number;
   nodeId: string;
+  transport: string;
+  security: string;
   enabled: boolean;
-  settings: string;
+  settingsText: string;
+};
+
+const emptyForm: InboundForm = {
+  tag: '', protocol: 'vless', port: 443, nodeId: '',
+  transport: 'tcp', security: 'reality', enabled: true, settingsText: '{}',
 };
 
 export default function InboundsPage() {
@@ -34,22 +40,11 @@ export default function InboundsPage() {
   const [inbounds, setInbounds] = useState<InboundRow[]>([]);
   const [nodes, setNodes] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tag, setTag] = useState('');
-  const [protocol, setProtocol] = useState('vless');
-  const [port, setPort] = useState(443);
-  const [nodeId, setNodeId] = useState('');
-  const [error, setError] = useState('');
+  const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  const [form, setForm] = useState<EditForm>({
-    tag: '',
-    protocol: 'vless',
-    transport: 'tcp',
-    security: 'reality',
-    port: 443,
-    nodeId: '',
-    enabled: true,
-    settings: '{}',
-  });
+  const [form, setForm] = useState<InboundForm>(emptyForm);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -72,101 +67,114 @@ export default function InboundsPage() {
     load();
   }, []);
 
-  const create = async (e: React.FormEvent) => {
+  const startCreate = () => {
+    setEditing(null);
+    setForm(emptyForm);
+    setError('');
+    setOpen(true);
+  };
+
+  const startEdit = (row: InboundRow) => {
+    setEditing(row.id);
+    setForm({
+      tag: row.tag,
+      protocol: row.protocol,
+      port: row.port,
+      nodeId: '',
+      transport: row.transport || 'tcp',
+      security: row.security || 'reality',
+      enabled: row.enabled ?? true,
+      settingsText: JSON.stringify(row.settings || {}, null, 2),
+    });
+    setError('');
+    setOpen(true);
+  };
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    let settings: Record<string, unknown>;
     try {
-      await api.post('/api/inbounds', {
-        tag,
-        protocol,
-        port,
-        nodeId: nodeId || undefined,
-        transport: 'tcp',
-        security: 'reality',
-        settings: { clients: [] },
-      });
-      setTag('');
-      load();
+      settings = JSON.parse(form.settingsText || '{}');
+      if (!settings || typeof settings !== 'object' || Array.isArray(settings)) throw new Error(t.invalidJson);
+    } catch {
+      setError(t.invalidJson);
+      return;
+    }
+    setBusy(true);
+    const body = {
+      tag: form.tag,
+      protocol: form.protocol,
+      port: Number(form.port),
+      transport: form.transport,
+      security: form.security,
+      enabled: form.enabled,
+      settings,
+      ...(editing ? {} : { nodeId: form.nodeId || undefined }),
+    };
+    try {
+      if (editing) await api.patch(`/api/inbounds/${editing}`, body);
+      else await api.post('/api/inbounds', body);
+      setForm(emptyForm);
+      setEditing(null);
+      setOpen(false);
+      await load();
     } catch (e: any) {
       setError(e.message);
+    } finally {
+      setBusy(false);
     }
   };
 
   const remove = async (id: string) => {
     if (!confirm(t.confirmDelete)) return;
     await api.delete(`/api/inbounds/${id}`);
-    load();
-  };
-
-  const startEdit = async (id: string) => {
-    setError('');
-    try {
-      const item: InboundRow = await api.get(`/api/inbounds/${id}`);
-      setEditing(id);
-      setForm({
-        tag: item.tag,
-        protocol: item.protocol,
-        transport: item.transport || 'tcp',
-        security: item.security || 'none',
-        port: item.port,
-        nodeId: item.nodeId || '',
-        enabled: item.enabled !== false,
-        settings: JSON.stringify(item.settings || {}, null, 2),
-      });
-    } catch (e: any) {
-      setError(e.message);
-    }
-  };
-
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editing) return;
-    try {
-      await api.patch(`/api/inbounds/${editing}`, {
-        tag: form.tag,
-        protocol: form.protocol,
-        transport: form.transport,
-        security: form.security,
-        port: form.port,
-        nodeId: form.nodeId || null,
-        enabled: form.enabled,
-        settings: JSON.parse(form.settings),
-      });
-      setEditing(null);
-      await load();
-    } catch (e: any) {
-      setError(e.message);
-    }
+    await load();
   };
 
   const columns = useMemo<ColumnDef<InboundRow>[]>(
     () => [
-      { accessorKey: 'tag', header: t.name },
-      { accessorKey: 'protocol', header: t.protocol },
-      { accessorKey: 'port', header: t.port },
+      {
+        accessorKey: 'tag',
+        header: t.name,
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3">
+            <div className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface-2 text-cyan"><Icon name="plug" size={15} /></div>
+            <div>
+              <p className="font-medium text-fg">{row.original.tag}</p>
+              <p className="text-[10px] text-subtle">{row.original.security || t.noSecurity} / {row.original.transport || 'tcp'}</p>
+            </div>
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'protocol',
+        header: t.protocol,
+        cell: ({ row }) => <Badge tone="brand">{row.original.protocol.toUpperCase()}</Badge>,
+      },
+      { accessorKey: 'port', header: t.port, cell: ({ row }) => <span className="mono text-xs text-fg">{row.original.port}</span> },
       {
         id: 'node',
-        header: t.nodes,
-        accessorFn: (row) => row.node?.name || 'Global',
+        header: t.node,
+        accessorFn: (row) => row.node?.name || t.global,
         enableSorting: false,
+        cell: ({ row }) => <span className="text-xs text-muted">{row.original.node?.name || t.global}</span>,
       },
       {
         accessorKey: 'enabled',
         header: t.enabled,
-        cell: ({ row }) => (row.original.enabled === false ? '—' : '✓'),
+        cell: ({ row }) => row.original.enabled === false
+          ? <Badge tone="neutral" dot>{t.disabled}</Badge>
+          : <Badge tone="success" dot>{t.enabled}</Badge>,
       },
       {
         id: 'actions',
         header: t.actions,
         enableSorting: false,
         cell: ({ row }) => (
-          <div className="space-x-3">
-            <button onClick={() => startEdit(row.original.id)} className="text-blue-500">
-              {t.edit}
-            </button>
-            <button onClick={() => remove(row.original.id)} className="text-red-500">
-              {t.delete}
-            </button>
+          <div className="flex items-center gap-1">
+            <IconButton icon="edit" label={t.edit} onClick={() => startEdit(row.original)} />
+            <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => remove(row.original.id)} />
           </div>
         ),
       },
@@ -175,129 +183,66 @@ export default function InboundsPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t.inbounds}</h1>
-      {error && <p className="text-sm text-red-500">{error}</p>}
-      <form onSubmit={create} className="flex flex-wrap gap-2 rounded border bg-white p-4 dark:bg-gray-900">
-        <input
-          placeholder={t.name}
-          value={tag}
-          onChange={(e) => setTag(e.target.value)}
-          className="rounded border px-3 py-2 dark:bg-gray-800"
-          required
-        />
-        <select
-          value={protocol}
-          onChange={(e) => setProtocol(e.target.value)}
-          className="rounded border px-3 py-2 dark:bg-gray-800"
-        >
-          <option value="vless">VLESS</option>
-          <option value="vmess">VMess</option>
-          <option value="trojan">Trojan</option>
-          <option value="shadowsocks">Shadowsocks</option>
-        </select>
-        <input
-          type="number"
-          min={1}
-          max={65535}
-          placeholder={t.port}
-          value={port}
-          onChange={(e) => setPort(Number(e.target.value))}
-          className="w-24 rounded border px-3 py-2 dark:bg-gray-800"
-        />
-        <select
-          value={nodeId}
-          onChange={(e) => setNodeId(e.target.value)}
-          className="rounded border px-3 py-2 dark:bg-gray-800"
-        >
-          <option value="">Global</option>
-          {nodes.map((node) => (
-            <option key={node.id} value={node.id}>
-              {node.name}
-            </option>
-          ))}
-        </select>
-        <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">
-          {t.create}
-        </button>
-      </form>
+    <>
+      <PageHeader
+        eyebrow={t.infrastructure}
+        title={t.inbounds}
+        subtitle={t.exposeProtocol}
+        icon="plug"
+        actions={<Button icon="plus" variant="primary" onClick={startCreate}>{t.newInbound}</Button>}
+      />
+
+      {error && !open && (
+        <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+          <Icon name="alert" size={15} /> {error}
+        </div>
+      )}
 
       <DataTable data={inbounds} columns={columns} loading={loading} getRowId={(row) => row.id} />
 
-      {editing && (
-        <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
-          <form onSubmit={save} className="w-full max-w-lg space-y-3 rounded bg-white p-5 dark:bg-gray-900">
-            <h2 className="text-lg font-semibold">{t.edit}</h2>
-            <input
-              value={form.tag}
-              onChange={(e) => setForm({ ...form, tag: e.target.value })}
-              className="w-full rounded border px-3 py-2 dark:bg-gray-800"
-            />
-            <div className="flex flex-wrap gap-2">
-              <select
-                value={form.protocol}
-                onChange={(e) => setForm({ ...form, protocol: e.target.value })}
-                className="rounded border px-3 py-2 dark:bg-gray-800"
-              >
-                {['vless', 'vmess', 'trojan', 'shadowsocks', 'hysteria2', 'tuic', 'wireguard'].map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
+      <Modal
+        open={open}
+        onClose={() => { setOpen(false); setEditing(null); setForm(emptyForm); }}
+        title={editing ? t.editInbound : t.newInbound}
+        subtitle={t.exposeProtocol}
+        icon={<Icon name="plug" size={16} />}
+        size="lg"
+        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="check" onClick={submit} loading={busy}>{editing ? t.save : t.create}</Button></>}
+      >
+        <form onSubmit={submit} className="space-y-4">
+          {error && (
+            <div className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+              <Icon name="alert" size={14} /> {error}
+            </div>
+          )}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={t.name}><input placeholder="vless-reality-in" value={form.tag} onChange={(e) => setForm({ ...form, tag: e.target.value })} className="field" required /></Field>
+            <Field label={t.port}><input type="number" min={1} max={65535} value={form.port} onChange={(e) => setForm({ ...form, port: Number(e.target.value) })} className="field" required /></Field>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={t.protocol}>
+              <select value={form.protocol} onChange={(e) => setForm({ ...form, protocol: e.target.value })} className="field">
+                <option value="vless">VLESS</option><option value="vmess">VMess</option>
+                <option value="trojan">Trojan</option><option value="shadowsocks">Shadowsocks</option>
               </select>
-              <input
-                value={form.transport}
-                onChange={(e) => setForm({ ...form, transport: e.target.value })}
-                placeholder={t.transport}
-                className="rounded border px-3 py-2 dark:bg-gray-800"
-              />
-              <input
-                value={form.security}
-                onChange={(e) => setForm({ ...form, security: e.target.value })}
-                placeholder={t.security}
-                className="rounded border px-3 py-2 dark:bg-gray-800"
-              />
-              <input
-                type="number"
-                min={1}
-                max={65535}
-                value={form.port}
-                onChange={(e) => setForm({ ...form, port: Number(e.target.value) })}
-                className="w-24 rounded border px-3 py-2 dark:bg-gray-800"
-              />
-            </div>
-            <select
-              value={form.nodeId}
-              onChange={(e) => setForm({ ...form, nodeId: e.target.value })}
-              className="w-full rounded border px-3 py-2 dark:bg-gray-800"
-            >
-              <option value="">Global</option>
-              {nodes.map((node) => (
-                <option key={node.id} value={node.id}>{node.name}</option>
-              ))}
-            </select>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.enabled}
-                onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
-              />
-              {t.enabled}
-            </label>
-            <textarea
-              value={form.settings}
-              onChange={(e) => setForm({ ...form, settings: e.target.value })}
-              rows={8}
-              className="w-full rounded border px-3 py-2 font-mono text-xs dark:bg-gray-800"
-              placeholder={t.payload}
-            />
-            <div className="flex gap-2">
-              <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">{t.save}</button>
-              <button type="button" onClick={() => setEditing(null)} className="rounded border px-4 py-2">
-                {t.cancel}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-    </div>
+            </Field>
+            <Field label={t.node} hint={!editing ? t.leaveEmptyGlobal : undefined}>
+              <select value={form.nodeId} onChange={(e) => setForm({ ...form, nodeId: e.target.value })} className="field" disabled={Boolean(editing)}>
+                <option value="">{t.global}</option>
+                {nodes.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}
+              </select>
+            </Field>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={t.transport}><input value={form.transport} onChange={(e) => setForm({ ...form, transport: e.target.value })} className="field" /></Field>
+            <Field label={t.security}><input value={form.security} onChange={(e) => setForm({ ...form, security: e.target.value })} className="field" /></Field>
+          </div>
+          <Field label={t.settingsJson}>
+            <textarea rows={6} value={form.settingsText} onChange={(e) => setForm({ ...form, settingsText: e.target.value })} className="field mono text-[11px]" />
+          </Field>
+          <Toggle checked={form.enabled} onChange={(value) => setForm({ ...form, enabled: value })} label={t.enabled} />
+        </form>
+      </Modal>
+    </>
   );
 }

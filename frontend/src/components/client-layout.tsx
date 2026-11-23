@@ -1,13 +1,12 @@
 'use client';
 import { useEffect } from 'react';
-import Shell from '../components/shell';
+import Shell from './shell';
+import { applyTheme, getTheme } from '../lib/theme';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    if (!localStorage.getItem('xss_theme')) {
-      const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      document.documentElement.classList.toggle('dark', dark);
-    }
+    applyTheme(getTheme());
   }, []);
+
   return <Shell>{children}</Shell>;
 }

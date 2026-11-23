@@ -2,7 +2,7 @@
 
 Self-hosted control panel for **Xray-core** with multi-node agents, client management, subscription delivery, payments, Telegram integration and monitoring.
 
-> Short name: **XSS** · Repository: `XreyStudioServer`
+> Short name: **XSS** · Repository: `XreyStudioServer` · Current version: **v1.6.0**
 
 ---
 
@@ -20,7 +20,8 @@ Self-hosted control panel for **Xray-core** with multi-node agents, client manag
 - Audit log, backups and restore.
 - Payments, plans, trials, referrals and resellers (extensible).
 - Notifications via Telegram, generic webhook, SMTP email and Signal (`signal-cli-rest-api`).
-- Dark/light theme, Russian and English UI, mobile responsive.
+- Redesigned dark SaaS admin UI (v1.6.0): sidebar navigation, quick page search, modal forms,
+  entrance animations, light theme, full Russian/English localization and mobile layout.
 - Searchable, sortable, paginated tables; user edit forms and dashboard charts.
 - Full CRUD forms for hosts and routing rules, plus a config revision browser with rollback.
 - Server-side search, sorting, filtering and pagination for large user lists.

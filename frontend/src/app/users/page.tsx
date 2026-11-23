@@ -4,6 +4,11 @@ import type { ColumnDef, OnChangeFn, SortingState } from '@tanstack/react-table'
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
+import { Icon } from '../../components/icons';
+import {
+  Avatar, Badge, Button, Card, Field, IconButton, Modal, PageHeader,
+  StatusBadge, formatBytes,
+} from '../../components/ui';
 
 type UserRow = {
   id: string;
@@ -25,21 +30,16 @@ export default function UsersPage() {
   const [pageSize, setPageSize] = useState(20);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [total, setTotal] = useState(0);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [trafficLimit, setTrafficLimit] = useState(100);
   const [error, setError] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [form, setForm] = useState({ email: '', password: '', trafficLimit: 100 });
   const [editing, setEditing] = useState<UserRow | null>(null);
-  const [editRole, setEditRole] = useState('USER');
-  const [editStatus, setEditStatus] = useState('ACTIVE');
-  const [editTraffic, setEditTraffic] = useState(100);
+  const [editForm, setEditForm] = useState({ role: 'USER', status: 'ACTIVE', trafficLimit: 100 });
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({
-      page: String(pageIndex + 1),
-      limit: String(pageSize),
-    });
+    const params = new URLSearchParams({ page: String(pageIndex + 1), limit: String(pageSize) });
     if (appliedSearch) params.set('search', appliedSearch);
     if (status) params.set('status', status);
     if (role) params.set('role', role);
@@ -59,9 +59,7 @@ export default function UsersPage() {
   }, [appliedSearch, status, role, pageIndex, pageSize, sorting]);
 
   useEffect(() => {
-    if (!isLoggedIn()) {
-      window.location.href = '/login';
-    }
+    if (!isLoggedIn()) window.location.href = '/login';
   }, []);
 
   useEffect(() => {
@@ -79,43 +77,50 @@ export default function UsersPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSaving(true);
     try {
-      await api.post('/api/users', { email, password, trafficLimit: trafficLimit * 1024 ** 3 });
-      setEmail('');
-      setPassword('');
-      setTrafficLimit(100);
+      await api.post('/api/users', { email: form.email, password: form.password, trafficLimit: form.trafficLimit * 1024 ** 3 });
+      setForm({ email: '', password: '', trafficLimit: 100 });
+      setCreateOpen(false);
       await load();
     } catch (e: any) {
       setError(e.message);
+    } finally {
+      setSaving(false);
     }
   };
 
   const remove = async (id: string) => {
-    if (!confirm('Delete user?')) return;
+    if (!confirm(t.confirmDelete)) return;
     await api.delete(`/api/users/${id}`);
     await load();
   };
 
   const startEdit = (user: UserRow) => {
     setEditing(user);
-    setEditRole(user.role);
-    setEditStatus(user.status);
-    setEditTraffic(Math.round(Number(user.trafficLimit) / 1024 ** 3));
+    setEditForm({
+      role: user.role,
+      status: user.status,
+      trafficLimit: Math.round(Number(user.trafficLimit) / 1024 ** 3),
+    });
   };
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editing) return;
+    setSaving(true);
     try {
       await api.patch(`/api/users/${editing.id}`, {
-        role: editRole,
-        status: editStatus,
-        trafficLimit: editTraffic * 1024 ** 3,
+        role: editForm.role,
+        status: editForm.status,
+        trafficLimit: editForm.trafficLimit * 1024 ** 3,
       });
       setEditing(null);
       await load();
     } catch (e: any) {
       setError(e.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -126,26 +131,46 @@ export default function UsersPage() {
 
   const columns = useMemo<ColumnDef<UserRow>[]>(
     () => [
-      { accessorKey: 'email', header: t.email },
-      { accessorKey: 'role', header: t.role },
-      { accessorKey: 'status', header: t.status },
+      {
+        accessorKey: 'email',
+        header: t.email,
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3">
+            <Avatar label={row.original.email.slice(0, 2).toUpperCase()} size="sm" />
+            <div>
+              <p className="font-medium text-fg">{row.original.email}</p>
+              <p className="text-[10px] text-subtle">{t.idLabel} {row.original.id.slice(0, 8)}</p>
+            </div>
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'role',
+        header: t.role,
+        cell: ({ row }) => (
+          <Badge tone={row.original.role === 'ADMIN' ? 'brand' : row.original.role === 'OPERATOR' ? 'cyan' : 'neutral'}>
+            {row.original.role}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: 'status',
+        header: t.status,
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
+      },
       {
         accessorKey: 'trafficLimit',
         header: t.trafficLimit,
-        cell: ({ row }) => `${Math.round(Number(row.original.trafficLimit) / 1024 ** 3)} GB`,
+        cell: ({ row }) => <span className="font-medium text-fg tabular-nums">{formatBytes(row.original.trafficLimit)}</span>,
       },
       {
         id: 'actions',
         header: t.actions,
         enableSorting: false,
         cell: ({ row }) => (
-          <div className="space-x-3">
-            <button onClick={() => startEdit(row.original)} className="text-blue-500">
-              {t.edit}
-            </button>
-            <button onClick={() => remove(row.original.id)} className="text-red-500">
-              {t.delete}
-            </button>
+          <div className="flex items-center gap-1">
+            <IconButton icon="edit" label={t.edit} onClick={() => startEdit(row.original)} />
+            <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => remove(row.original.id)} />
           </div>
         ),
       },
@@ -154,71 +179,42 @@ export default function UsersPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t.users}</h1>
-      {error && <p className="text-sm text-red-500">{error}</p>}
-      <form onSubmit={create} className="flex flex-wrap gap-2 rounded border bg-white p-4 dark:bg-gray-900">
-        <input
-          type="email"
-          placeholder={t.email}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="rounded border px-3 py-2 dark:bg-gray-800"
-          required
-        />
-        <input
-          type="password"
-          minLength={6}
-          placeholder={t.password}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="rounded border px-3 py-2 dark:bg-gray-800"
-          required
-        />
-        <input
-          type="number"
-          min={1}
-          placeholder={t.trafficLimit}
-          value={trafficLimit}
-          onChange={(e) => setTrafficLimit(Number(e.target.value))}
-          className="w-28 rounded border px-3 py-2 dark:bg-gray-800"
-        />
-        <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">
-          {t.create}
-        </button>
-      </form>
+    <>
+      <PageHeader
+        eyebrow="Access"
+        title={t.users}
+        subtitle={t.usersSubtitle}
+        icon="users"
+        actions={<Button icon="plus" variant="primary" onClick={() => setCreateOpen(true)}>{t.create}</Button>}
+      />
 
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t.search}
-          className="rounded border px-3 py-2 dark:bg-gray-800"
-        />
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="rounded border px-3 py-2 dark:bg-gray-800"
-        >
-          <option value="">{t.all} {t.status}</option>
-          <option value="ACTIVE">ACTIVE</option>
-          <option value="DISABLED">DISABLED</option>
-          <option value="EXPIRED">EXPIRED</option>
-        </select>
-        <select
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-          className="rounded border px-3 py-2 dark:bg-gray-800"
-        >
-          <option value="">{t.all} {t.role}</option>
-          <option value="ADMIN">ADMIN</option>
-          <option value="OPERATOR">OPERATOR</option>
-          <option value="USER">USER</option>
-        </select>
-        <span className="text-gray-500">
-          {t.total}: {total}
-        </span>
-      </div>
+      {error && (
+        <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+          <Icon name="alert" size={15} /> {error}
+        </div>
+      )}
+
+      <Card className="mb-5 p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[220px] flex-1">
+            <Icon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t.search} className="field pl-9" />
+          </div>
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className="field w-auto min-w-[140px]">
+            <option value="">{t.all} {t.status}</option>
+            <option value="ACTIVE">ACTIVE</option>
+            <option value="DISABLED">DISABLED</option>
+            <option value="EXPIRED">EXPIRED</option>
+          </select>
+          <select value={role} onChange={(e) => setRole(e.target.value)} className="field w-auto min-w-[140px]">
+            <option value="">{t.all} {t.role}</option>
+            <option value="ADMIN">ADMIN</option>
+            <option value="OPERATOR">OPERATOR</option>
+            <option value="USER">USER</option>
+          </select>
+          <Badge tone="neutral">{t.total}: {total}</Badge>
+        </div>
+      </Card>
 
       <DataTable
         data={users}
@@ -234,52 +230,37 @@ export default function UsersPage() {
           pageSize,
           pageCount: Math.max(1, Math.ceil(total / pageSize)),
           onPageChange: setPageIndex,
-          onPageSizeChange: (size) => {
-            setPageSize(size);
-            setPageIndex(0);
-          },
+          onPageSizeChange: (size) => { setPageSize(size); setPageIndex(0); },
         }}
       />
 
-      {editing && (
-        <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
-          <form onSubmit={save} className="w-full max-w-md space-y-3 rounded bg-white p-5 dark:bg-gray-900">
-            <h2 className="text-lg font-semibold">{editing.email}</h2>
-            <select
-              value={editRole}
-              onChange={(e) => setEditRole(e.target.value)}
-              className="w-full rounded border px-3 py-2 dark:bg-gray-800"
-            >
-              <option value="ADMIN">ADMIN</option>
-              <option value="OPERATOR">OPERATOR</option>
-              <option value="USER">USER</option>
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t.newUser} subtitle={t.createAccount} icon={<Icon name="users" size={16} />}
+        footer={<><Button onClick={() => setCreateOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="plus" onClick={create} loading={saving}>{t.create}</Button></>}>
+        <form onSubmit={create} className="space-y-4">
+          <Field label={t.email}><input type="email" placeholder="user@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="field" required /></Field>
+          <Field label={t.password} hint={t.atLeast6Chars}><input type="password" minLength={6} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="field" required /></Field>
+          <Field label={t.trafficLimit} hint={t.valueInGB}><input type="number" min={1} value={form.trafficLimit} onChange={(e) => setForm({ ...form, trafficLimit: Number(e.target.value) })} className="field" /></Field>
+        </form>
+      </Modal>
+
+      <Modal open={Boolean(editing)} onClose={() => setEditing(null)} title={editing?.email || ''} subtitle={t.editUserSubtitle}
+        footer={<><Button onClick={() => setEditing(null)}>{t.cancel}</Button><Button variant="primary" icon="check" onClick={save} loading={saving}>{t.save}</Button></>}>
+        <form onSubmit={save} className="space-y-4">
+          <Field label={t.role}>
+            <select value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })} className="field">
+              <option value="ADMIN">ADMIN</option><option value="OPERATOR">OPERATOR</option><option value="USER">USER</option>
             </select>
-            <select
-              value={editStatus}
-              onChange={(e) => setEditStatus(e.target.value)}
-              className="w-full rounded border px-3 py-2 dark:bg-gray-800"
-            >
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="DISABLED">DISABLED</option>
+          </Field>
+          <Field label={t.status}>
+            <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="field">
+              <option value="ACTIVE">ACTIVE</option><option value="DISABLED">DISABLED</option>
             </select>
-            <input
-              type="number"
-              min={0}
-              value={editTraffic}
-              onChange={(e) => setEditTraffic(Number(e.target.value))}
-              className="w-full rounded border px-3 py-2 dark:bg-gray-800"
-            />
-            <div className="flex gap-2">
-              <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">
-                {t.save}
-              </button>
-              <button type="button" onClick={() => setEditing(null)} className="rounded border px-4 py-2">
-                {t.cancel}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-    </div>
+          </Field>
+          <Field label={t.trafficLimit} hint={t.valueInGB}>
+            <input type="number" min={0} value={editForm.trafficLimit} onChange={(e) => setEditForm({ ...editForm, trafficLimit: Number(e.target.value) })} className="field" />
+          </Field>
+        </form>
+      </Modal>
+    </>
   );
 }

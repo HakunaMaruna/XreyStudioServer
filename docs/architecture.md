@@ -6,7 +6,10 @@
 - Agent (Node.js): registers, fetches config, applies to Xray and (optionally) sing-box, reports metrics.
 - Protocol adapters: VLESS/VMess/Trojan/Shadowsocks are Xray inbounds; Hysteria2/TUIC/WireGuard are
   generated as a separate sing-box config in the same revision.
-- Frontend (Next.js): admin UI and public subscription page.
+- Frontend (Next.js): admin UI and public subscription page. The v1.6.0 UI is built on design
+  tokens in `globals.css`, a reusable component kit (`components/ui.tsx`), a single icon set and
+  an app shell with sectioned navigation, quick page search, language/theme switching and
+  responsive layouts. Pages use modal forms and server-driven tables.
 - PostgreSQL: primary data store.
 - Redis: cache, queues and shared rate limiting (counters shared across replicas when `REDIS_URL`
   is set); falls back automatically to in-memory limiting when Redis is absent or down.

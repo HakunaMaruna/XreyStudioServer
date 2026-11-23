@@ -4,15 +4,17 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
+import { Icon } from '../../components/icons';
+import { Badge, Card, PageHeader } from '../../components/ui';
 
 type AuditRow = {
   id: string;
+  userId: string | null;
   action: string;
   entity: string;
   entityId: string | null;
-  userId: string | null;
   ip: string | null;
-  metadata: unknown;
+  metadata: Record<string, unknown> | null;
   createdAt: string;
 };
 
@@ -21,7 +23,8 @@ export default function AuditPage() {
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [entity, setEntity] = useState('');
-  const [action, setAction] = useState('');
+  const [userId, setUserId] = useState('');
+  const [appliedUserId, setAppliedUserId] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
@@ -31,7 +34,7 @@ export default function AuditPage() {
     setLoading(true);
     const params = new URLSearchParams({ page: String(pageIndex + 1), limit: String(pageSize) });
     if (entity) params.set('entity', entity);
-    if (action) params.set('action', action);
+    if (appliedUserId) params.set('userId', appliedUserId);
     try {
       const data = await api.get(`/api/audit?${params.toString()}`);
       setRows(data.data || []);
@@ -41,70 +44,105 @@ export default function AuditPage() {
     } finally {
       setLoading(false);
     }
-  }, [entity, action, pageIndex, pageSize]);
+  }, [entity, appliedUserId, pageIndex, pageSize]);
 
   useEffect(() => {
-    if (!isLoggedIn()) {
-      window.location.href = '/login';
-      return;
-    }
-    load();
+    if (!isLoggedIn()) window.location.href = '/login';
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAppliedUserId(userId.trim());
+      setPageIndex(0);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [userId, entity]);
+
+  useEffect(() => {
+    if (isLoggedIn()) load();
   }, [load]);
-
-  useEffect(() => {
-    setPageIndex(0);
-  }, [entity, action]);
-
-  const exportCsv = async () => {
-    const params = new URLSearchParams();
-    if (entity) params.set('entity', entity);
-    if (action) params.set('action', action);
-    const query = params.toString();
-    try {
-      await api.downloadCsv(`/api/audit/export.csv${query ? `?${query}` : ''}`, 'audit.csv');
-    } catch (e: any) {
-      setError(e.message);
-    }
-  };
 
   const columns = useMemo<ColumnDef<AuditRow>[]>(
     () => [
       {
+        accessorKey: 'action',
+        header: t.action,
+        cell: ({ row }) => <Badge tone="brand">{row.original.action}</Badge>,
+      },
+      {
+        accessorKey: 'entity',
+        header: t.entity,
+        cell: ({ row }) => <Badge tone="cyan">{row.original.entity}</Badge>,
+      },
+      {
+        accessorKey: 'entityId',
+        header: t.entityId,
+        cell: ({ row }) => row.original.entityId
+          ? <code className="mono text-[11px] text-muted" title={row.original.entityId}>{row.original.entityId.slice(0, 8)}…</code>
+          : <span className="text-subtle">—</span>,
+      },
+      {
+        accessorKey: 'userId',
+        header: t.user,
+        cell: ({ row }) => row.original.userId
+          ? <code className="mono text-[11px] text-muted" title={row.original.userId}>{row.original.userId.slice(0, 8)}…</code>
+          : <span className="text-subtle">—</span>,
+      },
+      { accessorKey: 'ip', header: t.ip, cell: ({ row }) => <span className="mono text-[11px] text-muted">{row.original.ip || '—'}</span> },
+      {
+        accessorKey: 'metadata',
+        header: t.metadata,
+        enableSorting: false,
+        cell: ({ row }) => row.original.metadata
+          ? <code className="mono text-[10px] text-subtle">{JSON.stringify(row.original.metadata).slice(0, 60)}…</code>
+          : <span className="text-subtle">—</span>,
+      },
+      {
         accessorKey: 'createdAt',
         header: t.createdAt,
-        cell: ({ row }) => new Date(row.original.createdAt).toLocaleString(),
+        cell: ({ row }) => <span className="text-xs text-muted">{new Date(row.original.createdAt).toLocaleString()}</span>,
       },
-      { accessorKey: 'action', header: t.action },
-      { accessorKey: 'entity', header: t.entity },
-      { accessorKey: 'entityId', header: t.objectId, cell: ({ row }) => row.original.entityId || '-' },
-      { accessorKey: 'userId', header: t.user, cell: ({ row }) => row.original.userId || '-' },
-      { accessorKey: 'ip', header: 'IP', cell: ({ row }) => row.original.ip || '-' },
     ],
     [t],
   );
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t.audit}</h1>
-      {error && <p className="text-sm text-red-500">{error}</p>}
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <input
-          value={entity}
-          onChange={(e) => setEntity(e.target.value)}
-          placeholder={t.entity}
-          className="rounded border px-3 py-2 dark:bg-gray-800"
-        />
-        <input
-          value={action}
-          onChange={(e) => setAction(e.target.value)}
-          placeholder={t.action}
-          className="rounded border px-3 py-2 dark:bg-gray-800"
-        />
-        <span className="text-gray-500">{t.total}: {total}</span>
-        <button onClick={exportCsv} className="ml-auto rounded bg-blue-600 px-3 py-2 text-white text-sm">
-          {t.exportCsv}
-        </button>
-      </div>
+    <>
+      <PageHeader
+        eyebrow={t.system}
+        title={t.auditLog}
+        subtitle={t.auditSubtitle}
+        icon="file"
+        actions={<Badge tone="neutral">{t.total}: {total}</Badge>}
+      />
+
+      {error && (
+        <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+          <Icon name="alert" size={15} /> {error}
+        </div>
+      )}
+
+      <Card className="mb-5 p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <select value={entity} onChange={(e) => setEntity(e.target.value)} className="field w-auto min-w-[160px]">
+            <option value="">{t.all} {t.entity}</option>
+            <option value="User">User</option>
+            <option value="Node">Node</option>
+            <option value="Inbound">Inbound</option>
+          </select>
+          <div className="relative min-w-[200px] flex-1">
+            <Icon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
+            <input
+              value={userId}
+              onChange={(e) => setUserId(e.target.value)}
+              placeholder={`${t.user} ID`}
+              className="field pl-9"
+            />
+          </div>
+          <Badge tone="neutral">{t.total}: {total}</Badge>
+        </div>
+      </Card>
+
       <DataTable
         data={rows}
         columns={columns}
@@ -116,12 +154,9 @@ export default function AuditPage() {
           pageSize,
           pageCount: Math.max(1, Math.ceil(total / pageSize)),
           onPageChange: setPageIndex,
-          onPageSizeChange: (size) => {
-            setPageSize(size);
-            setPageIndex(0);
-          },
+          onPageSizeChange: (size) => { setPageSize(size); setPageIndex(0); },
         }}
       />
-    </div>
+    </>
   );
 }

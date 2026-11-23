@@ -4,21 +4,11 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
+import { Icon } from '../../components/icons';
+import { Badge, Button, CodeBlock, Field, IconButton, Modal, PageHeader, Toggle } from '../../components/ui';
 
-type RuleRow = {
-  id: string;
-  name: string;
-  type: string;
-  payload: Record<string, unknown>;
-  enabled: boolean;
-};
-
-type RuleForm = {
-  name: string;
-  type: string;
-  payloadText: string;
-  enabled: boolean;
-};
+type RuleRow = { id: string; name: string; type: string; payload: Record<string, unknown>; enabled: boolean };
+type RuleForm = { name: string; type: string; payloadText: string; enabled: boolean };
 
 const emptyForm: RuleForm = { name: '', type: 'field', payloadText: '{}', enabled: true };
 
@@ -26,9 +16,11 @@ export default function RulesPage() {
   const { t } = useLang();
   const [rules, setRules] = useState<RuleRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
   const [form, setForm] = useState<RuleForm>(emptyForm);
   const [editing, setEditing] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -56,45 +48,38 @@ export default function RulesPage() {
     let payload: Record<string, unknown>;
     try {
       payload = JSON.parse(form.payloadText);
-      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-        throw new Error(t.invalidJson);
-      }
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error(t.invalidJson);
     } catch {
       setError(t.invalidJson);
       return;
     }
-    const body = { name: form.name, type: form.type, payload, enabled: form.enabled };
+    setBusy(true);
     try {
+      const body = { name: form.name, type: form.type, payload, enabled: form.enabled };
       if (editing) await api.patch(`/api/rules/${editing}`, body);
       else await api.post('/api/rules', body);
       setForm(emptyForm);
       setEditing(null);
+      setOpen(false);
       await load();
     } catch (e: any) {
       setError(e.message);
+    } finally {
+      setBusy(false);
     }
   };
 
   const startEdit = (rule: RuleRow) => {
     setEditing(rule.id);
-    setForm({
-      name: rule.name,
-      type: rule.type,
-      payloadText: JSON.stringify(rule.payload, null, 2),
-      enabled: rule.enabled,
-    });
-  };
-
-  const cancelEdit = () => {
-    setEditing(null);
-    setForm(emptyForm);
+    setForm({ name: rule.name, type: rule.type, payloadText: JSON.stringify(rule.payload, null, 2), enabled: rule.enabled });
+    setOpen(true);
   };
 
   const remove = async (id: string) => {
     if (!confirm(t.confirmDelete)) return;
     try {
       await api.delete(`/api/rules/${id}`);
-      if (editing === id) cancelEdit();
+      if (editing === id) { setEditing(null); setForm(emptyForm); }
       await load();
     } catch (e: any) {
       setError(e.message);
@@ -103,33 +88,27 @@ export default function RulesPage() {
 
   const columns = useMemo<ColumnDef<RuleRow>[]>(
     () => [
-      { accessorKey: 'name', header: t.name },
-      { accessorKey: 'type', header: t.type },
       {
-        id: 'payload',
-        header: t.payload,
-        enableSorting: false,
+        accessorKey: 'name', header: t.name,
         cell: ({ row }) => (
-          <code className="text-xs">{JSON.stringify(row.original.payload)}</code>
+          <div className="flex items-center gap-3">
+            <div className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface-2 text-warning"><Icon name="route" size={15} /></div>
+            <p className="font-medium text-fg">{row.original.name}</p>
+          </div>
         ),
       },
+      { accessorKey: 'type', header: t.type, cell: ({ row }) => <Badge tone="cyan">{row.original.type}</Badge> },
       {
-        accessorKey: 'enabled',
-        header: t.enabled,
-        cell: ({ row }) => (row.original.enabled ? '✓' : '—'),
+        id: 'payload', header: t.payload, enableSorting: false,
+        cell: ({ row }) => <code className="mono text-[11px] text-muted">{JSON.stringify(row.original.payload)}</code>,
       },
+      { accessorKey: 'enabled', header: t.enabled, cell: ({ row }) => row.original.enabled ? <Badge tone="success" dot>{t.enabled}</Badge> : <Badge tone="neutral" dot>{t.disabled}</Badge> },
       {
-        id: 'actions',
-        header: t.actions,
-        enableSorting: false,
+        id: 'actions', header: t.actions, enableSorting: false,
         cell: ({ row }) => (
-          <div className="space-x-3">
-            <button onClick={() => startEdit(row.original)} className="text-blue-500">
-              {t.edit}
-            </button>
-            <button onClick={() => remove(row.original.id)} className="text-red-500">
-              {t.delete}
-            </button>
+          <div className="flex items-center gap-1">
+            <IconButton icon="edit" label={t.edit} onClick={() => startEdit(row.original)} />
+            <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => remove(row.original.id)} />
           </div>
         ),
       },
@@ -138,54 +117,42 @@ export default function RulesPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t.rules}</h1>
-      {error && <p className="text-sm text-red-500">{error}</p>}
-      <form onSubmit={submit} className="space-y-2 rounded border bg-white p-4 dark:bg-gray-900">
-        <div className="flex flex-wrap gap-2">
-          <input
-            placeholder={t.name}
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="rounded border px-3 py-2 dark:bg-gray-800"
-            required
-          />
-          <input
-            placeholder={t.type}
-            value={form.type}
-            onChange={(e) => setForm({ ...form, type: e.target.value })}
-            className="rounded border px-3 py-2 dark:bg-gray-800"
-            required
-          />
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={form.enabled}
-              onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
-            />
-            {t.enabled}
-          </label>
+    <>
+      <PageHeader
+        eyebrow="Infrastructure"
+        title={t.rules}
+        subtitle={t.rulesSubtitle}
+        icon="route"
+        actions={<Button icon="plus" variant="primary" onClick={() => { setEditing(null); setForm(emptyForm); setOpen(true); }}>{t.newRule}</Button>}
+      />
+
+      {error && (
+        <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+          <Icon name="alert" size={15} /> {error}
         </div>
-        <textarea
-          value={form.payloadText}
-          onChange={(e) => setForm({ ...form, payloadText: e.target.value })}
-          rows={5}
-          className="w-full rounded border px-3 py-2 font-mono text-xs dark:bg-gray-800"
-          required
-        />
-        <div className="flex gap-2">
-          <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">
-            {editing ? t.save : t.create}
-          </button>
-          {editing && (
-            <button type="button" onClick={cancelEdit} className="rounded border px-4 py-2">
-              {t.cancel}
-            </button>
-          )}
-        </div>
-      </form>
+      )}
 
       <DataTable data={rules} columns={columns} loading={loading} getRowId={(row) => row.id} />
-    </div>
+
+      <Modal open={open} onClose={() => { setOpen(false); setEditing(null); setForm(emptyForm); }} title={editing ? t.editRule : t.newRule} subtitle={t.routingRuleJson} size="lg" icon={<Icon name="route" size={16} />}
+        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="check" onClick={submit} loading={busy}>{editing ? t.save : t.create}</Button></>}>
+        <form onSubmit={submit} className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={t.name}><input placeholder="block-ads" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="field" required /></Field>
+            <Field label={t.type}><input placeholder="field" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="field" required /></Field>
+          </div>
+          <Field label={t.payload}>
+            <textarea rows={8} value={form.payloadText} onChange={(e) => setForm({ ...form, payloadText: e.target.value })} className="field mono text-[11px] leading-relaxed" required />
+          </Field>
+          <Toggle checked={form.enabled} onChange={(value) => setForm({ ...form, enabled: value })} label={t.enabled} />
+          {form.payloadText.trim() && (
+            <div>
+              <p className="mb-2 text-[10px] uppercase tracking-wider text-subtle">{t.preview}</p>
+              <CodeBlock>{JSON.stringify((() => { try { return JSON.parse(form.payloadText); } catch { return { error: t.invalidJson }; } })(), null, 2)}</CodeBlock>
+            </div>
+          )}
+        </form>
+      </Modal>
+    </>
   );
 }
