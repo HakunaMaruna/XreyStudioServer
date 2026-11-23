@@ -80,6 +80,19 @@ describe('XSS API (e2e)', () => {
       aggregate: jest.fn().mockResolvedValue({ _sum: { bytesUp: 0n, bytesDown: 0n } }),
     },
     auditLog: { create: jest.fn().mockResolvedValue({}) },
+    backupSettings: {
+      upsert: jest.fn().mockResolvedValue({
+        id: 'default',
+        enabled: false,
+        intervalHours: 24,
+        retention: 7,
+        lastRunAt: null,
+        nextRunAt: null,
+      }),
+      update: jest.fn().mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'default', enabled: false, intervalHours: 24, retention: 7, ...data }),
+      ),
+    },
     alertHistory: {
       create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'alert-1', ...data })),
       findMany: jest.fn().mockResolvedValue([
