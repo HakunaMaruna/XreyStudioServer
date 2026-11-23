@@ -40,7 +40,12 @@ CLI. From the page you can:
 - download the `.sql.gz` file (`GET /api/backups/:name/download`);
 - delete a backup (`DELETE /api/backups/:name`);
 - restore a backup (`POST /api/backups/:name/restore`) — the request body must contain
-  `{ "confirm": true }`, so a restore cannot be triggered accidentally.
+  `{ "confirm": true }`, so a restore cannot be triggered accidentally;
+- configure an in-app schedule and retention (`GET`/`PATCH /api/backups/settings`) from the
+  **Schedule** card on the Backups page. Settings live in the `BackupSettings` table:
+  `enabled`, `intervalHours` (1–720) and `retention` (1–100). The backend runs a lightweight
+  in-process timer and persists `lastRunAt` / `nextRunAt`. Each scheduled run prunes archives
+  beyond `retention`.
 
 All endpoints require an admin JWT; see `docs/api.md` for response shapes. Restore runs `psql`
 against `DATABASE_URL` and overwrites the current database — take a fresh backup first and perform

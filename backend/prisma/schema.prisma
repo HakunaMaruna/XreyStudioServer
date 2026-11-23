@@ -217,6 +217,17 @@ model UserTraffic {
   @@index([period])
 }
 
+model BackupSettings {
+  id            String    @id @default("default")
+  enabled       Boolean   @default(false)
+  intervalHours Int       @default(24)
+  retention     Int       @default(7)
+  lastRunAt     DateTime?
+  nextRunAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
 model AlertHistory {
   id        String   @id @default(uuid())
   status    String

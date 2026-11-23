@@ -5,9 +5,17 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
-import { Badge, Button, Card, IconButton, PageHeader, formatBytes } from '../../components/ui';
+import { Badge, Button, Card, Field, IconButton, PageHeader, SectionTitle, Toggle, formatBytes } from '../../components/ui';
 
 type BackupFile = { name: string; size: number; createdAt: string };
+type BackupSettings = {
+  id: string;
+  enabled: boolean;
+  intervalHours: number;
+  retention: number;
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+};
 
 export default function BackupsPage() {
   const { t } = useLang();
@@ -16,6 +24,8 @@ export default function BackupsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [settings, setSettings] = useState<BackupSettings | null>(null);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -35,7 +45,28 @@ export default function BackupsPage() {
       return;
     }
     load();
+    api.get('/api/backups/settings').then(setSettings).catch(() => undefined);
   }, [load]);
+
+  const saveSettings = async () => {
+    if (!settings) return;
+    setSavingSettings(true);
+    setError('');
+    setNotice('');
+    try {
+      const data = await api.patch('/api/backups/settings', {
+        enabled: settings.enabled,
+        intervalHours: settings.intervalHours,
+        retention: settings.retention,
+      });
+      setSettings(data);
+      setNotice(t.save);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   const create = async () => {
     setBusy(true);
@@ -138,6 +169,56 @@ export default function BackupsPage() {
           <Icon name="checkCircle" size={15} /> {notice}
         </div>
       )}
+
+      <Card className="mb-5">
+        <SectionTitle
+          title={t.schedule}
+          subtitle={t.scheduleSubtitle}
+          action={<Button size="sm" icon="check" onClick={saveSettings} loading={savingSettings}>{t.save}</Button>}
+        />
+        {settings ? (
+          <div className="grid gap-5 lg:grid-cols-4">
+            <div className="space-y-3">
+              <Toggle
+                checked={settings.enabled}
+                onChange={(value) => setSettings({ ...settings, enabled: value })}
+                label={t.autoBackup}
+              />
+              <p className="text-[11px] text-subtle">
+                {settings.nextRunAt ? `${t.nextRun}: ${new Date(settings.nextRunAt).toLocaleString()}` : '—'}
+              </p>
+              <p className="text-[11px] text-subtle">
+                {settings.lastRunAt ? `${t.lastRun}: ${new Date(settings.lastRunAt).toLocaleString()}` : '—'}
+              </p>
+            </div>
+            <Field label={t.intervalHours}>
+              <input
+                type="number"
+                min={1}
+                max={720}
+                value={settings.intervalHours}
+                onChange={(e) => setSettings({ ...settings, intervalHours: Number(e.target.value) })}
+                className="field"
+              />
+            </Field>
+            <Field label={t.retention}>
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={settings.retention}
+                onChange={(e) => setSettings({ ...settings, retention: Number(e.target.value) })}
+                className="field"
+              />
+            </Field>
+            <div className="rounded-xl border border-line bg-surface-2/50 p-3 text-[11px] leading-relaxed text-muted">
+              {t.backupsSubtitle}
+            </div>
+          </div>
+        ) : (
+          <div className="py-6 text-center text-xs text-subtle">{t.loading}</div>
+        )}
+      </Card>
 
       {loading ? (
         <Card className="py-20 text-center text-xs text-muted">{t.loading}</Card>

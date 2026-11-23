@@ -99,6 +99,9 @@ at `/app/backups` in the backend container, so the CLI and the UI share the same
 - `DELETE /backups/:name` — delete a backup
 - `POST /backups/:name/restore` — restore via `psql` into `DATABASE_URL`; body
   `{ "confirm": true }` is required. Restoring overwrites the current database.
+- `GET /backups/settings` — current schedule (`enabled`, `intervalHours`, `retention`,
+  `lastRunAt`, `nextRunAt`)
+- `PATCH /backups/settings` — update the schedule; `intervalHours` 1–720, `retention` 1–100
 
 All other endpoints use the global limit configured by `THROTTLE_LIMIT`/`THROTTLE_TTL`
 (120 requests/minute by default), with per-route `@Throttle` overrides where noted. Rate limiting
