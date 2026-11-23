@@ -57,3 +57,10 @@ echo "Panel URL: https://$DOMAIN"
 echo "Admin login: $(grep ADMIN_EMAIL .env | cut -d= -f2)"
 echo "Admin password: $(grep ADMIN_PASSWORD .env | cut -d= -f2)"
 echo "Docs: https://$DOMAIN/docs"
+if [ "$DOMAIN" != "localhost" ]; then
+  echo ""
+  echo "DNS required for automatic TLS:"
+  echo "  $DOMAIN            A/AAAA  -> this server IP"
+  echo "  *.$DOMAIN          A/AAAA  -> this server IP  (needed for node-<id> certificates)"
+  echo "Ports 80 and 443 must be open for Let's Encrypt validation."
+fi
