@@ -1,6 +1,7 @@
 # UX v2.5 validation (QA/infrastructure)
 
 Date: 2026-11-23 UTC. Scope: issue #79. Base: `origin/main` `8c2432e` (v2.4.1).
+PR: #82. Follow-up issue for the finding: #83.
 Product code (`backend/src`, `frontend/src`), versions and releases untouched.
 
 ## What was added
@@ -63,4 +64,4 @@ does **not** create a subscription link: `SubscriptionsService.loadUser()` reads
 reads `InboundClient[]`. The current inbound UI sends only `clients[]`, so the user is present on
 the node but sees an empty subscription link list. The new e2e spec documents both paths.
 Suggested fix (outside this agent's zone): make clients[] bindings visible to the subscriptions
-service or have the UI set `userId` as well. No product code was changed.
+service or have the UI set `userId` as well. Tracked as #83. No product code was changed.
