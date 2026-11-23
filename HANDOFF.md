@@ -8,13 +8,13 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 Self-hosted control panel for Xray-core: web UI, multi-node agents, clients, subscriptions,
 payments, notifications, monitoring, Docker Compose installation. Target scale: 5k users / 20 nodes.
 
-## Current state (v1.6.0, 2026-11-23)
+## Current state (v1.7.0, 2026-11-23)
 
 - Source of truth: `/work/XreyStudioServer` (working copy) and the git repo
   `/tmp/opencode/XSS_REPO` (remote: https://github.com/HakunaMaruna/XreyStudioServer).
-- Published: tag/release `v1.6.0`,
-  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.6.0.
-  Previous releases: `v1.5.0` (backups UI, CSV, Redis throttling, k8s monitoring), `v1.4.1`, `v1.4.0`.
+- Published: tag/release `v1.7.0`,
+  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.7.0.
+  Previous releases: `v1.6.0` (dark SaaS UI), `v1.5.0`, `v1.4.1`, `v1.4.0`.
   Earlier: `v1.4.1` (quota hotfix), `v1.4.0` (traffic/logs/admin UI), `v1.3.0`, `v1.2.0`, `v1.1.x`, `v1.0.0`.
 - Stack: NestJS + Prisma/PostgreSQL + Redis, Next.js 16 + React 19, Node agent, Caddy, Docker Compose.
 - Backend modules: auth (JWT + refresh + RBAC + Argon2id/bcrypt), users, nodes, inbounds, hosts,
@@ -41,6 +41,15 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
   run locally (CI builds the images). Node here is v20.15.1; Next 16 wants >=20.19, but the
   production build passed.
 - GitHub push works via the credential store in `/root/.git-credentials`.
+
+## Done in v1.7.0
+
+- Configurable backup schedule and retention from the Backups page: `BackupSettings` model,
+  in-process scheduler with persisted `lastRunAt`/`nextRunAt`, `GET/PATCH /api/backups/settings`,
+  automatic pruning beyond the configured retention.
+- Organization and protocol reporting: `GET /reports/organizations`, `GET /reports/protocols`,
+  CSV exports and a `/reports` admin page with date filters and a segmented switch.
+- Versions bumped to 1.7.0 across packages, Swagger, k8s images and the frontend constant.
 
 ## Done in v1.6.0
 
