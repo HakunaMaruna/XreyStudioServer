@@ -80,6 +80,9 @@ model Node {
   lastSeenAt     DateTime?
   lastError      String?
   xrayVersion    String?
+  certificateHost      String?
+  certificateIssuedAt  DateTime?
+  certificateExpiresAt DateTime?
   metrics        NodeMetric[]
   inbounds       Inbound[]
   revisions      ConfigRevision[]
