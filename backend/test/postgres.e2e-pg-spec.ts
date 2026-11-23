@@ -282,4 +282,62 @@ describe('XSS API (e2e, real PostgreSQL)', () => {
     expect(ruleNames(configA)).toEqual(['global-rule', 'tenant-a-rule']);
     expect(ruleNames(configB)).toEqual(['global-rule', 'tenant-b-rule']);
   });
+
+  it('enforces RBAC and tenant boundaries for operators and users', async () => {
+    const orgA = await prisma.organization.create({ data: { name: 'RBAC A', slug: 'rbac-a' } });
+    const orgB = await prisma.organization.create({ data: { name: 'RBAC B', slug: 'rbac-b' } });
+    const operator = await auth(
+      request(app.getHttpServer())
+        .post('/api/users')
+        .send({ email: 'rbac-operator@example.com', password, role: 'OPERATOR', organizationId: orgA.id }),
+    ).expect(201);
+    const userA = await auth(
+      request(app.getHttpServer())
+        .post('/api/users')
+        .send({ email: 'rbac-user-a@example.com', password, organizationId: orgA.id }),
+    ).expect(201);
+    await auth(
+      request(app.getHttpServer())
+        .post('/api/users')
+        .send({ email: 'rbac-user-b@example.com', password, organizationId: orgB.id }),
+    ).expect(201);
+
+    const operatorLogin = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: 'rbac-operator@example.com', password })
+      .expect(201);
+    const userLogin = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: 'rbac-user-a@example.com', password })
+      .expect(201);
+    const asOperator = (req: any) => req.set('Authorization', `Bearer ${operatorLogin.body.accessToken}`);
+    const asUser = (req: any) => req.set('Authorization', `Bearer ${userLogin.body.accessToken}`);
+
+    await asUser(request(app.getHttpServer()).get('/api/users')).expect(403);
+    await asUser(request(app.getHttpServer()).get(`/api/users/${userA.body.id}`)).expect(403);
+
+    await asOperator(
+      request(app.getHttpServer())
+        .post('/api/users')
+        .send({ email: 'rbac-intruder@example.com', password, organizationId: orgB.id }),
+    ).expect(403);
+    await asOperator(
+      request(app.getHttpServer()).patch(`/api/users/${userA.body.id}`).send({ organizationId: orgB.id }),
+    ).expect(403);
+    await asOperator(
+      request(app.getHttpServer())
+        .post('/api/nodes')
+        .send({ name: 'rbac-intruder-node', address: '127.0.0.1', organizationId: orgB.id }),
+    ).expect(403);
+
+    const scoped = await asOperator(request(app.getHttpServer()).get('/api/users?limit=100')).expect(200);
+    expect(scoped.body.data.length).toBeGreaterThan(0);
+    expect(scoped.body.data.every((u: { organizationId: string | null }) => u.organizationId === orgA.id)).toBe(true);
+
+    for (const url of ['/api/audit', '/api/reports/organizations', '/api/traffic', '/api/payments']) {
+      await asOperator(request(app.getHttpServer()).get(url)).expect(403);
+    }
+
+    await asOperator(request(app.getHttpServer()).get(`/api/users/${operator.body.id}`)).expect(200);
+  });
 });
