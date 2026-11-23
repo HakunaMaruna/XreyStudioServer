@@ -12,6 +12,7 @@ import { PrismaService } from '../src/prisma/prisma.service';
 
 const TABLES = [
   'AlertHistory',
+  'BackupSettings',
   'AuditLog',
   'RefreshToken',
   'Payment',
