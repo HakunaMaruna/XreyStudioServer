@@ -12,7 +12,6 @@ import { PrismaService } from '../src/prisma/prisma.service';
 
 const TABLES = [
   'AlertHistory',
-  'BackupSettings',
   'AuditLog',
   'RefreshToken',
   'Payment',
@@ -47,6 +46,15 @@ describe('XSS API (e2e, PostgreSQL: quotas, backups, plans, audit, CSV)', () => 
     await prisma.$executeRawUnsafe(
       `TRUNCATE ${TABLES.map((table) => `"${table}"`).join(', ')} RESTART IDENTITY CASCADE`,
     );
+    const settingsTable = await prisma.$queryRaw<Array<{ present: boolean }>>`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'BackupSettings'
+      ) AS present
+    `;
+    if (settingsTable[0]?.present) {
+      await prisma.$executeRawUnsafe('TRUNCATE "BackupSettings" RESTART IDENTITY CASCADE');
+    }
   };
 
   const createUser = (email: string) =>
