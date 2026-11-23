@@ -2,7 +2,7 @@
 
 Self-hosted control panel for **Xray-core** with multi-node agents, client management, subscription delivery, payments, Telegram integration and monitoring.
 
-> Short name: **XSS** · Repository: `XreyStudioServer`
+> Short name: **XSS** · Repository: `XreyStudioServer` · Current version: **v1.4.0**
 
 ---
 
@@ -20,8 +20,11 @@ Self-hosted control panel for **Xray-core** with multi-node agents, client manag
 - Audit log, backups and restore.
 - Payments, plans, trials, referrals and resellers (extensible).
 - Notifications via Telegram, generic webhook, SMTP email and Signal (`signal-cli-rest-api`).
-- Dark/light theme, Russian and English UI, mobile responsive.
-- Searchable, sortable, paginated tables; user edit forms and dashboard charts.
+- Redesigned dark SaaS admin UI with light theme, Russian/English localization and mobile layout.
+- Searchable, sortable, paginated tables; modal edit forms, animations and dashboard charts.
+- Admin pages for audit log, organizations, payments/plans, backups and notification channels.
+- Per-user traffic accounting from the Xray Stats API with automatic quota enforcement.
+- Node health panel and authenticated in-app node log viewer.
 - Full CRUD forms for hosts and routing rules, plus a config revision browser with rollback.
 - Server-side search, sorting, filtering and pagination for large user lists.
 - Alert history stored in PostgreSQL with an admin UI and a channel-status overview.
@@ -66,9 +69,9 @@ Self-hosted control panel for **Xray-core** with multi-node agents, client manag
 |---|---|---|
 | Backend | **NestJS (TypeScript)** | Modular clean architecture, DI, OpenAPI, fast CRUD development |
 | Frontend | **Next.js + React** | SSR for subscription page, App Router, large ecosystem |
-| UI | **Tailwind CSS + shadcn/ui** | Fast, accessible, customizable admin UI |
+| UI | **Tailwind CSS 4 + custom component kit** | Consistent dark SaaS design, no external UI dependency |
 | Database | **PostgreSQL** | Reliable relational storage, JSONB, strong consistency |
-| Cache / queues | **Redis** | Sessions, rate limiting, BullMQ jobs |
+| Cache / queues | **Redis** | Shared rate limiting across replicas (in-memory fallback) |
 | Agent | **Node.js** | Lightweight, same language as backend, simple deployment |
 | Proxy / TLS | **Caddy** | Automatic HTTPS, simple config |
 | Containers | **Docker Compose** | Sufficient for 5k users / 20 nodes, simple ops |
@@ -78,16 +81,19 @@ Self-hosted control panel for **Xray-core** with multi-node agents, client manag
 
 ```text
 XreyStudioServer/
-├── backend/                 # NestJS API, Prisma schema
-│   ├── prisma/schema.prisma
+├── backend/                 # NestJS API, Prisma schema and migrations
+│   ├── prisma/{schema.prisma,migrations/}
 │   └── src/
 │       ├── main.ts
 │       ├── app.module.ts
-│       └── modules/{auth,users,nodes,subscriptions,health}
+│       ├── common/{env,redis-throttler.storage,seed.service}.ts
+│       └── modules/{auth,users,nodes,subscriptions,health,audit,organizations,payments,backups,...}
 ├── frontend/                # Next.js admin + subscription page
-│   └── src/app/{dashboard,sub/[token]}
-├── agent/                   # Node agent for Xray nodes
-├── k8s/                     # Kubernetes (Kustomize) manifests
+│   ├── src/app/{dashboard,users,nodes,inbounds,hosts,rules,alerts,audit,organizations,payments,backups,settings,login,sub/[token]}
+│   ├── src/components/{shell,data-table,ui,icons}.tsx
+│   └── src/lib/{api,i18n,theme,version}.ts
+├── agent/                   # Node agent for Xray nodes (Xray Stats API reader)
+├── k8s/                     # Kubernetes manifests + generated monitoring.json
 ├── monitoring/              # Prometheus config, Grafana dashboard and alert rules
 ├── scripts/                 # backup/restore helpers and cron example docs
 ├── docs/                    # architecture, install, API
@@ -165,7 +171,9 @@ AGENT_TOKEN=random-agent-token
 CORS_ORIGIN=https://example.com
 ```
 
-Optional: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (required for Stripe webhooks), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` by default, `bcrypt` to keep new hashes bcrypt), `ALERT_WEBHOOK_TOKEN` (shared secret for Grafana alerts), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS to agents), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (non-Xray protocols).
+Required for production: `JWT_SECRET` (at least 32 characters) and `ADMIN_PASSWORD` (at least 12 characters) — the backend refuses to start with insecure defaults when `NODE_ENV=production`.
+
+Optional: `REDIS_URL` (shared rate limiting; falls back to memory), `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (required for Stripe webhooks), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` by default, `bcrypt` to keep new hashes bcrypt), `ALERT_WEBHOOK_TOKEN` (shared secret for Grafana alerts), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS to agents), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (non-Xray protocols), `XRAY_STATS_ENABLED`/`XRAY_API_HOST`/`XRAY_API_PORT` (per-user traffic accounting).
 
 ## API
 
@@ -182,6 +190,13 @@ POST /api/users
 GET  /api/nodes
 POST /api/nodes
 GET  /api/nodes/:id/health
+GET  /api/nodes/:id/logs
+GET  /api/audit
+GET  /api/organizations
+GET  /api/payments
+GET  /api/payments/plans
+GET  /api/backups
+POST /api/backups
 GET  /api/subscriptions/:token
 GET  /api/subscriptions/:token/raw
 GET  /api/subscriptions/:token/base64
@@ -215,7 +230,8 @@ Hysteria2, TUIC and WireGuard clients are exported as native `hysteria2://`, `tu
 - HTTPS is mandatory (Caddy).
 - JWT access + refresh tokens.
 - Password hashing with Argon2id (bcrypt hashes remain valid).
-- Global API rate limiting plus stricter limits on login/refresh.
+- Global API rate limiting (Redis-backed across replicas) plus stricter limits on login/refresh.
+- Production startup fails fast when JWT/admin secrets are missing or too short.
 - Verified Stripe webhook signatures (HMAC-SHA256, 5-minute tolerance).
 - CSRF/XSS/SQL-injection/IDOR protections.
 - Encrypted node secrets in database.
@@ -226,9 +242,10 @@ Hysteria2, TUIC and WireGuard clients are exported as native `hysteria2://`, `tu
 ## Monitoring
 
 - Built-in node metrics: CPU, RAM, disk, traffic, active connections, Xray state.
+- Per-user traffic deltas from `xray api statsq` (opt-in with `XRAY_STATS_ENABLED=true`), stored as daily `UserTraffic` aggregates and enforced against `trafficLimit`.
 - Health checks and alerts for offline nodes.
 - Prometheus-compatible endpoint: `GET /api/metrics` (set `METRICS_TOKEN` and send `X-Metrics-Token` when exposed).
-- Optional Prometheus + Grafana stack via `make monitoring`: Prometheus at `:9091`, Grafana at `:3002` with the pre-provisioned `XreyStudioServer — Overview` dashboard.
+- Optional Prometheus + Grafana stack via `make monitoring`: Prometheus at `:9091`, Grafana at `:3002` with the pre-provisioned `XreyStudioServer — Overview` dashboard. The same stack is included in `k8s/monitoring.json`.
 - Provisioned alert rules (`monitoring/grafana/provisioning/alerting/alerts.yml`) cover a down backend, offline nodes, high backend memory and high node CPU. Alerts are sent to `POST /api/notifications/alerts` with `Authorization: Bearer $ALERT_WEBHOOK_TOKEN` and forwarded to Telegram, webhook, SMTP email and Signal. Every alert is persisted in the
 `AlertHistory` table and can be reviewed on the **Alerts** page (`/alerts`), which also shows which
 channels are configured. See `docs/monitoring.md` for channel setup.
@@ -240,7 +257,7 @@ make backup
 make restore FILE=backups/db-20260101-120000.sql.gz
 ```
 
-Backups are gzip-compressed PostgreSQL dumps stored in `backups/`; `BACKUP_DIR` sets the directory and `BACKUP_KEEP` controls retention (default 7). See `docs/backup.md` for a cron example and off-site copying.
+Backups are gzip-compressed PostgreSQL dumps stored in `backups/`; `BACKUP_DIR` sets the directory and `BACKUP_KEEP` controls retention (default 7). Administrators can also create, list, download and delete snapshots from **System → Backups** in the UI. See `docs/backup.md` for a cron example and off-site copying.
 
 ## Protocol adapters
 
@@ -253,7 +270,8 @@ single-engine Xray config. Subscription exports include native links for all thr
 
 ## Kubernetes
 
-`k8s/` contains Kustomize manifests for PostgreSQL, Redis, API, panel, agent and Ingress.
+`k8s/` contains Kustomize manifests for PostgreSQL, Redis, API, panel, agent, Ingress, Prometheus and Grafana.
+Monitoring resources are generated from `monitoring/` with `node k8s/generate-monitoring.mjs` into `k8s/monitoring.json`.
 See `k8s/README.md` for image builds, secrets and apply steps. It is an alternative to Compose,
 not an additional requirement.
 
@@ -280,9 +298,8 @@ cd agent && npm install && npm start
 
 ## Roadmap
 
-- Per-user traffic accounting from node metrics, UI for audit logs, organizations, payments and plans.
-- Node log viewer, inbound editing, backup automation in the UI.
-- Broader Redis usage (rate limiting/cache) and monitoring stack validation in Kubernetes.
+- Validate the Kubernetes monitoring stack against a live cluster.
+- Extend per-user traffic accounting with plan-based quotas and trial periods in the UI.
 
 ## License
 

@@ -2,7 +2,7 @@
 
 Self-hosted панель управления **Xray-core** с агентами нод, управлением клиентами, выдачей подписок, платежами, интеграцией с Telegram и мониторингом.
 
-> Краткое название: **XSS** · Репозиторий: `XreyStudioServer`
+> Краткое название: **XSS** · Репозиторий: `XreyStudioServer` · Текущая версия: **v1.4.0**
 
 ---
 
@@ -20,8 +20,11 @@ Self-hosted панель управления **Xray-core** с агентами 
 - Аудит действий, резервное копирование и восстановление.
 - Платежи, тарифы, триалы, рефералы и реселлеры (расширяемо).
 - Уведомления через Telegram, webhook, SMTP email и Signal (`signal-cli-rest-api`).
-- Тёмная/светлая темы, русский и английский интерфейс, мобильная адаптивность.
-- Таблицы с поиском, сортировкой и пагинацией, формы редактирования и графики на дашборде.
+- Переработанный тёмный SaaS-интерфейс со светлой темой, переводами RU/EN и мобильной версией.
+- Таблицы с поиском, сортировкой и пагинацией, модальные формы, анимации и графики на дашборде.
+- Админ-страницы аудита, организаций, платежей/тарифов, бэкапов и каналов уведомлений.
+- Per-user учёт трафика через Xray Stats API с автоматическим применением квот.
+- Панель состояния ноды и просмотр логов ноды из интерфейса.
 - История алертов в PostgreSQL с интерфейсом просмотра и статусом каналов уведомлений.
 - Hysteria2 / TUIC / WireGuard через адаптер sing-box на ноде.
 - Метрики Prometheus, готовый дашборд и правила алертов Grafana; манифесты Kubernetes.
@@ -66,9 +69,9 @@ Self-hosted панель управления **Xray-core** с агентами 
 |---|---|---|
 | Backend | **NestJS (TypeScript)** | Модульная чистая архитектура, DI, OpenAPI, быстрая разработка CRUD |
 | Frontend | **Next.js + React** | SSR для страницы подписки, App Router, большая экосистема |
-| UI | **Tailwind CSS + shadcn/ui** | Быстрый, доступный, кастомизируемый интерфейс |
+| UI | **Tailwind CSS 4 + собственный UI-kit** | Единый тёмный SaaS-стиль без внешних UI-зависимостей |
 | БД | **PostgreSQL** | Надёжное реляционное хранилище, JSONB, целостность |
-| Кэш/очереди | **Redis** | Сессии, rate limiting, задачи BullMQ |
+| Кэш/очереди | **Redis** | Общий rate limiting между репликами (fallback в память) |
 | Агент | **Node.js** | Лёгкий, тот же язык, простая установка |
 | Прокси/TLS | **Caddy** | Автоматический HTTPS, простая конфигурация |
 | Контейнеры | **Docker Compose** | Достаточно для 5к пользователей / 20 нод, простота эксплуатации |
@@ -78,16 +81,19 @@ Self-hosted панель управления **Xray-core** с агентами 
 
 ```text
 XreyStudioServer/
-├── backend/                 # NestJS API, Prisma schema
-│   ├── prisma/schema.prisma
+├── backend/                 # NestJS API, Prisma-схема и миграции
+│   ├── prisma/{schema.prisma,migrations/}
 │   └── src/
 │       ├── main.ts
 │       ├── app.module.ts
-│       └── modules/{auth,users,nodes,subscriptions,health}
+│       ├── common/{env,redis-throttler.storage,seed.service}.ts
+│       └── modules/{auth,users,nodes,subscriptions,health,audit,organizations,payments,backups,...}
 ├── frontend/                # Next.js админка + страница подписки
-│   └── src/app/{dashboard,sub/[token]}
-├── agent/                   # Node-агент для нод Xray
-├── k8s/                     # манифесты Kubernetes (Kustomize)
+│   ├── src/app/{dashboard,users,nodes,inbounds,hosts,rules,alerts,audit,organizations,payments,backups,settings,login,sub/[token]}
+│   ├── src/components/{shell,data-table,ui,icons}.tsx
+│   └── src/lib/{api,i18n,theme,version}.ts
+├── agent/                   # Node-агент для нод Xray (чтение Xray Stats API)
+├── k8s/                     # манифесты Kustomize + сгенерированный monitoring.json
 ├── monitoring/              # конфиги Prometheus, дашборд и алерты Grafana
 ├── scripts/                 # скрипты бэкапа/восстановления, пример cron в docs
 ├── docs/                    # архитектура, установка, API
@@ -165,7 +171,9 @@ AGENT_TOKEN=random-agent-token
 CORS_ORIGIN=https://example.com
 ```
 
-Опционально: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (обязателен для Stripe-вебхуков), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` по умолчанию, `bcrypt` для новых хешей), `ALERT_WEBHOOK_TOKEN` (общий секрет для алертов Grafana), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS с агентами), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (не-Xray протоколы).
+Обязательно в проде: `JWT_SECRET` (минимум 32 символа) и `ADMIN_PASSWORD` (минимум 12 символов) — бэкенд откажется запускаться с небезопасными значениями при `NODE_ENV=production`.
+
+Опционально: `REDIS_URL` (общий rate limiting, fallback в память), `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (обязателен для Stripe-вебхуков), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` по умолчанию, `bcrypt` для новых хешей), `ALERT_WEBHOOK_TOKEN` (общий секрет для алертов Grafana), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS с агентами), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (не-Xray протоколы), `XRAY_STATS_ENABLED`/`XRAY_API_HOST`/`XRAY_API_PORT` (per-user учёт трафика).
 
 ## API
 
@@ -182,6 +190,13 @@ POST /api/users
 GET  /api/nodes
 POST /api/nodes
 GET  /api/nodes/:id/health
+GET  /api/nodes/:id/logs
+GET  /api/audit
+GET  /api/organizations
+GET  /api/payments
+GET  /api/payments/plans
+GET  /api/backups
+POST /api/backups
 GET  /api/subscriptions/:token
 GET  /api/subscriptions/:token/raw
 GET  /api/subscriptions/:token/base64
@@ -215,7 +230,8 @@ https://<domain>/sub/<token>
 - HTTPS обязателен (Caddy).
 - JWT access + refresh токены.
 - Хеширование паролей Argon2id (существующие bcrypt-хеши продолжают работать).
-- Глобальный rate limiting API + отдельные лимиты на логин/refresh.
+- Глобальный rate limiting API через Redis для всех реплик + отдельные лимиты на логин/refresh.
+- Старт в проде прерывается, если JWT/админские секреты отсутствуют или слишком короткие.
 - Проверка подписи Stripe-вебхуков (HMAC-SHA256, допуск 5 минут).
 - Защита от CSRF/XSS/SQL-инъекций/IDOR.
 - Шифрование секретов нод в БД.
@@ -226,9 +242,10 @@ https://<domain>/sub/<token>
 ## Мониторинг
 
 - Встроенные метрики нод: CPU, RAM, диск, трафик, активные подключения, состояние Xray.
+- Per-user дельты трафика из `xray api statsq` (включается `XRAY_STATS_ENABLED=true`), дневные агрегаты `UserTraffic` и проверка квот `trafficLimit`.
 - Health checks и алерты при недоступности нод.
 - Prometheus-совместимый endpoint `GET /api/metrics` (при публичном доступе задайте `METRICS_TOKEN` и передавайте заголовок `X-Metrics-Token`).
-- Опциональный стек Prometheus + Grafana через `make monitoring`: Prometheus `:9091`, Grafana `:3002` с предустановленным дашбордом `XreyStudioServer — Overview`.
+- Опциональный стек Prometheus + Grafana через `make monitoring`: Prometheus `:9091`, Grafana `:3002` с предустановленным дашбордом `XreyStudioServer — Overview`. Тот же стек входит в `k8s/monitoring.json`.
 - Правила алертов (`monitoring/grafana/provisioning/alerting/alerts.yml`)покрывают : недоступность backend, офлайн-ноды, высокий расход памяти backend и CPU ноды. Алерты уходят на `POST /api/notifications/alerts` с заголовком `Authorization: Bearer $ALERT_WEBHOOK_TOKEN` и пересылаются в Telegram, webhook, email (SMTP) и Signal. Каждый алерт сохраняется в таблице
 `AlertHistory` и доступен на странице **Оповещения** (`/alerts`), где также показаны настроенные
 каналы. Настройка каналов описана в `docs/monitoring.md`.
@@ -240,7 +257,7 @@ make backup
 make restore FILE=backups/db-20260101-120000.sql.gz
 ```
 
-Бэкапы — сжатые дампы PostgreSQL в каталоге `backups/`; `BACKUP_DIR` задаёт каталог, `BACKUP_KEEP` — число хранимых копий (по умолчанию 7). Пример cron и копирование на удалённое хранилище — в `docs/backup.md`.
+Бэкапы — сжатые дампы PostgreSQL в каталоге `backups/`; `BACKUP_DIR` задаёт каталог, `BACKUP_KEEP` — число хранимых копий (по умолчанию 7). Администратор может создавать, просматривать, скачивать и удалять копии в разделе **Система → Бэкапы**. Пример cron и копирование на удалённое хранилище — в `docs/backup.md`.
 
 ## Адаптеры протоколов
 
@@ -253,7 +270,8 @@ Xray-core поддерживает VLESS, VMess, Trojan и Shadowsocks. Hysteria
 
 ## Kubernetes
 
-В `k8s/` лежат манифесты Kustomize для PostgreSQL, Redis, API, панели, агента и Ingress.
+В `k8s/` лежат манифесты Kustomize для PostgreSQL, Redis, API, панели, агента, Ingress, Prometheus и Grafana.
+Ресурсы мониторинга генерируются из `monitoring/` командой `node k8s/generate-monitoring.mjs` в `k8s/monitoring.json`.
 Шаги по сборке образов, секретам и применению — в `k8s/README.md`. Это альтернатива Compose,
 а не дополнительное требование.
 
@@ -280,9 +298,8 @@ cd agent && npm install && npm start
 
 ## Планы
 
-- Персональный учёт трафика по метрикам нод, UI для аудита, организаций, платежей и тарифов.
-- Просмотр логов нод, редактирование inbound, автоматизация бэкапов в UI.
-- Шире использовать Redis (rate limiting/кэш) и проверить стек мониторинга в Kubernetes.
+- Проверить стек мониторинга Kubernetes на живом кластере.
+- Расширить персональный учёт трафика квотами по тарифам и триальными периодами в UI.
 
 ## Лицензия
 
