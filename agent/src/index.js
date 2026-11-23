@@ -3,6 +3,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+const http = require('http');
 const { execFile } = require('child_process');
 const { timingSafeEqual } = require('crypto');
 const si = require('systeminformation');
@@ -30,6 +31,8 @@ let lastGood = null;
 let lastConfigVersion = 0;
 let lastNet = null;
 let lastAppliedConfig = null;
+let activeServer = null;
+const TLS_DIR = process.env.AGENT_TLS_DIR || '/etc/xss-agent/tls';
 const lastUserStats = new Map();
 
 const app = express();
@@ -319,6 +322,32 @@ app.get('/logs', auth, async (req, res) => {
     error: result.ok || output ? null : result.stderr || result.error || null,
   });
 });
+
+app.post('/certificate', auth, (req, res) => {
+  const { certificate, privateKey, hostname } = req.body || {};
+  if (!certificate || !privateKey || !hostname) {
+    return res.status(400).json({ error: 'certificate, privateKey and hostname are required' });
+  }
+  try {
+    fs.mkdirSync(TLS_DIR, { recursive: true, mode: 0o700 });
+    fs.writeFileSync(path.join(TLS_DIR, 'fullchain.pem'), certificate, { mode: 0o600 });
+    fs.writeFileSync(path.join(TLS_DIR, 'privkey.pem'), privateKey, { mode: 0o600 });
+    startServer({
+      cert: fs.readFileSync(path.join(TLS_DIR, 'fullchain.pem')),
+      key: fs.readFileSync(path.join(TLS_DIR, 'privkey.pem')),
+    });
+    console.log(`installed TLS certificate for ${hostname}`);
+    res.json({ installed: true, hostname, https: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+function startServer(tlsOptions) {
+  if (activeServer) activeServer.close();
+  activeServer = tlsOptions ? https.createServer(tlsOptions, app) : http.createServer(app);
+  activeServer.listen(PORT, () => console.log(`XSS agent listening on ${PORT}${tlsOptions ? ' (https)' : ''}`));
+}
 
 register();
 setInterval(sendMetrics, 15000);

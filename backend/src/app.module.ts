@@ -23,6 +23,7 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 import { TrafficModule } from './modules/traffic/traffic.module';
 import { BackupsModule } from './modules/backups/backups.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { CertificatesModule } from './modules/certificates/certificates.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { ReportsModule } from './modules/reports/reports.module';
     TrafficModule,
     BackupsModule,
     ReportsModule,
+    CertificatesModule,
   ],
   providers: [
     SeedService,

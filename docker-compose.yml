@@ -39,6 +39,8 @@ services:
       AGENT_BASE_URL: http://agent:9090
     volumes:
       - ./backups:/app/backups
+      - certbot_webroot:/var/www/certbot
+      - node_certs:/app/certs
     depends_on:
       postgres:
         condition: service_healthy
@@ -77,6 +79,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
+      - certbot_webroot:/var/www/certbot
     depends_on:
       - frontend
       - backend
@@ -116,5 +119,7 @@ volumes:
   redisdata:
   caddy_data:
   caddy_config:
+  certbot_webroot:
+  node_certs:
   prometheus_data:
   grafana_data:

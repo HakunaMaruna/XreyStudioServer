@@ -84,6 +84,15 @@ keep exports within that cap. Headers:
 
 All report endpoints require an `ADMIN` JWT.
 
+## Node certificates
+
+- `GET /certificates/:nodeId` — issued certificate status for a node
+- `POST /certificates/:nodeId/issue` — issue a Let's Encrypt certificate for the node hostname and
+  install it on the agent
+- `POST /certificates/renew-all` — re-issue/renew certificates for all nodes that have one
+
+All certificate endpoints are ADMIN-only.
+
 ## Operations
 
 - `POST /notifications/test` — broadcast a test notification to all configured channels (ADMIN)

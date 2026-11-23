@@ -22,7 +22,7 @@ function isPrivateHost(host: string) {
 export class AgentClientService {
   private readonly logger = new Logger(AgentClientService.name);
 
-  private base(node: { address: string; agentUrl?: string | null }) {
+  private base(node: { address: string; agentUrl?: string | null }, allowPrivate = false) {
     const explicit = node.agentUrl;
     const raw = explicit || process.env.AGENT_BASE_URL || `http://${node.address}:9090`;
     let url: URL;
@@ -42,7 +42,7 @@ export class AgentClientService {
     ) {
       throw new BadRequestException('Agent URL must use https in production');
     }
-    if (process.env.ALLOW_PRIVATE_AGENT_URLS !== 'true' && isPrivateHost(url.hostname)) {
+    if (!allowPrivate && process.env.ALLOW_PRIVATE_AGENT_URLS !== 'true' && isPrivateHost(url.hostname)) {
       throw new BadRequestException('Private agent URLs are not allowed');
     }
     return raw.replace(/\/$/, '');
@@ -96,7 +96,7 @@ export class AgentClientService {
   }
 
   async applyConfig(node: { address: string; agentUrl?: string | null }, config: any, version: number) {
-    const base = this.base(node);
+    const base = this.base(node, true);
     try {
       return await this.request(`${base.replace(/\/$/, '')}/config`, { version, config });
     } catch (e: any) {
@@ -106,8 +106,15 @@ export class AgentClientService {
   }
 
   async restart(node: { address: string; agentUrl?: string | null }) {
-    const base = this.base(node);
+    const base = this.base(node, true);
     return this.request(`${base.replace(/\/$/, '')}/restart-xray`, {});
+  }
+
+  async installCertificate(
+    node: { address: string; agentUrl?: string | null },
+    payload: { certificate: string; privateKey: string; ca?: string; hostname: string },
+  ) {
+    return this.request(`${this.base(node, true)}/certificate`, { payload }, 15000);
   }
 
   async getLogs(

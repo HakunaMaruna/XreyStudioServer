@@ -86,6 +86,27 @@ ignores duplicate `checkout.session.completed` events for already paid invoices.
 For HTTPS agent URLs, set `AGENT_CA`, `AGENT_CERT` and `AGENT_KEY` to PEM file paths readable by
 the backend container. Without these, signed `AGENT_TOKEN`/`AGENT_SECRET` headers are used.
 
+## Node TLS certificates (Let's Encrypt)
+
+Set `NODE_DOMAIN_SUFFIX` (for example `nodes.example.com`) and point a DNS record
+`*.nodes.example.com` at the panel's public IP. The panel solves ACME HTTP-01 challenges through
+the shared Caddy webroot (`/.well-known/acme-challenge/`), so each node hostname only needs to
+resolve to the panel — the node itself does not have to be publicly reachable.
+
+```bash
+# issue and install a certificate for one node
+POST /api/certificates/<node_id>/issue
+# inspect status
+GET  /api/certificates/<node_id>
+# renew all issued certificates
+POST /api/certificates/renew-all
+```
+
+The certificate and key are stored in `CERTS_DIR` (`/app/certs`) and pushed to the agent, which
+writes them to `AGENT_TLS_DIR` (`/etc/xss-agent/tls`) and restarts its HTTPS listener. The node's
+`agentUrl` is then updated to `https://node-<id>.<suffix>:9090`. Requires `LE_EMAIL` for ACME
+registration.
+
 ## Traffic accounting and quotas
 The panel does not read Xray statistics by itself — a collector on each node reports per-user
 usage. Issues a node bearer token with `POST /api/nodes/:id/rotate-token` (admin), then POST:
