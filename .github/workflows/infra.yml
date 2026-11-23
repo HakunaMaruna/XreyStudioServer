@@ -1,0 +1,81 @@
+name: Infra checks
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'k8s/**'
+      - 'helm/**'
+      - 'monitoring/**'
+      - '.github/workflows/infra.yml'
+  pull_request:
+    paths:
+      - 'k8s/**'
+      - 'helm/**'
+      - 'monitoring/**'
+      - '.github/workflows/infra.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  k8s-manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: v1.30.0
+      - name: Install kubeconform
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/kubeconform.tar.gz \
+            https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+          tar -xzf /tmp/kubeconform.tar.gz -C /tmp kubeconform
+          sudo install -m 0755 /tmp/kubeconform /usr/local/bin/kubeconform
+      - name: Validate kustomize output
+        run: |
+          set -euo pipefail
+          kubectl kustomize ./k8s | kubeconform -strict -ignore-missing-schemas -summary -
+
+  helm-chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.4
+      - name: Install kubeconform
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/kubeconform.tar.gz \
+            https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+          tar -xzf /tmp/kubeconform.tar.gz -C /tmp kubeconform
+          sudo install -m 0755 /tmp/kubeconform /usr/local/bin/kubeconform
+      - name: Detect chart
+        id: chart
+        run: |
+          set -euo pipefail
+          if [ -f helm/xrey/Chart.yaml ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Skip chart checks (chart not merged yet)
+        if: steps.chart.outputs.present != 'true'
+        run: echo "helm/xrey/Chart.yaml not found - skipping helm checks"
+      - name: Helm lint
+        if: steps.chart.outputs.present == 'true'
+        run: helm lint ./helm/xrey
+      - name: Helm template (default values)
+        if: steps.chart.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          helm template xss ./helm/xrey --namespace xss \
+            | kubeconform -strict -ignore-missing-schemas -summary -
+      - name: Helm template (production values with monitoring)
+        if: steps.chart.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          helm template xss ./helm/xrey --namespace xss -f helm/xrey/values.example.yaml \
+            | kubeconform -strict -ignore-missing-schemas -summary -
