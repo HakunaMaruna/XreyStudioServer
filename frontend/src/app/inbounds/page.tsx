@@ -58,7 +58,7 @@ const emptyForm: InboundForm = {
   enabled: true, settingsText: '{}', fallbacks: [], clients: [],
 };
 
-const PROTOCOLS = ['vless', 'vmess', 'trojan', 'shadowsocks', 'hysteria2', 'tuic', 'wireguard'];
+const PROTOCOLS = ['vless', 'vmess', 'trojan', 'shadowsocks', 'hysteria2', 'tuic', 'wireguard', 'socks', 'http', 'mixed', 'dokodemo-door'];
 const TRANSPORTS = ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'];
 const SECURITIES = ['none', 'tls', 'reality'];
 const RESETS = ['never', 'hourly', 'daily', 'weekly', 'monthly'];

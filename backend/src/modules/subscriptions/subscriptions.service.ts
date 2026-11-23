@@ -67,6 +67,15 @@ export class SubscriptionsService {
         if (settings.peers?.[0]?.public_key) external.set('peerkey', settings.peers[0].public_key);
         return `wireguard://${host}:${port}?${external.toString()}#${tag}`;
       }
+      case 'socks':
+      case 'http':
+      case 'mixed': {
+        const scheme = inbound.protocol === 'mixed' ? 'http' : inbound.protocol;
+        const creds = this.encodeBase64(`${user.email}:${user.subscriptionToken}`);
+        const external = new URLSearchParams();
+        if (settings.sni) external.set('sni', settings.sni);
+        return `${scheme}://${creds}@${host}:${port}?${external.toString()}#${tag}`;
+      }
       case 'vmess': {
         const vmess = {
           v: '2',
@@ -99,6 +108,10 @@ export class SubscriptionsService {
           where: { enabled: true },
           include: { node: true },
         },
+        inboundClients: {
+          where: { enabled: true },
+          include: { inbound: { include: { node: true } } },
+        },
       },
     });
     if (!user) throw new NotFoundException('Subscription not found');
@@ -107,7 +120,14 @@ export class SubscriptionsService {
 
   async getStatus(token: string) {
     const user = await this.loadUser(token);
-    const links = user.inbounds
+    const directIds = new Set(user.inbounds.map((i: any) => i.id));
+    const allInbounds: any[] = [
+      ...user.inbounds,
+      ...(user.inboundClients || [])
+        .map((c: any) => c.inbound)
+        .filter((i: any) => i && i.enabled && !directIds.has(i.id)),
+    ];
+    const links = allInbounds
       .map((inbound) => {
         const link = this.buildLink(user, inbound);
         return link
