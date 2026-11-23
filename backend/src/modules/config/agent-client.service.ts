@@ -23,7 +23,7 @@ export class AgentClientService {
   private readonly logger = new Logger(AgentClientService.name);
 
   private base(node: { address: string; agentUrl?: string | null }) {
-    const raw = node.agentUrl || `http://${node.address}:9090`;
+    const raw = node.agentUrl || process.env.AGENT_BASE_URL || `http://${node.address}:9090`;
     let url: URL;
     try {
       url = new URL(raw);

@@ -248,6 +248,19 @@ Hysteria2, TUIC and WireGuard clients are exported as native `hysteria2://`, `tu
 - Least-privilege Docker containers.
 - Audit logging without plaintext secrets.
 
+### Agent channel
+
+The agent API port is not published to the host (Compose/K8s): agents are reachable only through
+the private network. The backend uses `AGENT_BASE_URL` (`http://agent:9090` in Compose) for nodes
+without an explicit `agentUrl`; Helm sets it to the in-cluster agent Service automatically.
+`install.sh` generates a random `AGENT_TOKEN`, which the agent sends to the panel and the panel
+replays as `X-Agent-Secret` for config/log calls (constant-time comparison on both sides).
+
+For agents on other hosts, set the node's `agentUrl` to an `https://` endpoint behind a reverse
+proxy and terminate mTLS there, with the panel's client certificate trusted by the proxy. Keep
+`ALLOW_PRIVATE_AGENT_URLS=true` only for trusted private networks and never combine it with
+plaintext HTTP in production.
+
 ## Monitoring
 
 - Built-in node metrics: CPU, RAM, disk, traffic, active connections, Xray state.

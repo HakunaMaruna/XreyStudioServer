@@ -14,6 +14,7 @@ data:
   PASSWORD_HASHER: {{ .Values.config.passwordHasher | quote }}
   PORT: "3000"
   REDIS_URL: {{ include "xrey.redisUrl" . | quote }}
+  AGENT_BASE_URL: {{ printf "http://%s-agent:%v" (include "xrey.fullname" .) .Values.agent.service.port | quote }}
   BACKUP_DIR: {{ .Values.config.backupDir | quote }}
   BACKUP_KEEP: {{ .Values.config.backupKeep | quote }}
   THROTTLE_TTL: {{ .Values.config.throttleTtl | quote }}
