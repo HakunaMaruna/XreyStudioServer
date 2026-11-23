@@ -58,6 +58,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         items: [
           { href: '/users', label: t.users, icon: 'users' },
           { href: '/organizations', label: t.organizations, icon: 'shield' },
+      { href: '/config-profiles', label: t.configProfiles, icon: 'sliders' },
         ],
       },
       {

@@ -26,6 +26,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { CertificatesModule } from './modules/certificates/certificates.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { RoutingModule } from './modules/routing/routing.module';
+import { ConfigProfilesModule } from './modules/config-profiles/config-profiles.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { RoutingModule } from './modules/routing/routing.module';
     CertificatesModule,
     SettingsModule,
     RoutingModule,
+    ConfigProfilesModule,
   ],
   providers: [
     SeedService,

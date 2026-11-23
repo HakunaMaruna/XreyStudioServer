@@ -150,7 +150,7 @@ export class ConfigGeneratorService {
         // A node must only receive clients from its own tenant.
         organizationId: node.organizationId || null,
       },
-      select: { id: true, email: true, subscriptionToken: true, trafficUsed: true },
+      select: { id: true, email: true, subscriptionToken: true, trafficUsed: true, configProfileId: true },
     });
     const rules = await this.prisma.rule.findMany({
       where: {
@@ -264,6 +264,20 @@ export class ConfigGeneratorService {
         settings: { address: '127.0.0.1', port: apiPort, network: 'tcp' },
       });
       config.routing.rules.unshift({ type: 'field', inboundTag: ['api-in'], outboundTag: 'api' });
+    }
+
+    // User config profiles can add routing rules, DNS servers and outbounds.
+    const profileIds = new Set(users.map((u) => u.configProfileId).filter(Boolean));
+    if (profileIds.size) {
+      const profiles = await this.prisma.configProfile.findMany({
+        where: { id: { in: Array.from(profileIds) as string[] }, enabled: true },
+      });
+      for (const profile of profiles) {
+        const payload = (profile.payload || {}) as any;
+        if (Array.isArray(payload.routingRules)) config.routing.rules.unshift(...payload.routingRules);
+        if (Array.isArray(payload.dnsServers)) config.dns.servers.unshift(...payload.dnsServers);
+        if (Array.isArray(payload.outbounds)) config.outbounds.unshift(...payload.outbounds);
+      }
     }
 
     const dualConfig = {
