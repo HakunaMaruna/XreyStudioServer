@@ -1,0 +1,149 @@
+{
+  "generatedAt": "2026-11-23T21:59:32.091Z",
+  "baseUrl": "http://127.0.0.1:3100",
+  "scenarios": [
+    {
+      "name": "login",
+      "durationSeconds": 15.1,
+      "connections": 20,
+      "pipelining": 1,
+      "requests": {
+        "total": 8628,
+        "sent": 8648,
+        "errors": 0,
+        "timeouts": 0,
+        "non2xx": 8623,
+        "rps": 571.4
+      },
+      "latencyMs": {
+        "p50": 26,
+        "p90": 51,
+        "p97_5": 79,
+        "p99": 105
+      },
+      "throughputBytesPerSecond": {
+        "total": 9063695
+      },
+      "statusCodes": {
+        "201": {
+          "count": 5
+        },
+        "429": {
+          "count": 8623
+        }
+      }
+    },
+    {
+      "name": "users",
+      "durationSeconds": 15.03,
+      "connections": 20,
+      "pipelining": 1,
+      "requests": {
+        "total": 460,
+        "sent": 480,
+        "errors": 0,
+        "timeouts": 0,
+        "non2xx": 0,
+        "rps": 30.6
+      },
+      "latencyMs": {
+        "p50": 564,
+        "p90": 907,
+        "p97_5": 1283,
+        "p99": 1383
+      },
+      "throughputBytesPerSecond": {
+        "total": 8039880
+      },
+      "statusCodes": {
+        "200": {
+          "count": 460
+        }
+      }
+    },
+    {
+      "name": "metrics",
+      "durationSeconds": 15.07,
+      "connections": 20,
+      "pipelining": 1,
+      "requests": {
+        "total": 274,
+        "sent": 294,
+        "errors": 0,
+        "timeouts": 0,
+        "non2xx": 0,
+        "rps": 18.2
+      },
+      "latencyMs": {
+        "p50": 999,
+        "p90": 1462,
+        "p97_5": 1663,
+        "p99": 1784
+      },
+      "throughputBytesPerSecond": {
+        "total": 450659
+      },
+      "statusCodes": {
+        "200": {
+          "count": 274
+        }
+      }
+    },
+    {
+      "name": "traffic",
+      "durationSeconds": 15.03,
+      "connections": 20,
+      "pipelining": 1,
+      "requests": {
+        "total": 360,
+        "sent": 380,
+        "errors": 0,
+        "timeouts": 0,
+        "non2xx": 0,
+        "rps": 24
+      },
+      "latencyMs": {
+        "p50": 640,
+        "p90": 1298,
+        "p97_5": 1565,
+        "p99": 1606
+      },
+      "throughputBytesPerSecond": {
+        "total": 393120
+      },
+      "statusCodes": {
+        "201": {
+          "count": 360
+        }
+      }
+    },
+    {
+      "name": "subscription",
+      "durationSeconds": 15.03,
+      "connections": 20,
+      "pipelining": 1,
+      "requests": {
+        "total": 651,
+        "sent": 671,
+        "errors": 0,
+        "timeouts": 0,
+        "non2xx": 0,
+        "rps": 43.3
+      },
+      "latencyMs": {
+        "p50": 392,
+        "p90": 581,
+        "p97_5": 1381,
+        "p99": 1784
+      },
+      "throughputBytesPerSecond": {
+        "total": 873642
+      },
+      "statusCodes": {
+        "200": {
+          "count": 651
+        }
+      }
+    }
+  ]
+}
