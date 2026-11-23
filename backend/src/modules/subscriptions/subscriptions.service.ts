@@ -169,7 +169,9 @@ export class SubscriptionsService {
   }
 
   async json(token: string) {
-    return this.getStatus(token);
+    const data = await this.getStatus(token);
+    if (data.status !== 'active') return { ...data, links: [] };
+    return data;
   }
 
   async clash(token: string) {

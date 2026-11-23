@@ -184,7 +184,19 @@ describe('XSS API (e2e, real PostgreSQL)', () => {
       .get(`/api/subscriptions/${user.subscriptionToken}?format=json`)
       .expect(200);
     expect(status.body.status).toBe('exceeded');
-    await request(app.getHttpServer()).get(`/api/subscriptions/${user.subscriptionToken}/raw`).expect(403);
+    expect(status.body.links).toEqual([]);
+
+    const statusJson = await request(app.getHttpServer())
+      .get(`/api/subscriptions/${user.subscriptionToken}/json`)
+      .expect(200);
+    expect(statusJson.body.status).toBe('exceeded');
+    expect(statusJson.body.links).toEqual([]);
+
+    for (const format of ['raw', 'base64', 'clash', 'singbox']) {
+      await request(app.getHttpServer())
+        .get(`/api/subscriptions/${user.subscriptionToken}/${format}`)
+        .expect(403);
+    }
 
     const plan = await auth(
       request(app.getHttpServer())
