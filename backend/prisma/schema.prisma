@@ -39,7 +39,9 @@ model User {
   updatedAt         DateTime  @updatedAt
 
   @@index([organizationId])
+  @@index([organizationId, createdAt, id])
   @@index([status])
+  @@index([createdAt, id])
 }
 
 enum Role {
