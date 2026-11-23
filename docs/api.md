@@ -97,6 +97,11 @@ All report endpoints require an `ADMIN` JWT.
 
 The generator translates these fields into Xray `streamSettings`, client `flow` and inbound `listen`.
 
+`fallbacks[]` links child inbounds to a master VLESS/Trojan TCP+TLS inbound; each item accepts
+`childId`, `path`, `alpn`, `dest`, `xver`. `clients[]` sets per-user overrides: `userId`,
+`trafficLimit` (bytes), `expiresAt`, `enabled`, `comment`, `sortIndex`. Disabled/expired/over-quota
+clients are excluded from the generated config.
+
 ## Node certificates
 
 - `GET /certificates/:nodeId` — issued certificate status for a node

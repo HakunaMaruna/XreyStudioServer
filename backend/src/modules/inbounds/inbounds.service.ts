@@ -10,14 +10,24 @@ export class InboundsService {
     return this.prisma.inbound.findMany({
       where: nodeId ? { nodeId } : {},
       orderBy: { createdAt: 'desc' },
-      include: { node: { select: { id: true, name: true } }, user: { select: { id: true, email: true } } },
+      include: {
+        node: { select: { id: true, name: true } },
+        user: { select: { id: true, email: true } },
+        fallbacks: { include: { child: { select: { id: true, tag: true, protocol: true, port: true } } } },
+        clients: { include: { user: { select: { id: true, email: true } } } },
+      },
     });
   }
 
   async findOne(id: string) {
     const found = await this.prisma.inbound.findUnique({
       where: { id },
-      include: { node: true, user: { select: { id: true, email: true } } },
+      include: {
+        node: true,
+        user: { select: { id: true, email: true } },
+        fallbacks: { include: { child: { select: { id: true, tag: true, protocol: true, port: true } } } },
+        clients: { include: { user: { select: { id: true, email: true } } } },
+      },
     });
     if (!found) throw new NotFoundException('Inbound not found');
     return found;
@@ -44,6 +54,12 @@ export class InboundsService {
         resetDay: dto.resetDay ?? null,
         settings: dto.settings as any,
         enabled: dto.enabled ?? true,
+        ...(dto.fallbacks?.length
+          ? { fallbacks: { create: dto.fallbacks.map((f) => ({ childId: f.childId, path: f.path, alpn: f.alpn, dest: f.dest, xver: f.xver || 0 })) } }
+          : {}),
+        ...(dto.clients?.length
+          ? { clients: { create: dto.clients.map((c) => ({ userId: c.userId, trafficLimit: BigInt(c.trafficLimit || 0), expiresAt: c.expiresAt ? new Date(c.expiresAt) : null, enabled: c.enabled ?? true, comment: c.comment, sortIndex: c.sortIndex || 0 })) } }
+          : {}),
       },
     });
   }
