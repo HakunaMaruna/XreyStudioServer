@@ -1,0 +1,14 @@
+apiVersion: v2
+name: xrey
+description: Self-hosted XreyStudioServer control panel for Xray-core
+type: application
+version: 0.1.0
+appVersion: "1.6.0"
+keywords:
+  - xray
+  - xrey
+  - proxy
+  - vpn
+home: https://github.com/HakunaMaruna/XreyStudioServer
+sources:
+  - https://github.com/HakunaMaruna/XreyStudioServer

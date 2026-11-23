@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "xrey.fullname" . }}-config
+  labels:
+    {{- include "xrey.labels" . | nindent 4 }}
+data:
+  NODE_ENV: {{ .Values.config.nodeEnv | quote }}
+  DOMAIN: {{ .Values.config.domain | quote }}
+  PANEL_URL: {{ .Values.config.panelUrl | quote }}
+  CORS_ORIGIN: {{ .Values.config.corsOrigin | quote }}
+  POSTGRES_USER: {{ .Values.config.postgresUser | quote }}
+  POSTGRES_DB: {{ .Values.config.postgresDb | quote }}
+  PASSWORD_HASHER: {{ .Values.config.passwordHasher | quote }}
+  PORT: "3000"
+  REDIS_URL: {{ include "xrey.redisUrl" . | quote }}
+  BACKUP_DIR: {{ .Values.config.backupDir | quote }}
+  BACKUP_KEEP: {{ .Values.config.backupKeep | quote }}
+  THROTTLE_TTL: {{ .Values.config.throttleTtl | quote }}
+  THROTTLE_LIMIT: {{ .Values.config.throttleLimit | quote }}
