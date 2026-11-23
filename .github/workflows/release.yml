@@ -39,7 +39,7 @@ jobs:
           sha256sum "${TAG}.bundle.tar.gz" > "${TAG}.bundle.tar.gz.sha256"
           echo "ASSET=${TAG}.bundle.tar.gz" >> "${GITHUB_ENV}"
       - name: Attach assets to the GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             ${{ env.ASSET }}
