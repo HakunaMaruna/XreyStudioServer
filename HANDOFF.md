@@ -8,15 +8,15 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 Self-hosted control panel for Xray-core: web UI, multi-node agents, clients, subscriptions,
 payments, notifications, monitoring, Docker Compose installation. Target scale: 5k users / 20 nodes.
 
-## Current state (v1.8.3, 2026-11-23)
+## Current state (v1.8.4, 2026-11-23)
 
 - Source of truth: the git repo `/tmp/opencode/XSS_REPO`
   (remote: https://github.com/HakunaMaruna/XreyStudioServer). `/work/XreyStudioServer` is a
   synced working copy for local inspection and `trail` commands, not an independent source.
-- Published: tag/release `v1.8.3`,
-  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.8.3.
-  Previous releases: `v1.8.2` (secret hardening), `v1.8.1` (compiled startup fix),
-  `v1.8.0` (agent stats, Helm/CI, QA), `v1.7.0`.
+- Published: tag/release `v1.8.4`,
+  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.8.4.
+  Previous releases: `v1.8.3` (dependency updates), `v1.8.2` (secret hardening),
+  `v1.8.1` (compiled startup fix), `v1.8.0`.
   Earlier: `v1.4.1` (quota hotfix), `v1.4.0` (traffic/logs/admin UI), `v1.3.0`, `v1.2.0`, `v1.1.x`, `v1.0.0`.
 - Stack: NestJS + Prisma/PostgreSQL + Redis, Next.js 16 + React 19, Node agent, Caddy, Docker Compose.
 - Backend modules: auth (JWT + refresh + RBAC + Argon2id/bcrypt), users, nodes, inbounds, hosts,
@@ -57,6 +57,14 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 - Closed 5 dependency PRs whose CI fails and need a coordinated migration: @nestjs/common 12,
   @nestjs/passport 12, @tanstack/react-table 9, @eslint/js 10 and TypeScript 7.
 - No open PRs or issues remain. Versions bumped to 1.8.3.
+
+## Done in v1.8.4
+
+- Fixed HIGH audit findings: secrets are now required outside explicit `development`/`test`;
+  Compose sets `NODE_ENV=production` by default; agent port is bound to localhost only and the
+  default agent token was replaced with a placeholder; agent token comparison uses
+  `timingSafeEqual`; generated node configs only include users from the node's organization.
+- `security/AUDIT.md` added with the full read-only audit; issues #43–#47 track remaining findings.
 
 ## Done in v1.8.2
 

@@ -43,15 +43,15 @@ config:
 image:
   backend:
     repository: ghcr.io/hakunamaruna/xss-backend
-    tag: "1.8.3"
+    tag: "1.8.4"
     pullPolicy: IfNotPresent
   frontend:
     repository: ghcr.io/hakunamaruna/xss-frontend
-    tag: "1.8.3"
+    tag: "1.8.4"
     pullPolicy: IfNotPresent
   agent:
     repository: ghcr.io/hakunamaruna/xss-agent
-    tag: "1.8.3"
+    tag: "1.8.4"
     pullPolicy: IfNotPresent
 
 backend:

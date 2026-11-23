@@ -138,6 +138,8 @@ export class ConfigGeneratorService {
       where: {
         status: 'ACTIVE',
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        // A node must only receive clients from its own tenant.
+        organizationId: node.organizationId || null,
       },
       select: { id: true, email: true, subscriptionToken: true },
     });
