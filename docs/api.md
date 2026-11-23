@@ -84,6 +84,13 @@ keep exports within that cap. Headers:
 
 All report endpoints require an `ADMIN` JWT.
 
+## User squads
+
+- `GET /squads`, `GET /squads/:id` (includes members), `POST /squads`, `PATCH /squads/:id`,
+  `DELETE /squads/:id` — manage user groups with shared traffic limit and expiry.
+- `PATCH /squads/:id/members` with `{ userIds: [] }` replaces group membership.
+- `PATCH /users/:id` accepts `squadId` to attach a single user.
+
 ## Config profiles
 
 - `GET /config-profiles`, `GET /config-profiles/:id`, `POST /config-profiles`,

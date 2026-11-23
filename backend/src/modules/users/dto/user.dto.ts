@@ -75,6 +75,10 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   configProfileId?: string;
+
+  @IsOptional()
+  @IsString()
+  squadId?: string;
 }
 
 export class UsersQueryDto {

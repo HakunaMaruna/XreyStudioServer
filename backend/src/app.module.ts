@@ -27,6 +27,7 @@ import { CertificatesModule } from './modules/certificates/certificates.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { RoutingModule } from './modules/routing/routing.module';
 import { ConfigProfilesModule } from './modules/config-profiles/config-profiles.module';
+import { SquadsModule } from './modules/squads/squads.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { ConfigProfilesModule } from './modules/config-profiles/config-profiles.
     SettingsModule,
     RoutingModule,
     ConfigProfilesModule,
+    SquadsModule,
   ],
   providers: [
     SeedService,
