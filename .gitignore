@@ -10,3 +10,6 @@ dist
 
 # trail's local cache — regenerable, machine specific.
 /.trail/cache/
+
+# Next.js generated agent rules
+frontend/AGENTS.md
