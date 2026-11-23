@@ -1,0 +1,7 @@
+1. Create the Secret referenced by `existingSecret` with the keys from `secretKeys`.
+2. Set `config.domain`, `config.panelUrl`, `config.corsOrigin` and `ingress.host`.
+3. Pin `image.*.tag` to the release you deploy (chart appVersion: {{ .Chart.AppVersion }}).
+4. Expose metrics with `monitoring.serviceMonitor.enabled=true` only when the
+   Prometheus Operator CRDs are installed. Leave METRICS_TOKEN empty in the
+   Secret: ServiceMonitor cannot send the custom x-metrics-token header.
+5. Check the rollout: kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "xrey.fullname" . }}-backend
