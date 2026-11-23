@@ -18,12 +18,18 @@ const BACKUP_DIR = process.env.BACKUP_DIR || path.join(path.dirname(CONFIG_PATH)
 const SINGBOX_CONFIG_PATH = process.env.SINGBOX_CONFIG_PATH || '/etc/sing-box/config.json';
 const SINGBOX_BIN = process.env.SINGBOX_BIN || 'sing-box';
 const SINGBOX_SERVICE = process.env.SINGBOX_SERVICE || 'sing-box';
+const XRAY_STATS_ENABLED = process.env.XRAY_STATS_ENABLED === 'true';
+const XRAY_API_HOST = process.env.XRAY_API_HOST || '127.0.0.1';
+const XRAY_API_PORT = Number(process.env.XRAY_API_PORT || 8080);
+const TRAFFIC_INTERVAL = Math.max(15000, Number(process.env.TRAFFIC_REPORT_INTERVAL || 60000));
 
 let xrayStatus = 'unknown';
 let singboxStatus = 'unknown';
 let lastGood = null;
 let lastConfigVersion = 0;
 let lastNet = null;
+let lastAppliedConfig = null;
+const lastUserStats = new Map();
 
 const app = express();
 app.use(express.json({ limit: '20mb' }));
@@ -92,6 +98,7 @@ async function applySingboxConfig(config, version) {
 }
 
 async function applyConfig(config, version) {
+  lastAppliedConfig = config;
   if (config && (config.xray || config.singbox)) {
     const results = [];
     if (config.xray) results.push(await applyXrayConfig(config.xray, version));
@@ -123,6 +130,58 @@ async function applyXrayConfig(config, version) {
   }
   xrayStatus = 'running';
   return { applied: true, reloaded: true, version: lastConfigVersion };
+}
+
+function parseStatValue(stdout) {
+  const lines = String(stdout || '').split('\n').map((line) => line.trim()).filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    if (/^\d+$/.test(lines[i])) return Number(lines[i]);
+  }
+  return 0;
+}
+
+async function queryUserStat(email, direction) {
+  const server = `${XRAY_API_HOST}:${XRAY_API_PORT}`;
+  const name = `user>>>${email}>>>traffic>>>${direction}`;
+  const result = await run(XRAY_BIN, ['api', 'statsq', '--server', server, '--name', name], 3000);
+  return result.ok ? parseStatValue(result.stdout) : 0;
+}
+
+async function collectTrafficEntries() {
+  if (!XRAY_STATS_ENABLED) return [];
+  const config = lastAppliedConfig?.xray || lastAppliedConfig;
+  const emails = new Set();
+  for (const inbound of config?.inbounds || []) {
+    for (const client of inbound.settings?.clients || []) {
+      if (client.email) emails.add(client.email);
+    }
+  }
+
+  const entries = [];
+  for (const email of emails) {
+    const uplink = await queryUserStat(email, 'uplink');
+    const downlink = await queryUserStat(email, 'downlink');
+    const previous = lastUserStats.get(email) || { uplink: 0, downlink: 0 };
+    const up = Math.max(0, uplink - previous.uplink);
+    const down = Math.max(0, downlink - previous.downlink);
+    lastUserStats.set(email, { uplink, downlink });
+    if (up || down) entries.push({ email, up, down });
+  }
+  return entries;
+}
+
+async function sendTraffic() {
+  try {
+    const entries = await collectTrafficEntries();
+    if (!entries.length) return;
+    await fetch(`${PANEL_URL}/api/nodes/${NODE_ID}/traffic`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AGENT_TOKEN}` },
+      body: JSON.stringify({ entries }),
+    });
+  } catch (e) {
+    console.error('traffic report failed', e.message);
+  }
 }
 
 async function collectMetrics() {
@@ -260,6 +319,10 @@ app.get('/logs', auth, async (req, res) => {
 register();
 setInterval(sendMetrics, 15000);
 setInterval(pullConfig, 30000);
+if (XRAY_STATS_ENABLED) {
+  setInterval(sendTraffic, TRAFFIC_INTERVAL);
+  setTimeout(sendTraffic, 5000);
+}
 setTimeout(sendMetrics, 1000);
 setTimeout(pullConfig, 3000);
 

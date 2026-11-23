@@ -103,6 +103,13 @@ curl -X POST http://<panel>/api/nodes/<node_id>/traffic \
 `exceeded` and config exports return `403`; reset with `POST /api/users/bulk` (`resetTraffic`).
 History and totals are available at `GET /api/traffic` (admin/operator).
 
+The bundled agent can act as this collector: set `XRAY_STATS_ENABLED=true` (and optionally
+`XRAY_API_HOST`, `XRAY_API_PORT`, `TRAFFIC_REPORT_INTERVAL`). The panel then adds a loopback Xray
+API inbound (`dokodemo-door` on `127.0.0.1:8080` by default) to every generated config. The agent
+reads cumulative `user>>>email>>>traffic>>>uplink/downlink` counters with `xray api statsq`,
+converts them to deltas and POSTs them to `/api/nodes/:id/traffic` every interval (60 s default).
+No external collector is needed when this is enabled.
+
 ## Plans and payments
 Create plans on the **Plans** page (or `POST /api/payments/plans`) with traffic in GB and duration
 in days. When creating a manual payment (`POST /api/payments`), choose a plan; marking it paid
