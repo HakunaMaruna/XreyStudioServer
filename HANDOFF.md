@@ -58,6 +58,18 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
   @nestjs/passport 12, @tanstack/react-table 9, @eslint/js 10 and TypeScript 7.
 - No open PRs or issues remain. Versions bumped to 1.8.3.
 
+## Uncommitted work: scale baseline
+
+- Added `backend/test/scale.pg-spec.ts` + `jest-scale-pg.json`, `npm run test:scale:pg`, and
+  `docs/runbooks/load-test.md`. The check seeds 5k users / 20 nodes in a real PostgreSQL DB,
+  measures paginated user reads and concurrent node traffic writes, and truncates the DB afterwards.
+- Local run (Node 20.15.1, PostgreSQL 16, in-process supertest): 100 reads, p50 140 ms / p95 229 ms;
+  20 node traffic reports (10 entries each), p50 567 ms / p95 742 ms; 0 errors, all rows persisted.
+  Full backend validation after rebuild: typecheck, lint (0 errors), 10 unit, 11 mock e2e, 12 PG e2e.
+  Numbers exclude network/Ingress/TLS overhead; a real-cluster rollout test is still required.
+- `--runInBand`, `SCALE_*` env knobs and optional `SCALE_P95_LIMIT_MS` budget are documented in the runbook.
+- Not yet committed, pushed or released.
+
 ## Done in v1.8.2
 
 - Restored production fail-fast secret validation after the v1.6 port: `getJwtSecret()` and
@@ -194,7 +206,9 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 2. Revisit the deferred major upgrades when capacity allows: NestJS 12 (`@nestjs/common` +
    `@nestjs/passport` and the rest of the platform), TypeScript 7, `@eslint/js` 10 and
    `@tanstack/react-table` 9. Each needs a coordinated migration and green CI.
-3. Load/soak test at the target scale (5k users / 20 nodes) before production rollout.
+3. Load/soak test at the target scale (5k users / 20 nodes) before production rollout. The local
+   scale harness above is a first baseline; run the soak knobs from `docs/runbooks/load-test.md`
+   against a deployed instance before signing off.
 4. After each change: keep `/work/XreyStudioServer` in sync with the git repo, commit, push,
    update README (ru/en), docs and this HANDOFF file. Tag a new release when the stage is complete.
 
