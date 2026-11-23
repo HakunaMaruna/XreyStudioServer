@@ -31,11 +31,15 @@ export default function UsersPage() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({ email: '', password: '', trafficLimit: 100 });
   const [editing, setEditing] = useState<UserRow | null>(null);
   const [editForm, setEditForm] = useState({ role: 'USER', status: 'ACTIVE', trafficLimit: 100 });
   const [saving, setSaving] = useState(false);
+  const [connection, setConnection] = useState<any | null>(null);
+  const [inbounds, setInbounds] = useState<{ id: string; tag: string }[]>([]);
+  const [attachId, setAttachId] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -124,6 +128,44 @@ export default function UsersPage() {
     }
   };
 
+  const openConnection = async (user: UserRow) => {
+    try {
+      const data = await api.get(`/api/users/${user.id}`);
+      setConnection(data);
+      setAttachId('');
+      const list = await api.get('/api/inbounds');
+      const rows = Array.isArray(list) ? list : list.data || [];
+      setInbounds(rows.map((i: any) => ({ id: i.id, tag: i.tag })));
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
+  const attach = async () => {
+    if (!connection || !attachId) return;
+    setSaving(true);
+    try {
+      const current = await api.get(`/api/inbounds/${attachId}`);
+      const clients = current.clients || [];
+      if (!clients.some((c: any) => c.userId === connection.id)) {
+        await api.patch(`/api/inbounds/${attachId}`, { clients: [...clients, { userId: connection.id, enabled: true }] });
+      }
+      setConnection(await api.get(`/api/users/${connection.id}`));
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const copyText = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setNotice(t.copy);
+      setTimeout(() => setNotice(''), 1500);
+    } catch {}
+  };
+
   const handleSortingChange: OnChangeFn<SortingState> = (updater) => {
     setSorting(updater);
     setPageIndex(0);
@@ -169,6 +211,7 @@ export default function UsersPage() {
         enableSorting: false,
         cell: ({ row }) => (
           <div className="flex items-center gap-1">
+            <IconButton icon="key" label={t.connectionKey} tone="brand" onClick={() => openConnection(row.original)} />
             <IconButton icon="edit" label={t.edit} onClick={() => startEdit(row.original)} />
             <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => remove(row.original.id)} />
           </div>
@@ -260,6 +303,45 @@ export default function UsersPage() {
             <input type="number" min={0} value={editForm.trafficLimit} onChange={(e) => setEditForm({ ...editForm, trafficLimit: Number(e.target.value) })} className="field" />
           </Field>
         </form>
+      </Modal>
+
+      <Modal open={Boolean(connection)} onClose={() => setConnection(null)} title={connection?.email || ''} subtitle={t.connectionKey} icon={<Icon name="key" size={16} />} size="lg">
+        {connection && (
+          <div className="space-y-5">
+            {notice && <div className="rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-subtle">{t.subscriptionLink}</p>
+              <div className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 p-3">
+                <code className="mono min-w-0 flex-1 break-all text-xs text-muted">{connection.subscriptionUrl}</code>
+                <IconButton icon="copy" label={t.copyLink} tone="brand" onClick={() => copyText(connection.subscriptionUrl)} />
+              </div>
+            </div>
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-subtle">{t.connectionKey}</p>
+              <div className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 p-3">
+                <code className="mono min-w-0 flex-1 break-all text-xs text-fg">{connection.subscriptionToken}</code>
+                <IconButton icon="copy" label={t.copy} onClick={() => copyText(connection.subscriptionToken)} />
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {Object.entries(connection.links || {}).map(([name, url]) => (
+                <button key={name} onClick={() => copyText(String(url))} className="flex items-center justify-between rounded-lg border border-line bg-surface-2/50 px-3 py-2 text-xs text-muted transition-colors hover:border-brand/30 hover:text-fg">
+                  <span className="font-medium uppercase">{name}</span><Icon name="copy" size={13} />
+                </button>
+              ))}
+            </div>
+            <div className="border-t border-line pt-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-subtle">{t.attachToInbound}</p>
+              <div className="flex gap-2">
+                <select value={attachId} onChange={(e) => setAttachId(e.target.value)} className="field">
+                  <option value="">{t.selectInbound}</option>
+                  {inbounds.map((i) => <option key={i.id} value={i.id}>{i.tag}</option>)}
+                </select>
+                <Button icon="plus" onClick={attach} loading={saving} disabled={!attachId}>{t.attachToInbound}</Button>
+              </div>
+            </div>
+          </div>
+        )}
       </Modal>
     </>
   );

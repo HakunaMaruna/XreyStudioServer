@@ -20,7 +20,7 @@ export class ConfigGeneratorService {
         return {
           id: user.id,
           email: user.email,
-          flow: settings.flow || '',
+          flow: inbound.flow || settings.flow || '',
         };
       case 'vmess':
         return { id: user.id, email: user.email, alterId: 0 };
@@ -39,15 +39,16 @@ export class ConfigGeneratorService {
       network: inbound.transport || 'tcp',
       security: inbound.security || 'none',
     };
-    if (inbound.transport === 'ws') {
-      stream.wsSettings = { path: settings.wsPath || '/ws', headers: settings.wsHeaders || {} };
+    if (inbound.flow && inbound.security !== 'none') stream.flow = inbound.flow;
+    if (inbound.transport === 'ws' || inbound.transport === 'xhttp') {
+      stream.wsSettings = { path: inbound.path || settings.wsPath || '/ws', headers: { Host: inbound.sni || '', ...(settings.wsHeaders || {}) } };
     }
     if (inbound.transport === 'grpc') {
-      stream.grpcSettings = { serviceName: settings.grpcServiceName || 'xss' };
+      stream.grpcSettings = { serviceName: inbound.serviceName || settings.grpcServiceName || 'xss' };
     }
-    if (inbound.transport === 'http' || inbound.transport === 'h2') {
-      stream.network = 'http';
-      stream.httpSettings = { path: settings.httpPath || '/', host: settings.httpHost || [] };
+    if (inbound.transport === 'http' || inbound.transport === 'h2' || inbound.transport === 'httpupgrade' || inbound.transport === 'xhttp') {
+      stream.network = inbound.transport === 'xhttp' ? 'xhttp' : 'http';
+      stream.httpSettings = { path: inbound.path || settings.httpPath || '/', host: inbound.sni ? [inbound.sni] : settings.httpHost || [] };
     }
     if (inbound.transport === 'quic') {
       stream.quicSettings = {
@@ -58,7 +59,7 @@ export class ConfigGeneratorService {
     }
     if (inbound.security === 'tls') {
       stream.tlsSettings = {
-        serverName: settings.serverName || settings.sni || '',
+        serverName: inbound.sni || settings.serverName || settings.sni || '',
         certificates: settings.certificates || undefined,
         alpn: settings.alpn || ['h2', 'http/1.1'],
       };
@@ -130,7 +131,15 @@ export class ConfigGeneratorService {
   async generateConfig(nodeId: string) {
     const node = await this.prisma.node.findUnique({
       where: { id: nodeId },
-      include: { inbounds: { where: { enabled: true } } },
+      include: {
+        inbounds: {
+          where: { enabled: true },
+          include: {
+            fallbacks: { include: { child: { select: { tag: true } } } },
+            clients: true,
+          },
+        },
+      },
     });
     if (!node) throw new NotFoundException('Node not found');
 
@@ -141,7 +150,7 @@ export class ConfigGeneratorService {
         // A node must only receive clients from its own tenant.
         organizationId: node.organizationId || null,
       },
-      select: { id: true, email: true, subscriptionToken: true },
+      select: { id: true, email: true, subscriptionToken: true, trafficUsed: true },
     });
     const rules = await this.prisma.rule.findMany({
       where: {
@@ -155,27 +164,68 @@ export class ConfigGeneratorService {
 
     const inbounds = xrayInbounds.map((inbound) => {
       const settings = (inbound.settings || {}) as any;
+      if (['socks', 'http', 'mixed', 'dokodemo-door'].includes(inbound.protocol)) {
+        const selected = inbound.userId
+          ? users.filter((u) => u.id === inbound.userId)
+          : users;
+        return {
+          tag: inbound.tag,
+          listen: inbound.listen || settings.listen || '0.0.0.0',
+          port: inbound.port,
+          protocol: inbound.protocol === 'http' ? 'http' : inbound.protocol === 'mixed' ? 'mixed' : inbound.protocol === 'dokodemo-door' ? 'dokodemo-door' : 'socks',
+          settings: {
+            ...settings,
+            auth: 'password',
+            accounts: selected.map((u) => ({ user: u.email, pass: u.subscriptionToken })),
+            ...(inbound.protocol === 'mixed' ? { udp: true } : {}),
+            ...(inbound.protocol === 'dokodemo-door' ? { address: settings.forwardAddress || '0.0.0.0', port: settings.forwardPort || inbound.port, network: 'tcp,udp' } : {}),
+          },
+          sniffing: { enabled: true, destOverride: ['http', 'tls', 'quic'] },
+        };
+      }
       const selected = inbound.userId
         ? users.filter((u) => u.id === inbound.userId)
         : users;
-      const clients = selected.map((u) => this.clientFor(u, inbound));
+      const limits = new Map((inbound.clients || []).map((c) => [c.userId, c]));
+      const active = selected.filter((u) => {
+        const limit = limits.get(u.id);
+        if (!limit) return true;
+        if (limit.enabled === false) return false;
+        if (limit.expiresAt && new Date(limit.expiresAt).getTime() < Date.now()) return false;
+        if (limit.trafficLimit > 0n && u.trafficUsed >= limit.trafficLimit) return false;
+        return true;
+      });
+      const clients = active.map((u) => this.clientFor(u, inbound));
       const inboundSettings: any = {
         ...settings,
         clients,
       };
       if (inbound.protocol === 'vless') inboundSettings.decryption = 'none';
+      if (inbound.expiresAt && new Date(inbound.expiresAt).getTime() < Date.now()) inboundSettings.clients = [];
       if (inbound.protocol === 'shadowsocks') {
         inboundSettings.method = settings.method || 'aes-256-gcm';
         inboundSettings.network = 'tcp,udp';
       }
       return {
         tag: inbound.tag,
-        listen: settings.listen || '0.0.0.0',
+        listen: inbound.listen || settings.listen || '0.0.0.0',
         port: inbound.port,
         protocol: inbound.protocol,
         settings: inboundSettings,
         streamSettings: this.buildStream(inbound),
         sniffing: { enabled: true, destOverride: ['http', 'tls', 'quic'] },
+        ...((inbound.fallbacks || []).length
+          ? {
+              allocate: { strategy: 'random' },
+              fallback: (inbound.fallbacks || []).map((f) => ({
+                tag: f.child?.tag,
+                path: f.path || undefined,
+                alpn: f.alpn || undefined,
+                dest: f.dest || undefined,
+                xver: f.xver || undefined,
+              })).filter((f) => f.tag),
+            }
+          : {}),
       };
     });
 

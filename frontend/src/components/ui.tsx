@@ -100,6 +100,7 @@ export function Button({
         className,
       )}
       disabled={disabled || loading}
+      type={props.type ?? 'button'}
       {...props}
     >
       {loading ? <Icon name="refresh" size={15} className="animate-spin" /> : icon && <Icon name={icon} size={15} />}
@@ -128,6 +129,7 @@ export function IconButton({
             : 'text-muted hover:border-line hover:bg-surface-3 hover:text-fg',
         className,
       )}
+      type={props.type ?? 'button'}
       {...props}
     >
       <Icon name={icon} size={15} />

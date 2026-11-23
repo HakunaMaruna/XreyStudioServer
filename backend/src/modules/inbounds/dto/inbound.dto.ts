@@ -1,4 +1,24 @@
-import { IsBoolean, IsInt, IsObject, IsOptional, IsString } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsObject, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export const RESET_SCHEDULES = ['never', 'hourly', 'daily', 'weekly', 'monthly'] as const;
+
+export class FallbackDto {
+  @IsString() childId: string;
+  @IsOptional() @IsString() path?: string;
+  @IsOptional() @IsString() alpn?: string;
+  @IsOptional() @IsString() dest?: string;
+  @IsOptional() @IsInt() @Min(0) @Max(1) xver?: number;
+}
+
+export class ClientLimitDto {
+  @IsString() userId: string;
+  @IsOptional() @IsInt() @Min(0) trafficLimit?: number;
+  @IsOptional() @IsDateString() expiresAt?: string;
+  @IsOptional() @IsBoolean() enabled?: boolean;
+  @IsOptional() @IsString() comment?: string;
+  @IsOptional() @IsInt() sortIndex?: number;
+}
 
 export class CreateInboundDto {
   @IsString()
@@ -26,8 +46,61 @@ export class CreateInboundDto {
   @IsInt()
   port: number;
 
+  @IsOptional()
+  @IsString()
+  listen?: string;
+
+  @IsOptional()
+  @IsString()
+  flow?: string;
+
+  @IsOptional()
+  @IsString()
+  path?: string;
+
+  @IsOptional()
+  @IsString()
+  sni?: string;
+
+  @IsOptional()
+  @IsString()
+  serviceName?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  trafficLimit?: number;
+
+  @IsOptional()
+  @IsDateString()
+  expiresAt?: string;
+
+  @IsOptional()
+  @IsIn(RESET_SCHEDULES)
+  resetSchedule?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  resetDay?: number;
+
   @IsObject()
   settings: Record<string, unknown>;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => FallbackDto)
+  fallbacks?: FallbackDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5000)
+  @ValidateNested({ each: true })
+  @Type(() => ClientLimitDto)
+  clients?: ClientLimitDto[];
 
   @IsOptional()
   @IsBoolean()
@@ -62,6 +135,59 @@ export class UpdateInboundDto {
   @IsOptional()
   @IsInt()
   port?: number;
+
+  @IsOptional()
+  @IsString()
+  listen?: string;
+
+  @IsOptional()
+  @IsString()
+  flow?: string;
+
+  @IsOptional()
+  @IsString()
+  path?: string;
+
+  @IsOptional()
+  @IsString()
+  sni?: string;
+
+  @IsOptional()
+  @IsString()
+  serviceName?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  trafficLimit?: number;
+
+  @IsOptional()
+  @IsDateString()
+  expiresAt?: string;
+
+  @IsOptional()
+  @IsIn(RESET_SCHEDULES)
+  resetSchedule?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  resetDay?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => FallbackDto)
+  fallbacks?: FallbackDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5000)
+  @ValidateNested({ each: true })
+  @Type(() => ClientLimitDto)
+  clients?: ClientLimitDto[];
 
   @IsOptional()
   @IsObject()

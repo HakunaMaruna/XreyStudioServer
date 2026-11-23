@@ -8,14 +8,14 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 Self-hosted control panel for Xray-core: web UI, multi-node agents, clients, subscriptions,
 payments, notifications, monitoring, Docker Compose installation. Target scale: 5k users / 20 nodes.
 
-## Current state (v2.1.0, 2026-11-23)
+## Current state (v2.6.0, 2026-11-24)
 
 - Source of truth: the git repo `/tmp/opencode/XSS_REPO`
   (remote: https://github.com/HakunaMaruna/XreyStudioServer). `/work/XreyStudioServer` is a
   synced working copy for local inspection and `trail` commands, not an independent source.
-- Published: tag/release `v2.1.0`,
-  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v2.1.0.
-  Previous releases: `v2.0.1` (Tabler), `v2.0.0`, `v1.9.0` (per-node Let's Encrypt).
+- Published: tag/release `v2.6.0`,
+  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v2.6.0.
+  Previous releases: `v2.3.0` (structured inbound settings), `v2.2.0`, `v2.1.0`.
   Earlier: `v1.4.1` (quota hotfix), `v1.4.0` (traffic/logs/admin UI), `v1.3.0`, `v1.2.0`, `v1.1.x`, `v1.0.0`.
 - Stack: NestJS + Prisma/PostgreSQL + Redis, Next.js 16 + React 19, Node agent, Caddy, Docker Compose.
 - Backend modules: auth (JWT + refresh + RBAC + Argon2id/bcrypt), users, nodes, inbounds, hosts,
@@ -56,6 +56,46 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 - Closed 5 dependency PRs whose CI fails and need a coordinated migration: @nestjs/common 12,
   @nestjs/passport 12, @tanstack/react-table 9 and TypeScript 7.
 - No open PRs or issues remain. Versions bumped to 1.8.3.
+
+## Done in v2.6.0
+
+- Added Xray listener protocols socks/http/mixed/dokodemo-door with per-inbound account selection;
+  subscription links generated for these protocols.
+- Routing profiles API and page for managing routing/geodata rule sets (JSON payloads).
+- Ideas inspired by lucx-ui/remnawave, implemented independently (both are copyleft licensed).
+- Version 2.6.0 across artifacts.
+
+## Done in v2.5.0
+
+- User onboarding UX: `GET /users/:id` now returns subscription URL, key and per-format links.
+  Users page has a key button with copy-to-clipboard and attach-to-inbound flow.
+- Panel settings: `GET/PATCH /api/settings` (ADMIN only) persisted in `backups/panel-settings.json`;
+  Settings page now edits language, theme, notification toggles, metrics, rate limit, CORS and
+  session length.
+- Agents split: #79 (agent 2 — E2E/QA), #80 (agent 3 — UX/a11y review).
+
+## Done in v2.4.0
+
+- Fallbacks: `InboundFallback` model and UI editor allow multiple protocols on one TLS port.
+- Per-client limits: `InboundClient` model with per-user traffic limit, expiry, enabled flag,
+  comment and subscription sort order. Generator excludes disabled/expired/over-quota clients.
+- Inbound expiry also clears generated clients. Version 2.4.0 across artifacts.
+
+## Done in v2.3.0
+
+- Expanded inbound settings inspired by 3x-ui feature set (independently implemented; 3x-ui is
+  GPL-3.0, no code copied): listen address, transport/security, flow/path/SNI/serviceName,
+  per-inbound traffic limit and expiry, traffic reset schedule and day, advanced JSON settings.
+- Config generator now uses the structured fields for `streamSettings`, client flow and listen.
+- Inbound create/edit modal reorganized into Basic / Transport & Security / Limits / Advanced.
+- docs/api.md updated; version 2.3.0 across artifacts.
+
+## Done in v2.2.0
+
+- One-command installer with a colored terminal menu and language selection (EN/RU) before install.
+- Non-interactive flags: `--mode`, `--domain`, `--lang`, `--yes`, `--dry-run`.
+- Installer generates secrets, validates DNS, shows a summary and prints final credentials.
+- README RU/EN and docs/install.md updated; version 2.2.0 across artifacts.
 
 ## Done in v2.1.0
 

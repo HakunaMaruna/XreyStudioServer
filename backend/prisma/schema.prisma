@@ -33,6 +33,7 @@ model User {
   organizationId    String?
   organization      Organization? @relation(fields: [organizationId], references: [id])
   inbounds          Inbound[]
+  inboundClients    InboundClient[]
   auditLogs         AuditLog[]
   payments          Payment[]
   trafficReports    UserTraffic[]
@@ -123,17 +124,62 @@ model Inbound {
   node      Node?    @relation(fields: [nodeId], references: [id])
   userId    String?
   user      User?    @relation(fields: [userId], references: [id])
-  protocol  String
-  transport String   @default("tcp")
-  security  String   @default("none")
-  port      Int
-  settings  Json
-  enabled   Boolean  @default(true)
+  protocol       String
+  transport      String    @default("tcp")
+  security       String    @default("none")
+  port           Int
+  listen         String    @default("0.0.0.0")
+  flow           String?
+  path           String?
+  sni            String?
+  serviceName    String?
+  trafficLimit   BigInt    @default(0)
+  trafficUsed    BigInt    @default(0)
+  expiresAt      DateTime?
+  resetSchedule  String    @default("never")
+  resetDay       Int?
+  settings       Json
+  enabled        Boolean   @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  fallbacks      InboundFallback[] @relation("InboundFallbacks")
+  fallbackOf     InboundFallback[] @relation("FallbackChildren")
+  clients        InboundClient[]
   @@index([nodeId])
   @@index([userId])
+}
+
+model InboundFallback {
+  id        String   @id @default(uuid())
+  masterId  String
+  master    Inbound  @relation("InboundFallbacks", fields: [masterId], references: [id], onDelete: Cascade)
+  childId   String
+  child     Inbound  @relation("FallbackChildren", fields: [childId], references: [id], onDelete: Cascade)
+  path      String?
+  alpn      String?
+  dest      String?
+  xver      Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([masterId])
+}
+
+model InboundClient {
+  id           String    @id @default(uuid())
+  inboundId    String
+  inbound      Inbound   @relation(fields: [inboundId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trafficLimit BigInt    @default(0)
+  expiresAt    DateTime?
+  enabled      Boolean   @default(true)
+  comment      String?
+  sortIndex    Int       @default(0)
+  createdAt    DateTime  @default(now())
+
+  @@unique([inboundId, userId])
+  @@index([inboundId])
 }
 
 model Host {
@@ -226,6 +272,16 @@ model UserTraffic {
 
   @@index([userId, createdAt])
   @@index([period])
+}
+
+model RoutingProfile {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  payload     Json
+  enabled     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model BackupSettings {

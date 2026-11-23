@@ -1,0 +1,29 @@
+name: Live API smoke
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Smoke https://msc.h2onetwork.pro
+        working-directory: bench
+        env:
+          SMOKE_BASE_URL: https://msc.h2onetwork.pro
+          SMOKE_ADMIN_EMAIL: ${{ secrets.LIVE_ADMIN_EMAIL }}
+          SMOKE_ADMIN_PASSWORD: ${{ secrets.LIVE_ADMIN_PASSWORD }}
+          SMOKE_PANEL_SETTINGS_PATH: ${{ secrets.LIVE_PANEL_SETTINGS_PATH }}
+        run: npm run smoke

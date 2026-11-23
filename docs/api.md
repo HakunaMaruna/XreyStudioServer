@@ -84,6 +84,40 @@ keep exports within that cap. Headers:
 
 All report endpoints require an `ADMIN` JWT.
 
+## Routing profiles
+
+- `GET /routing` — list routing/geodata profiles
+- `POST /routing`, `PATCH /routing/:id`, `DELETE /routing/:id` — manage profiles (JSON payload)
+
+## Panel settings
+
+- `GET /settings` — current panel settings (ADMIN only)
+- `PATCH /settings` — update language, theme, notification toggles, metrics flag, rate limit,
+  CORS origin and session minutes. Stored in `backups/panel-settings.json`.
+
+## User connection details
+
+- `GET /users/:id` — user details plus `subscriptionUrl` and per-format subscription links
+  (`json`, `clash`, `singbox`, `base64`) and `subscriptionToken`. ADMIN/OPERATOR only.
+
+## Inbounds
+
+`POST /api/inbounds` and `PATCH /api/inbounds/:id` accept:
+
+- `tag`, `protocol`, `port`, `nodeId`, `userId`, `enabled`
+- `listen` (default `0.0.0.0`), `transport` (`tcp|ws|grpc|httpupgrade|xhttp`), `security` (`none|tls|reality`)
+- `flow`, `path`, `sni`, `serviceName`
+- `trafficLimit` (bytes, `0` = unlimited), `expiresAt` (ISO date), `resetSchedule`
+  (`never|hourly|daily|weekly|monthly`), `resetDay` (1–31 for monthly)
+- `settings` — nested JSON for advanced Xray options (REALITY keys, certificates, headers, etc.)
+
+The generator translates these fields into Xray `streamSettings`, client `flow` and inbound `listen`.
+
+`fallbacks[]` links child inbounds to a master VLESS/Trojan TCP+TLS inbound; each item accepts
+`childId`, `path`, `alpn`, `dest`, `xver`. `clients[]` sets per-user overrides: `userId`,
+`trafficLimit` (bytes), `expiresAt`, `enabled`, `comment`, `sortIndex`. Disabled/expired/over-quota
+clients are excluded from the generated config.
+
 ## Node certificates
 
 - `GET /certificates/:nodeId` — issued certificate status for a node

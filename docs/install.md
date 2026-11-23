@@ -11,9 +11,22 @@
 - all-in-one: everything
 
 ## Steps
-1. Copy `.env.example` to `.env` and set secrets (JWT, admin, POSTGRES_PASSWORD, ALERT_WEBHOOK_TOKEN).
-2. Run `./install.sh <mode> <domain>`.
-3. Open `https://<domain>`.
+
+The recommended path is the one-command installer:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/HakunaMaruna/XreyStudioServer/main/install.sh | bash
+```
+
+It shows a colored menu, asks for the language (`en`/`ru`) and installation mode, generates all
+secrets, checks DNS for the domain and starts the selected services. Non-interactive usage:
+
+```bash
+./install.sh --mode all-in-one --domain example.com --lang en --yes --dry-run
+```
+
+Options: `--mode`, `--domain`, `--lang en|ru`, `--yes`, `--dry-run`, `--help`.
+Then open `https://<domain>/login`. Keep the printed admin credentials in a safe place.
 
 ## Upgrades
 Pull the new version, rebuild and restart with `make update` (or `docker compose up -d --build`).
