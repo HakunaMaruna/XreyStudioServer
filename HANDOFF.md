@@ -8,14 +8,14 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 Self-hosted control panel for Xray-core: web UI, multi-node agents, clients, subscriptions,
 payments, notifications, monitoring, Docker Compose installation. Target scale: 5k users / 20 nodes.
 
-## Current state (v2.2.0, 2026-11-24)
+## Current state (v2.3.0, 2026-11-24)
 
 - Source of truth: the git repo `/tmp/opencode/XSS_REPO`
   (remote: https://github.com/HakunaMaruna/XreyStudioServer). `/work/XreyStudioServer` is a
   synced working copy for local inspection and `trail` commands, not an independent source.
-- Published: tag/release `v2.2.0`,
-  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v2.2.0.
-  Previous releases: `v2.1.0` (original design restored), `v2.0.1`, `v2.0.0`.
+- Published: tag/release `v2.3.0`,
+  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v2.3.0.
+  Previous releases: `v2.2.0` (bilingual installer), `v2.1.0`, `v2.0.1`.
   Earlier: `v1.4.1` (quota hotfix), `v1.4.0` (traffic/logs/admin UI), `v1.3.0`, `v1.2.0`, `v1.1.x`, `v1.0.0`.
 - Stack: NestJS + Prisma/PostgreSQL + Redis, Next.js 16 + React 19, Node agent, Caddy, Docker Compose.
 - Backend modules: auth (JWT + refresh + RBAC + Argon2id/bcrypt), users, nodes, inbounds, hosts,
@@ -56,6 +56,15 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 - Closed 5 dependency PRs whose CI fails and need a coordinated migration: @nestjs/common 12,
   @nestjs/passport 12, @tanstack/react-table 9 and TypeScript 7.
 - No open PRs or issues remain. Versions bumped to 1.8.3.
+
+## Done in v2.3.0
+
+- Expanded inbound settings inspired by 3x-ui feature set (independently implemented; 3x-ui is
+  GPL-3.0, no code copied): listen address, transport/security, flow/path/SNI/serviceName,
+  per-inbound traffic limit and expiry, traffic reset schedule and day, advanced JSON settings.
+- Config generator now uses the structured fields for `streamSettings`, client flow and listen.
+- Inbound create/edit modal reorganized into Basic / Transport & Security / Limits / Advanced.
+- docs/api.md updated; version 2.3.0 across artifacts.
 
 ## Done in v2.2.0
 
