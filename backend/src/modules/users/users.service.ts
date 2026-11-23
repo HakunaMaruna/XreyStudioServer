@@ -151,6 +151,11 @@ export class UsersService {
         ? { connect: { id: dto.organizationId } }
         : { disconnect: true };
     }
+    if (dto.configProfileId !== undefined) {
+      data.configProfile = dto.configProfileId
+        ? { connect: { id: dto.configProfileId } }
+        : { disconnect: true };
+    }
     return this.prisma.user.update({
       where: { id },
       data,
@@ -163,6 +168,7 @@ export class UsersService {
         trafficUsed: true,
         expiresAt: true,
         organizationId: true,
+        configProfileId: true,
         updatedAt: true,
       },
     });

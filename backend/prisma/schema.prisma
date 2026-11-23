@@ -30,6 +30,8 @@ model User {
   trafficUsed       BigInt    @default(0)
   expiresAt         DateTime?
   subscriptionToken String    @unique @default(uuid())
+  configProfileId   String?
+  configProfile     ConfigProfile? @relation(fields: [configProfileId], references: [id], onDelete: SetNull)
   organizationId    String?
   organization      Organization? @relation(fields: [organizationId], references: [id])
   inbounds          Inbound[]
@@ -272,6 +274,19 @@ model UserTraffic {
 
   @@index([userId, createdAt])
   @@index([period])
+}
+
+model ConfigProfile {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  payload     Json
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+
+  @@index([enabled])
 }
 
 model RoutingProfile {

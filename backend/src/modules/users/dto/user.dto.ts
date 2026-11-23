@@ -71,6 +71,10 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   organizationId?: string;
+
+  @IsOptional()
+  @IsString()
+  configProfileId?: string;
 }
 
 export class UsersQueryDto {

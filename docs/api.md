@@ -84,6 +84,13 @@ keep exports within that cap. Headers:
 
 All report endpoints require an `ADMIN` JWT.
 
+## Config profiles
+
+- `GET /config-profiles`, `GET /config-profiles/:id`, `POST /config-profiles`,
+  `PATCH /config-profiles/:id`, `DELETE /config-profiles/:id` — manage user config templates.
+- Payload accepts `routingRules[]`, `dnsServers[]` and `outbounds[]`, merged into generated Xray config.
+- `PATCH /users/:id` with `configProfileId` attaches a profile to a user.
+
 ## Routing profiles
 
 - `GET /routing` — list routing/geodata profiles

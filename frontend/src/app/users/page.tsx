@@ -40,6 +40,7 @@ export default function UsersPage() {
   const [connection, setConnection] = useState<any | null>(null);
   const [inbounds, setInbounds] = useState<{ id: string; tag: string }[]>([]);
   const [attachId, setAttachId] = useState('');
+  const [profiles, setProfiles] = useState<{ id: string; name: string }[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -136,6 +137,9 @@ export default function UsersPage() {
       const list = await api.get('/api/inbounds');
       const rows = Array.isArray(list) ? list : list.data || [];
       setInbounds(rows.map((i: any) => ({ id: i.id, tag: i.tag })));
+      const profileList = await api.get('/api/config-profiles').catch(() => ({ data: [] }));
+      const profileRows = Array.isArray(profileList) ? profileList : profileList.data || [];
+      setProfiles(profileRows.map((p: any) => ({ id: p.id, name: p.name })));
     } catch (e: any) {
       setError(e.message);
     }
@@ -329,6 +333,23 @@ export default function UsersPage() {
                   <span className="font-medium uppercase">{name}</span><Icon name="copy" size={13} />
                 </button>
               ))}
+            </div>
+            <div className="border-t border-line pt-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-subtle">{t.configProfiles}</p>
+              <select
+                value={connection.configProfileId || ''}
+                onChange={async (e) => {
+                  const value = e.target.value || null;
+                  try {
+                    await api.patch(`/api/users/${connection.id}`, { configProfileId: value });
+                    setConnection({ ...connection, configProfileId: value });
+                  } catch (err: any) { setError(err.message); }
+                }}
+                className="field"
+              >
+                <option value="">—</option>
+                {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
             </div>
             <div className="border-t border-line pt-4">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-subtle">{t.attachToInbound}</p>
