@@ -8,6 +8,13 @@ process.env.ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'e2e-password123';
 process.env.THROTTLE_LIMIT = '1000';
 process.env.ALERT_WEBHOOK_TOKEN = process.env.ALERT_WEBHOOK_TOKEN || 'e2e-alert-token';
 
+const { mkdtempSync } = require('fs');
+const os = require('os');
+const path = require('path');
+process.env.SETTINGS_FILE =
+  process.env.SETTINGS_FILE ||
+  path.join(mkdtempSync(path.join(os.tmpdir(), 'xss-e2e-settings-')), 'panel-settings.json');
+
 BigInt.prototype.toJSON = function () {
   return this.toString();
 };

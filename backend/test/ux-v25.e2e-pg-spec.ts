@@ -10,6 +10,7 @@ const TABLES = [
   'RefreshToken',
   'Payment',
   'SubscriptionPlan',
+  'RoutingProfile',
   'InboundFallback',
   'InboundClient',
   'Inbound',
@@ -200,6 +201,43 @@ describe('XSS API (e2e, PostgreSQL: v2.5 user onboarding)', () => {
       .get(`/api/subscriptions/${user.body.subscriptionToken}/json`)
       .expect(200);
     expect(status.body.links).toHaveLength(1);
+    expect(status.body.links[0].link).toContain(user.body.subscriptionToken);
+
+    const raw = await request(app.getHttpServer())
+      .get(`/api/subscriptions/${user.body.subscriptionToken}/raw`)
+      .expect(200);
+    expect(raw.text).toContain(user.body.subscriptionToken);
+  });
+
+  it('regression #83: a clients[]-bound user gets a subscription link', async () => {
+    const user = await auth(
+      request(app.getHttpServer())
+        .post('/api/users')
+        .send({ email: 'clients-link@example.com', password: 'onboarding-pass-123' }),
+    ).expect(201);
+    const node = await auth(
+      request(app.getHttpServer())
+        .post('/api/nodes')
+        .send({ name: 'clients-link-node', address: 'node.example.com' }),
+    ).expect(201);
+    await auth(
+      request(app.getHttpServer())
+        .post('/api/inbounds')
+        .send({
+          tag: 'clients-link-trojan',
+          nodeId: node.body.id,
+          protocol: 'trojan',
+          port: 8446,
+          settings: {},
+          clients: [{ userId: user.body.id, enabled: true }],
+        }),
+    ).expect(201);
+
+    const status = await request(app.getHttpServer())
+      .get(`/api/subscriptions/${user.body.subscriptionToken}/json`)
+      .expect(200);
+    expect(status.body.links).toHaveLength(1);
+    expect(status.body.links[0]).toMatchObject({ tag: 'clients-link-trojan', protocol: 'trojan' });
     expect(status.body.links[0].link).toContain(user.body.subscriptionToken);
 
     const raw = await request(app.getHttpServer())

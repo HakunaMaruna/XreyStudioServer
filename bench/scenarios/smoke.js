@@ -5,7 +5,13 @@ const ADMIN_EMAIL = process.env.SMOKE_ADMIN_EMAIL || '';
 const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD || '';
 const PANEL_SETTINGS_PATH = process.env.SMOKE_PANEL_SETTINGS_PATH || '';
 const TIMEOUT_MS = Number(process.env.SMOKE_TIMEOUT_MS || 15000);
-const PROTECTED = ['/api/inbounds', '/api/reports/organizations', '/api/nodes'];
+const PROTECTED = [
+  '/api/inbounds',
+  '/api/reports/organizations',
+  '/api/nodes',
+  '/api/settings',
+  '/api/routing',
+];
 
 async function call(path, options = {}) {
   const headers = { accept: 'application/json' };
