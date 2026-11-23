@@ -1,0 +1,48 @@
+name: Release bundle
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build source archive and changelog
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          PREV=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
+          STAGE="${RUNNER_TEMP}/xss-bundle"
+          mkdir -p "${STAGE}"
+          git archive --format=tar "${TAG}" | tar -x -C "${STAGE}"
+          {
+            echo "# XreyStudioServer ${TAG}"
+            echo
+            if [ -n "${PREV}" ]; then
+              echo "Changes since ${PREV}:"
+              echo
+              git log --no-merges --pretty=format:'- %h %s' "${PREV}..${TAG}"
+            else
+              echo "Initial tagged release."
+              git log --pretty=format:'- %h %s' "${TAG}"
+            fi
+            echo
+          } > "${STAGE}/CHANGELOG-${TAG}.md"
+          tar -czf "${TAG}.bundle.tar.gz" -C "${STAGE}" .
+          sha256sum "${TAG}.bundle.tar.gz" > "${TAG}.bundle.tar.gz.sha256"
+          echo "ASSET=${TAG}.bundle.tar.gz" >> "${GITHUB_ENV}"
+      - name: Attach assets to the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ env.ASSET }}
+            ${{ env.ASSET }}.sha256
+          generate_release_notes: true
+          fail_on_unmatched_files: true
