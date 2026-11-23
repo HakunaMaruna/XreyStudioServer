@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { createHash } from 'crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { ConfigGeneratorService } from '../src/modules/config/config-generator.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 const TABLES = [
@@ -215,5 +216,70 @@ describe('XSS API (e2e, real PostgreSQL)', () => {
     expect(provisioned.trafficUsed).toBe(0n);
     expect(provisioned.trafficLimit).toBe(50n * 1024n ** 3n);
     expect(provisioned.expiresAt).toBeTruthy();
+  });
+
+  it('keeps tenant users and rules out of another tenant node config', async () => {
+    const generator = app.get(ConfigGeneratorService);
+    const orgA = await prisma.organization.create({ data: { name: 'Tenant A', slug: 'tenant-a' } });
+    const orgB = await prisma.organization.create({ data: { name: 'Tenant B', slug: 'tenant-b' } });
+    const userA = await prisma.user.create({
+      data: { email: 'tenant-a-user@example.com', passwordHash: 'hash', organizationId: orgA.id },
+    });
+    const userB = await prisma.user.create({
+      data: { email: 'tenant-b-user@example.com', passwordHash: 'hash', organizationId: orgB.id },
+    });
+    const nodeA = await prisma.node.create({
+      data: {
+        name: 'tenant-a-node',
+        address: '127.0.0.1',
+        tokenHash: createHash('sha256').update('node-a-token').digest('hex'),
+        organizationId: orgA.id,
+      },
+    });
+    const nodeB = await prisma.node.create({
+      data: {
+        name: 'tenant-b-node',
+        address: '127.0.0.1',
+        tokenHash: createHash('sha256').update('node-b-token').digest('hex'),
+        organizationId: orgB.id,
+      },
+    });
+    await prisma.inbound.create({
+      data: { tag: 'tenant-a-in', nodeId: nodeA.id, protocol: 'vless', port: 8443, settings: {} },
+    });
+    await prisma.inbound.create({
+      data: { tag: 'tenant-b-in', nodeId: nodeB.id, protocol: 'vless', port: 8444, settings: {} },
+    });
+    await prisma.rule.create({
+      data: { name: 'global-rule', type: 'field', payload: { name: 'global-rule' } },
+    });
+    await prisma.rule.create({
+      data: {
+        name: 'tenant-a-rule',
+        type: 'field',
+        payload: { name: 'tenant-a-rule' },
+        organizationId: orgA.id,
+      },
+    });
+    await prisma.rule.create({
+      data: {
+        name: 'tenant-b-rule',
+        type: 'field',
+        payload: { name: 'tenant-b-rule' },
+        organizationId: orgB.id,
+      },
+    });
+
+    const revisionA = await generator.createRevision(nodeA.id);
+    const revisionB = await generator.createRevision(nodeB.id);
+    const configA = JSON.parse(revisionA.content);
+    const configB = JSON.parse(revisionB.content);
+    const clients = (config: any) => config.inbounds[0].settings.clients.map((c: any) => c.email);
+    const ruleNames = (config: any) => config.routing.rules.map((r: any) => r.name).filter(Boolean);
+
+    expect(clients(configA)).toEqual([userA.email]);
+    expect(clients(configB)).toEqual([userB.email]);
+    expect(ruleNames(configA)).toEqual(['global-rule', 'tenant-a-rule']);
+    expect(ruleNames(configB)).toEqual(['global-rule', 'tenant-b-rule']);
   });
 });
