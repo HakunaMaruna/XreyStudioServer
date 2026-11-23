@@ -91,7 +91,12 @@ All report endpoints require JWT with `ADMIN` or `OPERATOR` role.
   `{ received, persisted, telegram, signal, webhook, email }` and forwards the message to all
   configured channels.
 - `GET /metrics` — Prometheus text exposition; optional `X-Metrics-Token` header when
-  `METRICS_TOKEN` is set
+  `METRICS_TOKEN` is set (constant-time comparison)
+- `GET /metrics/view` — the same metrics behind an admin JWT, used by the UI instead of exposing
+  a `NEXT_PUBLIC_METRICS_TOKEN` in the browser bundle
+
+Audit, reports, traffic and payments endpoints are ADMIN-only: they contain cross-tenant data.
+Agent URLs must use http(s); private/LAN addresses are rejected unless `ALLOW_PRIVATE_AGENT_URLS=true`.
 - `GET /health`, `GET /health/live`, `GET /health/ready` — health checks
 
 ## Backups API

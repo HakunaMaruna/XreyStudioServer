@@ -84,6 +84,9 @@ export class UsersService {
     if (dto.role === Role.ADMIN && actor.role !== Role.ADMIN) {
       throw new ForbiddenException('Only admin can create admins');
     }
+    if (actor.role !== Role.ADMIN && dto.organizationId && dto.organizationId !== actor.organizationId) {
+      throw new ForbiddenException('Cannot assign a user to another organization');
+    }
     const email = dto.email.toLowerCase();
     const exists = await this.prisma.user.findUnique({ where: { email } });
     if (exists) throw new BadRequestException('Email already exists');
@@ -125,6 +128,9 @@ export class UsersService {
     if (dto.trafficLimit !== undefined) data.trafficLimit = BigInt(dto.trafficLimit);
     if (dto.expiresAt !== undefined) data.expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : null;
     if (dto.organizationId !== undefined) {
+      if (actor.role !== Role.ADMIN && dto.organizationId !== actor.organizationId) {
+        throw new ForbiddenException('Cannot move a user to another organization');
+      }
       data.organization = dto.organizationId
         ? { connect: { id: dto.organizationId } }
         : { disconnect: true };

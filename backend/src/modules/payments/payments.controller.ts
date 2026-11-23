@@ -37,21 +37,21 @@ export class PaymentsController {
 
   @Get('export.csv')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(Role.ADMIN, Role.OPERATOR)
+  @Roles(Role.ADMIN)
   async export(@Query() query: { from?: string; to?: string }, @Res() res: any) {
     sendCsv(res, 'payments.csv', await this.service.exportCsv(query));
   }
 
   @Get()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(Role.ADMIN, Role.OPERATOR)
+  @Roles(Role.ADMIN)
   list() {
     return this.service.list();
   }
 
   @Get('plans')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(Role.ADMIN, Role.OPERATOR)
+  @Roles(Role.ADMIN)
   plans() {
     return this.service.plans();
   }
@@ -72,14 +72,14 @@ export class PaymentsController {
 
   @Post()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(Role.ADMIN, Role.OPERATOR)
+  @Roles(Role.ADMIN)
   create(@Body() body: CreatePaymentDto) {
     return this.service.create(body.userId, body.amount, body.currency, body.provider, body.planId);
   }
 
   @Post(':id/paid')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(Role.ADMIN, Role.OPERATOR)
+  @Roles(Role.ADMIN)
   markPaid(@Param('id') id: string) {
     return this.service.markPaid(id);
   }

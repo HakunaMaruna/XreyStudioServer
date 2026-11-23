@@ -19,7 +19,7 @@ export default function SettingsPage() {
       return;
     }
     setTheme(getTheme());
-    api.get('/api/metrics', { headers: { 'X-Metrics-Token': process.env.NEXT_PUBLIC_METRICS_TOKEN || '' } })
+    api.get('/api/metrics/view')
       .then((value) => setMetrics(String(value)))
       .catch(() => setMetrics(''))
       .finally(() => setMetricsLoading(false));

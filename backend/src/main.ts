@@ -20,7 +20,7 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('XreyStudioServer API')
     .setDescription('Xray Control Panel API')
-    .setVersion('1.8.4')
+    .setVersion('1.8.5')
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
