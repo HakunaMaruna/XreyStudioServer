@@ -5,7 +5,7 @@ import { createHash } from 'crypto';
 import { mkdtempSync, promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import * as request from 'supertest';
+import request from 'supertest';
 import { gunzipSync, gzipSync } from 'zlib';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
