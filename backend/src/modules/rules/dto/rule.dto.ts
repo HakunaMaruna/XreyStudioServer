@@ -13,6 +13,10 @@ export class CreateRuleDto {
   @IsOptional()
   @IsBoolean()
   enabled?: boolean;
+
+  @IsOptional()
+  @IsString()
+  organizationId?: string | null;
 }
 
 export class UpdateRuleDto {
@@ -31,4 +35,8 @@ export class UpdateRuleDto {
   @IsOptional()
   @IsBoolean()
   enabled?: boolean;
+
+  @IsOptional()
+  @IsString()
+  organizationId?: string | null;
 }

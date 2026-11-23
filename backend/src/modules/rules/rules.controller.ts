@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Role } from '@prisma/client';
+import { AuthUser, CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { CreateRuleDto, UpdateRuleDto } from './dto/rule.dto';
@@ -13,27 +14,27 @@ export class RulesController {
   constructor(private service: RulesService) {}
 
   @Get()
-  list() {
-    return this.service.findAll();
+  list(@CurrentUser() user: AuthUser) {
+    return this.service.findAll(user);
   }
 
   @Post()
-  create(@Body() body: CreateRuleDto) {
-    return this.service.create(body);
+  create(@Body() body: CreateRuleDto, @CurrentUser() user: AuthUser) {
+    return this.service.create(body, user);
   }
 
   @Get(':id')
-  get(@Param('id') id: string) {
-    return this.service.findOne(id);
+  get(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.findOne(id, user);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: UpdateRuleDto) {
-    return this.service.update(id, body);
+  update(@Param('id') id: string, @Body() body: UpdateRuleDto, @CurrentUser() user: AuthUser) {
+    return this.service.update(id, body, user);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.service.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.remove(id, user);
   }
 }

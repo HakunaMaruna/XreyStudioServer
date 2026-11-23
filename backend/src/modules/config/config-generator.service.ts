@@ -143,7 +143,12 @@ export class ConfigGeneratorService {
       },
       select: { id: true, email: true, subscriptionToken: true },
     });
-    const rules = await this.prisma.rule.findMany({ where: { enabled: true } });
+    const rules = await this.prisma.rule.findMany({
+      where: {
+        enabled: true,
+        OR: [{ organizationId: null }, ...(node.organizationId ? [{ organizationId: node.organizationId }] : [])],
+      },
+    });
 
     const externalInbounds = node.inbounds.filter((i) => EXTERNAL_PROTOCOLS.includes(i.protocol));
     const xrayInbounds = node.inbounds.filter((i) => !EXTERNAL_PROTOCOLS.includes(i.protocol));

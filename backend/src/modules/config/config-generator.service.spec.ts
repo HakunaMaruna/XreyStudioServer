@@ -73,4 +73,23 @@ describe('ConfigGeneratorService external protocols', () => {
     expect(config.xray).toBeUndefined();
     expect(config.inbounds).toHaveLength(1);
   });
+
+  it('selects only global and node-tenant rules', async () => {
+    prisma.node.findUnique.mockResolvedValue({ id: 'n1', organizationId: 'org-a', inbounds: [] });
+    prisma.rule.findMany.mockResolvedValue([
+      { payload: { name: 'global' } },
+      { payload: { name: 'tenant' } },
+    ]);
+
+    const { config }: any = await service.generateConfig('n1');
+
+    expect(prisma.rule.findMany).toHaveBeenCalledWith({
+      where: {
+        enabled: true,
+        OR: [{ organizationId: null }, { organizationId: 'org-a' }],
+      },
+    });
+    expect(config.routing.rules[0]).toEqual({ name: 'global' });
+    expect(config.routing.rules[1]).toEqual({ name: 'tenant' });
+  });
 });
