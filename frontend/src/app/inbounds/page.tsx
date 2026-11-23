@@ -47,13 +47,15 @@ type InboundForm = {
   resetDay: number;
   enabled: boolean;
   settingsText: string;
+  fallbacks: Array<{ childId: string; path: string; alpn: string; dest: string; xver: number }>;
+  clients: Array<{ userId: string; trafficLimitGb: number; expiresAt: string; enabled: boolean; comment: string; sortIndex: number }>;
 };
 
 const emptyForm: InboundForm = {
   tag: '', protocol: 'vless', port: 443, nodeId: '', listen: '0.0.0.0',
   transport: 'tcp', security: 'reality', flow: '', path: '/ws', sni: '', serviceName: 'xss',
   trafficLimitGb: 0, expiresAt: '', resetSchedule: 'never', resetDay: 1,
-  enabled: true, settingsText: '{}',
+  enabled: true, settingsText: '{}', fallbacks: [], clients: [],
 };
 
 const PROTOCOLS = ['vless', 'vmess', 'trojan', 'shadowsocks', 'hysteria2', 'tuic', 'wireguard'];
@@ -65,6 +67,7 @@ export default function InboundsPage() {
   const { t } = useLang();
   const [inbounds, setInbounds] = useState<InboundRow[]>([]);
   const [nodes, setNodes] = useState<{ id: string; name: string }[]>([]);
+  const [users, setUsers] = useState<{ id: string; email: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -75,9 +78,14 @@ export default function InboundsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [ib, nd] = await Promise.all([api.get('/api/inbounds'), api.get('/api/nodes')]);
+      const [ib, nd, us] = await Promise.all([
+        api.get('/api/inbounds'),
+        api.get('/api/nodes'),
+        api.get('/api/users?limit=100').catch(() => ({ data: [] })),
+      ]);
       setInbounds(Array.isArray(ib) ? ib : ib.data || []);
       setNodes(Array.isArray(nd) ? nd : nd.data || []);
+      setUsers(us.data || []);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -115,6 +123,15 @@ export default function InboundsPage() {
       resetDay: row.resetDay || 1,
       enabled: row.enabled ?? true,
       settingsText: JSON.stringify(row.settings || {}, null, 2),
+      fallbacks: (row as any).fallbacks?.map((f: any) => ({ childId: f.childId, path: f.path || '', alpn: f.alpn || '', dest: f.dest || '', xver: f.xver || 0 })) || [],
+      clients: (row as any).clients?.map((c: any) => ({
+        userId: c.userId,
+        trafficLimitGb: Number(c.trafficLimit || 0) / 1024 ** 3,
+        expiresAt: c.expiresAt ? c.expiresAt.slice(0, 10) : '',
+        enabled: c.enabled,
+        comment: c.comment || '',
+        sortIndex: c.sortIndex || 0,
+      })) || [],
     });
     setError('');
     setOpen(true);
@@ -150,6 +167,15 @@ export default function InboundsPage() {
       resetDay: form.resetSchedule === 'monthly' ? form.resetDay : undefined,
       enabled: form.enabled,
       settings,
+      fallbacks: form.fallbacks.filter((f) => f.childId),
+      clients: form.clients.filter((c) => c.userId).map((c) => ({
+        userId: c.userId,
+        trafficLimit: Math.round(c.trafficLimitGb * 1024 ** 3),
+        expiresAt: c.expiresAt || undefined,
+        enabled: c.enabled,
+        comment: c.comment || undefined,
+        sortIndex: c.sortIndex,
+      })),
     };
     try {
       if (editing) await api.patch(`/api/inbounds/${editing}`, body);
@@ -312,6 +338,55 @@ export default function InboundsPage() {
                 <Field label={t.resetDay}><input type="number" min={1} max={31} value={form.resetDay} onChange={(e) => setForm({ ...form, resetDay: Number(e.target.value) })} className="field" /></Field>
               )}
             </div>
+          </div>
+
+          <div className="border-t border-line pt-5">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-subtle">{t.fallbacks}</p>
+                <p className="text-[11px] text-subtle">{t.fallbackHint}</p>
+              </div>
+              <Button size="sm" icon="plus" onClick={() => setForm({ ...form, fallbacks: [...form.fallbacks, { childId: '', path: '', alpn: '', dest: '', xver: 0 }] })}>{t.addFallback}</Button>
+            </div>
+            {form.fallbacks.map((f, index) => (
+              <div key={index} className="mb-2 grid gap-2 rounded-lg border border-line bg-surface-2/40 p-3 sm:grid-cols-2 lg:grid-cols-5">
+                <Field label={t.childInbound}>
+                  <select value={f.childId} onChange={(e) => { const fallbacks = [...form.fallbacks]; fallbacks[index] = { ...f, childId: e.target.value }; setForm({ ...form, fallbacks }); }} className="field">
+                    <option value="">—</option>
+                    {inbounds.filter((i) => i.id !== editing).map((i) => <option key={i.id} value={i.id}>{i.tag}</option>)}
+                  </select>
+                </Field>
+                <Field label={t.path}><input value={f.path} onChange={(e) => { const fallbacks = [...form.fallbacks]; fallbacks[index] = { ...f, path: e.target.value }; setForm({ ...form, fallbacks }); }} className="field" /></Field>
+                <Field label="ALPN"><input value={f.alpn} onChange={(e) => { const fallbacks = [...form.fallbacks]; fallbacks[index] = { ...f, alpn: e.target.value }; setForm({ ...form, fallbacks }); }} className="field" /></Field>
+                <Field label={t.address}><input value={f.dest} onChange={(e) => { const fallbacks = [...form.fallbacks]; fallbacks[index] = { ...f, dest: e.target.value }; setForm({ ...form, fallbacks }); }} className="field" /></Field>
+                <div className="flex items-end"><IconButton icon="trash" label={t.delete} tone="danger" onClick={() => setForm({ ...form, fallbacks: form.fallbacks.filter((_, i) => i !== index) })} /></div>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t border-line pt-5">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wider text-subtle">{t.clientLimits}</p>
+              <Button size="sm" icon="plus" onClick={() => setForm({ ...form, clients: [...form.clients, { userId: '', trafficLimitGb: 0, expiresAt: '', enabled: true, comment: '', sortIndex: 0 }] })}>{t.addClient}</Button>
+            </div>
+            {form.clients.map((c, index) => (
+              <div key={index} className="mb-2 grid gap-2 rounded-lg border border-line bg-surface-2/40 p-3 sm:grid-cols-2 lg:grid-cols-6">
+                <Field label={t.user}>
+                  <select value={c.userId} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, userId: e.target.value }; setForm({ ...form, clients }); }} className="field">
+                    <option value="">—</option>
+                    {users.map((u) => <option key={u.id} value={u.id}>{u.email}</option>)}
+                  </select>
+                </Field>
+                <Field label={t.trafficLimit} hint="GB"><input type="number" min={0} value={c.trafficLimitGb} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, trafficLimitGb: Number(e.target.value) }; setForm({ ...form, clients }); }} className="field" /></Field>
+                <Field label={t.expiresAt}><input type="date" value={c.expiresAt} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, expiresAt: e.target.value }; setForm({ ...form, clients }); }} className="field" /></Field>
+                <Field label={t.sortOrder}><input type="number" value={c.sortIndex} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, sortIndex: Number(e.target.value) }; setForm({ ...form, clients }); }} className="field" /></Field>
+                <Field label={t.comment}><input value={c.comment} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, comment: e.target.value }; setForm({ ...form, clients }); }} className="field" /></Field>
+                <div className="flex items-end gap-2">
+                  <Toggle checked={c.enabled} onChange={(v) => { const clients = [...form.clients]; clients[index] = { ...c, enabled: v }; setForm({ ...form, clients }); }} />
+                  <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => setForm({ ...form, clients: form.clients.filter((_, i) => i !== index) })} />
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="border-t border-line pt-5">

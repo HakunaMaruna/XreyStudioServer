@@ -131,7 +131,15 @@ export class ConfigGeneratorService {
   async generateConfig(nodeId: string) {
     const node = await this.prisma.node.findUnique({
       where: { id: nodeId },
-      include: { inbounds: { where: { enabled: true } } },
+      include: {
+        inbounds: {
+          where: { enabled: true },
+          include: {
+            fallbacks: { include: { child: { select: { tag: true } } } },
+            clients: true,
+          },
+        },
+      },
     });
     if (!node) throw new NotFoundException('Node not found');
 
@@ -142,7 +150,7 @@ export class ConfigGeneratorService {
         // A node must only receive clients from its own tenant.
         organizationId: node.organizationId || null,
       },
-      select: { id: true, email: true, subscriptionToken: true },
+      select: { id: true, email: true, subscriptionToken: true, trafficUsed: true },
     });
     const rules = await this.prisma.rule.findMany({
       where: {
@@ -159,12 +167,22 @@ export class ConfigGeneratorService {
       const selected = inbound.userId
         ? users.filter((u) => u.id === inbound.userId)
         : users;
-      const clients = selected.map((u) => this.clientFor(u, inbound));
+      const limits = new Map((inbound.clients || []).map((c) => [c.userId, c]));
+      const active = selected.filter((u) => {
+        const limit = limits.get(u.id);
+        if (!limit) return true;
+        if (limit.enabled === false) return false;
+        if (limit.expiresAt && new Date(limit.expiresAt).getTime() < Date.now()) return false;
+        if (limit.trafficLimit > 0n && u.trafficUsed >= limit.trafficLimit) return false;
+        return true;
+      });
+      const clients = active.map((u) => this.clientFor(u, inbound));
       const inboundSettings: any = {
         ...settings,
         clients,
       };
       if (inbound.protocol === 'vless') inboundSettings.decryption = 'none';
+      if (inbound.expiresAt && new Date(inbound.expiresAt).getTime() < Date.now()) inboundSettings.clients = [];
       if (inbound.protocol === 'shadowsocks') {
         inboundSettings.method = settings.method || 'aes-256-gcm';
         inboundSettings.network = 'tcp,udp';
@@ -177,6 +195,18 @@ export class ConfigGeneratorService {
         settings: inboundSettings,
         streamSettings: this.buildStream(inbound),
         sniffing: { enabled: true, destOverride: ['http', 'tls', 'quic'] },
+        ...((inbound.fallbacks || []).length
+          ? {
+              allocate: { strategy: 'random' },
+              fallback: (inbound.fallbacks || []).map((f) => ({
+                tag: f.child?.tag,
+                path: f.path || undefined,
+                alpn: f.alpn || undefined,
+                dest: f.dest || undefined,
+                xver: f.xver || undefined,
+              })).filter((f) => f.tag),
+            }
+          : {}),
       };
     });
 
