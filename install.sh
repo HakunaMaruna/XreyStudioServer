@@ -18,11 +18,20 @@ fi
 if [ ! -f .env ]; then
   cp .env.example .env
   JWT=$(openssl rand -hex 32)
-  ADMIN=$(openssl rand -base64 18)
-  sed -i "s/change-me-jwt-secret/$JWT/" .env
-  sed -i "s/change-me-admin/$ADMIN/" .env
+  REFRESH=$(openssl rand -hex 32)
+  ADMIN=$(openssl rand -hex 24)
+  AGENT=$(openssl rand -hex 32)
+  sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$JWT|" .env
+  sed -i "s|^JWT_REFRESH_SECRET=.*|JWT_REFRESH_SECRET=$REFRESH|" .env
+  sed -i "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=$ADMIN|" .env
+  sed -i "s|^AGENT_SECRET=.*|AGENT_SECRET=$AGENT|" .env
+  sed -i "s|^AGENT_TOKEN=.*|AGENT_TOKEN=$AGENT|" .env
   sed -i "s/example.com/$DOMAIN/g" .env
-  echo "Generated .env"
+  echo "Generated .env with random JWT, admin and agent secrets"
+fi
+
+if grep -qE '^(JWT_SECRET|JWT_REFRESH_SECRET|ADMIN_PASSWORD|AGENT_TOKEN)=replace-with-' .env; then
+  echo "WARNING: .env still contains placeholder secrets; rotate them before exposing the panel" >&2
 fi
 
 case "$MODE" in
