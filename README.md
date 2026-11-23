@@ -256,10 +256,12 @@ without an explicit `agentUrl`; Helm sets it to the in-cluster agent Service aut
 `install.sh` generates a random `AGENT_TOKEN`, which the agent sends to the panel and the panel
 replays as `X-Agent-Secret` for config/log calls (constant-time comparison on both sides).
 
-For agents on other hosts, set the node's `agentUrl` to an `https://` endpoint behind a reverse
-proxy and terminate mTLS there, with the panel's client certificate trusted by the proxy. Keep
-`ALLOW_PRIVATE_AGENT_URLS=true` only for trusted private networks and never combine it with
-plaintext HTTP in production.
+For agents on other hosts, the node's `agentUrl` must use `https://` in production; terminate mTLS
+at a reverse proxy and trust the panel's client certificate there. `ALLOW_PRIVATE_AGENT_URLS=true`
+relaxes both the private-host and HTTPS checks and must only be used for trusted private networks.
+Internal `AGENT_BASE_URL` stays plain HTTP inside the Compose/K8s network. Subscription tokens are
+URL path segments by API design, so subscription responses send `Cache-Control: no-store` and
+`Referrer-Policy: no-referrer`; keep access logs private and rotate a token if it leaks.
 
 ## Monitoring
 

@@ -23,7 +23,8 @@ export class AgentClientService {
   private readonly logger = new Logger(AgentClientService.name);
 
   private base(node: { address: string; agentUrl?: string | null }) {
-    const raw = node.agentUrl || process.env.AGENT_BASE_URL || `http://${node.address}:9090`;
+    const explicit = node.agentUrl;
+    const raw = explicit || process.env.AGENT_BASE_URL || `http://${node.address}:9090`;
     let url: URL;
     try {
       url = new URL(raw);
@@ -32,6 +33,14 @@ export class AgentClientService {
     }
     if (url.protocol !== 'http:' && url.protocol !== 'https:') {
       throw new BadRequestException('Agent URL must use http or https');
+    }
+    if (
+      process.env.NODE_ENV === 'production' &&
+      explicit &&
+      url.protocol !== 'https:' &&
+      process.env.ALLOW_PRIVATE_AGENT_URLS !== 'true'
+    ) {
+      throw new BadRequestException('Agent URL must use https in production');
     }
     if (process.env.ALLOW_PRIVATE_AGENT_URLS !== 'true' && isPrivateHost(url.hostname)) {
       throw new BadRequestException('Private agent URLs are not allowed');

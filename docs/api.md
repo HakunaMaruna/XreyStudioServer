@@ -38,7 +38,10 @@ All admin endpoints require `Authorization: Bearer <accessToken>` and, where not
   `{ "entries": [{ "subscriptionToken" | "userId" | "email", "up": 100, "down": 50 }] }`.
   Creates `UserTraffic` rows, increments `User.trafficUsed` and sets status `EXPIRED` when the
   quota is reached.
-- `GET /nodes/:id/logs?service=xray|singbox&lines=200` — tail agent logs through the panel (ADMIN/OPERATOR)
+- `GET /nodes/:id/logs?service=xray|singbox&lines=200` — tail agent logs through the panel (ADMIN/OPERATOR, tenant-scoped)
+- `agentUrl` on create/update is the panel→agent endpoint. In production it must use `https://`
+  unless `ALLOW_PRIVATE_AGENT_URLS=true` is set for a trusted private network; internal
+  `AGENT_BASE_URL` (Compose/K8s) may stay plain HTTP inside the cluster network.
 - `GET /hosts`, `POST /hosts`, `GET /hosts/:id`, `PATCH /hosts/:id`, `DELETE /hosts/:id`
 - `GET /rules`, `POST /rules`, `GET /rules/:id`, `PATCH /rules/:id`, `DELETE /rules/:id`
 
@@ -50,20 +53,20 @@ All admin endpoints require `Authorization: Bearer <accessToken>` and, where not
 - `GET /subscriptions/:token/raw` — raw links
 - `GET /subscriptions/:token/base64` — base64 links
 - `GET /subscriptions/:token/clash`, `.../singbox`, `.../json` — client config exports
-- `GET /payments` — list payments (ADMIN/OPERATOR)
+- `GET /payments` — list payments (ADMIN)
 - `POST /payments` — create a payment; optional `planId` provisions that plan when paid
 - `POST /payments/:id/paid` — mark paid; with `planId` activates the user, resets traffic and sets `expiresAt`
 - `GET /payments/plans`, `POST /payments/plans`, `PATCH /payments/plans/:id` — subscription plans
 - `POST /payments/webhook` — Stripe webhook; requires a valid `Stripe-Signature` header and
   `STRIPE_WEBHOOK_SECRET` on the server
-- `GET /traffic?userId=&page=&limit=` — per-user traffic report history with byte totals (ADMIN/OPERATOR)
+- `GET /traffic?userId=&page=&limit=` — per-user traffic report history with byte totals (ADMIN)
 - `GET /traffic/chart?userId=&days=1..90` — traffic for the last `days` UTC days, grouped by day
-  (ADMIN/OPERATOR). Response: `{ days, series: [{ date, up, down, total }], total }`; byte values
+  (ADMIN). Response: `{ days, series: [{ date, up, down, total }], total }`; byte values
   are decimal strings.
-- `GET /traffic/export.csv?userId=&from=&to=` — traffic rows as CSV (ADMIN/OPERATOR)
-- `GET /audit?page=&limit=&entity=&action=&userId=` — audit log with filters (ADMIN/OPERATOR)
-- `GET /audit/export.csv?entity=&userId=&action=&from=&to=` — audit rows as CSV (ADMIN/OPERATOR)
-- `GET /payments/export.csv?from=&to=` — payments as CSV (ADMIN/OPERATOR)
+- `GET /traffic/export.csv?userId=&from=&to=` — traffic rows as CSV (ADMIN)
+- `GET /audit?page=&limit=&entity=&action=&userId=` — audit log with filters (ADMIN)
+- `GET /audit/export.csv?entity=&userId=&action=&from=&to=` — audit rows as CSV (ADMIN)
+- `GET /payments/export.csv?from=&to=` — payments as CSV (ADMIN)
 
 CSV endpoints return `text/csv` with a header row and at most 10 000 rows; narrow `from`/`to` to
 keep exports within that cap. Headers:
@@ -79,7 +82,7 @@ keep exports within that cap. Headers:
 - `GET /reports/protocols` — inbound counts, enabled counts and distinct users/nodes by protocol
 - `GET /reports/organizations.csv?from&to`, `GET /reports/protocols.csv` — CSV exports
 
-All report endpoints require JWT with `ADMIN` or `OPERATOR` role.
+All report endpoints require an `ADMIN` JWT.
 
 ## Operations
 
