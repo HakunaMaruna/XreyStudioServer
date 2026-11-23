@@ -96,7 +96,7 @@ ServiceMonitor подхватывается только при совпаден
 
 - `/-/ready` Prometheus возвращает `ready for service`, target `xss-backend` имеет `health: up`.
 - `curl /api/metrics` возвращает `200` и метрики `xss_*`.
-- Grafana видит datasource `Prometheus` (`http://prometheus:9090`) и панель `xss-overview`;правило `xss-backend-down` присутствует.
+- Grafana видит datasource `Prometheus` (`http://prometheus:9090`) и панель `xss-overview`; правило `xss-backend-down` присутствует.
 - Тестовый алерт возвращает `201` и появляется на странице `/alerts`.
 
 ## Эскалация
@@ -105,3 +105,80 @@ ServiceMonitor подхватывается только при совпаден
 - Нет метрик `xss_*` — проверить, что backend поднялся и `/api/metrics` не защищён токеном; приложить первый ответ `curl`.
 - Проблема с ingress/cert-manager — приложить `kubectl -n xss describe ingress xss` и события cert-manager; изменения манифестов согласовывать в issue до коммита.
 - Подозрение на дефект приложения — отдельный issue с логами и командами воспроизведения.
+
+## Результаты валидации (2026-11-23, issue #7)
+
+### Живой кластер kind/k3s: НЕ РАБОТАЕТ в текущем окружении
+
+Среда валидации — Alpine 3.20/arm64 без привилегий: `CapEff=0000000000000000`, `Seccomp=2`,
+`/dev/shm` отсутствует, Docker/podman/containerd не установлены. Попытка поднять кластер:
+
+```bash
+apk add --no-cache k3s
+k3s server --disable-agent --snapshotter=native \
+  --data-dir /tmp/opencode/k3s-data --write-kubeconfig /tmp/opencode/k3s-kubeconfig
+```
+
+```
+time="2026-11-23T12:00:44Z" level=fatal msg="open /proc/net/route: permission denied"
+```
+
+`kubectl apply -k k8s`, scraping из подов и ingress в таком окружении выполнить невозможно.
+Это ограничение песочницы, а не дефект манифестов: в CI/боевом кластере шаги ниже нужно повторить.
+
+### Статическая проверка манифестов: РАБОТАЕТ
+
+```bash
+kubectl kustomize k8s > /tmp/kustomize-out.yaml
+kubeconform -strict -ignore-missing-schemas -summary /tmp/kustomize-out.yaml
+```
+
+```
+Summary: 21 resources found in 1 file - Valid: 21, Invalid: 0, Errors: 0, Skipped: 0
+```
+
+В выводе 4 ConfigMap, 6 Deployment, 7 Service, по 1 Namespace/Secret/Ingress/StatefulSet;
+образы `xss-*:1.7.0`, `prom/prometheus:v2.53.0`, `grafana/grafana:11.2.0`, и job `xss-backend`
+с `metrics_path: /api/metrics`.
+
+### Scrape и алертинг автономными бинарниками: РАБОТАЕТ
+
+Без кластера были запущены backend (v1.7.0, PostgreSQL 16), Prometheus 2.53.0 и Grafana 11.2.0;
+в конфигах адреса `backend:3000`/`prometheus:9090` заменены на `127.0.0.1:3000`/`127.0.0.1:9091`.
+
+| Проверка | Результат |
+|---|---|
+| Prometheus target `xss-backend` | `health=up`, `http://127.0.0.1:3000/api/metrics` |
+| Метрика в Prometheus | `xss_users_total{job="xss-backend"}=1` |
+| Grafana datasource | `Prometheus / prometheus / http://127.0.0.1:9091 / isDefault=true` |
+| Grafana dashboard | `XreyStudioServer — Overview`, 9 панелей |
+| Provisioned alert rules | 4: backend down, node offline, backend memory, node CPU |
+| Contact point / policy | `xss-webhook` (webhook, Bearer), `group_by: [alertname, severity]` |
+| Webhook с верным токеном | `201 {"received":1,"persisted":1}` |
+| Webhook с неверным/без токена | `401` |
+| Доставка алерта из Grafana | во временном правиле: запись `xss-validation-webhook` появилась в `GET /api/notifications/alerts` |
+
+Команды воспроизведения (все переменные заполнены):
+
+```bash
+curl -fsS http://127.0.0.1:9091/-/ready
+curl -fsS 'http://127.0.0.1:9091/api/v1/targets' \
+  | node -pe 'JSON.parse(require("fs").readFileSync(0,"utf8")).data.activeTargets.map(t => t.labels.job+" "+t.health).join("\n")'
+curl -fsS --data-urlencode 'query=xss_users_total' http://127.0.0.1:9091/api/v1/query
+curl -fsS -u admin:admin http://127.0.0.1:3002/api/datasources
+curl -fsS -u admin:admin http://127.0.0.1:3002/api/dashboards/uid/xss-overview
+curl -fsS -u admin:admin http://127.0.0.1:3002/api/v1/provisioning/alert-rules
+curl -sS -o /dev/null -w '%{http_code}\n' -X POST http://127.0.0.1:3000/api/notifications/alerts \
+  -H 'Content-Type: application/json' -H 'Authorization: Bearer e2e-alert-token' \
+  -d '{"status":"firing","alerts":[{"status":"firing","labels":{"alertname":"xss-backend-down","severity":"critical"}}]}'
+```
+
+### Что осталось проверить в реальном кластере
+
+1. `kubectl apply -k k8s` и готовность подов `prometheus`/`grafana`.
+2.Scrape именно через Kubernetes Service `backend:3000` и DNS резолвинг внутри namespace.
+3. Срабатывание штатного правила `xss-backend-down` (остановка пода backend) и доставка в webhook.
+4. Ingress Grafana и TLS через cert-manager (в комплекте манифестов ingress только для панели).
+
+Замеченная проблема приложения (не исправлялась здесь): запуск скомпилированного backend падает
+из-за `cookie_parser_1.default is not a function`; оформлена отдельным issue.
