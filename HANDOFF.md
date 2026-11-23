@@ -8,13 +8,13 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 Self-hosted control panel for Xray-core: web UI, multi-node agents, clients, subscriptions,
 payments, notifications, monitoring, Docker Compose installation. Target scale: 5k users / 20 nodes.
 
-## Current state (v1.7.0, 2026-11-23)
+## Current state (v1.8.0, 2026-11-23)
 
 - Source of truth: `/work/XreyStudioServer` (working copy) and the git repo
   `/tmp/opencode/XSS_REPO` (remote: https://github.com/HakunaMaruna/XreyStudioServer).
-- Published: tag/release `v1.7.0`,
-  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.7.0.
-  Previous releases: `v1.6.0` (dark SaaS UI), `v1.5.0`, `v1.4.1`, `v1.4.0`.
+- Published: tag/release `v1.8.0`,
+  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.8.0.
+  Previous releases: `v1.7.0` (backup schedules + reports), `v1.6.0` (dark SaaS UI), `v1.5.0`.
   Earlier: `v1.4.1` (quota hotfix), `v1.4.0` (traffic/logs/admin UI), `v1.3.0`, `v1.2.0`, `v1.1.x`, `v1.0.0`.
 - Stack: NestJS + Prisma/PostgreSQL + Redis, Next.js 16 + React 19, Node agent, Caddy, Docker Compose.
 - Backend modules: auth (JWT + refresh + RBAC + Argon2id/bcrypt), users, nodes, inbounds, hosts,
@@ -41,6 +41,14 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
   run locally (CI builds the images). Node here is v20.15.1; Next 16 wants >=20.19, but the
   production build passed.
 - GitHub push works via the credential store in `/root/.git-credentials`.
+
+## Done in v1.8.0
+
+- Agent can collect per-user traffic from the Xray Stats API (`XRAY_STATS_ENABLED=true`) and POST
+  deltas to `/api/nodes/:id/traffic`; the config generator adds a loopback API inbound.
+- Delegated agent delivered: Helm chart with ServiceMonitor/PrometheusRule, CI infra checks and
+  GHCR image builds, e2e tests for v1.5/v1.6, operational runbooks and live k8s monitoring validation.
+- Versions bumped to 1.8.0 in packages, Swagger, k8s images, Helm values and the frontend constant.
 
 ## Done in v1.7.0
 
