@@ -83,7 +83,7 @@ export class CertificatesService {
     await fs.writeFile(path.join(target, 'fullchain.pem'), certificate, { mode: 0o600 });
     await fs.writeFile(path.join(target, 'privkey.pem'), privateKey, { mode: 0o600 });
 
-    let agent: any = { skipped: true };
+    let agent: any;
     try {
       agent = await this.agentClient.installCertificate(node, {
         certificate,
