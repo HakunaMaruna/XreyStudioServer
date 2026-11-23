@@ -8,14 +8,15 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 Self-hosted control panel for Xray-core: web UI, multi-node agents, clients, subscriptions,
 payments, notifications, monitoring, Docker Compose installation. Target scale: 5k users / 20 nodes.
 
-## Current state (v1.8.2, 2026-11-23)
+## Current state (v1.8.3, 2026-11-23)
 
 - Source of truth: the git repo `/tmp/opencode/XSS_REPO`
   (remote: https://github.com/HakunaMaruna/XreyStudioServer). `/work/XreyStudioServer` is a
   synced working copy for local inspection and `trail` commands, not an independent source.
-- Published: tag/release `v1.8.2`,
-  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.8.2.
-  Previous releases: `v1.8.1` (compiled startup fix), `v1.8.0` (agent stats, Helm/CI, QA), `v1.7.0`.
+- Published: tag/release `v1.8.3`,
+  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.8.3.
+  Previous releases: `v1.8.2` (secret hardening), `v1.8.1` (compiled startup fix),
+  `v1.8.0` (agent stats, Helm/CI, QA), `v1.7.0`.
   Earlier: `v1.4.1` (quota hotfix), `v1.4.0` (traffic/logs/admin UI), `v1.3.0`, `v1.2.0`, `v1.1.x`, `v1.0.0`.
 - Stack: NestJS + Prisma/PostgreSQL + Redis, Next.js 16 + React 19, Node agent, Caddy, Docker Compose.
 - Backend modules: auth (JWT + refresh + RBAC + Argon2id/bcrypt), users, nodes, inbounds, hosts,
@@ -46,6 +47,16 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
   Local PostgreSQL 16 works with `LD_PRELOAD=/tmp/opencode/libshmshim.so`, run as user `postgres`
   with PGDATA `/tmp/opencode/pgdata-e2e`.
 - GitHub push works via the credential store in `/root/.git-credentials`.
+
+## Done in v1.8.3
+
+- Triaged all 17 dependabot PRs. Merged 10: GitHub Actions (metadata-action 6, build-push-action 7,
+  setup-buildx 4, setup-kubectl 5, action-gh-release 3), @types/supertest 7, tailwind turbopack 4.3.5,
+  eslint 10, dotenv 18, plus @types/node 26, tailwindcss 4.3.5 and express 5.3.0 applied in PR #38
+  after their branches conflicted with other lockfile merges.
+- Closed 5 dependency PRs whose CI fails and need a coordinated migration: @nestjs/common 12,
+  @nestjs/passport 12, @tanstack/react-table 9, @eslint/js 10 and TypeScript 7.
+- No open PRs or issues remain. Versions bumped to 1.8.3.
 
 ## Done in v1.8.2
 
@@ -180,9 +191,9 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 
 1. Validate in a real cluster: pod rollout, in-cluster DNS `backend:3000`, `xss-backend-down`
    alert firing, Grafana ingress/TLS. Not possible in this sandbox (see constraints above).
-2. Review open dependabot PRs: patch/minor bumps and action upgrades can be merged after CI;
-   major bumps (`@nestjs/common`/`passport` 12, TypeScript 7, ESLint 10, react-table 9) fail CI
-   and need a coordinated migration before merging.
+2. Revisit the deferred major upgrades when capacity allows: NestJS 12 (`@nestjs/common` +
+   `@nestjs/passport` and the rest of the platform), TypeScript 7, `@eslint/js` 10 and
+   `@tanstack/react-table` 9. Each needs a coordinated migration and green CI.
 3. Load/soak test at the target scale (5k users / 20 nodes) before production rollout.
 4. After each change: keep `/work/XreyStudioServer` in sync with the git repo, commit, push,
    update README (ru/en), docs and this HANDOFF file. Tag a new release when the stage is complete.
