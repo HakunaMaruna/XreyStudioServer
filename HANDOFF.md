@@ -55,20 +55,25 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
   eslint 10, dotenv 18, plus @types/node 26, tailwindcss 4.3.5 and express 5.3.0 applied in PR #38
   after their branches conflicted with other lockfile merges.
 - Closed 5 dependency PRs whose CI fails and need a coordinated migration: @nestjs/common 12,
-  @nestjs/passport 12, @tanstack/react-table 9, @eslint/js 10 and TypeScript 7.
+  @nestjs/passport 12, @tanstack/react-table 9 and TypeScript 7.
 - No open PRs or issues remain. Versions bumped to 1.8.3.
 
-## Uncommitted work: scale baseline
+## Unreleased work (committed locally)
 
 - Added `backend/test/scale.pg-spec.ts` + `jest-scale-pg.json`, `npm run test:scale:pg`, and
   `docs/runbooks/load-test.md`. The check seeds 5k users / 20 nodes in a real PostgreSQL DB,
   measures paginated user reads and concurrent node traffic writes, and truncates the DB afterwards.
-- Local run (Node 20.15.1, PostgreSQL 16, in-process supertest): 100 reads, p50 140 ms / p95 229 ms;
-  20 node traffic reports (10 entries each), p50 567 ms / p95 742 ms; 0 errors, all rows persisted.
-  Full backend validation after rebuild: typecheck, lint (0 errors), 10 unit, 11 mock e2e, 12 PG e2e.
+- Local run (Node 20.15.1, PostgreSQL 16, in-process supertest): 100 reads, p50 131 ms / p95 170 ms;
+  20 node traffic reports (10 entries each), p50 426 ms / p95 573 ms; 0 errors, all rows persisted.
   Numbers exclude network/Ingress/TLS overhead; a real-cluster rollout test is still required.
 - `--runInBand`, `SCALE_*` env knobs and optional `SCALE_P95_LIMIT_MS` budget are documented in the runbook.
-- Not yet committed, pushed or released.
+- Completed the deferred `@eslint/js` 10 upgrade: PR #26 failed because `@eslint/js` 10 has a
+  `peerOptional eslint@^10` dependency, so `eslint` was bumped to `^10` too (10.15.0) in both
+  `package.json` and the lockfile. `typescript-eslint` 8.73 already supports ESLint 10; flat config
+  needed no changes. Local Node 20.15.1 only emits EBADENGINE warnings; CI's Node 20 resolves >=20.19.
+- Full backend validation with the upgraded deps: typecheck, lint (0 errors, 84 pre-existing warnings),
+  10 unit, build, 11 mock e2e, 12 PG e2e and the 5k/20 scale check — all pass.
+- Committed locally, not pushed or tagged.
 
 ## Done in v1.8.2
 
