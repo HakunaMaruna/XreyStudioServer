@@ -60,6 +60,14 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 
 ## Done in v1.8.4
 
+- Fixed HIGH audit findings: secrets are now required outside explicit `development`/`test`;
+  Compose sets `NODE_ENV=production` by default; agent port is bound to localhost only and the
+  default agent token was replaced with a placeholder; agent token comparison uses
+  `timingSafeEqual`; generated node configs only include users from the node's organization.
+- `security/AUDIT.md` added with the full read-only audit; issues #43–#47 track remaining findings.
+
+## After v1.8.4 (on main, not yet tagged)
+
 - Added `backend/test/scale.pg-spec.ts` + `jest-scale-pg.json`, `npm run test:scale:pg`, and
   `docs/runbooks/load-test.md`. The check seeds 5k users / 20 nodes in a real PostgreSQL DB,
   measures paginated user reads and concurrent node traffic writes, and truncates the DB afterwards.
@@ -73,7 +81,8 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
   needed no changes. Local Node 20.15.1 only emits EBADENGINE warnings; CI's Node 20 resolves >=20.19.
 - Full backend validation with the upgraded deps: typecheck, lint (0 errors, 84 pre-existing warnings),
   10 unit, build, 11 mock e2e, 12 PG e2e and the 5k/20 scale check — all pass.
-- Versions bumped to 1.8.4 in packages/locks, Swagger, k8s images, Helm values and the frontend constant.
+- These changes were merged after the `v1.8.4` tag, which was published by the security fix; the next
+  release should bump the version again.
 
 ## Done in v1.8.2
 

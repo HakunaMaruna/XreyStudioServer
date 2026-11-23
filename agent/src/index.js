@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const { execFile } = require('child_process');
+const { timingSafeEqual } = require('crypto');
 const si = require('systeminformation');
 
 const PANEL_URL = (process.env.PANEL_URL || 'http://localhost:3000').replace(/\/$/, '');
@@ -43,8 +44,11 @@ function run(cmd, args, timeout = 5000) {
 }
 
 function auth(req, res, next) {
-  const header = req.headers['x-agent-secret'] || (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-  if (!AGENT_SECRET || header !== AGENT_SECRET) {
+  const header = String(req.headers['x-agent-secret'] || (req.headers.authorization || '').replace(/^Bearer\s+/i, ''));
+  const expected = String(AGENT_SECRET || '');
+  const a = Buffer.from(header);
+  const b = Buffer.from(expected);
+  if (!expected || a.length !== b.length || !timingSafeEqual(a, b)) {
     return res.status(403).json({ error: 'Forbidden' });
   }
   next();
