@@ -58,6 +58,8 @@ spec:
               value: "postgres://xss:$(POSTGRES_PASSWORD)@postgres:5432/xss"
             - name: REDIS_URL
               value: "redis://redis:6379"
+            - name: AGENT_BASE_URL
+              value: "http://agent:9090"
           readinessProbe:
             httpGet:
               path: /api/health/ready
