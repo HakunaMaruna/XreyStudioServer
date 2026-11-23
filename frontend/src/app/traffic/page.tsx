@@ -12,13 +12,19 @@ import {
 } from 'recharts';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
+import { Icon } from '../../components/icons';
+import { Badge, Button, Card, Field, PageHeader, SectionTitle, formatBytes } from '../../components/ui';
 
 type SeriesPoint = { date: string; up: string; down: string; total: string };
 type UserOption = { id: string; email: string };
 
-function toGb(value: string | number) {
-  return (Number(value) / 1024 ** 3).toFixed(2);
-}
+const tooltipStyle = {
+  background: 'var(--surface-2)',
+  border: '1px solid var(--line)',
+  borderRadius: 10,
+  fontSize: 11,
+  color: 'var(--fg)',
+};
 
 export default function TrafficPage() {
   const { t } = useLang();
@@ -57,9 +63,7 @@ export default function TrafficPage() {
       .catch(() => undefined);
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const exportCsv = async () => {
     try {
@@ -72,56 +76,56 @@ export default function TrafficPage() {
   const total = series.reduce((sum, point) => sum + Number(point.total), 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold">{t.traffic}</h1>
-        <button onClick={exportCsv} className="rounded bg-blue-600 px-4 py-2 text-white">
-          {t.exportCsv}
-        </button>
-      </div>
-      {error && <p className="text-sm text-red-500">{error}</p>}
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <select
-          value={userId}
-          onChange={(e) => setUserId(e.target.value)}
-          className="rounded border px-3 py-2 dark:bg-gray-800"
-        >
-          <option value="">{t.allUsers}</option>
-          {users.map((user) => (
-            <option key={user.id} value={user.id}>{user.email}</option>
-          ))}
-        </select>
-        <input
-          type="number"
-          min={1}
-          max={90}
-          value={days}
-          onChange={(e) => setDays(Number(e.target.value) || 1)}
-          className="w-20 rounded border px-3 py-2 dark:bg-gray-800"
-          aria-label={t.periodDays}
-        />
-        <span className="text-gray-500">{t.total}: {toGb(total)} GB</span>
-      </div>
-      <div className="rounded border bg-white p-4 dark:bg-gray-900">
-        <h2 className="mb-4 font-semibold">{t.chart}</h2>
+    <>
+      <PageHeader
+        eyebrow={t.billing}
+        title={t.traffic}
+        subtitle={t.aggregatedUsage}
+        icon="activity"
+        actions={<Button icon="download" onClick={exportCsv}>{t.exportCsv}</Button>}
+      />
+
+      {error && (
+        <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+          <Icon name="alert" size={15} /> {error}
+        </div>
+      )}
+
+      <Card className="mb-5 p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <select value={userId} onChange={(e) => setUserId(e.target.value)} className="field w-auto min-w-[220px]">
+            <option value="">{t.allUsers}</option>
+            {users.map((user) => <option key={user.id} value={user.id}>{user.email}</option>)}
+          </select>
+          <Field label={t.periodDays}>
+            <input type="number" min={1} max={90} value={days} onChange={(e) => setDays(Number(e.target.value) || 1)} className="field w-24" />
+          </Field>
+          <Badge tone="brand">{t.total}: {formatBytes(total)}</Badge>
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle title={t.chart} subtitle={t.trafficOverview} />
         {loading ? (
-          <p className="text-sm text-gray-500">{t.loading}</p>
+          <div className="flex items-center justify-center gap-2 py-24 text-xs text-muted">
+            <Icon name="refresh" size={15} className="animate-spin text-brand" />{t.loading}
+          </div>
         ) : series.length === 0 ? (
-          <p className="text-sm text-gray-500">{t.noData}</p>
+          <div className="py-24 text-center text-xs text-subtle">{t.noData}</div>
         ) : (
-          <ResponsiveContainer width="100%" height={320}>
+          <ResponsiveContainer width="100%" height={340}>
             <LineChart data={series}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis tickFormatter={(value) => `${toGb(value)} GB`} />
-              <Tooltip formatter={(value: any) => [`${toGb(value)} GB`, '']} />
+              <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 3" />
+              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'var(--subtle)', fontSize: 11 }} dy={8} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--subtle)', fontSize: 11 }} tickFormatter={(value) => formatBytes(value)} />
+              <Tooltip contentStyle={tooltipStyle} formatter={(value: any) => [formatBytes(value), '']} />
               <Legend />
-              <Line type="monotone" dataKey="up" name={t.upload} stroke="#3b82f6" dot={false} />
-              <Line type="monotone" dataKey="down" name={t.downloadTraffic} stroke="#22c55e" dot={false} />
+              <Line type="monotone" dataKey="up" name={t.upload} stroke="var(--brand)" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="down" name={t.downloadTraffic} stroke="var(--success)" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         )}
-      </div>
-    </div>
+      </Card>
+    </>
   );
 }

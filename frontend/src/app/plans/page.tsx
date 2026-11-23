@@ -1,7 +1,11 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
+import DataTable from '../../components/data-table';
+import { Icon } from '../../components/icons';
+import { Badge, Button, Card, Field, Modal, PageHeader } from '../../components/ui';
 
 type PlanRow = {
   id: string;
@@ -13,21 +17,26 @@ type PlanRow = {
   createdAt: string;
 };
 
+const emptyForm = { name: '', price: 10, trafficGb: 100, durationDays: 30 };
+
 export default function PlansPage() {
   const { t } = useLang();
   const [rows, setRows] = useState<PlanRow[]>([]);
-  const [name, setName] = useState('');
-  const [price, setPrice] = useState(10);
-  const [trafficGb, setTrafficGb] = useState(100);
-  const [durationDays, setDurationDays] = useState(30);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const load = async () => {
+    setLoading(true);
     try {
       const data = await api.get('/api/payments/plans');
       setRows(Array.isArray(data) ? data : data.data || []);
     } catch (e: any) {
       setError(e.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -41,12 +50,17 @@ export default function PlansPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
+    setBusy(true);
+    setError('');
     try {
-      await api.post('/api/payments/plans', { name, price, trafficGb, durationDays });
-      setName('');
+      await api.post('/api/payments/plans', form);
+      setForm(emptyForm);
+      setOpen(false);
       await load();
     } catch (e: any) {
       setError(e.message);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -59,77 +73,90 @@ export default function PlansPage() {
     }
   };
 
+  const columns = useMemo<ColumnDef<PlanRow>[]>(
+    () => [
+      {
+        accessorKey: 'name',
+        header: t.name,
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3">
+            <div className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface-2 text-cyan"><Icon name="list" size={15} /></div>
+            <p className="font-medium text-fg">{row.original.name}</p>
+          </div>
+        ),
+      },
+      { accessorKey: 'price', header: t.price, cell: ({ row }) => <span className="font-medium text-fg tabular-nums">{Number(row.original.price).toFixed(2)}</span> },
+      { accessorKey: 'trafficGb', header: t.trafficGb, cell: ({ row }) => <span className="text-xs text-muted tabular-nums">{row.original.trafficGb} GB</span> },
+      { accessorKey: 'durationDays', header: t.durationDays, cell: ({ row }) => <span className="text-xs text-muted tabular-nums">{row.original.durationDays}</span> },
+      {
+        accessorKey: 'enabled',
+        header: t.enabled,
+        cell: ({ row }) => row.original.enabled ? <Badge tone="success" dot>{t.enabled}</Badge> : <Badge tone="neutral" dot>{t.disabled}</Badge>,
+      },
+      {
+        id: 'actions',
+        header: t.actions,
+        enableSorting: false,
+        cell: ({ row }) => (
+          <Button size="sm" variant={row.original.enabled ? 'ghost' : 'secondary'} icon={row.original.enabled ? 'power' : 'play'} onClick={() => toggle(row.original)}>
+            {row.original.enabled ? t.disable : t.enable}
+          </Button>
+        ),
+      },
+    ],
+    [t],
+  );
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t.plans}</h1>
-      {error && <p className="text-sm text-red-500">{error}</p>}
-      <form onSubmit={create} className="flex flex-wrap gap-2 rounded border bg-white p-4 dark:bg-gray-900">
-        <input
-          placeholder={t.name}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="rounded border px-3 py-2 dark:bg-gray-800"
-          required
-        />
-        <input
-          type="number"
-          min={0}
-          placeholder={t.price}
-          value={price}
-          onChange={(e) => setPrice(Number(e.target.value))}
-          className="w-24 rounded border px-3 py-2 dark:bg-gray-800"
-        />
-        <input
-          type="number"
-          min={1}
-          placeholder={t.trafficLimit}
-          value={trafficGb}
-          onChange={(e) => setTrafficGb(Number(e.target.value))}
-          className="w-28 rounded border px-3 py-2 dark:bg-gray-800"
-        />
-        <input
-          type="number"
-          min={1}
-          placeholder={t.durationDays}
-          value={durationDays}
-          onChange={(e) => setDurationDays(Number(e.target.value))}
-          className="w-28 rounded border px-3 py-2 dark:bg-gray-800"
-        />
-        <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">{t.create}</button>
-      </form>
-      <div className="overflow-x-auto rounded border bg-white dark:bg-gray-900">
-        <table className="w-full text-sm">
-          <thead className="border-b bg-gray-50 dark:bg-gray-800">
-            <tr>
-              <th className="p-2 text-left">{t.name}</th>
-              <th className="p-2 text-left">{t.price}</th>
-              <th className="p-2 text-left">{t.trafficLimit}</th>
-              <th className="p-2 text-left">{t.durationDays}</th>
-              <th className="p-2 text-left">{t.enabled}</th>
-              <th className="p-2 text-left">{t.actions}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="border-b">
-                <td className="p-2">{row.name}</td>
-                <td className="p-2">{row.price}</td>
-                <td className="p-2">{row.trafficGb} GB</td>
-                <td className="p-2">{row.durationDays}</td>
-                <td className="p-2">{row.enabled ? '✓' : '—'}</td>
-                <td className="p-2">
-                  <button onClick={() => toggle(row)} className="text-blue-500">
-                    {row.enabled ? t.disable : t.enable}
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr><td className="p-4" colSpan={6}>{t.noData}</td></tr>
-            )}
-          </tbody>
-        </table>
+    <>
+      <PageHeader
+        eyebrow={t.billing}
+        title={t.plans}
+        subtitle={t.paymentPlans}
+        icon="list"
+        actions={<Button icon="plus" variant="primary" onClick={() => { setForm(emptyForm); setOpen(true); }}>{t.createPlan}</Button>}
+      />
+
+      {error && (
+        <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+          <Icon name="alert" size={15} /> {error}
+        </div>
+      )}
+
+      <div className="mb-5 grid gap-4 sm:grid-cols-3">
+        <Card delay={0} className="flex items-center gap-3 p-4">
+          <div className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-surface-2 text-brand"><Icon name="list" size={17} /></div>
+          <div><p className="text-[10px] uppercase tracking-wider text-subtle">{t.plans}</p><p className="text-lg font-semibold text-fg tabular-nums">{rows.length}</p></div>
+        </Card>
+        <Card delay={60} className="flex items-center gap-3 p-4">
+          <div className="grid h-9 w-9 place-items-center rounded-lg border border-success/25 bg-success/10 text-success"><Icon name="checkCircle" size={17} /></div>
+          <div><p className="text-[10px] uppercase tracking-wider text-subtle">{t.enabled}</p><p className="text-lg font-semibold text-fg tabular-nums">{rows.filter((row) => row.enabled).length}</p></div>
+        </Card>
+        <Card delay={120} className="flex items-center gap-3 p-4">
+          <div className="grid h-9 w-9 place-items-center rounded-lg border border-cyan/25 bg-cyan/10 text-cyan"><Icon name="activity" size={17} /></div>
+          <div><p className="text-[10px] uppercase tracking-wider text-subtle">{t.disabled}</p><p className="text-lg font-semibold text-fg tabular-nums">{rows.filter((row) => !row.enabled).length}</p></div>
+        </Card>
       </div>
-    </div>
+
+      <DataTable data={rows} columns={columns} loading={loading} getRowId={(row) => row.id} />
+
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={t.createPlan}
+        subtitle={t.paymentPlans}
+        icon={<Icon name="list" size={16} />}
+        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="plus" onClick={create} loading={busy}>{t.create}</Button></>}
+      >
+        <form onSubmit={create} className="space-y-4">
+          <Field label={t.name}><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="field" required /></Field>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label={t.price}><input type="number" min={0} step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} className="field" required /></Field>
+            <Field label={t.trafficGb}><input type="number" min={1} value={form.trafficGb} onChange={(e) => setForm({ ...form, trafficGb: Number(e.target.value) })} className="field" required /></Field>
+            <Field label={t.durationDays}><input type="number" min={1} value={form.durationDays} onChange={(e) => setForm({ ...form, durationDays: Number(e.target.value) })} className="field" required /></Field>
+          </div>
+        </form>
+      </Modal>
+    </>
   );
 }

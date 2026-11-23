@@ -3,6 +3,9 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import { useLang } from '../../../lib/i18n';
+import { APP_VERSION } from '../../../lib/version';
+import { Icon } from '../../../components/icons';
+import { Badge, Card, CodeBlock, IconButton, SectionTitle, cn, formatBytes } from '../../../components/ui';
 
 type SubNode = { id: string; name: string; address: string };
 type SubLink = { id: string; tag: string; protocol: string; link: string };
@@ -15,90 +18,171 @@ type SubData = {
   links?: SubLink[];
 };
 
+const formats = ['raw', 'base64', 'clash', 'singbox', 'json'];
+
 export default function SubscriptionPage() {
   const { t } = useLang();
   const { token } = useParams<{ token: string }>();
   const [data, setData] = useState<SubData | null>(null);
+  const [error, setError] = useState(false);
   const [format, setFormat] = useState('json');
   const [output, setOutput] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
 
   useEffect(() => {
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
     fetch(`${apiBase}/api/subscriptions/${token}?format=json`)
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error('failed'); return r.json(); })
       .then(setData)
-      .catch(() => setData(null));
-  }, [token]);
+      .catch(() => setError(true));
+  }, [token, apiBase]);
 
   const loadFormat = async (value: string) => {
     setFormat(value);
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
     const res = await fetch(`${apiBase}/api/subscriptions/${token}?format=${value}`);
     setOutput(await res.text());
   };
 
-  if (!data) return <div className="p-6">{t.loading}</div>;
+  const copy = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  };
 
-  const statusColor = data.status === 'active' ? 'text-green-500' : 'text-red-500';
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
+  if (error || !data) {
+    return (
+      <main className="grid min-h-screen place-items-center p-6">
+        <Card className="max-w-sm text-center">
+          <div className="mx-auto mb-4 grid h-11 w-11 place-items-center rounded-xl border border-danger/25 bg-danger/10 text-danger">
+            <Icon name="alert" size={20} />
+          </div>
+          <p className="text-sm font-medium text-fg">{t.subscriptionUnavailable}</p>
+          <p className="mt-1 text-xs text-muted">{t.linkInvalid}</p>
+        </Card>
+      </main>
+    );
+  }
+
+  const active = data.status.toLowerCase() === 'active';
   const subscriptionUrl = `${apiBase}/api/subscriptions/${token}?format=base64`;
+  const used = Number(data.trafficUsed || 0);
+  const limit = Number(data.trafficLimit || 0);
+  const percent = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
 
   return (
-    <main className="mx-auto max-w-3xl space-y-6 p-6">
-      <h1 className="text-2xl font-bold">{t.subscriptionPage}</h1>
-      <div className="rounded border bg-white p-4 shadow-sm dark:bg-gray-900">
-        <p className={`font-semibold ${statusColor}`}>{t.status}: {data.status}</p>
-        <p>{t.expiry}: {data.expiresAt ? new Date(data.expiresAt).toLocaleString() : '-'}</p>
-        <p>{t.traffic}: {data.trafficUsed} / {data.trafficLimit} GB</p>
-      </div>
-
-      <div className="rounded border bg-white p-4 shadow-sm dark:bg-gray-900">
-        <h2 className="mb-2 text-lg font-semibold">{t.qrCode}</h2>
-        <div className="flex flex-wrap items-center gap-4">
-          <QRCodeSVG value={subscriptionUrl} size={160} />
-          <code className="break-all text-xs text-gray-500">{subscriptionUrl}</code>
-        </div>
-      </div>
-
-      <div className="rounded border bg-white p-4 shadow-sm dark:bg-gray-900">
-        <h2 className="mb-2 text-lg font-semibold">{t.connections}</h2>
-        {data.nodes?.map((node) => (
-          <div key={node.id} className="rounded border p-3">
-            <p className="font-medium">{node.name}</p>
-            <p className="text-sm text-gray-500">{node.address}</p>
+    <main className="relative mx-auto max-w-4xl space-y-6 px-4 py-10 sm:px-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-brand to-brand-2 text-white shadow-[0_8px_24px_-8px_var(--brand)]">
+            <Icon name="zap" size={19} />
           </div>
-        ))}
-      </div>
-
-      <div className="rounded border bg-white p-4 shadow-sm dark:bg-gray-900">
-        <h2 className="mb-2 text-lg font-semibold">{t.availableFormats}</h2>
-        <div className="flex flex-wrap gap-2">
-          {['raw', 'base64', 'clash', 'singbox', 'json'].map((item) => (
-            <button
-              key={item}
-              onClick={() => loadFormat(item)}
-              className={`rounded border px-3 py-1 ${format === item ? 'bg-blue-600 text-white' : ''}`}
-            >
-              {item}
-            </button>
-          ))}
+          <div>
+            <p className="text-sm font-semibold text-fg">XreyStudio</p>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-subtle">{t.subscriptionPage}</p>
+          </div>
         </div>
-        {output && (
-          <pre className="mt-3 max-h-64 overflow-auto rounded bg-gray-100 p-3 text-xs dark:bg-gray-800">{output}</pre>
-        )}
+        <Badge tone={active ? 'success' : 'danger'} dot>{data.status.toUpperCase()}</Badge>
       </div>
 
-      <div className="rounded border bg-white p-4 shadow-sm dark:bg-gray-900">
-        <h2 className="mb-2 text-lg font-semibold">{t.links}</h2>
-        <div className="space-y-2">
-          {data.links?.map((link) => (
-            <div key={link.id} className="rounded border p-2">
-              <p className="text-xs font-medium">{link.tag} ({link.protocol})</p>
-              <code className="break-all text-xs">{link.link}</code>
+      <Card>
+        <div className="grid gap-6 sm:grid-cols-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-subtle">{t.status}</p>
+            <p className={cn('mt-2 text-lg font-semibold', active ? 'text-success' : 'text-danger')}>{data.status}</p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-subtle">{t.expiry}</p>
+            <p className="mt-2 text-sm font-medium text-fg">{data.expiresAt ? new Date(data.expiresAt).toLocaleDateString() : '—'}</p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-subtle">{t.traffic}</p>
+            <p className="mt-2 text-sm font-medium text-fg tabular-nums">{formatBytes(used)} <span className="text-subtle">/ {limit ? formatBytes(limit) : '∞'}</span></p>
+            {limit > 0 && (
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-3">
+                <div className={cn('h-full rounded-full', percent > 85 ? 'bg-danger' : 'bg-brand')} style={{ width: `${percent}%` }} />
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle title={t.qrCode} subtitle={t.scanClient} />
+        <div className="flex flex-wrap items-center gap-5">
+          <div className="rounded-xl border border-line bg-white p-3">
+            <QRCodeSVG value={subscriptionUrl} size={140} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="mb-2 text-[10px] uppercase tracking-wider text-subtle">{t.subscriptionUrl}</p>
+            <div className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 p-2">
+              <code className="mono min-w-0 flex-1 truncate text-[11px] text-muted">{subscriptionUrl}</code>
+              <IconButton icon={copied ? 'check' : 'copy'} label={t.copy} tone={copied ? 'brand' : 'default'} onClick={() => copy(subscriptionUrl)} />
             </div>
-          ))}
+            <p className="mt-2 text-[11px] text-subtle">{t.keepPrivate}</p>
+          </div>
         </div>
+      </Card>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <SectionTitle title={t.availableFormats} subtitle="Choose the config format for your client" />
+          <div className="flex flex-wrap gap-2">
+            {formats.map((item) => (
+              <button
+                key={item}
+                onClick={() => loadFormat(item)}
+                className={cn(
+                  'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
+                  format === item ? 'border-brand/40 bg-brand-soft text-brand' : 'border-line bg-surface-2 text-muted hover:text-fg',
+                )}
+              >
+                {item.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          {output && <CodeBlock className="mt-4">{output}</CodeBlock>}
+        </Card>
+
+        <Card>
+          <SectionTitle title={t.connections} subtitle={t.locationsSubtitle} />
+          {data.nodes?.length ? (
+            <div className="space-y-2">
+              {data.nodes.map((node) => (
+                <div key={node.id} className="flex items-center gap-3 rounded-lg border border-line bg-surface-2/50 p-3">
+                  <div className="grid h-8 w-8 place-items-center rounded-lg border border-cyan/25 bg-cyan/10 text-cyan"><Icon name="server" size={15} /></div>
+                  <div>
+                    <p className="text-xs font-medium text-fg">{node.name}</p>
+                    <p className="mono text-[10px] text-subtle">{node.address}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="py-8 text-center text-xs text-subtle">{t.noNodesAssigned}</p>
+          )}
+        </Card>
       </div>
+
+      {data.links?.length ? (
+        <Card>
+          <SectionTitle title={t.links} subtitle={t.individualLinks} />
+          <div className="space-y-2">
+            {data.links.map((link) => (
+              <div key={link.id} className="flex items-center gap-3 rounded-lg border border-line bg-surface-2/50 p-3">
+                <Badge tone="brand">{link.protocol.toUpperCase()}</Badge>
+                <span className="text-xs font-medium text-fg">{link.tag}</span>
+                <code className="mono ml-auto min-w-0 max-w-[60%] truncate text-[10px] text-subtle">{link.link}</code>
+                <IconButton icon="copy" label={t.copy} onClick={() => copy(link.link)} />
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
+
+      <p className="pb-6 text-center text-[10px] text-subtle">{t.poweredBy} · v{APP_VERSION}</p>
     </main>
   );
 }

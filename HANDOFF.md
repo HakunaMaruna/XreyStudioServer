@@ -8,15 +8,14 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 Self-hosted control panel for Xray-core: web UI, multi-node agents, clients, subscriptions,
 payments, notifications, monitoring, Docker Compose installation. Target scale: 5k users / 20 nodes.
 
-## Current state (v1.5.0, 2026-11-23)
+## Current state (v1.6.0, 2026-11-23)
 
 - Source of truth: `/work/XreyStudioServer` (working copy) and the git repo
   `/tmp/opencode/XSS_REPO` (remote: https://github.com/HakunaMaruna/XreyStudioServer).
-- Published: tag/release `v1.5.0`,
-  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.5.0,
-  bundle `/work/XreyStudioServer/XSS_v1.5.0.bundle` (attached to the release).
-  Previous releases: `v1.4.1` (quota status hotfix), `v1.4.0` (traffic, logs, admin UI), `v1.3.0` (notifications, alert history,
-  sorting, real PostgreSQL e2e), `v1.2.0`, `v1.1.1`, `v1.1.0`, `v1.0.0`.
+- Published: tag/release `v1.6.0`,
+  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.6.0.
+  Previous releases: `v1.5.0` (backups UI, CSV, Redis throttling, k8s monitoring), `v1.4.1`, `v1.4.0`.
+  Earlier: `v1.4.1` (quota hotfix), `v1.4.0` (traffic/logs/admin UI), `v1.3.0`, `v1.2.0`, `v1.1.x`, `v1.0.0`.
 - Stack: NestJS + Prisma/PostgreSQL + Redis, Next.js 16 + React 19, Node agent, Caddy, Docker Compose.
 - Backend modules: auth (JWT + refresh + RBAC + Argon2id/bcrypt), users, nodes, inbounds, hosts,
   rules, config generator (revisions/apply/rollback), subscriptions (raw/base64/clash/singbox/json),
@@ -42,6 +41,16 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
   run locally (CI builds the images). Node here is v20.15.1; Next 16 wants >=20.19, but the
   production build passed.
 - GitHub push works via the credential store in `/root/.git-credentials`.
+
+## Done in v1.6.0
+
+- Ported the dark SaaS admin design onto the v1.5.0 codebase: design tokens in `globals.css`,
+  reusable UI kit and icon set, sidebar/topbar shell, page search, modal forms, animations and
+  full RU/EN dictionaries. `globals.css` is now imported in the root layout.
+- Restyled every admin page including main-only plans and traffic pages (CSV export, chart),
+  backups with restore, node health/logs and editable inbounds.
+- Kept all v1.5.0 backend/infra features intact; bumped versions to 1.6.0 in packages,
+  Swagger, k8s image tags and the frontend version constant.
 
 ## Done in v1.5.0
 
