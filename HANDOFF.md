@@ -8,13 +8,15 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 Self-hosted control panel for Xray-core: web UI, multi-node agents, clients, subscriptions,
 payments, notifications, monitoring, Docker Compose installation. Target scale: 5k users / 20 nodes.
 
-## Current state (v1.8.0, 2026-11-23)
+## Current state (v1.8.1, 2026-11-23)
 
-- Source of truth: `/work/XreyStudioServer` (working copy) and the git repo
-  `/tmp/opencode/XSS_REPO` (remote: https://github.com/HakunaMaruna/XreyStudioServer).
-- Published: tag/release `v1.8.0`,
-  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.8.0.
-  Previous releases: `v1.7.0` (backup schedules + reports), `v1.6.0` (dark SaaS UI), `v1.5.0`.
+- Source of truth: the git repo `/tmp/opencode/XSS_REPO`
+  (remote: https://github.com/HakunaMaruna/XreyStudioServer). `/work/XreyStudioServer` is a
+  synced working copy for local inspection and `trail` commands, not an independent source.
+- Published: tag/release `v1.8.1`,
+  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.8.1.
+  Previous releases: `v1.8.0` (agent traffic stats), `v1.7.0` (backup schedules + reports),
+  `v1.6.0` (dark SaaS UI), `v1.5.0`.
   Earlier: `v1.4.1` (quota hotfix), `v1.4.0` (traffic/logs/admin UI), `v1.3.0`, `v1.2.0`, `v1.1.x`, `v1.0.0`.
 - Stack: NestJS + Prisma/PostgreSQL + Redis, Next.js 16 + React 19, Node agent, Caddy, Docker Compose.
 - Backend modules: auth (JWT + refresh + RBAC + Argon2id/bcrypt), users, nodes, inbounds, hosts,
@@ -40,7 +42,24 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 - Docker/kubectl are not installed here, so image builds and `kubectl apply --dry-run` cannot be
   run locally (CI builds the images). Node here is v20.15.1; Next 16 wants >=20.19, but the
   production build passed.
+- kind/k3s cannot run in this sandbox (`CapEff=0`, no `/dev/shm`); cluster rollout, in-cluster
+  DNS (`backend:3000`), the `xss-backend-down` rule and Grafana ingress/TLS need a real cluster.
+  Local PostgreSQL 16 works with `LD_PRELOAD=/tmp/opencode/libshmshim.so`, run as user `postgres`
+  with PGDATA `/tmp/opencode/pgdata-e2e`.
 - GitHub push works via the credential store in `/root/.git-credentials`.
+
+## Done in v1.8.1
+
+- Fixed issue #16: `backend/tsconfig.json` now sets `esModuleInterop: true`, so the compiled
+  `dist/main.js` calls `cookie-parser`/`helmet` correctly instead of throwing
+  `cookie_parser_1.default is not a function`. v1.8.0 images could not start; v1.8.1 can.
+- Added `backend/test/compiled-main.e2e-spec.ts`: loads the built entrypoint with NestFactory,
+  Swagger and AppModule mocked and asserts both global middleware registrations. It fails when
+  the flag is removed. Supertest imports in e2e specs became default imports as required by
+  `esModuleInterop`.
+- Merged PR #13 (v1.5/v1.6 PostgreSQL e2e), #9 (Helm chart), #10 (CI/GHCR/dependabot),
+  #14 (runbooks) and #15 (k8s monitoring validation). All tracked issues are closed.
+- Versions bumped to 1.8.1 in packages, Swagger, k8s images, Helm values and the frontend constant.
 
 ## Done in v1.8.0
 
@@ -154,11 +173,14 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 
 ## Remaining plan (next work)
 
-1. Backup schedules and retention policies configurable from the UI.
-2. Organization-level and per-protocol reporting.
-3. Helm chart / integration with an existing Prometheus Operator.
-4. After each change: sync edited files into `/tmp/opencode/XSS_REPO`, commit, push, update
-   README (ru/en), docs and this HANDOFF file. Tag a new release when the stage is complete.
+1. Validate in a real cluster: pod rollout, in-cluster DNS `backend:3000`, `xss-backend-down`
+   alert firing, Grafana ingress/TLS. Not possible in this sandbox (see constraints above).
+2. Review open dependabot PRs: patch/minor bumps and action upgrades can be merged after CI;
+   major bumps (`@nestjs/common`/`passport` 12, TypeScript 7, ESLint 10, react-table 9) fail CI
+   and need a coordinated migration before merging.
+3. Load/soak test at the target scale (5k users / 20 nodes) before production rollout.
+4. After each change: keep `/work/XreyStudioServer` in sync with the git repo, commit, push,
+   update README (ru/en), docs and this HANDOFF file. Tag a new release when the stage is complete.
 
 ## Commands
 
