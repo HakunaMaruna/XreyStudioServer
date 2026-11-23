@@ -84,6 +84,11 @@ keep exports within that cap. Headers:
 
 All report endpoints require an `ADMIN` JWT.
 
+## Routing profiles
+
+- `GET /routing` — list routing/geodata profiles
+- `POST /routing`, `PATCH /routing/:id`, `DELETE /routing/:id` — manage profiles (JSON payload)
+
 ## Panel settings
 
 - `GET /settings` — current panel settings (ADMIN only)

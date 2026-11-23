@@ -67,6 +67,15 @@ export class SubscriptionsService {
         if (settings.peers?.[0]?.public_key) external.set('peerkey', settings.peers[0].public_key);
         return `wireguard://${host}:${port}?${external.toString()}#${tag}`;
       }
+      case 'socks':
+      case 'http':
+      case 'mixed': {
+        const scheme = inbound.protocol === 'mixed' ? 'http' : inbound.protocol;
+        const creds = this.encodeBase64(`${user.email}:${user.subscriptionToken}`);
+        const external = new URLSearchParams();
+        if (settings.sni) external.set('sni', settings.sni);
+        return `${scheme}://${creds}@${host}:${port}?${external.toString()}#${tag}`;
+      }
       case 'vmess': {
         const vmess = {
           v: '2',

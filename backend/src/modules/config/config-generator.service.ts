@@ -164,6 +164,25 @@ export class ConfigGeneratorService {
 
     const inbounds = xrayInbounds.map((inbound) => {
       const settings = (inbound.settings || {}) as any;
+      if (['socks', 'http', 'mixed', 'dokodemo-door'].includes(inbound.protocol)) {
+        const selected = inbound.userId
+          ? users.filter((u) => u.id === inbound.userId)
+          : users;
+        return {
+          tag: inbound.tag,
+          listen: inbound.listen || settings.listen || '0.0.0.0',
+          port: inbound.port,
+          protocol: inbound.protocol === 'http' ? 'http' : inbound.protocol === 'mixed' ? 'mixed' : inbound.protocol === 'dokodemo-door' ? 'dokodemo-door' : 'socks',
+          settings: {
+            ...settings,
+            auth: 'password',
+            accounts: selected.map((u) => ({ user: u.email, pass: u.subscriptionToken })),
+            ...(inbound.protocol === 'mixed' ? { udp: true } : {}),
+            ...(inbound.protocol === 'dokodemo-door' ? { address: settings.forwardAddress || '0.0.0.0', port: settings.forwardPort || inbound.port, network: 'tcp,udp' } : {}),
+          },
+          sniffing: { enabled: true, destOverride: ['http', 'tls', 'quic'] },
+        };
+      }
       const selected = inbound.userId
         ? users.filter((u) => u.id === inbound.userId)
         : users;
