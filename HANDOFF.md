@@ -8,14 +8,14 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 Self-hosted control panel for Xray-core: web UI, multi-node agents, clients, subscriptions,
 payments, notifications, monitoring, Docker Compose installation. Target scale: 5k users / 20 nodes.
 
-## Current state (v1.8.3, 2026-11-23)
+## Current state (v1.8.4, 2026-11-23)
 
 - Source of truth: the git repo `/tmp/opencode/XSS_REPO`
   (remote: https://github.com/HakunaMaruna/XreyStudioServer). `/work/XreyStudioServer` is a
   synced working copy for local inspection and `trail` commands, not an independent source.
-- Published: tag/release `v1.8.3`,
-  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.8.3.
-  Previous releases: `v1.8.2` (secret hardening), `v1.8.1` (compiled startup fix),
+- Published: tag/release `v1.8.4`,
+  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.8.4.
+  Previous releases: `v1.8.3` (dependency updates), `v1.8.2` (secret hardening), `v1.8.1` (compiled startup fix),
   `v1.8.0` (agent stats, Helm/CI, QA), `v1.7.0`.
   Earlier: `v1.4.1` (quota hotfix), `v1.4.0` (traffic/logs/admin UI), `v1.3.0`, `v1.2.0`, `v1.1.x`, `v1.0.0`.
 - Stack: NestJS + Prisma/PostgreSQL + Redis, Next.js 16 + React 19, Node agent, Caddy, Docker Compose.
@@ -58,7 +58,7 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
   @nestjs/passport 12, @tanstack/react-table 9 and TypeScript 7.
 - No open PRs or issues remain. Versions bumped to 1.8.3.
 
-## Unreleased work (committed locally)
+## Done in v1.8.4
 
 - Added `backend/test/scale.pg-spec.ts` + `jest-scale-pg.json`, `npm run test:scale:pg`, and
   `docs/runbooks/load-test.md`. The check seeds 5k users / 20 nodes in a real PostgreSQL DB,
@@ -73,7 +73,7 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
   needed no changes. Local Node 20.15.1 only emits EBADENGINE warnings; CI's Node 20 resolves >=20.19.
 - Full backend validation with the upgraded deps: typecheck, lint (0 errors, 84 pre-existing warnings),
   10 unit, build, 11 mock e2e, 12 PG e2e and the 5k/20 scale check — all pass.
-- Committed locally, not pushed or tagged.
+- Versions bumped to 1.8.4 in packages/locks, Swagger, k8s images, Helm values and the frontend constant.
 
 ## Done in v1.8.2
 
