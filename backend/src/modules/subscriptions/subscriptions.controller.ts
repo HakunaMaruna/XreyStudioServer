@@ -5,30 +5,36 @@ import { SubscriptionsService } from './subscriptions.service';
 export class SubscriptionsController {
   constructor(private service: SubscriptionsService) {}
 
+  private send(res: any, type: string, body: any) {
+    res.setHeader('Cache-Control', 'no-store, private');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    return res.type(type).send(body);
+  }
+
   @Get(':token/raw')
   async raw(@Param('token') token: string, @Res() res: any) {
-    res.type('text/plain').send(await this.service.raw(token));
+    return this.send(res, 'text/plain', await this.service.raw(token));
   }
 
   @Get(':token/base64')
   async base64(@Param('token') token: string, @Res() res: any) {
-    res.type('text/plain').send(await this.service.base64(token));
+    return this.send(res, 'text/plain', await this.service.base64(token));
   }
 
   @Get(':token/clash')
   async clash(@Param('token') token: string, @Res() res: any) {
-    res.type('text/yaml').send(await this.service.clash(token));
+    return this.send(res, 'text/yaml', await this.service.clash(token));
   }
 
   @Get(':token/singbox')
   async singbox(@Param('token') token: string, @Res() res: any) {
-    res.type('application/json').send(await this.service.singbox(token));
+    return this.send(res, 'application/json', await this.service.singbox(token));
   }
 
   @Get(':token/json')
-  async getJson(@Param('token') token: string) {
+  async getJson(@Param('token') token: string, @Res() res: any) {
     await this.service.assertUsable(token);
-    return this.service.json(token);
+    return this.send(res, 'application/json', await this.service.json(token));
   }
 
   @Get(':token')
@@ -44,15 +50,16 @@ export class SubscriptionsController {
 
     switch (selected) {
       case 'raw':
-        return res.type('text/plain').send(await this.service.raw(token));
+        return this.send(res, 'text/plain', await this.service.raw(token));
       case 'base64':
-        return res.type('text/plain').send(await this.service.base64(token));
+        return this.send(res, 'text/plain', await this.service.base64(token));
       case 'clash':
-        return res.type('text/yaml').send(await this.service.clash(token));
+        return this.send(res, 'text/yaml', await this.service.clash(token));
       case 'singbox':
-        return res.type('application/json').send(await this.service.singbox(token));
+        return this.send(res, 'application/json', await this.service.singbox(token));
       default:
-        return res.json(await this.service.json(token));
+        await this.service.assertUsable(token);
+        return this.send(res, 'application/json', await this.service.json(token));
     }
   }
 }

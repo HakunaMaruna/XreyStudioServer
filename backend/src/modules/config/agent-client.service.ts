@@ -1,12 +1,43 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { readFileSync } from 'fs';
 import * as http from 'http';
 import * as https from 'https';
 import { URL } from 'url';
+import { isIP } from 'net';
+
+function isPrivateHost(host: string) {
+  if (host === 'localhost' || host === '0.0.0.0' || host === '::' || host === '::1') return true;
+  if (isIP(host) !== 4) return false;
+  const parts = host.split('.').map(Number);
+  return (
+    parts[0] === 10 ||
+    (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+    (parts[0] === 192 && parts[1] === 168) ||
+    parts[0] === 169 && parts[1] === 254 ||
+    parts[0] === 127
+  );
+}
 
 @Injectable()
 export class AgentClientService {
   private readonly logger = new Logger(AgentClientService.name);
+
+  private base(node: { address: string; agentUrl?: string | null }) {
+    const raw = node.agentUrl || `http://${node.address}:9090`;
+    let url: URL;
+    try {
+      url = new URL(raw);
+    } catch {
+      throw new BadRequestException('Invalid agent URL');
+    }
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      throw new BadRequestException('Agent URL must use http or https');
+    }
+    if (process.env.ALLOW_PRIVATE_AGENT_URLS !== 'true' && isPrivateHost(url.hostname)) {
+      throw new BadRequestException('Private agent URLs are not allowed');
+    }
+    return raw.replace(/\/$/, '');
+  }
 
   private request(url: string, payload: any, timeoutMs = 5000, method = 'POST'): Promise<any> {
     return new Promise((resolve, reject) => {
@@ -56,7 +87,7 @@ export class AgentClientService {
   }
 
   async applyConfig(node: { address: string; agentUrl?: string | null }, config: any, version: number) {
-    const base = node.agentUrl || `http://${node.address}:9090`;
+    const base = this.base(node);
     try {
       return await this.request(`${base.replace(/\/$/, '')}/config`, { version, config });
     } catch (e: any) {
@@ -66,7 +97,7 @@ export class AgentClientService {
   }
 
   async restart(node: { address: string; agentUrl?: string | null }) {
-    const base = node.agentUrl || `http://${node.address}:9090`;
+    const base = this.base(node);
     return this.request(`${base.replace(/\/$/, '')}/restart-xray`, {});
   }
 
@@ -75,7 +106,7 @@ export class AgentClientService {
     service: 'xray' | 'singbox',
     lines: number,
   ) {
-    const base = node.agentUrl || `http://${node.address}:9090`;
+    const base = this.base(node);
     const query = new URLSearchParams({ service, lines: String(lines) });
     return this.request(`${base.replace(/\/$/, '')}/logs?${query}`, undefined, 15000, 'GET');
   }

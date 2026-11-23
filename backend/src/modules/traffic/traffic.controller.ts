@@ -23,21 +23,21 @@ export class TrafficController {
 
   @Get('traffic/chart')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(Role.ADMIN, Role.OPERATOR)
+  @Roles(Role.ADMIN)
   chart(@Query() query: { userId?: string; days?: string }) {
     return this.service.chart(query);
   }
 
   @Get('traffic/export.csv')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(Role.ADMIN, Role.OPERATOR)
+  @Roles(Role.ADMIN)
   async export(@Query() query: { userId?: string; from?: string; to?: string }, @Res() res: any) {
     sendCsv(res, 'traffic.csv', await this.service.exportCsv(query));
   }
 
   @Get('traffic')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(Role.ADMIN, Role.OPERATOR)
+  @Roles(Role.ADMIN)
   history(@Query() query: { userId?: string; page?: string; limit?: string }) {
     return this.service.history(query);
   }

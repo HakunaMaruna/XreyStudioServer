@@ -59,6 +59,9 @@ export class NodesService {
   }
 
   async create(dto: CreateNodeDto, actor: AuthUser) {
+    if (actor.role !== Role.ADMIN && dto.organizationId && dto.organizationId !== actor.organizationId) {
+      throw new ForbiddenException('Cannot assign a node to another organization');
+    }
     const agentToken = randomBytes(32).toString('hex');
     const node = await this.prisma.node.create({
       data: {
@@ -81,6 +84,9 @@ export class NodesService {
     if (dto.port !== undefined) data.port = dto.port;
     if (dto.agentUrl !== undefined) data.agentUrl = dto.agentUrl;
     if (dto.organizationId !== undefined) {
+      if (actor.role !== Role.ADMIN && dto.organizationId !== actor.organizationId) {
+        throw new ForbiddenException('Cannot move a node to another organization');
+      }
       data.organization = dto.organizationId
         ? { connect: { id: dto.organizationId } }
         : { disconnect: true };
