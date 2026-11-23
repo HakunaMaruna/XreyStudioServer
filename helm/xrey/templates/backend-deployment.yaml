@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "xrey.fullname" . }}-backend
+  labels:
+    {{- include "xrey.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels:
+      {{- include "xrey.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        {{- include "xrey.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: backend
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.backend.migrate }}
+      initContainers:
+        - name: migrate
+          image: {{ include "xrey.image" .Values.image.backend | quote }}
+          imagePullPolicy: {{ .Values.image.backend.pullPolicy }}
+          command: ["npx", "prisma", "db", "push", "--skip-generate"]
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  {{- include "xrey.secretRef" (dict "Values" .Values "key" "postgresPassword") | nindent 18 }}
+            - name: DATABASE_URL
+              value: {{ include "xrey.databaseUrl" . | quote }}
+          {{- with .Values.backend.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- end }}
+      containers:
+        - name: backend
+          image: {{ include "xrey.image" .Values.image.backend | quote }}
+          imagePullPolicy: {{ .Values.image.backend.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: {{ include "xrey.fullname" . }}-config
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  {{- include "xrey.secretRef" (dict "Values" .Values "key" "postgresPassword") | nindent 18 }}
+            - name: DATABASE_URL
+              value: {{ include "xrey.databaseUrl" . | quote }}
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  {{- include "xrey.secretRef" (dict "Values" .Values "key" "jwtSecret") | nindent 18 }}
+            - name: JWT_REFRESH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  {{- include "xrey.secretRef" (dict "Values" .Values "key" "jwtRefreshSecret") | nindent 18 }}
+            - name: ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  {{- include "xrey.secretRef" (dict "Values" .Values "key" "adminEmail") | nindent 18 }}
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  {{- include "xrey.secretRef" (dict "Values" .Values "key" "adminPassword") | nindent 18 }}
+            - name: AGENT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  {{- include "xrey.secretRef" (dict "Values" .Values "key" "agentToken") | nindent 18 }}
+            - name: ALERT_WEBHOOK_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  {{- include "xrey.secretRef" (dict "Values" .Values "key" "alertWebhookToken") | nindent 18 }}
+            - name: STRIPE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  {{- include "xrey.secretRef" (dict "Values" .Values "key" "stripeSecretKey") | nindent 18 }}
+            - name: STRIPE_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  {{- include "xrey.secretRef" (dict "Values" .Values "key" "stripeWebhookSecret") | nindent 18 }}
+            - name: METRICS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  {{- include "xrey.secretRef" (dict "Values" .Values "key" "metricsToken") | nindent 18 }}
+          {{- with .Values.backend.extraVolumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /api/health/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health/live
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          {{- with .Values.backend.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.backend.extraVolumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
