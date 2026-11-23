@@ -21,13 +21,13 @@ config:
 image:
   backend:
     repository: ghcr.io/hakunamaruna/xss-backend
-    tag: "2.4.0"
+    tag: "2.4.1"
   frontend:
     repository: ghcr.io/hakunamaruna/xss-frontend
-    tag: "2.4.0"
+    tag: "2.4.1"
   agent:
     repository: ghcr.io/hakunamaruna/xss-agent
-    tag: "2.4.0"
+    tag: "2.4.1"
 
 backend:
   replicas: 3

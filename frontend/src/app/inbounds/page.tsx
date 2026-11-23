@@ -315,7 +315,13 @@ export default function InboundsPage() {
                   {SECURITIES.map((p) => <option key={p} value={p}>{p.toUpperCase()}</option>)}
                 </select>
               </Field>
-              <Field label={t.flow}><input value={form.flow} onChange={(e) => setForm({ ...form, flow: e.target.value })} className="field" placeholder="xtls-rprx-vision" /></Field>
+              <Field label={t.flow}>
+                <select value={form.flow} onChange={(e) => setForm({ ...form, flow: e.target.value })} className="field">
+                  <option value="">{t.none}</option>
+                  <option value="xtls-rprx-vision">xtls-rprx-vision</option>
+                  <option value="xtls-rprx-vision-udp443">xtls-rprx-vision-udp443</option>
+                </select>
+              </Field>
             </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-3">
               <Field label={t.path}><input value={form.path} onChange={(e) => setForm({ ...form, path: e.target.value })} className="field" /></Field>
