@@ -57,7 +57,20 @@ All admin endpoints require `Authorization: Bearer <accessToken>` and, where not
 - `POST /payments/webhook` — Stripe webhook; requires a valid `Stripe-Signature` header and
   `STRIPE_WEBHOOK_SECRET` on the server
 - `GET /traffic?userId=&page=&limit=` — per-user traffic report history with byte totals (ADMIN/OPERATOR)
+- `GET /traffic/chart?userId=&days=1..90` — traffic for the last `days` UTC days, grouped by day
+  (ADMIN/OPERATOR). Response: `{ days, series: [{ date, up, down, total }], total }`; byte values
+  are decimal strings.
+- `GET /traffic/export.csv?userId=&from=&to=` — traffic rows as CSV (ADMIN/OPERATOR)
 - `GET /audit?page=&limit=&entity=&action=&userId=` — audit log with filters (ADMIN/OPERATOR)
+- `GET /audit/export.csv?entity=&userId=&action=&from=&to=` — audit rows as CSV (ADMIN/OPERATOR)
+- `GET /payments/export.csv?from=&to=` — payments as CSV (ADMIN/OPERATOR)
+
+CSV endpoints return `text/csv` with a header row and at most 10 000 rows; narrow `from`/`to` to
+keep exports within that cap. Headers:
+
+- traffic: `createdAt,userId,nodeId,period,bytesUp,bytesDown,total`
+- audit: `createdAt,userId,action,entity,entityId,ip,metadata`
+- payments: `createdAt,userId,email,amount,currency,status,provider,plan,externalId`
 
 ## Operations
 
@@ -72,7 +85,24 @@ All admin endpoints require `Authorization: Bearer <accessToken>` and, where not
   `METRICS_TOKEN` is set
 - `GET /health`, `GET /health/live`, `GET /health/ready` — health checks
 
+## Backups API
+
+All endpoints in this section are ADMIN-only and require JWT. Backups are gzip-compressed
+`pg_dump` snapshots named `db-YYYYMMDD-HHMMSS.sql.gz`, stored in `BACKUP_DIR` (default `backups`)
+and pruned to the last `BACKUP_KEEP` archives (default 7). The backend image includes
+`postgresql-client` (`pg_dump`/`psql`), and Docker Compose mounts the host `./backups` directory
+at `/app/backups` in the backend container, so the CLI and the UI share the same files.
+
+- `GET /backups` — list backups: `{ data: [{ name, size, createdAt }], total }`
+- `POST /backups` — create a snapshot; returns `{ name, size }`
+- `GET /backups/:name/download` — download the `.sql.gz` file (binary)
+- `DELETE /backups/:name` — delete a backup
+- `POST /backups/:name/restore` — restore via `psql` into `DATABASE_URL`; body
+  `{ "confirm": true }` is required. Restoring overwrites the current database.
+
 All other endpoints use the global limit configured by `THROTTLE_LIMIT`/`THROTTLE_TTL`
-(120 requests/minute by default).
+(120 requests/minute by default), with per-route `@Throttle` overrides where noted. Rate limiting
+is backed by Redis (`REDIS_URL`) and falls back to in-memory storage when Redis is unset or
+unavailable; the configured limits still apply.
 
 Swagger UI: `/docs`

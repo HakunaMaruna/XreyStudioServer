@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { UserStatus } from '@prisma/client';
+import { toCsv } from '../../common/csv';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -22,6 +23,34 @@ export class PaymentsService {
       take: 100,
       include: { plan: true },
     });
+  }
+
+  async exportCsv(params: { from?: string; to?: string }) {
+    const where: any = {};
+    const from = params.from ? new Date(params.from) : null;
+    const to = params.to ? new Date(params.to) : null;
+    if (from && !Number.isNaN(from.getTime())) where.createdAt = { ...(where.createdAt || {}), gte: from };
+    if (to && !Number.isNaN(to.getTime())) where.createdAt = { ...(where.createdAt || {}), lte: to };
+    const rows = await this.prisma.payment.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 10_000,
+      include: { plan: true, user: true },
+    });
+    return toCsv(
+      ['createdAt', 'userId', 'email', 'amount', 'currency', 'status', 'provider', 'plan', 'externalId'],
+      rows.map((row) => [
+        new Date(row.createdAt).toISOString(),
+        row.userId,
+        row.user?.email || '',
+        row.amount.toString(),
+        row.currency,
+        row.status,
+        row.provider,
+        row.plan?.name || '',
+        row.externalId || '',
+      ]),
+    );
   }
 
   plans() {

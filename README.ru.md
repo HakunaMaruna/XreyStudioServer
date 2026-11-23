@@ -32,6 +32,8 @@ Self-hosted панель управления **Xray-core** с агентами 
 - Учёт трафика пользователей по отчётам нод с хранением по периодам и автоматическим лимитом.
 - UI аудита, организаций, платежей, тарифов, редактирование inbound и просмотр логов нод.
 - Оплаченный тариф автоматически активирует пользователя, сбрасывает трафик и задаёт срок действия.
+- Управление бэкапами и восстановлением в UI, дневные графики трафика и экспорт отчётов в CSV.
+- Глобальный rate limiting через Redis (общий для реплик) с переходом на память при недоступности Redis.
 
 ## Архитектура
 
@@ -147,7 +149,8 @@ make logs        # логи
 make update      # pull, rebuild, restart
 make backup      # сжатый дамп PostgreSQL (последние 7 копий)
 make restore FILE=backups/db-YYYYMMDD-HHMMSS.sql.gz
-make monitoring  # запустить Prometheus + Grafana
+make monitoring     # запустить Prometheus + Grafana
+make k8s-monitoring # обновить ConfigMap'ы мониторинга для Kubernetes из monitoring/
 ```
 
 Обновление: `make update` (пересборка и перезапуск), схема БД применяется автоматически через
@@ -172,7 +175,7 @@ AGENT_TOKEN=random-agent-token
 CORS_ORIGIN=https://example.com
 ```
 
-Опционально: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (обязателен для Stripe-вебхуков), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` по умолчанию, `bcrypt` для новых хешей), `ALERT_WEBHOOK_TOKEN` (общий секрет для алертов Grafana), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS с агентами), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (не-Xray протоколы), `XRAY_LOG_PATH`/`SINGBOX_LOG_PATH` (резервный источник логов агента, если нет `journalctl`).
+Опционально: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (обязателен для Stripe-вебхуков), `METRICS_TOKEN`, `REDIS_URL` (общий rate limiting; при отсутствии — память), `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` по умолчанию, `bcrypt` для новых хешей), `ALERT_WEBHOOK_TOKEN` (общий секрет для алертов Grafana), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS с агентами), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (не-Xray протоколы), `XRAY_LOG_PATH`/`SINGBOX_LOG_PATH` (резервный источник логов агента, если нет `journalctl`).
 
 ## API
 
@@ -195,8 +198,15 @@ GET  /api/subscriptions/:token/base64
 POST /api/nodes/:id/traffic
 GET  /api/nodes/:id/logs
 GET  /api/traffic
+GET  /api/traffic/chart
+GET  /api/traffic/export.csv
 GET  /api/audit
+GET  /api/audit/export.csv
+GET  /api/payments/export.csv
 GET  /api/payments/plans
+GET  /api/backups
+POST /api/backups
+POST /api/backups/:name/restore
 GET  /api/metrics
 POST /api/payments/webhook
 GET  /api/health
@@ -227,7 +237,7 @@ https://<domain>/sub/<token>
 - HTTPS обязателен (Caddy).
 - JWT access + refresh токены.
 - Хеширование паролей Argon2id (существующие bcrypt-хеши продолжают работать).
-- Глобальный rate limiting API + отдельные лимиты на логин/refresh.
+- Глобальный rate limiting API через Redis (резерв — память) + отдельные лимиты на логин/refresh.
 - Проверка подписи Stripe-вебхуков (HMAC-SHA256, допуск 5 минут).
 - Защита от CSRF/XSS/SQL-инъекций/IDOR.
 - Шифрование секретов нод в БД.
@@ -240,7 +250,7 @@ https://<domain>/sub/<token>
 - Встроенные метрики нод: CPU, RAM, диск, трафик, активные подключения, состояние Xray.
 - Health checks и алерты при недоступности нод.
 - Prometheus-совместимый endpoint `GET /api/metrics` (при публичном доступе задайте `METRICS_TOKEN` и передавайте заголовок `X-Metrics-Token`).
-- Опциональный стек Prometheus + Grafana через `make monitoring`: Prometheus `:9091`, Grafana `:3002` с предустановленным дашбордом `XreyStudioServer — Overview`.
+- Опциональный стек Prometheus + Grafana через `make monitoring`: Prometheus `:9091`, Grafana `:3002` с предустановленным дашбордом `XreyStudioServer — Overview`. В Kubernetes стек уже включён в `k8s/`: `node k8s/generate-monitoring.mjs` обновляет ConfigMap'ы из `monitoring/`, доступ через `kubectl port-forward`.
 - Правила алертов (`monitoring/grafana/provisioning/alerting/alerts.yml`)покрывают : недоступность backend, офлайн-ноды, высокий расход памяти backend и CPU ноды. Алерты уходят на `POST /api/notifications/alerts` с заголовком `Authorization: Bearer $ALERT_WEBHOOK_TOKEN` и пересылаются в Telegram, webhook, email (SMTP) и Signal. Каждый алерт сохраняется в таблице
 `AlertHistory` и доступен на странице **Оповещения** (`/alerts`), где также показаны настроенные
 каналы. Настройка каналов описана в `docs/monitoring.md`.
@@ -252,7 +262,7 @@ make backup
 make restore FILE=backups/db-20260101-120000.sql.gz
 ```
 
-Бэкапы — сжатые дампы PostgreSQL в каталоге `backups/`; `BACKUP_DIR` задаёт каталог, `BACKUP_KEEP` — число хранимых копий (по умолчанию 7). Пример cron и копирование на удалённое хранилище — в `docs/backup.md`.
+Бэкапы — сжатые дампы PostgreSQL в каталоге `backups/`; `BACKUP_DIR` задаёт каталог, `BACKUP_KEEP` — число хранимых копий (по умолчанию 7). Администратор может создавать, скачивать, удалять и восстанавливать копии на странице **Бэкапы** (`/backups`); восстановление требует явного подтверждения. Образ backend содержит `postgresql-client`, а Compose монтирует `./backups` в контейнер — CLI и UI работают с одним каталогом. Рабочий процесс UI, пример cron и копирование на удалённое хранилище — в `docs/backup.md`.
 
 ## Адаптеры протоколов
 
@@ -265,8 +275,10 @@ Xray-core поддерживает VLESS, VMess, Trojan и Shadowsocks. Hysteria
 
 ## Kubernetes
 
-В `k8s/` лежат манифесты Kustomize для PostgreSQL, Redis, API, панели, агента и Ingress.
-Шаги по сборке образов, секретам и применению — в `k8s/README.md`. Это альтернатива Compose,
+В `k8s/` лежат манифесты Kustomize для PostgreSQL, Redis, API, панели, агента, Ingress и стека
+Prometheus + Grafana с готовым дашбордом и алертами XSS. После изменений в `monitoring/` обновите
+ConfigMap'ы: `make k8s-monitoring` (или `node k8s/generate-monitoring.mjs`). Шаги по сборке образов,
+секретам, применению и port-forward — в `k8s/README.md`. Это альтернатива Compose,
 а не дополнительное требование.
 
 ## Разработка
@@ -292,8 +304,9 @@ cd agent && npm install && npm start
 
 ## Планы
 
-- Автоматизация бэкапов и восстановления в UI; графики трафика и экспорт отчётов.
-- Шире использовать Redis (rate limiting/кэш) и проверить стек мониторинга в Kubernetes.
+- Расписание бэкапов и управление хранением копий из UI.
+- Отчёты по организациям и разбивка трафика по протоколам.
+- Helm-чарт и примеры интеграции с уже работающим Prometheus Operator.
 
 ## Лицензия
 

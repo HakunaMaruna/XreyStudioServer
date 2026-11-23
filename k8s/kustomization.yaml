@@ -11,3 +11,5 @@ resources:
   - frontend.yaml
   - agent.yaml
   - ingress.yaml
+  - monitoring-config.yaml
+  - monitoring.yaml

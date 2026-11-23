@@ -55,6 +55,18 @@ export default function AuditPage() {
     setPageIndex(0);
   }, [entity, action]);
 
+  const exportCsv = async () => {
+    const params = new URLSearchParams();
+    if (entity) params.set('entity', entity);
+    if (action) params.set('action', action);
+    const query = params.toString();
+    try {
+      await api.downloadCsv(`/api/audit/export.csv${query ? `?${query}` : ''}`, 'audit.csv');
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
   const columns = useMemo<ColumnDef<AuditRow>[]>(
     () => [
       {
@@ -89,6 +101,9 @@ export default function AuditPage() {
           className="rounded border px-3 py-2 dark:bg-gray-800"
         />
         <span className="text-gray-500">{t.total}: {total}</span>
+        <button onClick={exportCsv} className="ml-auto rounded bg-blue-600 px-3 py-2 text-white text-sm">
+          {t.exportCsv}
+        </button>
       </div>
       <DataTable
         data={rows}

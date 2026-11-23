@@ -23,11 +23,45 @@ The database schema is applied automatically: the Kubernetes init container runs
 `AlertHistory`, `UserTraffic` tables and the `Payment.planId` column without deleting data.
 Take a backup first (`make backup`).
 
+## Backups page
+The Admin-only **Backups** page (`/backups`) can create, list, download and delete PostgreSQL
+snapshots and restore one with explicit confirmation. The backend image installs
+`postgresql-client`; Docker Compose mounts `./backups` to `/app/backups` in the backend so the UI
+and the CLI share the same snapshots. The CLI still works: `make backup` and
+`make restore FILE=...`.
+
+## Reporting and CSV export
+The **Traffic** page (`/traffic`) shows a daily chart for the last 1-90 days with an optional user
+filter and CSV export. The **Audit** and **Payments** pages also have an **Export CSV** button.
+Exports use `GET /api/traffic/export.csv`, `GET /api/audit/export.csv` and
+`GET /api/payments/export.csv`, with a limit of 10 000 rows per export.
+
+## API rate limiting
+When `REDIS_URL` is set, rate limiting counters are stored in Redis and shared across replicas.
+If Redis is absent or down, the API falls back automatically to in-memory limiting. `THROTTLE_TTL`
+and `THROTTLE_LIMIT` still apply in both modes. `REDIS_URL` has been added to `.env.example`.
+
+## Kubernetes monitoring
+Prometheus and Grafana ship in `k8s/monitoring.yaml`; their ConfigMaps are generated from
+`monitoring/` with `node k8s/generate-monitoring.mjs` (or `make k8s-monitoring`) and included in
+`kustomization.yaml`. The Grafana password and alert webhook token come from `xss-secrets`.
+Prometheus scrapes `backend:3000/api/metrics`; if `METRICS_TOKEN` is set, either leave it empty for
+the bundled Prometheus or patch the scrape config and regenerate. Access the UIs with:
+
+```bash
+kubectl -n xss port-forward svc/grafana 3002:3000
+kubectl -n xss port-forward svc/prometheus 9091:9090
+```
+
+Regenerate the ConfigMaps after changing dashboards or alerts.
+
 ## Makefile
 - `make install`, `make up`, `make down`, `make logs`, `make update`
 - `make backup` — gzip PostgreSQL dump into `BACKUP_DIR` (default `backups/`), retention `BACKUP_KEEP` (default 7); cron example in `docs/backup.md`
 - `make restore FILE=backups/db-YYYYMMDD-HHMMSS.sql.gz`
 - `make monitoring` — Prometheus (`:9091`) + Grafana (`:3002`, password `GRAFANA_PASSWORD`)
+- `make k8s-monitoring` — generate the Kubernetes monitoring ConfigMaps from `monitoring/` (same
+  as `node k8s/generate-monitoring.mjs`)
 
 ## Monitoring
 The monitoring services are behind the `monitoring` Compose profile and are not started by

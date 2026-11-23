@@ -8,7 +8,8 @@
   generated as a separate sing-box config in the same revision.
 - Frontend (Next.js): admin UI and public subscription page.
 - PostgreSQL: primary data store.
-- Redis: cache, queues, rate limiting.
+- Redis: cache, queues and shared rate limiting (counters shared across replicas when `REDIS_URL`
+  is set); falls back automatically to in-memory limiting when Redis is absent or down.
 - Caddy: reverse proxy and TLS.
 
 ## Data flow
@@ -18,6 +19,10 @@
 4. Agent reports node metrics and per-user traffic to Panel; Panel checks quotas and can expire users.
 5. Admin can tail node logs through the panel (agent `journalctl`/log-file reader).
 6. Client opens subscription URL; Panel returns format based on User-Agent (403 when quota is spent).
+7. Admin creates, lists, downloads and deletes PostgreSQL snapshots and restores one with explicit
+   confirmation from the Backups page; the backup API shares the `./backups` mount with the CLI.
+8. Admin views daily traffic charts (with an optional user filter) and exports CSV reports for
+   traffic, audit and payments through the reporting API.
 
 ## Deployment
 - Docker Compose for small and medium installations; `k8s/` Kustomize manifests for Kubernetes.
@@ -27,4 +32,5 @@
 ## Security
 - JWT access/refresh, Argon2id password hashing (bcrypt hashes remain valid).
 - mTLS for panel-agent, signed Stripe webhooks and a shared-secret Grafana alert webhook.
-- Rate limiting (global, stricter on auth), helmet, validation, RBAC, audit logs.
+- Rate limiting (global, stricter on auth; Redis-backed with in-memory fallback), helmet,
+  validation, RBAC, audit logs.

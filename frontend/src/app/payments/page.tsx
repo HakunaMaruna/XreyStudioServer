@@ -111,7 +111,15 @@ export default function PaymentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t.payments}</h1>
-        <Link href="/plans" className="text-sm text-blue-500">{t.plans}</Link>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => api.downloadCsv('/api/payments/export.csv', 'payments.csv').catch((e: any) => setError(e.message))}
+            className="rounded bg-blue-600 px-4 py-2 text-white"
+          >
+            {t.exportCsv}
+          </button>
+          <Link href="/plans" className="text-sm text-blue-500">{t.plans}</Link>
+        </div>
       </div>
       {error && <p className="text-sm text-red-500">{error}</p>}
       <form onSubmit={create} className="flex flex-wrap gap-2 rounded border bg-white p-4 dark:bg-gray-900">

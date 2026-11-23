@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.service';
 import { PasswordModule } from './common/password.module';
+import { RedisThrottlerStorage } from './common/redis-throttler.storage';
 import { SeedService } from './common/seed.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -20,16 +21,20 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { PaymentsModule } from './modules/payments/payments.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { TrafficModule } from './modules/traffic/traffic.module';
+import { BackupsModule } from './modules/backups/backups.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([
-      {
-        ttl: Number(process.env.THROTTLE_TTL ?? 60_000),
-        limit: Number(process.env.THROTTLE_LIMIT ?? 120),
-      },
-    ]),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: Number(process.env.THROTTLE_TTL ?? 60_000),
+          limit: Number(process.env.THROTTLE_LIMIT ?? 120),
+        },
+      ],
+      storage: new RedisThrottlerStorage(),
+    }),
     PrismaModule,
     PasswordModule,
     AuthModule,
@@ -47,6 +52,7 @@ import { TrafficModule } from './modules/traffic/traffic.module';
     PaymentsModule,
     OrganizationsModule,
     TrafficModule,
+    BackupsModule,
   ],
   providers: [
     SeedService,

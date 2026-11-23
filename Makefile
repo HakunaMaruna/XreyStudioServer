@@ -1,4 +1,4 @@
-.PHONY: install up down logs update backup restore monitoring
+.PHONY: install up down logs update backup restore monitoring k8s-monitoring
 
 install:
 	bash install.sh
@@ -14,6 +14,9 @@ logs:
 
 monitoring:
 	docker compose --profile monitoring up -d prometheus grafana
+
+k8s-monitoring:
+	node k8s/generate-monitoring.mjs
 
 update:
 	git pull && docker compose build && docker compose up -d

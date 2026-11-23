@@ -31,7 +31,9 @@ Self-hosted control panel for **Xray-core** with multi-node agents, client manag
 - Admin UI for audit logs, organizations, payments, subscription plans, inbound editing and node logs.
 - Paid plans automatically activate users, reset traffic and set the expiry date.
 - Hysteria2 / TUIC / WireGuard via a sing-box adapter on the node.
-- Prometheus metrics and a pre-provisioned Grafana dashboard; Kubernetes manifests.
+- Prometheus metrics and a pre-provisioned Grafana dashboard; Kubernetes manifests with Prometheus/Grafana.
+- Backup and restore management in the UI, daily traffic charts and CSV exports.
+- Redis-backed global rate limiting shared across replicas, with an in-memory fallback.
 
 ## Architecture
 
@@ -147,7 +149,8 @@ make logs        # follow logs
 make update      # pull, rebuild, restart
 make backup      # compressed PostgreSQL dump (keeps last 7)
 make restore FILE=backups/db-YYYYMMDD-HHMMSS.sql.gz
-make monitoring  # start Prometheus + Grafana
+make monitoring     # start Prometheus + Grafana
+make k8s-monitoring # regenerate k8s monitoring ConfigMaps from monitoring/
 ```
 
 Upgrades: run `make update` (rebuild + restart); the database schema is applied automatically
@@ -172,7 +175,7 @@ AGENT_TOKEN=random-agent-token
 CORS_ORIGIN=https://example.com
 ```
 
-Optional: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (required for Stripe webhooks), `METRICS_TOKEN`, `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` by default, `bcrypt` to keep new hashes bcrypt), `ALERT_WEBHOOK_TOKEN` (shared secret for Grafana alerts), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS to agents), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (non-Xray protocols), `XRAY_LOG_PATH`/`SINGBOX_LOG_PATH` (agent log fallback when `journalctl` is unavailable).
+Optional: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (required for Stripe webhooks), `METRICS_TOKEN`, `REDIS_URL` (shared rate limiting; in-memory fallback when unset), `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` by default, `bcrypt` to keep new hashes bcrypt), `ALERT_WEBHOOK_TOKEN` (shared secret for Grafana alerts), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS to agents), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (non-Xray protocols), `XRAY_LOG_PATH`/`SINGBOX_LOG_PATH` (agent log fallback when `journalctl` is unavailable).
 
 ## API
 
@@ -195,8 +198,15 @@ GET  /api/subscriptions/:token/base64
 POST /api/nodes/:id/traffic
 GET  /api/nodes/:id/logs
 GET  /api/traffic
+GET  /api/traffic/chart
+GET  /api/traffic/export.csv
 GET  /api/audit
+GET  /api/audit/export.csv
+GET  /api/payments/export.csv
 GET  /api/payments/plans
+GET  /api/backups
+POST /api/backups
+POST /api/backups/:name/restore
 GET  /api/metrics
 POST /api/payments/webhook
 GET  /api/health
@@ -227,7 +237,7 @@ Hysteria2, TUIC and WireGuard clients are exported as native `hysteria2://`, `tu
 - HTTPS is mandatory (Caddy).
 - JWT access + refresh tokens.
 - Password hashing with Argon2id (bcrypt hashes remain valid).
-- Global API rate limiting plus stricter limits on login/refresh.
+- Global API rate limiting backed by Redis (in-memory fallback) plus stricter limits on login/refresh.
 - Verified Stripe webhook signatures (HMAC-SHA256, 5-minute tolerance).
 - CSRF/XSS/SQL-injection/IDOR protections.
 - Encrypted node secrets in database.
@@ -240,7 +250,7 @@ Hysteria2, TUIC and WireGuard clients are exported as native `hysteria2://`, `tu
 - Built-in node metrics: CPU, RAM, disk, traffic, active connections, Xray state.
 - Health checks and alerts for offline nodes.
 - Prometheus-compatible endpoint: `GET /api/metrics` (set `METRICS_TOKEN` and send `X-Metrics-Token` when exposed).
-- Optional Prometheus + Grafana stack via `make monitoring`: Prometheus at `:9091`, Grafana at `:3002` with the pre-provisioned `XreyStudioServer — Overview` dashboard.
+- Optional Prometheus + Grafana stack via `make monitoring`: Prometheus at `:9091`, Grafana at `:3002` with the pre-provisioned `XreyStudioServer — Overview` dashboard. The Kubernetes manifests ship the same stack; regenerate its ConfigMaps with `make k8s-monitoring` and use `kubectl port-forward` to reach the UIs.
 - Provisioned alert rules (`monitoring/grafana/provisioning/alerting/alerts.yml`) cover a down backend, offline nodes, high backend memory and high node CPU. Alerts are sent to `POST /api/notifications/alerts` with `Authorization: Bearer $ALERT_WEBHOOK_TOKEN` and forwarded to Telegram, webhook, SMTP email and Signal. Every alert is persisted in the
 `AlertHistory` table and can be reviewed on the **Alerts** page (`/alerts`), which also shows which
 channels are configured. See `docs/monitoring.md` for channel setup.
@@ -252,7 +262,7 @@ make backup
 make restore FILE=backups/db-20260101-120000.sql.gz
 ```
 
-Backups are gzip-compressed PostgreSQL dumps stored in `backups/`; `BACKUP_DIR` sets the directory and `BACKUP_KEEP` controls retention (default 7). See `docs/backup.md` for a cron example and off-site copying.
+Backups are gzip-compressed PostgreSQL dumps stored in `backups/`; `BACKUP_DIR` sets the directory and `BACKUP_KEEP` controls retention (default 7). Admins can also create, download, delete and restore snapshots from the **Backups** page (`/backups`); restore requires an explicit confirmation. The backend image includes `postgresql-client` and Compose mounts `./backups` into the container, so CLI and UI share the same files. See `docs/backup.md` for the UI workflow, a cron example and off-site copying.
 
 ## Protocol adapters
 
@@ -265,9 +275,11 @@ single-engine Xray config. Subscription exports include native links for all thr
 
 ## Kubernetes
 
-`k8s/` contains Kustomize manifests for PostgreSQL, Redis, API, panel, agent and Ingress.
-See `k8s/README.md` for image builds, secrets and apply steps. It is an alternative to Compose,
-not an additional requirement.
+`k8s/` contains Kustomize manifests for PostgreSQL, Redis, API, panel, agent, Ingress and a
+Prometheus + Grafana stack with the provisioned XSS dashboard and alerts. Regenerate the monitoring
+ConfigMaps after changing anything in `monitoring/` (`make k8s-monitoring` or
+`node k8s/generate-monitoring.mjs`). See `k8s/README.md` for image builds, secrets, apply and
+port-forward steps. It is an alternative to Compose, not an additional requirement.
 
 ## Development
 
@@ -292,8 +304,9 @@ cd agent && npm install && npm start
 
 ## Roadmap
 
-- Backup automation and restore in the UI; per-user traffic charts and exportable reports.
-- Broader Redis usage (rate limiting/cache) and validation of the monitoring stack in Kubernetes.
+- Scheduled backups and retention policies configurable from the UI.
+- Advanced reporting by organization and per-protocol traffic breakdowns.
+- Helm chart and examples for an existing cluster Prometheus/Operator.
 
 ## License
 

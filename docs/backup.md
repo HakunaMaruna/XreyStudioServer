@@ -30,6 +30,26 @@ make restore FILE=backups/db-YYYYMMDD-HHMMSS.sql.gz
 
 The restore overwrites the current database; take a fresh backup first.
 
+## Web UI / API
+
+The Backups page (`/backups`) is available to admins and uses the same backup directory as the
+CLI. From the page you can:
+
+- create a snapshot (`POST /api/backups`) — a gzip `pg_dump` named `db-YYYYMMDD-HHMMSS.sql.gz` in
+  `BACKUP_DIR`, pruned to the last `BACKUP_KEEP` archives;
+- download the `.sql.gz` file (`GET /api/backups/:name/download`);
+- delete a backup (`DELETE /api/backups/:name`);
+- restore a backup (`POST /api/backups/:name/restore`) — the request body must contain
+  `{ "confirm": true }`, so a restore cannot be triggered accidentally.
+
+All endpoints require an admin JWT; see `docs/api.md` for response shapes. Restore runs `psql`
+against `DATABASE_URL` and overwrites the current database — take a fresh backup first and perform
+restores during a maintenance window. The backend image ships `postgresql-client`, and Docker
+Compose mounts `./backups` at `/app/backups`, so files created in the UI are visible to
+`scripts/backup.sh` and vice versa.
+
+The CLI workflow above (`make backup`, `make restore`, cron) keeps working as before.
+
 Off-site copy example (add to the same crontab line after `backup.sh`):
 
 ```cron

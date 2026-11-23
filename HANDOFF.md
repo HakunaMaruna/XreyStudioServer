@@ -8,7 +8,7 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 Self-hosted control panel for Xray-core: web UI, multi-node agents, clients, subscriptions,
 payments, notifications, monitoring, Docker Compose installation. Target scale: 5k users / 20 nodes.
 
-## Current state (v1.4.1, 2026-11-22)
+## Current state (v1.5.0, 2026-11-23)
 
 - Source of truth: `/work/XreyStudioServer` (working copy) and the git repo
   `/tmp/opencode/XSS_REPO` (remote: https://github.com/HakunaMaruna/XreyStudioServer).
@@ -42,6 +42,27 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
   run locally (CI builds the images). Node here is v20.15.1; Next 16 wants >=20.19, but the
   production build passed.
 - GitHub push works via the credential store in `/root/.git-credentials`.
+
+## Done in v1.5.0
+
+- Backups UI/API: new `BackupsModule` (ADMIN only) with `GET/POST /api/backups`,
+  `GET /api/backups/:name/download`, `DELETE /api/backups/:name` and
+  `POST /api/backups/:name/restore` (`{ confirm: true }`). `pg_dump | gzip` snapshots in `BACKUP_DIR`
+  with `BACKUP_KEEP` retention, strict `db-YYYYMMDD-HHMMSS.sql.gz` names, restore via `psql`, audit
+  log entries; `postgresql-client` installed in the backend image and `./backups` mounted into the
+  container by Compose. Frontend page `/backups` plus nav/i18n entries; CLI scripts still work.
+- Reporting: `GET /api/traffic/chart?userId=&days=1..90` (daily UTC buckets, byte strings), CSV
+  exports for traffic, audit and payments (`/api/*/export.csv`, 10 000-row cap, formula-injection
+  escaping in `common/csv.ts`), `/traffic` page with a recharts LineChart, user filter and CSV
+  button; Export CSV buttons on `/audit` and `/payments`. `api.download`/`api.downloadCsv` helpers.
+- Redis rate limiting: `common/redis-throttler.storage.ts` implements `ThrottlerStorage` using
+  ioredis (`REDIS_URL`, key prefix `xss:throttle:`), with in-memory fallback when Redis is unset or
+  down; wired into `ThrottlerModule.forRoot`. `REDIS_URL` added to `.env.example`.
+- Kubernetes monitoring: `k8s/monitoring.yaml` (Prometheus + Grafana Deployments/Services) and
+  `k8s/generate-monitoring.mjs` producing `k8s/monitoring-config.yaml` from `monitoring/`;
+  both added to `kustomization.yaml`, `make k8s-monitoring` target, k8s README instructions.
+- Docs updated: README ru/en, `docs/{api,backup,install,monitoring,architecture}.md`, `k8s/README.md`,
+  `.env.example`. Versions bumped to 1.5.0 (package.json + locks, Swagger, k8s image tags).
 
 ## Done in v1.4.1
 
@@ -107,9 +128,9 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 
 ## Remaining plan (next work)
 
-1. Backup automation and restore in the UI.
-2. Advanced reporting: per-user traffic charts, exportable audit/payment reports.
-3. Broader Redis usage (rate limiting/cache) and validation of the monitoring stack in k8s.
+1. Backup schedules and retention policies configurable from the UI.
+2. Organization-level and per-protocol reporting.
+3. Helm chart / integration with an existing Prometheus Operator.
 4. After each change: sync edited files into `/tmp/opencode/XSS_REPO`, commit, push, update
    README (ru/en), docs and this HANDOFF file. Tag a new release when the stage is complete.
 

@@ -68,3 +68,19 @@ If `METRICS_TOKEN` is set, add the header to the scrape job in
     static_configs:
       - targets: ["backend:3000"]
 ```
+
+## Kubernetes monitoring
+
+Prometheus and Grafana are also shipped for Kubernetes in `k8s/monitoring.yaml`. Their ConfigMaps
+are generated from `monitoring/` with `node k8s/generate-monitoring.mjs` (or `make k8s-monitoring`)
+and included in `kustomization.yaml`. The Grafana password and alert webhook token come from the
+`xss-secrets` Secret instead of `.env`. Prometheus scrapes `backend:3000/api/metrics`; if
+`METRICS_TOKEN` is set, either leave it empty for the bundled Prometheus or patch the scrape config
+and regenerate.
+
+```bash
+kubectl -n xss port-forward svc/grafana 3002:3000
+kubectl -n xss port-forward svc/prometheus 9091:9090
+```
+
+Regenerate the ConfigMaps after changing dashboards or alerts.

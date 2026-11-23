@@ -7,13 +7,16 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import type { RawBodyRequest } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
 import { Role } from '@prisma/client';
+import { sendCsv } from '../../common/csv';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { CreatePaymentDto, CreatePlanDto, UpdatePlanDto } from './dto/payment.dto';
@@ -30,6 +33,13 @@ export class PaymentsController {
     @Headers('stripe-signature') signature: string,
   ) {
     return this.service.handleWebhook(req.rawBody, signature);
+  }
+
+  @Get('export.csv')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  async export(@Query() query: { from?: string; to?: string }, @Res() res: any) {
+    sendCsv(res, 'payments.csv', await this.service.exportCsv(query));
   }
 
   @Get()

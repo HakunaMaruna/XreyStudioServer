@@ -63,6 +63,25 @@ async function request<T = any>(path: string, options: RequestInit = {}, retry =
   return (await res.text()) as unknown as T;
 }
 
+async function downloadFile(path: string, filename: string, asText = false) {
+  const { accessToken } = getTokens();
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+  });
+  if (!res.ok) throw new Error(`Request failed (${res.status})`);
+  const blob = asText
+    ? new Blob([await res.text()], { type: 'text/csv;charset=utf-8' })
+    : await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export const api = {
   get: <T = any>(path: string, options?: RequestInit) => request<T>(path, options),
   post: <T = any>(path: string, body?: Json) =>
@@ -70,6 +89,8 @@ export const api = {
   patch: <T = any>(path: string, body?: Json) =>
     request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
   delete: <T = any>(path: string) => request<T>(path, { method: 'DELETE' }),
+  downloadCsv: (path: string, filename: string) => downloadFile(path, filename, true),
+  download: (path: string, filename: string) => downloadFile(path, filename),
 };
 
 export async function login(email: string, password: string) {

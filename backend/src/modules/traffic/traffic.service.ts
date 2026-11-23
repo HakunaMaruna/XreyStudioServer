@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, UserStatus } from '@prisma/client';
+import { toCsv } from '../../common/csv';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NodesService } from '../nodes/nodes.service';
 import { TrafficReportDto } from './dto/traffic.dto';
@@ -79,5 +80,56 @@ export class TrafficService {
       bytesUp: sum._sum.bytesUp?.toString() || '0',
       bytesDown: sum._sum.bytesDown?.toString() || '0',
     };
+  }
+
+  async chart(query: { userId?: string; days?: string }) {
+    const days = Math.min(90, Math.max(1, Number(query.days) || 30));
+    const since = new Date(Date.now() - days * 86_400_000);
+    const where: Prisma.UserTrafficWhereInput = {
+      createdAt: { gte: since },
+      ...(query.userId ? { userId: query.userId } : {}),
+    };
+    const rows = await this.prisma.userTraffic.findMany({ where, orderBy: { createdAt: 'asc' } });
+    const grouped = new Map<string, { up: bigint; down: bigint }>();
+    for (const row of rows) {
+      const day = new Date(row.createdAt).toISOString().slice(0, 10);
+      const current = grouped.get(day) || { up: 0n, down: 0n };
+      current.up += row.bytesUp;
+      current.down += row.bytesDown;
+      grouped.set(day, current);
+    }
+    const series = Array.from(grouped.entries()).map(([date, value]) => ({
+      date,
+      up: value.up.toString(),
+      down: value.down.toString(),
+      total: (value.up + value.down).toString(),
+    }));
+    return { days, series, total: series.length };
+  }
+
+  async exportCsv(query: { userId?: string; from?: string; to?: string }) {
+    const where: Prisma.UserTrafficWhereInput = {};
+    if (query.userId) where.userId = query.userId;
+    const from = query.from ? new Date(query.from) : null;
+    const to = query.to ? new Date(query.to) : null;
+    if (from && !Number.isNaN(from.getTime())) where.createdAt = { ...(where.createdAt as any), gte: from };
+    if (to && !Number.isNaN(to.getTime())) where.createdAt = { ...(where.createdAt as any), lte: to };
+    const rows = await this.prisma.userTraffic.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 10_000,
+    });
+    return toCsv(
+      ['createdAt', 'userId', 'nodeId', 'period', 'bytesUp', 'bytesDown', 'total'],
+      rows.map((row) => [
+        new Date(row.createdAt).toISOString(),
+        row.userId,
+        row.nodeId || '',
+        row.period,
+        row.bytesUp.toString(),
+        row.bytesDown.toString(),
+        (row.bytesUp + row.bytesDown).toString(),
+      ]),
+    );
   }
 }

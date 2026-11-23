@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { toCsv } from '../../common/csv';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -46,5 +47,33 @@ export class AuditService {
       }),
       this.prisma.auditLog.count({ where }),
     ]).then(([data, total]) => ({ data, total, page, limit }));
+  }
+
+  async exportCsv(params: { entity?: string; userId?: string; action?: string; from?: string; to?: string }) {
+    const where: any = {};
+    if (params.entity) where.entity = params.entity;
+    if (params.userId) where.userId = params.userId;
+    if (params.action) where.action = { contains: params.action, mode: 'insensitive' };
+    const from = params.from ? new Date(params.from) : null;
+    const to = params.to ? new Date(params.to) : null;
+    if (from && !Number.isNaN(from.getTime())) where.createdAt = { ...(where.createdAt || {}), gte: from };
+    if (to && !Number.isNaN(to.getTime())) where.createdAt = { ...(where.createdAt || {}), lte: to };
+    const rows = await this.prisma.auditLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 10_000,
+    });
+    return toCsv(
+      ['createdAt', 'userId', 'action', 'entity', 'entityId', 'ip', 'metadata'],
+      rows.map((row) => [
+        new Date(row.createdAt).toISOString(),
+        row.userId || '',
+        row.action,
+        row.entity,
+        row.entityId || '',
+        row.ip || '',
+        row.metadata ? JSON.stringify(row.metadata) : '',
+      ]),
+    );
   }
 }
