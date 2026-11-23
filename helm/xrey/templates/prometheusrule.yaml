@@ -1,0 +1,55 @@
+{{- if .Values.monitoring.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "xrey.fullname" . }}-alerts
+  labels:
+    {{- include "xrey.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: xss-availability
+      rules:
+        {{- if .Values.monitoring.prometheusRule.alerts.backendDown }}
+        - alert: XSSBackendDown
+          expr: up{job=~".*backend.*"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: XSS backend is down
+            description: Prometheus cannot scrape the XSS backend for more than one minute.
+        {{- end }}
+        {{- if .Values.monitoring.prometheusRule.alerts.nodeOffline }}
+        - alert: XSSNodeOffline
+          expr: (xss_nodes_total - xss_nodes_online) > 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: One or more XSS nodes are offline
+            description: The number of online nodes is lower than the number of registered nodes.
+        {{- end }}
+        {{- if .Values.monitoring.prometheusRule.alerts.backendMemory }}
+        - alert: XSSBackendMemoryHigh
+          expr: xss_process_memory_bytes{type="rss"} > {{ .Values.monitoring.prometheusRule.backendMemoryLimitBytes }}
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: XSS backend RSS memory is high
+            description: Consider scaling the backend or checking for a memory leak.
+        {{- end }}
+        {{- if .Values.monitoring.prometheusRule.alerts.nodeCpuHigh }}
+        - alert: XSSNodeCpuHigh
+          expr: xss_node_cpu_percent > {{ .Values.monitoring.prometheusRule.nodeCpuThreshold }}
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Node CPU usage is high
+            description: A node reports sustained high CPU usage.
+        {{- end }}
+{{- end }}

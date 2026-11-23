@@ -1,0 +1,141 @@
+# Default values for the xrey chart.
+# A production-oriented example lives in values.example.yaml.
+# Secrets are NEVER stored here: create a Secret and set existingSecret below.
+
+nameOverride: ""
+fullnameOverride: ""
+imagePullSecrets: []
+
+# Existing Secret in the release namespace. Required keys are listed in secretKeys.
+existingSecret: xss-secrets
+secretKeys:
+  postgresPassword: POSTGRES_PASSWORD
+  jwtSecret: JWT_SECRET
+  jwtRefreshSecret: JWT_REFRESH_SECRET
+  adminEmail: ADMIN_EMAIL
+  adminPassword: ADMIN_PASSWORD
+  agentToken: AGENT_TOKEN
+  alertWebhookToken: ALERT_WEBHOOK_TOKEN
+  stripeSecretKey: STRIPE_SECRET_KEY
+  stripeWebhookSecret: STRIPE_WEBHOOK_SECRET
+  metricsToken: METRICS_TOKEN
+  grafanaPassword: GRAFANA_PASSWORD
+# Keys that may be absent from the Secret (empty integrations / public metrics).
+optionalSecretKeys:
+  - STRIPE_SECRET_KEY
+  - STRIPE_WEBHOOK_SECRET
+  - METRICS_TOKEN
+  - GRAFANA_PASSWORD
+
+config:
+  nodeEnv: production
+  domain: example.com
+  panelUrl: https://example.com
+  corsOrigin: https://example.com
+  postgresUser: xss
+  postgresDb: xss
+  passwordHasher: argon2id
+  throttleTtl: 60000
+  throttleLimit: 120
+  backupDir: /app/backups
+  backupKeep: 7
+
+image:
+  backend:
+    repository: ghcr.io/hakunamaruna/xss-backend
+    tag: "1.7.0"
+    pullPolicy: IfNotPresent
+  frontend:
+    repository: ghcr.io/hakunamaruna/xss-frontend
+    tag: "1.7.0"
+    pullPolicy: IfNotPresent
+  agent:
+    repository: ghcr.io/hakunamaruna/xss-agent
+    tag: "1.7.0"
+    pullPolicy: IfNotPresent
+
+backend:
+  replicas: 2
+  migrate: true
+  resources: {}
+  # Attach a PVC, for example to share pg_dump snapshots with a backup job:
+  # extraVolumes:
+  #   - name: backups
+  #     persistentVolumeClaim:
+  #       claimName: xss-backups
+  # extraVolumeMounts:
+  #   - name: backups
+  #     mountPath: /app/backups
+  extraVolumes: []
+  extraVolumeMounts: []
+  service:
+    type: ClusterIP
+    port: 3000
+
+frontend:
+  replicas: 2
+  resources: {}
+  service:
+    type: ClusterIP
+    port: 3000
+
+agent:
+  replicas: 1
+  nodeId: node-1
+  # Empty means http://<release>-backend:<port>.
+  panelUrl: ""
+  resources: {}
+  service:
+    type: ClusterIP
+    port: 9090
+
+postgres:
+  image:
+    repository: postgres
+    tag: "16-alpine"
+    pullPolicy: IfNotPresent
+  resources: {}
+  storage:
+    size: 10Gi
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+
+redis:
+  image:
+    repository: redis
+    tag: "7-alpine"
+    pullPolicy: IfNotPresent
+  resources: {}
+  persistence:
+    enabled: false
+    size: 5Gi
+    storageClass: ""
+
+ingress:
+  enabled: true
+  className: nginx
+  host: example.com
+  annotations: {}
+  clusterIssuer: letsencrypt-prod
+  tls:
+    enabled: true
+    secretName: xss-tls
+
+# Disabled by default: no Prometheus Operator CRDs needed for a plain cluster.
+monitoring:
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+    labels: {}
+  prometheusRule:
+    enabled: false
+    labels: {}
+    backendMemoryLimitBytes: 536870912
+    nodeCpuThreshold: 85
+    alerts:
+      backendDown: true
+      nodeOffline: true
+      backendMemory: true
+      nodeCpuHigh: true

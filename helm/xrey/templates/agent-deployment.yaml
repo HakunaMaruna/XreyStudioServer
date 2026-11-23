@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "xrey.fullname" . }}-agent
+  labels:
+    {{- include "xrey.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent
+spec:
+  replicas: {{ .Values.agent.replicas }}
+  selector:
+    matchLabels:
+      {{- include "xrey.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: agent
+  template:
+    metadata:
+      labels:
+        {{- include "xrey.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: agent
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: agent
+          image: {{ include "xrey.image" .Values.image.agent | quote }}
+          imagePullPolicy: {{ .Values.image.agent.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 9090
+          env:
+            - name: PANEL_URL
+              value: {{ default (printf "http://%s-backend:%v" (include "xrey.fullname" .) .Values.backend.service.port) .Values.agent.panelUrl | quote }}
+            - name: NODE_ID
+              value: {{ .Values.agent.nodeId | quote }}
+            - name: AGENT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  {{- include "xrey.secretRef" (dict "Values" .Values "key" "agentToken") | nindent 18 }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          {{- with .Values.agent.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
