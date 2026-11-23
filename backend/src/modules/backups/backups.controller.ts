@@ -1,11 +1,12 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Role } from '@prisma/client';
 import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { AuditService } from '../audit/audit.service';
-import { RestoreBackupDto } from './dto/backup.dto';
+import { RestoreBackupDto, UpdateBackupSettingsDto } from './dto/backup.dto';
+import { BackupSchedulerService } from './backup-scheduler.service';
 import { BackupsService } from './backups.service';
 
 @Controller('backups')
@@ -15,11 +16,30 @@ export class BackupsController {
   constructor(
     private service: BackupsService,
     private audit: AuditService,
+    private scheduler: BackupSchedulerService,
   ) {}
 
   @Get()
   list() {
     return this.service.list();
+  }
+
+  @Get('settings')
+  settings() {
+    return this.scheduler.getSettings();
+  }
+
+  @Patch('settings')
+  async updateSettings(@Body() body: UpdateBackupSettingsDto, @CurrentUser() user: AuthUser) {
+    const settings = await this.scheduler.updateSettings(body);
+    await this.audit.log({
+      userId: user?.userId,
+      action: 'backup.settings.update',
+      entity: 'backup-settings',
+      entityId: settings.id,
+      metadata: { ...body },
+    });
+    return settings;
   }
 
   @Post()

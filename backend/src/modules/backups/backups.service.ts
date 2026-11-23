@@ -97,6 +97,17 @@ export class BackupsService {
     return { name, size: (await fs.stat(file)).size };
   }
 
+  async prune(retention: number) {
+    const keep = Math.max(1, Number(retention) || 1);
+    const { data } = await this.list();
+    const removed: string[] = [];
+    for (const old of data.slice(keep)) {
+      await fs.unlink(path.join(this.dir(), old.name)).catch(() => undefined);
+      removed.push(old.name);
+    }
+    return { removed };
+  }
+
   async read(name: string): Promise<Buffer> {
     return fs.readFile(this.validate(name));
   }
