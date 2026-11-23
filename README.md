@@ -2,7 +2,7 @@
 
 Self-hosted control panel for **Xray-core** with multi-node agents, client management, subscription delivery, payments, Telegram integration and monitoring.
 
-> Short name: **XSS** · Repository: `XreyStudioServer` · Current version: **v2.1.0**
+> Short name: **XSS** · Repository: `XreyStudioServer` · Current version: **v2.2.0**
 
 ---
 
@@ -118,12 +118,21 @@ XreyStudioServer/
 
 ### Install
 
+One command with an interactive menu (language + installation mode):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/HakunaMaruna/XreyStudioServer/main/install.sh | bash
+```
+
+Or non-interactively:
+
 ```bash
 git clone https://github.com/HakunaMaruna/XreyStudioServer.git
 cd XreyStudioServer
-cp .env.example .env
-./install.sh all-in-one your-domain.com
+./install.sh --mode all-in-one --domain your-domain.com --lang en --yes
 ```
+
+The installer asks for the language (`en`/`ru`) and mode first, generates all secrets, validates DNS and starts the selected services. Use `--dry-run` to preview actions.
 
 ### Install modes
 

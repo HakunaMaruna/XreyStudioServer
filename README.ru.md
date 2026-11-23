@@ -2,7 +2,7 @@
 
 Self-hosted панель управления **Xray-core** с агентами нод, управлением клиентами, выдачей подписок, платежами, интеграцией с Telegram и мониторингом.
 
-> Краткое название: **XSS** · Репозиторий: `XreyStudioServer` · Текущая версия: **v2.1.0**
+> Краткое название: **XSS** · Репозиторий: `XreyStudioServer` · Текущая версия: **v2.2.0**
 
 ---
 
@@ -118,12 +118,21 @@ XreyStudioServer/
 
 ### Установка
 
+Одной командой — с интерактивным меню (язык + режим установки):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/HakunaMaruna/XreyStudioServer/main/install.sh | bash
+```
+
+Или в неинтерактивном режиме:
+
 ```bash
 git clone https://github.com/HakunaMaruna/XreyStudioServer.git
 cd XreyStudioServer
-cp .env.example .env
-./install.sh all-in-one your-domain.com
+./install.sh --mode all-in-one --domain your-domain.com --lang ru --yes
 ```
+
+Установщик сначала спрашивает язык (`en`/`ru`) и режим, генерирует секреты, проверяет DNS и запускает выбранные сервисы. Флаг `--dry-run` позволяет посмотреть действия без выполнения.
 
 ### Режимы установки
 
