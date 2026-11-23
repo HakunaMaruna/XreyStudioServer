@@ -33,7 +33,6 @@ export class SubscriptionsController {
 
   @Get(':token/json')
   async getJson(@Param('token') token: string, @Res() res: any) {
-    await this.service.assertUsable(token);
     return this.send(res, 'application/json', await this.service.json(token));
   }
 
@@ -58,7 +57,6 @@ export class SubscriptionsController {
       case 'singbox':
         return this.send(res, 'application/json', await this.service.singbox(token));
       default:
-        await this.service.assertUsable(token);
         return this.send(res, 'application/json', await this.service.json(token));
     }
   }
