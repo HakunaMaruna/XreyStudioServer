@@ -6,7 +6,7 @@ set -euo pipefail
 HOST="${1:?usage: deploy-remote.sh <host> [user] [ssh-port]}"
 USER="${2:-root}"
 PORT="${3:-22}"
-DIR="/opt/xss"
+DIR="${REMOTE_DIR:-$HOME/xss}"
 REPO="https://github.com/HakunaMaruna/XreyStudioServer.git"
 
 ssh -p "$PORT" -o StrictHostKeyChecking=accept-new "$USER@$HOST" bash -s -- "$DIR" "$REPO" <<'REMOTE'
