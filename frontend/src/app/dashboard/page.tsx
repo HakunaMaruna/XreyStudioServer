@@ -100,15 +100,15 @@ export default function DashboardPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard delay={0} label={t.totalUsers} value={stats?.total ?? '—'} icon="users" tone="brand" hint={t.registeredAccounts} />
-        <StatCard delay={60} label={t.activeUsers} value={stats?.active ?? '—'} icon="checkCircle" tone="success" hint={totalUsers ? `${Math.round(((stats?.active || 0) / totalUsers) * 100)}${t.percentOfUsers}` : undefined} />
-        <StatCard delay={120} label={t.totalNodes} value={nodeStats?.total ?? '—'} icon="server" tone="cyan" hint={t.configuredNodes} />
-        <StatCard delay={180} label={t.onlineNodes} value={nodeStats?.online ?? '—'} icon="activity" tone="success" hint={totalNodes ? `${Math.round(((nodeStats?.online || 0) / totalNodes) * 100)}% ${t.availability}` : undefined} />
+      <div className="row row-cards">
+        <div className="col-sm-6 col-xl-3"><StatCard delay={0} label={t.totalUsers} value={stats?.total ?? '—'} icon="users" tone="brand" hint={t.registeredAccounts} /></div>
+        <div className="col-sm-6 col-xl-3"><StatCard delay={60} label={t.activeUsers} value={stats?.active ?? '—'} icon="checkCircle" tone="success" hint={totalUsers ? `${Math.round(((stats?.active || 0) / totalUsers) * 100)}${t.percentOfUsers}` : undefined} /></div>
+        <div className="col-sm-6 col-xl-3"><StatCard delay={120} label={t.totalNodes} value={nodeStats?.total ?? '—'} icon="server" tone="cyan" hint={t.configuredNodes} /></div>
+        <div className="col-sm-6 col-xl-3"><StatCard delay={180} label={t.onlineNodes} value={nodeStats?.online ?? '—'} icon="activity" tone="success" hint={totalNodes ? `${Math.round(((nodeStats?.online || 0) / totalNodes) * 100)}% ${t.availability}` : undefined} /></div>
       </div>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-2">
-        <Card delay={240}>
+      <div className="row row-cards mt-4">
+        <div className="col-lg-6"><Card delay={240}>
           <SectionTitle title={t.usersByStatus} subtitle={t.distributionStatuses} />
           <div className="flex items-center gap-4">
             <div className="relative h-[190px] w-[190px] shrink-0">
@@ -142,9 +142,9 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
-        </Card>
+        </Card></div>
 
-        <Card delay={300}>
+        <div className="col-lg-6"><Card delay={300}>
           <SectionTitle title={t.nodesByStatus} subtitle={t.healthAcrossLocations} />
           <ResponsiveContainer width="100%" height={224}>
             <BarChart data={nodeStatus} barSize={42}>
@@ -159,11 +159,11 @@ export default function DashboardPage() {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </Card>
+        </Card></div>
       </div>
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-3">
-        <Card delay={360} className="xl:col-span-2">
+      <div className="row row-cards mt-4">
+        <div className="col-xl-8"><Card delay={360}>
           <SectionTitle title={t.nodeLoad} subtitle={t.cpuRamByNode} />
           {loads.length === 0 ? (
             <div className="grid h-[220px] place-items-center text-xs text-subtle">{t.noNodeMetrics}</div>
@@ -179,9 +179,9 @@ export default function DashboardPage() {
               </BarChart>
             </ResponsiveContainer>
           )}
-        </Card>
+        </Card></div>
 
-        <Card delay={420}>
+        <div className="col-xl-4"><Card delay={420}>
           <SectionTitle title={t.trafficOverview} subtitle={t.aggregatedUsage} />
           <div className="rounded-xl border border-line bg-surface-2/60 p-4">
             <div className="flex items-center gap-3">
@@ -214,7 +214,7 @@ export default function DashboardPage() {
               <Icon name="arrowUpRight" size={13} />
             </Link>
           </div>
-        </Card>
+        </Card></div>
       </div>
     </>
   );

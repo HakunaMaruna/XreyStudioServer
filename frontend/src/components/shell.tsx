@@ -7,7 +7,7 @@ import { clearTokens, isLoggedIn } from '../lib/api';
 import { getTheme, applyTheme, type Theme } from '../lib/theme';
 import { APP_VERSION } from '../lib/version';
 import { Icon, type IconName } from './icons';
-import { Avatar, Badge, IconButton, cn } from './ui';
+import { cn } from './ui';
 
 type NavItem = { href: string; label: string; icon: IconName };
 type NavSection = { title: string; items: NavItem[] };
@@ -33,57 +33,37 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     setQuery('');
   }, [pathname]);
 
-  const sections: NavSection[] = useMemo(
-    () => [
-      {
-        title: t.overview,
-        items: [
-          { href: '/dashboard', label: t.dashboard, icon: 'grid' },
-          { href: '/reports', label: t.reports, icon: 'gauge' },
-          { href: '/alerts', label: t.alerts, icon: 'bell' },
-        ],
-      },
-      {
-        title: t.infrastructure,
-        items: [
-          { href: '/nodes', label: t.nodes, icon: 'server' },
-          { href: '/inbounds', label: t.inbounds, icon: 'plug' },
-          { href: '/hosts', label: t.hosts, icon: 'globe' },
-          { href: '/rules', label: t.rules, icon: 'route' },
-        ],
-      },
-      {
-        title: t.access,
-        items: [
-          { href: '/users', label: t.users, icon: 'users' },
-          { href: '/organizations', label: t.organizations, icon: 'shield' },
-        ],
-      },
-      {
-        title: t.billing,
-        items: [
-          { href: '/payments', label: t.payments, icon: 'download' },
-          { href: '/plans', label: t.plans, icon: 'list' },
-          { href: '/traffic', label: t.traffic, icon: 'activity' },
-        ],
-      },
-      {
-        title: t.system,
-        items: [
-          { href: '/audit', label: t.audit, icon: 'file' },
-          { href: '/backups', label: t.backups, icon: 'database' },
-          { href: '/settings', label: t.settings, icon: 'settings' },
-        ],
-      },
-    ],
-    [t],
-  );
+  const sections: NavSection[] = useMemo(() => [
+    { title: t.overview, items: [
+      { href: '/dashboard', label: t.dashboard, icon: 'grid' },
+      { href: '/reports', label: t.reports, icon: 'gauge' },
+      { href: '/alerts', label: t.alerts, icon: 'bell' },
+    ] },
+    { title: t.infrastructure, items: [
+      { href: '/nodes', label: t.nodes, icon: 'server' },
+      { href: '/inbounds', label: t.inbounds, icon: 'plug' },
+      { href: '/hosts', label: t.hosts, icon: 'globe' },
+      { href: '/rules', label: t.rules, icon: 'route' },
+    ] },
+    { title: t.access, items: [
+      { href: '/users', label: t.users, icon: 'users' },
+      { href: '/organizations', label: t.organizations, icon: 'shield' },
+    ] },
+    { title: t.billing, items: [
+      { href: '/payments', label: t.payments, icon: 'download' },
+      { href: '/plans', label: t.plans, icon: 'list' },
+      { href: '/traffic', label: t.traffic, icon: 'activity' },
+    ] },
+    { title: t.system, items: [
+      { href: '/audit', label: t.audit, icon: 'file' },
+      { href: '/backups', label: t.backups, icon: 'database' },
+      { href: '/settings', label: t.settings, icon: 'settings' },
+    ] },
+  ], [t]);
 
-  const allItems = useMemo(() => sections.flatMap((section) => section.items), [sections]);
+  const allItems = useMemo(() => sections.flatMap((s) => s.items), [sections]);
   const current = allItems.find((item) => item.href === pathname);
-  const results = query.trim()
-    ? allItems.filter((item) => item.label.toLowerCase().includes(query.trim().toLowerCase()))
-    : [];
+  const results = query.trim() ? allItems.filter((item) => item.label.toLowerCase().includes(query.trim().toLowerCase())) : [];
 
   if (pathname === '/login' || pathname.startsWith('/sub/')) return <>{children}</>;
 
@@ -100,140 +80,105 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   };
 
   const sidebar = (
-    <div className="animate-slide-left flex h-full flex-col border-r border-line bg-surface/70 backdrop-blur-xl">
-      <div className="flex h-16 items-center gap-3 border-b border-line px-5">
-        <div className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-brand to-brand-2 text-white shadow-[0_6px_20px_-8px_var(--brand)]">
-          <Icon name="zap" size={18} className="fill-white/20" />
-        </div>
-        <div className="leading-tight">
-          <p className="text-sm font-semibold tracking-tight text-fg">XreyStudio</p>
-          <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-subtle">Control panel</p>
-        </div>
-      </div>
+    <aside className="navbar navbar-vertical navbar-expand-lg navbar-dark">
+      <div className="container-fluid">
+        <button type="button" className="navbar-toggler d-lg-none" onClick={() => setMobileOpen(false)} aria-label="Close menu">
+          <Icon name="close" size={18} />
+        </button>
+        <Link href="/dashboard" className="navbar-brand navbar-brand-autodark d-flex align-items-center gap-2">
+          <span className="avatar text-white" style={{ background: 'var(--brand)' }}><Icon name="zap" size={18} /></span>
+          <span>
+            <strong>XreyStudio</strong>
+            <span className="d-block text-muted" style={{ fontSize: 10, letterSpacing: '.16em' }}>CONTROL PANEL</span>
+          </span>
+        </Link>
 
-      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
-        {sections.map((section) => (
-          <div key={section.title}>
-            <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-subtle">{section.title}</p>
-            <div className="space-y-1">
-              {section.items.map((item) => {
-                const active = pathname === item.href;
-                return (
+        <div className="collapse navbar-collapse show" id="sidebar-menu">
+          <ul className="navbar-nav pt-lg-3">
+            {sections.map((section) => (
+              <li key={section.title} className="nav-item">
+                <span className="nav-link nav-link-title text-uppercase text-muted small mt-3 mb-1">{section.title}</span>
+                {section.items.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={cn(
-                      'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all',
-                      active
-                        ? 'bg-brand-soft font-medium text-brand'
-                        : 'text-muted hover:bg-surface-2 hover:text-fg',
-                    )}
+                    className={cn('nav-link', pathname === item.href && 'active')}
                   >
-                    {active && <span className="absolute -left-3 h-5 w-0.5 rounded-r-full bg-brand" />}
-                    <Icon name={item.icon} size={17} className={active ? 'text-brand' : 'text-subtle group-hover:text-fg'} />
-                    {item.label}
-                    {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-brand" />}
+                    <span className="nav-link-icon d-md-none d-lg-inline-block"><Icon name={item.icon} size={16} /></span>
+                    <span className="nav-link-title">{item.label}</span>
                   </Link>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </nav>
-
-      <div className="space-y-3 border-t border-line p-3">
-        <div className="rounded-xl border border-line bg-surface-2 p-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-muted">{t.systemStatus}</span>
-            <Badge tone="success" dot>{t.online}</Badge>
-          </div>
-          <div className="mt-3 space-y-1.5">
-            <div className="flex justify-between text-[10px] text-subtle"><span>{t.backendApi}</span><span className="text-success">{t.healthy}</span></div>
-            <div className="flex justify-between text-[10px] text-subtle"><span>{t.version}</span><span>v{APP_VERSION}</span></div>
-          </div>
+                ))}
+              </li>
+            ))}
+          </ul>
         </div>
-        <div className="flex items-center gap-3 rounded-xl border border-line bg-surface-2 p-2.5">
-          <Avatar label="AD" size="sm" />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium text-fg">{t.administrator}</p>
-            <p className="truncate text-[10px] text-subtle">{t.fullAccess}</p>
+
+        <div className="mt-auto border-top pt-3 pb-3">
+          <div className="d-flex align-items-center gap-2 text-muted small mb-2">
+            <span className="status-dot status-dot-animated bg-success" />
+            <span>{t.systemStatus}</span>
+            <span className="ms-auto">{t.version} {APP_VERSION}</span>
           </div>
-          {authed && <IconButton icon="logout" label="Logout" onClick={logout} />}
+          <div className="d-flex align-items-center gap-2">
+            <span className="avatar avatar-sm text-primary" style={{ background: 'var(--brand-soft)' }}>AD</span>
+            <div className="small lh-sm">
+              <div className="text-fg">{t.administrator}</div>
+              <div className="text-muted">{t.fullAccess}</div>
+            </div>
+            {authed && <button className="btn btn-sm btn-ghost ms-auto" onClick={logout} title={t.logout}><Icon name="logout" size={15} /></button>}
+          </div>
         </div>
       </div>
-    </div>
+    </aside>
   );
 
   return (
-    <div className="relative min-h-screen">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[248px] lg:block">{sidebar}</aside>
+    <div className="page">
+      <div className="d-lg-none d-flex align-items-center justify-content-between p-3 border-bottom" style={{ background: 'var(--surface)' }}>
+        <button className="btn btn-outline-secondary" onClick={() => setMobileOpen(!mobileOpen)}><Icon name="menu" size={17} /> {t.system}</button>
+        <Link href="/dashboard" className="navbar-brand">XreyStudio</Link>
+      </div>
 
-      {mobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-app/80 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 w-[264px]">{sidebar}</aside>
-        </div>
-      )}
+      {mobileOpen && <div className="position-fixed top-0 start-0 w-100 h-100" style={{ zIndex: 1030, background: 'rgba(0,0,0,.5)' }} onClick={() => setMobileOpen(false)}><div onClick={(e) => e.stopPropagation()} className="h-100" style={{ width: 260 }}>{sidebar}</div></div>}
+      <div className="d-none d-lg-block position-fixed top-0 start-0 h-100" style={{ width: 248, zIndex: 1029 }}>{sidebar}</div>
 
-      <div className="lg:pl-[248px]">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-app/80 px-4 backdrop-blur-xl sm:px-6">
-          <IconButton icon="menu" label="Menu" className="lg:hidden" onClick={() => setMobileOpen(true)} />
-
-          <div className="hidden items-center gap-2 text-sm sm:flex">
-            <span className="text-subtle">{t.workspace}</span>
-            <Icon name="chevronRight" size={13} className="text-subtle" />
-            <span className="font-medium text-fg">{current?.label ?? 'Dashboard'}</span>
-          </div>
-
-          <div className="relative ml-auto w-full max-w-[260px]">
-            <Icon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
-            <input
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setSearchOpen(true);
-              }}
-              onFocus={() => setSearchOpen(true)}
-              onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
-              placeholder={t.searchPages}
-              className="field pl-9 pr-8"
-            />
-            <kbd className="mono pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-line bg-surface-3 px-1.5 py-0.5 text-[9px] text-subtle">/</kbd>
-            {searchOpen && query.trim() && (
-              <div className="panel absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden p-1.5">
-                {results.length === 0 ? (
-                  <p className="px-3 py-2 text-xs text-muted">{t.noPagesFound}</p>
-                ) : (
-                  results.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-muted hover:bg-surface-2 hover:text-fg"
-                    >
-                      <Icon name={item.icon} size={15} className="text-brand" />
-                      {item.label}
-                    </Link>
-                  ))
+      <div className="page-wrapper" style={{ paddingLeft: 248 }}>
+        <header className="navbar navbar-expand-md d-none d-lg-flex">
+          <div className="container-xl">
+            <div className="navbar-nav flex-row align-items-center ms-auto gap-2">
+              <div className="position-relative" style={{ width: 260 }}>
+                <Icon name="search" size={15} className="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
+                <input
+                  value={query}
+                  onChange={(e) => { setQuery(e.target.value); setSearchOpen(true); }}
+                  onFocus={() => setSearchOpen(true)}
+                  onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+                  placeholder={t.searchPages}
+                  className="form-control ps-5"
+                />
+                {searchOpen && query.trim() && (
+                  <div className="card position-absolute top-100 start-0 end-0 mt-1 p-1" style={{ zIndex: 1050 }}>
+                    {results.length === 0 ? <p className="text-muted small p-2 mb-0">{t.noPagesFound}</p> : results.map((item) => (
+                      <Link key={item.href} href={item.href} className="d-flex align-items-center gap-2 p-2 text-decoration-none text-muted rounded">
+                        <Icon name={item.icon} size={15} className="text-primary" />{item.label}
+                      </Link>
+                    ))}
+                  </div>
                 )}
               </div>
-            )}
+              <span className="text-muted small ms-3">{t.workspace} / <span className="text-fg">{current?.label || t.dashboard}</span></span>
+              <button className="btn btn-sm btn-outline-secondary" onClick={toggle}>{lang.toUpperCase()}</button>
+              <button className="btn btn-sm btn-outline-secondary" onClick={switchTheme}><Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15} /></button>
+            </div>
           </div>
-
-          <div className="hidden h-5 w-px bg-line md:block" />
-          <div className="hidden items-center gap-2 md:flex">
-            <span className="h-2 w-2 rounded-full bg-success shadow-[0_0_8px_var(--success)]" />
-            <span className="text-[11px] text-muted">{t.allSystemsOperational}</span>
-          </div>
-          <button
-            onClick={toggle}
-            className="rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-[11px] font-semibold text-muted transition-colors hover:text-fg"
-          >
-            {lang.toUpperCase()}
-          </button>
-          <IconButton icon={theme === 'dark' ? 'sun' : 'moon'} label="Toggle theme" onClick={switchTheme} />
         </header>
 
-        <main className="relative z-10 mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:px-8">{children}</main>
+        <main className="container-xl">
+          <div className="page-body">{children}</div>
+          <footer className="footer footer-transparent d-print-none mt-5">
+            <div className="container-xl text-center text-muted small">XreyStudioServer · v{APP_VERSION}</div>
+          </footer>
+        </main>
       </div>
     </div>
   );

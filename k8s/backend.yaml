@@ -28,7 +28,7 @@ spec:
     spec:
       initContainers:
         - name: migrate
-          image: xss-backend:1.9.0
+          image: xss-backend:2.0.0
           command: ["npx", "prisma", "db", "push", "--skip-generate"]
           env:
             - name: POSTGRES_PASSWORD
@@ -40,7 +40,7 @@ spec:
               value: "postgres://xss:$(POSTGRES_PASSWORD)@postgres:5432/xss"
       containers:
         - name: backend
-          image: xss-backend:1.9.0
+          image: xss-backend:2.0.0
           ports:
             - containerPort: 3000
           envFrom:

@@ -104,23 +104,23 @@ export default function DataTable<T>({
             value={globalFilter ?? ''}
             onChange={(e) => setGlobalFilter(e.target.value)}
             placeholder={searchPlaceholder || t.search}
-            className="field pl-9"
+            className="form-control ps-5"
           />
         </div>
       )}
 
-      <div className="panel overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+      <div className="card overflow-hidden">
+        <div className="table-responsive">
+          <table className="table table-vcenter card-table">
             <thead>
-              <tr className="border-b border-line bg-surface-2/70">
+              <tr>
                 {table.getHeaderGroups().map((headerGroup) =>
                   headerGroup.headers.map((header) => (
-                    <th key={header.id} className="whitespace-nowrap px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-subtle">
+                    <th key={header.id} className="text-uppercase text-muted">
                       {header.column.getCanSort() ? (
                         <button
                           onClick={header.column.getToggleSortingHandler()}
-                          className="inline-flex items-center gap-1.5 transition-colors hover:text-fg"
+                          className="btn btn-sm btn-ghost text-uppercase text-muted"
                         >
                           {flexRender(header.column.columnDef.header, header.getContext())}
                           <span className={cn('transition-transform', header.column.getIsSorted() ? 'text-brand' : 'text-subtle/50')}>
@@ -141,10 +141,10 @@ export default function DataTable<T>({
                 )}
               </tr>
             </thead>
-            <tbody className="divide-y divide-line/70">
+            <tbody>
               {loading ? (
                 <tr>
-                  <td className="px-4 py-10" colSpan={colCount}>
+                  <td className="py-5 text-center text-muted" colSpan={colCount}>
                     <div className="flex items-center justify-center gap-2 text-xs text-muted">
                       <Icon name="refresh" size={15} className="animate-spin text-brand" />
                       {t.loading}
@@ -153,15 +153,15 @@ export default function DataTable<T>({
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td className="px-4" colSpan={colCount}>
+                  <td className="p-0" colSpan={colCount}>
                     <EmptyState title={t.noData} description="Try adjusting your filters or create a new record." />
                   </td>
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <tr key={row.id} className="animate-fade-in group transition-colors hover:bg-surface-2/60">
+                  <tr key={row.id} className="animate-fade-in">
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="whitespace-nowrap px-4 py-3 text-[13px] text-muted group-hover:text-fg">
+                      <td key={cell.id} className="text-muted">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}
@@ -178,7 +178,7 @@ export default function DataTable<T>({
           <button
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
-            className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand/40 hover:text-fg disabled:opacity-30"
+            className="btn btn-sm btn-outline-secondary"
             aria-label={t.previous}
           >
             <Icon name="chevronLeft" size={15} />
@@ -189,7 +189,7 @@ export default function DataTable<T>({
           <button
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
-            className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand/40 hover:text-fg disabled:opacity-30"
+            className="btn btn-sm btn-outline-secondary"
             aria-label={t.next}
           >
             <Icon name="chevronRight" size={15} />
@@ -201,7 +201,7 @@ export default function DataTable<T>({
             <select
               value={serverPagination.pageSize}
               onChange={(e) => serverPagination.onPageSizeChange?.(Number(e.target.value))}
-              className="field w-auto py-1"
+              className="form-select w-auto"
             >
               {[10, 20, 50, 100].map((size) => (
                 <option key={size} value={size}>{size}</option>
