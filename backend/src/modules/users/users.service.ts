@@ -60,6 +60,22 @@ export class UsersService {
   }
 
   async findOne(id: string, user: AuthUser) {
+    const found = await this.findRaw(id, user);
+    const base = process.env.PANEL_URL || '';
+    const token = found.subscriptionToken;
+    return {
+      ...found,
+      subscriptionUrl: `${base}/sub/${token}`,
+      links: {
+        json: `${base}/api/subscriptions/${token}?format=json`,
+        clash: `${base}/api/subscriptions/${token}?format=clash`,
+        singbox: `${base}/api/subscriptions/${token}?format=singbox`,
+        base64: `${base}/api/subscriptions/${token}?format=base64`,
+      },
+    };
+  }
+
+  async findRaw(id: string, user: AuthUser) {
     const found = await this.prisma.user.findFirst({
       where: { id, ...this.tenantWhere(user) },
       select: {
