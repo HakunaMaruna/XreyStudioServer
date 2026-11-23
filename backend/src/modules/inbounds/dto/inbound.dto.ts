@@ -1,4 +1,6 @@
-import { IsBoolean, IsInt, IsObject, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsDateString, IsIn, IsInt, IsObject, IsOptional, IsString, Max, Min } from 'class-validator';
+
+export const RESET_SCHEDULES = ['never', 'hourly', 'daily', 'weekly', 'monthly'] as const;
 
 export class CreateInboundDto {
   @IsString()
@@ -25,6 +27,45 @@ export class CreateInboundDto {
 
   @IsInt()
   port: number;
+
+  @IsOptional()
+  @IsString()
+  listen?: string;
+
+  @IsOptional()
+  @IsString()
+  flow?: string;
+
+  @IsOptional()
+  @IsString()
+  path?: string;
+
+  @IsOptional()
+  @IsString()
+  sni?: string;
+
+  @IsOptional()
+  @IsString()
+  serviceName?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  trafficLimit?: number;
+
+  @IsOptional()
+  @IsDateString()
+  expiresAt?: string;
+
+  @IsOptional()
+  @IsIn(RESET_SCHEDULES)
+  resetSchedule?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  resetDay?: number;
 
   @IsObject()
   settings: Record<string, unknown>;
@@ -62,6 +103,45 @@ export class UpdateInboundDto {
   @IsOptional()
   @IsInt()
   port?: number;
+
+  @IsOptional()
+  @IsString()
+  listen?: string;
+
+  @IsOptional()
+  @IsString()
+  flow?: string;
+
+  @IsOptional()
+  @IsString()
+  path?: string;
+
+  @IsOptional()
+  @IsString()
+  sni?: string;
+
+  @IsOptional()
+  @IsString()
+  serviceName?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  trafficLimit?: number;
+
+  @IsOptional()
+  @IsDateString()
+  expiresAt?: string;
+
+  @IsOptional()
+  @IsIn(RESET_SCHEDULES)
+  resetSchedule?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  resetDay?: number;
 
   @IsOptional()
   @IsObject()

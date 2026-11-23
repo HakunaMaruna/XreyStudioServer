@@ -84,6 +84,19 @@ keep exports within that cap. Headers:
 
 All report endpoints require an `ADMIN` JWT.
 
+## Inbounds
+
+`POST /api/inbounds` and `PATCH /api/inbounds/:id` accept:
+
+- `tag`, `protocol`, `port`, `nodeId`, `userId`, `enabled`
+- `listen` (default `0.0.0.0`), `transport` (`tcp|ws|grpc|httpupgrade|xhttp`), `security` (`none|tls|reality`)
+- `flow`, `path`, `sni`, `serviceName`
+- `trafficLimit` (bytes, `0` = unlimited), `expiresAt` (ISO date), `resetSchedule`
+  (`never|hourly|daily|weekly|monthly`), `resetDay` (1–31 for monthly)
+- `settings` — nested JSON for advanced Xray options (REALITY keys, certificates, headers, etc.)
+
+The generator translates these fields into Xray `streamSettings`, client `flow` and inbound `listen`.
+
 ## Node certificates
 
 - `GET /certificates/:nodeId` — issued certificate status for a node

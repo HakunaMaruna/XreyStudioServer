@@ -123,12 +123,22 @@ model Inbound {
   node      Node?    @relation(fields: [nodeId], references: [id])
   userId    String?
   user      User?    @relation(fields: [userId], references: [id])
-  protocol  String
-  transport String   @default("tcp")
-  security  String   @default("none")
-  port      Int
-  settings  Json
-  enabled   Boolean  @default(true)
+  protocol       String
+  transport      String    @default("tcp")
+  security       String    @default("none")
+  port           Int
+  listen         String    @default("0.0.0.0")
+  flow           String?
+  path           String?
+  sni            String?
+  serviceName    String?
+  trafficLimit   BigInt    @default(0)
+  trafficUsed    BigInt    @default(0)
+  expiresAt      DateTime?
+  resetSchedule  String    @default("never")
+  resetDay       Int?
+  settings       Json
+  enabled        Boolean   @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

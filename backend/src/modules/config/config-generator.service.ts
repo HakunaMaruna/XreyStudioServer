@@ -20,7 +20,7 @@ export class ConfigGeneratorService {
         return {
           id: user.id,
           email: user.email,
-          flow: settings.flow || '',
+          flow: inbound.flow || settings.flow || '',
         };
       case 'vmess':
         return { id: user.id, email: user.email, alterId: 0 };
@@ -39,15 +39,16 @@ export class ConfigGeneratorService {
       network: inbound.transport || 'tcp',
       security: inbound.security || 'none',
     };
-    if (inbound.transport === 'ws') {
-      stream.wsSettings = { path: settings.wsPath || '/ws', headers: settings.wsHeaders || {} };
+    if (inbound.flow && inbound.security !== 'none') stream.flow = inbound.flow;
+    if (inbound.transport === 'ws' || inbound.transport === 'xhttp') {
+      stream.wsSettings = { path: inbound.path || settings.wsPath || '/ws', headers: { Host: inbound.sni || '', ...(settings.wsHeaders || {}) } };
     }
     if (inbound.transport === 'grpc') {
-      stream.grpcSettings = { serviceName: settings.grpcServiceName || 'xss' };
+      stream.grpcSettings = { serviceName: inbound.serviceName || settings.grpcServiceName || 'xss' };
     }
-    if (inbound.transport === 'http' || inbound.transport === 'h2') {
-      stream.network = 'http';
-      stream.httpSettings = { path: settings.httpPath || '/', host: settings.httpHost || [] };
+    if (inbound.transport === 'http' || inbound.transport === 'h2' || inbound.transport === 'httpupgrade' || inbound.transport === 'xhttp') {
+      stream.network = inbound.transport === 'xhttp' ? 'xhttp' : 'http';
+      stream.httpSettings = { path: inbound.path || settings.httpPath || '/', host: inbound.sni ? [inbound.sni] : settings.httpHost || [] };
     }
     if (inbound.transport === 'quic') {
       stream.quicSettings = {
@@ -58,7 +59,7 @@ export class ConfigGeneratorService {
     }
     if (inbound.security === 'tls') {
       stream.tlsSettings = {
-        serverName: settings.serverName || settings.sni || '',
+        serverName: inbound.sni || settings.serverName || settings.sni || '',
         certificates: settings.certificates || undefined,
         alpn: settings.alpn || ['h2', 'http/1.1'],
       };
@@ -170,7 +171,7 @@ export class ConfigGeneratorService {
       }
       return {
         tag: inbound.tag,
-        listen: settings.listen || '0.0.0.0',
+        listen: inbound.listen || settings.listen || '0.0.0.0',
         port: inbound.port,
         protocol: inbound.protocol,
         settings: inboundSettings,
