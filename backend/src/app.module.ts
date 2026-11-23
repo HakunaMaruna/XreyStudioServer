@@ -24,6 +24,7 @@ import { TrafficModule } from './modules/traffic/traffic.module';
 import { BackupsModule } from './modules/backups/backups.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { CertificatesModule } from './modules/certificates/certificates.module';
+import { SettingsModule } from './modules/settings/settings.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { CertificatesModule } from './modules/certificates/certificates.module';
     BackupsModule,
     ReportsModule,
     CertificatesModule,
+    SettingsModule,
   ],
   providers: [
     SeedService,

@@ -8,13 +8,13 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 Self-hosted control panel for Xray-core: web UI, multi-node agents, clients, subscriptions,
 payments, notifications, monitoring, Docker Compose installation. Target scale: 5k users / 20 nodes.
 
-## Current state (v2.4.0, 2026-11-24)
+## Current state (v2.5.0, 2026-11-24)
 
 - Source of truth: the git repo `/tmp/opencode/XSS_REPO`
   (remote: https://github.com/HakunaMaruna/XreyStudioServer). `/work/XreyStudioServer` is a
   synced working copy for local inspection and `trail` commands, not an independent source.
-- Published: tag/release `v2.4.0`,
-  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v2.4.0.
+- Published: tag/release `v2.5.0`,
+  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v2.5.0.
   Previous releases: `v2.3.0` (structured inbound settings), `v2.2.0`, `v2.1.0`.
   Earlier: `v1.4.1` (quota hotfix), `v1.4.0` (traffic/logs/admin UI), `v1.3.0`, `v1.2.0`, `v1.1.x`, `v1.0.0`.
 - Stack: NestJS + Prisma/PostgreSQL + Redis, Next.js 16 + React 19, Node agent, Caddy, Docker Compose.
@@ -56,6 +56,15 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 - Closed 5 dependency PRs whose CI fails and need a coordinated migration: @nestjs/common 12,
   @nestjs/passport 12, @tanstack/react-table 9 and TypeScript 7.
 - No open PRs or issues remain. Versions bumped to 1.8.3.
+
+## Done in v2.5.0
+
+- User onboarding UX: `GET /users/:id` now returns subscription URL, key and per-format links.
+  Users page has a key button with copy-to-clipboard and attach-to-inbound flow.
+- Panel settings: `GET/PATCH /api/settings` (ADMIN only) persisted in `backups/panel-settings.json`;
+  Settings page now edits language, theme, notification toggles, metrics, rate limit, CORS and
+  session length.
+- Agents split: #79 (agent 2 — E2E/QA), #80 (agent 3 — UX/a11y review).
 
 ## Done in v2.4.0
 
