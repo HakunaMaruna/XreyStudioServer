@@ -77,6 +77,11 @@ async function main() {
           try {
             const response = await call(path, { token });
             record(`authenticated ${path}`, response.status === 200, `status=${response.status}`);
+            if (path === '/api/nodes' && response.status === 200) {
+              const nodes = Array.isArray(response.data) ? response.data : response.data?.data || [];
+              const online = nodes.filter((node) => node.online === true || node.status === 'ONLINE');
+              record('node ONLINE', online.length > 0, `online=${online.length}/${nodes.length}`);
+            }
           } catch (error) {
             record(`authenticated ${path}`, false, error.message);
           }
