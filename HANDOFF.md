@@ -8,15 +8,14 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 Self-hosted control panel for Xray-core: web UI, multi-node agents, clients, subscriptions,
 payments, notifications, monitoring, Docker Compose installation. Target scale: 5k users / 20 nodes.
 
-## Current state (v1.8.1, 2026-11-23)
+## Current state (v1.8.2, 2026-11-23)
 
 - Source of truth: the git repo `/tmp/opencode/XSS_REPO`
   (remote: https://github.com/HakunaMaruna/XreyStudioServer). `/work/XreyStudioServer` is a
   synced working copy for local inspection and `trail` commands, not an independent source.
-- Published: tag/release `v1.8.1`,
-  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.8.1.
-  Previous releases: `v1.8.0` (agent traffic stats), `v1.7.0` (backup schedules + reports),
-  `v1.6.0` (dark SaaS UI), `v1.5.0`.
+- Published: tag/release `v1.8.2`,
+  https://github.com/HakunaMaruna/XreyStudioServer/releases/tag/v1.8.2.
+  Previous releases: `v1.8.1` (compiled startup fix), `v1.8.0` (agent stats, Helm/CI, QA), `v1.7.0`.
   Earlier: `v1.4.1` (quota hotfix), `v1.4.0` (traffic/logs/admin UI), `v1.3.0`, `v1.2.0`, `v1.1.x`, `v1.0.0`.
 - Stack: NestJS + Prisma/PostgreSQL + Redis, Next.js 16 + React 19, Node agent, Caddy, Docker Compose.
 - Backend modules: auth (JWT + refresh + RBAC + Argon2id/bcrypt), users, nodes, inbounds, hosts,
@@ -48,6 +47,13 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
   with PGDATA `/tmp/opencode/pgdata-e2e`.
 - GitHub push works via the credential store in `/root/.git-credentials`.
 
+## Done in v1.8.2
+
+- Restored production fail-fast secret validation after the v1.6 port: `getJwtSecret()` and
+  `getBootstrapAdminPassword()` replace `change-me` / `admin12345` defaults in production.
+- `.env.example` now contains valid-length placeholder secrets; README RU/EN document the requirement.
+- Versions bumped to 1.8.2 across packages, Swagger, k8s images, Helm values and the frontend constant.
+
 ## Done in v1.8.1
 
 - Fixed issue #16: `backend/tsconfig.json` now sets `esModuleInterop: true`, so the compiled
@@ -59,7 +65,6 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
   `esModuleInterop`.
 - Merged PR #13 (v1.5/v1.6 PostgreSQL e2e), #9 (Helm chart), #10 (CI/GHCR/dependabot),
   #14 (runbooks) and #15 (k8s monitoring validation). All tracked issues are closed.
-- Versions bumped to 1.8.1 in packages, Swagger, k8s images, Helm values and the frontend constant.
 
 ## Done in v1.8.0
 

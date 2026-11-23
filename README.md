@@ -2,7 +2,7 @@
 
 Self-hosted control panel for **Xray-core** with multi-node agents, client management, subscription delivery, payments, Telegram integration and monitoring.
 
-> Short name: **XSS** · Repository: `XreyStudioServer` · Current version: **v1.8.1**
+> Short name: **XSS** · Repository: `XreyStudioServer` · Current version: **v1.8.2**
 
 ---
 
@@ -240,6 +240,7 @@ Hysteria2, TUIC and WireGuard clients are exported as native `hysteria2://`, `tu
 - JWT access + refresh tokens.
 - Password hashing with Argon2id (bcrypt hashes remain valid).
 - Global API rate limiting backed by Redis (in-memory fallback) plus stricter limits on login/refresh.
+- Production startup refuses insecure defaults: `JWT_SECRET` must be ≥32 chars and `ADMIN_PASSWORD` ≥12 chars.
 - Verified Stripe webhook signatures (HMAC-SHA256, 5-minute tolerance).
 - CSRF/XSS/SQL-injection/IDOR protections.
 - Encrypted node secrets in database.
