@@ -1,5 +1,15 @@
 'use client';
-import { useEffect, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  useEffect,
+  useId,
+  useRef,
+  type ButtonHTMLAttributes,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 import { Icon, type IconName } from './icons';
 
 export function cn(...values: Array<string | false | null | undefined>) {
@@ -218,10 +228,16 @@ export function StatCard({
 }
 
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  const id = useId();
+  const child = Children.toArray(children)[0];
+  const isControl =
+    isValidElement(child) &&
+    typeof child.type === 'string' &&
+    ['input', 'select', 'textarea'].includes(child.type as string);
   return (
-    <label className="block space-y-1.5">
+    <label htmlFor={isControl ? id : undefined} className="block space-y-1.5">
       <span className="text-[11px] font-medium uppercase tracking-wider text-subtle">{label}</span>
-      {children}
+      {isControl ? cloneElement(child as ReactElement<any>, { id }) : children}
       {hint && <span className="block text-[11px] text-subtle">{hint}</span>}
     </label>
   );
@@ -231,6 +247,8 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={checked}
       onClick={() => onChange(!checked)}
       className="inline-flex items-center gap-2.5 text-sm text-muted"
     >
@@ -306,25 +324,68 @@ export function Modal({
   footer?: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
 }) {
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const previous = document.activeElement as HTMLElement | null;
+    const root = dialogRef.current;
+    const focusables = () =>
+      root
+        ? Array.from(
+            root.querySelectorAll<HTMLElement>(
+              'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',
+            ),
+          )
+        : [];
+    (focusables()[0] || root)?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeRef.current();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const items = focusables();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      previous?.focus?.();
+    };
+  }, [open]);
 
   if (!open) return null;
   const widths = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl', xl: 'max-w-5xl' };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="animate-fade-in absolute inset-0 bg-app/80 backdrop-blur-sm" onClick={onClose} />
-      <div className={cn('panel animate-modal-in relative flex max-h-[88vh] w-full flex-col overflow-hidden p-0', widths[size])}>
+      <div className="animate-fade-in absolute inset-0 bg-app/80 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className={cn('panel animate-modal-in relative flex max-h-[88vh] w-full flex-col overflow-hidden p-0', widths[size])}
+      >
         <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
           <div className="flex items-start gap-3">
             {icon && <span className="mt-0.5 grid h-8 w-8 place-items-center rounded-lg border border-brand/25 bg-brand-soft text-brand">{icon}</span>}
             <div>
-              <h2 className="text-base font-semibold text-fg">{title}</h2>
+              <h2 id={titleId} className="text-base font-semibold text-fg">{title}</h2>
               {subtitle && <p className="mt-0.5 text-xs text-muted">{subtitle}</p>}
             </div>
           </div>

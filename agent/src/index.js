@@ -191,6 +191,44 @@ async function sendTraffic() {
   }
 }
 
+function inboundPorts() {
+  const ports = new Set();
+  const collect = (config) => {
+    for (const inbound of config?.inbounds || []) {
+      if (inbound.port) ports.add(Number(inbound.port));
+    }
+  };
+  if (lastAppliedConfig?.xray || lastAppliedConfig?.singbox) {
+    collect(lastAppliedConfig.xray);
+    collect(lastAppliedConfig.singbox);
+  } else {
+    collect(lastAppliedConfig);
+  }
+  return ports;
+}
+
+function countConnections() {
+  const ports = inboundPorts();
+  if (!ports.size) return 0;
+  let count = 0;
+  for (const file of ['/proc/net/tcp', '/proc/net/tcp6']) {
+    let text;
+    try {
+      text = fs.readFileSync(file, 'utf8');
+    } catch {
+      continue;
+    }
+    for (const line of text.split('\n').slice(1)) {
+      const cols = line.trim().split(/\s+/);
+      // Local address is hex "IP:PORT", state 01 == TCP_ESTABLISHED.
+      if (cols.length < 4 || cols[3] !== '01') continue;
+      const port = parseInt((cols[1].split(':')[1] || ''), 16);
+      if (ports.has(port)) count++;
+    }
+  }
+  return count;
+}
+
 async function collectMetrics() {
   const [cpu, mem, fsSize, net] = await Promise.all([
     si.currentLoad(),
@@ -217,7 +255,7 @@ async function collectMetrics() {
     disk: Number(fsSize?.[0]?.use || 0),
     trafficUp,
     trafficDown,
-    connections: 0,
+    connections: countConnections(),
     xray: xrayStatus,
     singbox: singboxStatus,
   };
