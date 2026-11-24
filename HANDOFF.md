@@ -3,12 +3,33 @@
 Context for the next agent. Read this first, then `trail ask "<question>" /work/XreyStudioServer`
 or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `graft/`).
 
+## Latest (v2.9.0 – v2.13.0, 2026-11-24)
+
+- Live panel: `https://msc.h2onetwork.pro` (tag v2.13.0, `/api/health` 200, login 201).
+  Server: `ssh user1@213.171.30.186` with `~/.ssh/id_xss_server`; deploy from `/home/user1/xss`
+  via `git reset --hard origin/main` + `docker compose up -d --build backend frontend agent`,
+  followed by `npx prisma db push --skip-generate` and a backend restart when the schema changes.
+- Releases: v2.9.0 HWID device limits; v2.9.1 DI fix; v2.10.0 client-eye health checks;
+  v2.11.0 branded subscription templates; v2.12.0 accessibility fixes + real active-connection
+  counting in the agent; v2.13.0 geosite/geoip catalog browser.
+- New modules: `devices`, `health-checks`, `subscription-templates`, `geodata`.
+  New pages: `/health-checks`, `/subscription-templates`, `/geodata`.
+- Agent-review findings (PR #100, `docs/reports/ux-review-v2.8.md`) were fixed in v2.12.0:
+  dialog semantics/focus trap, label↔input association, `role=switch`, page titles, skip link,
+  search/password aria-labels, WCAG AA contrast.
+- Delegated agents: #92 (QA, PR #96/#94/#97), #93 (UX report, PR #100) and #95
+  (SSH node onboarding + shared-port + k8s/helm probes, PR #103) are all closed/merged.
+- Blocked: per-node Let's Encrypt needs a wildcard DNS record `*.msc.h2onetwork.pro`
+  pointing at `213.171.30.186` (user action).
+- Still in the plan: decoy sites, canary rollouts, MCP bridge, tunnel sidecars (AmneziaWG /
+  NaiveProxy / mieru).
+
 ## Goal
 
 Self-hosted control panel for Xray-core: web UI, multi-node agents, clients, subscriptions,
 payments, notifications, monitoring, Docker Compose installation. Target scale: 5k users / 20 nodes.
 
-## Current state (v2.6.0, 2026-11-24)
+## Historical state (v2.6.0, 2026-11-24)
 
 - Source of truth: the git repo `/tmp/opencode/XSS_REPO`
   (remote: https://github.com/HakunaMaruna/XreyStudioServer). `/work/XreyStudioServer` is a
