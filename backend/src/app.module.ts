@@ -37,6 +37,7 @@ import { HealthChecksModule } from './modules/health-checks/health-checks.module
 import { SubscriptionTemplatesModule } from './modules/subscription-templates/subscription-templates.module';
 import { GeodataModule } from './modules/geodata/geodata.module';
 import { McpModule } from './modules/mcp/mcp.module';
+import { TelegramBotModule } from './modules/telegram-bot/telegram-bot.module';
 
 @Module({
   imports: [
@@ -83,6 +84,7 @@ import { McpModule } from './modules/mcp/mcp.module';
     SubscriptionTemplatesModule,
     GeodataModule,
     McpModule,
+    TelegramBotModule,
   ],
   providers: [
     SeedService,

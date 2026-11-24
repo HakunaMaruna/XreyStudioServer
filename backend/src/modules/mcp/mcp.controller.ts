@@ -1,7 +1,8 @@
-import { Body, Controller, Delete, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { McpGuard } from './mcp.guard';
 import { McpService } from './mcp.service';
+import { McpActor } from './mcp-plan.service';
 
 @Controller('mcp')
 @UseGuards(McpGuard)
@@ -10,7 +11,11 @@ export class McpController {
 
   private async handle(req: any, res: any, body: any) {
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-    const server = this.service.createServer();
+    const actor: McpActor | undefined = req.mcpActor;
+    if (!actor?.userId || !actor.role) {
+      throw new UnauthorizedException('MCP request has no authenticated actor');
+    }
+    const server = this.service.createServer(actor);
     res.once('close', () => {
       void server.close().catch(() => undefined);
     });

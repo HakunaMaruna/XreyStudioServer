@@ -116,7 +116,10 @@ export class BackupsService {
     try {
       await uploadToS3(finalFile, name);
     } catch (error) {
-      throw new Error(`Local backup ${name} created, but S3 upload failed: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Local backup ${name} created, but S3 upload failed: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
+      );
     }
 
     const keep = Math.max(1, Number(process.env.BACKUP_KEEP ?? 7) || 7);

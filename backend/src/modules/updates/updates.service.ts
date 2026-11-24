@@ -33,13 +33,19 @@ export class UpdatesService {
     }
 
     const publicKey = this.publicKey();
-    let valid = false;
-    try {
-      valid = verify(null, bundle, publicKey, signature);
-    } catch {
-      valid = false;
-    }
+    const valid = this.verifySignature(bundle, signature, publicKey);
     return dto.version ? { valid, version: dto.version } : { valid };
+  }
+
+  private verifySignature(bundle: Buffer, signature: Buffer, publicKey: string): boolean {
+    try {
+      return verify(null, bundle, publicKey, signature);
+    } catch (error) {
+      // Malformed signatures are an invalid result, not a server failure.
+      // Their contents are never logged or echoed back to the caller.
+      void error;
+      return false;
+    }
   }
 }
 

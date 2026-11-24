@@ -1,22 +1,28 @@
 import { Injectable } from '@nestjs/common';
+import { UserStatus } from '@prisma/client';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service';
 import { APP_VERSION } from '../../version';
+import { McpActor, McpPlanService } from './mcp-plan.service';
 
 const text = (data: unknown) => ({ content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] });
+const toolError = (error: unknown) => ({
+  isError: true,
+  content: [{ type: 'text' as const, text: error instanceof Error ? error.message : 'Unexpected MCP error' }],
+});
 
 @Injectable()
 export class McpService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private plans: McpPlanService) {}
 
-  createServer() {
+  createServer(actor: McpActor) {
     const server = new McpServer(
       { name: 'xreystudio', version: APP_VERSION },
       {
         capabilities: { tools: {} },
         instructions:
-          'Read-only bridge to the XreyStudio control panel. All tools only read data; nothing can be changed through this server.',
+          'Bridge to the XreyStudio control panel. Most tools are read-only. plan_user_status_change only prepares a plan (no data changes); approve_plan applies a pending plan only with an explicit owner approval token (MCP_APPROVAL_TOKEN). Plans expire after 5 minutes and are single-use.',
       },
     );
 
@@ -184,6 +190,51 @@ export class McpService {
         return text(
           rows.map((r) => ({ type: r.type, code: r.code, name: r.name, rule: `"${r.type}:${r.code}"` })),
         );
+      },
+    );
+
+    tool(
+      'plan_user_status_change',
+      {
+        description:
+          'Create a plan to change a user status (email, status, reason). Does NOT modify data: saves a pending plan for 5 minutes and returns its id, the actor, old/new status and reason as text. Applying requires approve_plan with a separate owner token.',
+        inputSchema: {
+          email: z.string().email().max(320),
+          status: z.enum([UserStatus.ACTIVE, UserStatus.DISABLED, UserStatus.EXPIRED]),
+          reason: z.string().min(1).max(500),
+        },
+      },
+      async (args: { email: string; status: UserStatus; reason: string }) => {
+        try {
+          const plan = await this.plans.createUserStatusPlan(actor, args);
+          return text({
+            message:
+              'Plan created. No data was changed. To apply it, call approve_plan with the plan id and the owner approval token.',
+            plan,
+          });
+        } catch (error) {
+          return toolError(error);
+        }
+      },
+    );
+
+    tool(
+      'approve_plan',
+      {
+        description:
+          'Apply a previously created user status plan using its planId and the explicit owner approvalToken from MCP_APPROVAL_TOKEN. Plans expire after 5 minutes and are single-use. Refuses to change the actor or an ADMIN account.',
+        inputSchema: {
+          planId: z.string().uuid(),
+          approvalToken: z.string().min(1),
+        },
+      },
+      async (args: { planId: string; approvalToken: string }) => {
+        try {
+          const result = await this.plans.approveUserStatusPlan(actor, args);
+          return text({ message: 'Plan approved and applied.', ...result });
+        } catch (error) {
+          return toolError(error);
+        }
       },
     );
 

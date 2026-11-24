@@ -1,4 +1,4 @@
-# MCP bridge (read-only)
+# MCP bridge (read-only by default, opt-in write-plan)
 
 The panel exposes a small [Model Context Protocol](https://modelcontextprotocol.io/) server over
 Streamable HTTP at `POST /api/mcp`. It lets an AI agent inspect the state of the panel without
@@ -67,3 +67,19 @@ request is self-contained and no session id is issued.
 | `geodata_search` | `query`, `type?` | matching geosite/geoip categories with ready-to-copy rule strings |
 
 All results are JSON wrapped in an MCP text content block.
+
+
+## Owner-approved write plans (opt-in)
+
+Set `MCP_APPROVAL_TOKEN` (at least 16 characters, owner-only secret) to enable two extra tools.
+Without it every request fails with a clear "not configured" error — no data is changed.
+
+- `plan_user_status_change({ email, status, reason })` — creates a **pending plan** and returns
+  its id, actor (from the JWT, never from arguments), old/new status and reason as text. It only
+  reads the target to report the current status; no writes happen.
+- `approve_plan({ planId, approvalToken })` — applies a pending plan only when `approvalToken`
+  matches `MCP_APPROVAL_TOKEN` (constant-time comparison). Plans expire after 5 minutes, are
+  single-use, cannot target the actor or an ADMIN account and are written to `AuditLog` by the
+  same service. A wrong token leaves the plan pending.
+
+Plans are kept in memory: a panel restart discards them, so an operator must create a fresh plan.

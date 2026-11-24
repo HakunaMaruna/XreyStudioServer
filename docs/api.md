@@ -289,3 +289,34 @@ is backed by Redis (`REDIS_URL`) and falls back to in-memory storage when Redis 
 unavailable; the configured limits still apply.
 
 Swagger UI: `/docs`
+
+## Telegram bot (optional)
+
+Set `TELEGRAM_BOT_TOKEN` plus `TELEGRAM_WEBHOOK_SECRET` (at least 16 characters) and point the
+Telegram webhook at `POST /api/telegram-bot/webhook`. Telegram must send the same secret in the
+`X-Telegram-Bot-Api-Secret-Token` header; keep it out of the URL so it never appears in proxy
+logs. Requests with a missing or wrong secret are rejected. The bot supports `/start` (one-time
+signed login link), `/login` (same), `/help` and `/status` (only reports whether this Telegram id
+is linked). The signed token is short-lived and single-use.
+
+- `GET /api/telegram-bot/login/validate?token=...` — redeems that token and returns only
+  `{ telegramId }`; it never returns a JWT or a user id.
+- `POST /api/telegram-bot/login/bind` with `{ "telegramId": number }` — JWT-protected; links the
+  validated id to the authenticated session user. The user id comes from the session, never from
+  the request body.
+
+## Rescue CLI
+
+For hosts where the HTTP API is unreachable, run on the database host:
+
+```
+npm run rescue -- list-admins
+RESCUE_NEW_PASSWORD='long-random-password' npm run rescue -- reset-password admin@example.com
+npm run rescue -- promote user@example.com
+npm run rescue -- demote admin@example.com
+```
+
+`npm run rescue` builds the project first, then executes `dist/scripts/rescue-cli.js`. Passwords
+are never part of the argv when `RESCUE_NEW_PASSWORD` is used, never logged and never written to
+the database in plaintext. `demote` refuses to remove the last active ADMIN. All operations go
+through Prisma with bound parameters and print only email, id, role and status.
