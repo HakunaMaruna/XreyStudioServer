@@ -3,6 +3,16 @@
 Context for the next agent. Read this first, then `trail ask "<question>" /work/XreyStudioServer`
 or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `graft/`).
 
+> **Для следующих код-агентов (2026-11-24):** работа по v2.23.3 и AdminLTE завершена и запушена.
+> main = `968f879`, тег/релиз `v2.23.3` опубликован, CI/Images/Live API smoke зелёные.
+> Event-level notification routing (PR #165, `59a8e5e`) доделан; AdminLTE — дефолтный UI
+> (PR #164), все 21 страница и общие компоненты покрыты, awful Aurora оставлен намеренно
+> (`NEXT_PUBLIC_UI=aurora`). Документация обновлена, подписи переключателя локализованы.
+> Локальные ограничения: Turbopack `next build` падает только на Node 20.15 (ESM
+> `magic-string`) — используйте `npx next build --webpack`; v15 pg e2e пропущен из-за
+> pg_dump 16 vs PGlite 19 (в CI проходит). `/work` чистый; proot блокирует запись объектов
+> git — синхронизируйте копированием loose objects из `/tmp/opencode/xss-work-225`.
+
 ## Latest (v2.9.0 – v2.17.1, 2026-11-24)
 
 - Live panel: `https://msc.h2onetwork.pro` (current tag v2.17.1, `/api/health` 200, login 201).
