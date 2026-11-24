@@ -11,6 +11,7 @@ const PROTECTED = [
   '/api/nodes',
   '/api/settings',
   '/api/routing',
+  '/api/config-profiles',
 ];
 
 async function call(path, options = {}) {
