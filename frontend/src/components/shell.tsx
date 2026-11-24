@@ -6,7 +6,7 @@ import { useLang } from '../lib/i18n';
 import { clearTokens, isLoggedIn } from '../lib/api';
 import { getTheme, applyTheme, type Theme } from '../lib/theme';
 import { APP_VERSION } from '../lib/version';
-import { Icon, toggleIconSet, type IconName } from './icons';
+import { Icon, type IconName } from './icons';
 import { Avatar, Badge, IconButton, cn } from './ui';
 
 type NavItem = { href: string; label: string; icon: IconName };
@@ -60,6 +60,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         items: [
           { href: '/users', label: t.users, icon: 'users' },
           { href: '/organizations', label: t.organizations, icon: 'shield' },
+          { href: '/api-tokens', label: t.apiTokens, icon: 'key' },
       { href: '/config-profiles', label: t.configProfiles, icon: 'sliders' },
       { href: '/squads', label: t.squads, icon: 'users' },
         ],
@@ -78,7 +79,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         items: [
           { href: '/audit', label: t.audit, icon: 'file' },
           { href: '/backups', label: t.backups, icon: 'database' },
-          { href: '/help', label: t.docs, icon: 'file' },
           { href: '/settings', label: t.settings, icon: 'settings' },
         ],
       },
@@ -114,14 +114,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </div>
         <div className="leading-tight">
           <p className="text-sm font-semibold tracking-tight text-fg">XreyStudio</p>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">{t.controlPanel}</p>
+          <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-subtle">Control panel</p>
         </div>
       </div>
 
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
         {sections.map((section) => (
           <div key={section.title}>
-            <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-subtle">{section.title}</p>
+            <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-subtle">{section.title}</p>
             <div className="space-y-1">
               {section.items.map((item) => {
                 const active = pathname === item.href;
@@ -132,7 +132,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     className={cn(
                       'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all',
                       active
-                        ? 'bg-gradient-to-r from-brand/20 via-brand-soft to-transparent font-medium text-brand shadow-[inset_3px_0_0_var(--brand)]'
+                        ? 'bg-brand-soft font-medium text-brand'
                         : 'text-muted hover:bg-surface-2 hover:text-fg',
                     )}
                   >
@@ -212,7 +212,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               placeholder={t.searchPages}
               className="field pl-9 pr-8"
             />
-            <kbd className="mono pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-line bg-surface-3 px-1.5 py-0.5 text-[11px] text-subtle">/</kbd>
+            <kbd className="mono pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-line bg-surface-3 px-1.5 py-0.5 text-[9px] text-subtle">/</kbd>
             {searchOpen && query.trim() && (
               <div className="panel absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden p-1.5">
                 {results.length === 0 ? (
@@ -245,7 +245,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             {lang.toUpperCase()}
           </button>
           <IconButton icon={theme === 'dark' ? 'sun' : 'moon'} label="Toggle theme" onClick={switchTheme} />
-          <IconButton icon="sparkles" label="Toggle icon set" onClick={toggleIconSet} />
         </header>
 
         <main id="main-content" className="relative z-10 mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:px-8">{children}</main>
