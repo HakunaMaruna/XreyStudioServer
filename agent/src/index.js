@@ -126,25 +126,29 @@ function stopManagedXray() {
 
 async function startManagedXray() {
   stopManagedXray();
-  xrayProcess = spawn(XRAY_BIN, ['run', '-c', CONFIG_PATH], {
+  const proc = spawn(XRAY_BIN, ['run', '-c', CONFIG_PATH], {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: process.env,
   });
-  xrayProcess.stdout.on('data', (d) => {
+  xrayProcess = proc;
+  proc.stdout.on('data', (d) => {
     const line = String(d).trim();
     if (line) console.log('[xray]', line);
   });
-  xrayProcess.stderr.on('data', (d) => {
+  proc.stderr.on('data', (d) => {
     const line = String(d).trim();
     if (line) console.error('[xray]', line);
   });
-  xrayProcess.on('exit', (code, signal) => {
+  proc.on('exit', (code, signal) => {
+    // Старый процесс может испустить exit уже после того, как мы сохранили
+    // ссылку на новый — не перетираем её.
+    if (xrayProcess !== proc) return;
     if (code && code !== 0) xrayStatus = 'error';
     else if (signal) xrayStatus = 'stopped';
     xrayProcess = null;
   });
   await new Promise((resolve) => setTimeout(resolve, 800));
-  const ok = Boolean(xrayProcess && xrayProcess.exitCode === null);
+  const ok = Boolean(xrayProcess === proc && proc.exitCode === null);
   xrayStatus = ok ? 'running' : 'error';
   return ok;
 }
