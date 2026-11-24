@@ -71,8 +71,16 @@ function backupCurrent() {
   return target;
 }
 
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+
 function configHash(config) {
-  return createHash('sha256').update(JSON.stringify(config, Object.keys(config).sort())).digest('hex');
+  return createHash('sha256').update(stableStringify(config)).digest('hex');
 }
 
 function validateConfig(config) {
@@ -184,32 +192,40 @@ async function collectTrafficEntriesPattern() {
   if (!emails.size) return [];
 
   const server = `${XRAY_API_HOST}:${XRAY_API_PORT}`;
-  const pattern = 'user>>>.*>>>traffic>>>';
-  const result = await run(XRAY_BIN, ['api', 'statsq', '--server', server, '--pattern', pattern, '--type', 'coupled'], 10000);
+  const result = await run(XRAY_BIN, ['api', 'statsq', '--server', server, '--pattern', 'user>>>'], 10000);
   if (!result.ok) {
     console.error('statsq --pattern failed, falling back to per-user', result.stderr || result.error);
     return collectTrafficEntriesLegacy();
   }
 
-  const lines = String(result.stdout || '').split('\n').map((line) => line.trim()).filter(Boolean);
-  const entries = [];
-  for (const line of lines) {
-    const match = line.match(/^(user>>>.+?)>>>traffic>>>(uplink|downlink)\s*,\s*(\d+)/);
-    if (!match) continue;
-    const [, fullPath, direction, value] = match;
-    const email = fullPath.replace(/^user>>>/, '').replace(/>>>.*$/, '');
+  const deltas = new Map();
+  const seen = new Set();
+  const re = /user>>>[^>]+>>>traffic>>>(uplink|downlink)[^0-9]*(\d+)/g;
+  let match;
+  while ((match = re.exec(String(result.stdout || '')))) {
+    const [, direction, value] = match;
+    const email = match[0].replace(/^user>>>/, '').replace(/>>>traffic>>>.*$/, '');
     if (!emails.has(email)) continue;
     const val = Number(value);
     const prev = lastUserStats.get(email) || { uplink: 0, downlink: 0 };
+    const delta = deltas.get(email) || { up: 0, down: 0 };
     if (direction === 'uplink') {
-      const up = Math.max(0, val - prev.uplink);
-      if (up) entries.push({ email, up });
+      delta.up = Math.max(0, val - prev.uplink);
       lastUserStats.set(email, { ...prev, uplink: val });
     } else {
-      const down = Math.max(0, val - prev.downlink);
-      if (down) entries.push({ email, down });
+      delta.down = Math.max(0, val - prev.downlink);
       lastUserStats.set(email, { ...prev, downlink: val });
     }
+    deltas.set(email, delta);
+    seen.add(email);
+  }
+  if (!seen.size) {
+    console.error('statsq --pattern returned no matching stats, falling back to per-user');
+    return collectTrafficEntriesLegacy();
+  }
+  const entries = [];
+  for (const [email, delta] of deltas) {
+    if (delta.up || delta.down) entries.push({ email, up: delta.up, down: delta.down });
   }
   return entries;
 }
