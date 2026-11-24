@@ -2,7 +2,7 @@
 # XreyStudioServer — one-command installer with a multilingual terminal menu.
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/HakunaMaruna/XreyStudioServer/main/install.sh | bash
-#   ./install.sh [--mode all-in-one|panel|node|subscription] [--domain example.com] [--lang en|ru] [--yes] [--dry-run]
+#   ./install.sh [--mode all-in-one|panel|node|subscription|control] [--domain example.com] [--lang en|ru] [--yes] [--dry-run]
 set -euo pipefail
 
 MODE=""
@@ -36,7 +36,7 @@ Usage:
   ./install.sh [options]
 
 Options:
-  --mode all-in-one|panel|node|subscription   Installation mode
+  --mode all-in-one|panel|node|subscription|control  Installation mode
   --domain example.com                        Panel domain
   --lang en|ru                                Installer language
   --yes, -y                                   Skip confirmations
@@ -71,6 +71,7 @@ t() {
         panel_only) printf 'Только панель — backend + Caddy' ;;
         node_agent) printf 'Агент ноды — подключить этот хост как ноду Xray' ;;
         subscription) printf 'Подписка — публичный фронтенд подписок + Caddy' ;;
+        control) printf 'CONTROL — центральная панель + PowerDNS (зона нод)' ;;
         exit) printf 'Выход' ;;
         panel_url_prompt) printf 'URL панели (например https://msc.example.com)' ;;
         domain_prompt) printf 'Домен для панели' ;;
@@ -117,6 +118,7 @@ t() {
         panel_only) printf 'Panel only — backend + Caddy' ;;
         node_agent) printf 'Node agent — connect this host as an Xray node' ;;
         subscription) printf 'Subscription — public subscription frontend + Caddy' ;;
+        control) printf 'CONTROL — central panel + PowerDNS (node zone)' ;;
         exit) printf 'Exit' ;;
         panel_url_prompt) printf 'Panel URL (e.g. https://msc.example.com)' ;;
         domain_prompt) printf 'Domain for the panel' ;;
@@ -199,6 +201,7 @@ read_choice() {
     2) echo "panel" ;;
     3) echo "node" ;;
     4) echo "subscription" ;;
+    5) echo "control" ;;
     *) say "  ${C_RED}$(t invalid_choice)${C_RESET}"; return 1 ;;
   esac
 }
@@ -248,6 +251,7 @@ if [ -z "$MODE" ] && [ -t 0 ]; then
   say "  ${C_CYAN}2)${C_RESET} $(t panel_only)"
   say "  ${C_CYAN}3)${C_RESET} $(t node_agent)"
   say "  ${C_CYAN}4)${C_RESET} $(t subscription)"
+  say "  ${C_CYAN}5)${C_RESET} $(t control)"
   say "  ${C_CYAN}0)${C_RESET} $(t exit)"
   say ""
   printf '%b' "$(t choice)"
@@ -329,6 +333,11 @@ if [ ! -f .env ]; then
   run cp .env.example .env
   JWT="$(openssl rand -hex 32)"; REFRESH="$(openssl rand -hex 32)"; ADMIN="$(openssl rand -hex 24)"
   AGENT="${AGENT_TOKEN:-$(openssl rand -hex 32)}"; ALERT="$(openssl rand -hex 24)"; POSTGRES="$(openssl rand -hex 16)"
+  if [ "$MODE" = "control" ]; then
+    PDNS_KEY="$(openssl rand -hex 24)"; MASTER_KEY="$(openssl rand 32 | base64 -w0)"
+    say "  ${C_DIM}PDNS_API_KEY=$PDNS_KEY${C_RESET}"
+    say "  ${C_DIM}PANEL_MASTER_KEY=$MASTER_KEY${C_RESET}"
+  fi
   run_sh "sed -i 's|^JWT_SECRET=.*|JWT_SECRET=$JWT|' .env"
   run_sh "sed -i 's|^JWT_REFRESH_SECRET=.*|JWT_REFRESH_SECRET=$REFRESH|' .env"
   run_sh "sed -i 's|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=$ADMIN|' .env"
@@ -342,6 +351,9 @@ if [ ! -f .env ]; then
   run_sh "sed -i 's|^NODE_DOMAIN_SUFFIX=.*|NODE_DOMAIN_SUFFIX=$DOMAIN|' .env"
   run_sh "sed -i 's|^LE_EMAIL=.*|LE_EMAIL=$LE_EMAIL|' .env"
   run_sh "sed -i 's|^NODE_ID=.*|NODE_ID=$NODE_ID|' .env"
+  if [ "$MODE" = "control" ]; then
+    run_sh "printf 'PDNS_API_KEY=%s\\nPANEL_MASTER_KEY=%s\\nNODE_DNS_ZONE=node.h2onetwork.pro\\nNODE_DNS_TTL=60\\n' '$PDNS_KEY' '$MASTER_KEY' >> .env"
+  fi
   ADMIN_PASSWORD="$ADMIN"; ADMIN_EMAIL="admin@${DOMAIN#https://}"
 else
   say "  ${C_YELLOW}! $(t env_present)${C_RESET}"
@@ -365,6 +377,7 @@ case "$MODE" in
   node) run $SUDO docker compose up -d agent ;;
   subscription) run $SUDO docker compose up -d frontend caddy ;;
   all-in-one) run $SUDO docker compose up -d ;;
+  control) run $SUDO docker compose -f docker-compose.control.yml up -d ;;
   *) say "Unknown mode: $MODE" >&2; exit 1 ;;
 esac
 

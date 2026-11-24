@@ -37,6 +37,8 @@ import { HealthChecksModule } from './modules/health-checks/health-checks.module
 import { SubscriptionTemplatesModule } from './modules/subscription-templates/subscription-templates.module';
 import { GeodataModule } from './modules/geodata/geodata.module';
 import { McpModule } from './modules/mcp/mcp.module';
+import { ControlModule } from './modules/control/control.module';
+import { WizardModule } from './modules/wizard/wizard.module';
 import { TelegramBotModule } from './modules/telegram-bot/telegram-bot.module';
 
 @Module({
@@ -84,6 +86,8 @@ import { TelegramBotModule } from './modules/telegram-bot/telegram-bot.module';
     SubscriptionTemplatesModule,
     GeodataModule,
     McpModule,
+    ControlModule,
+    WizardModule,
     TelegramBotModule,
   ],
   providers: [

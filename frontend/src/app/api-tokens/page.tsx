@@ -13,7 +13,7 @@ import {
   Toggle,
 } from '../../components/ui';
 
-type Scope = 'MONITOR' | 'NODE_SYNC' | 'NOTIFICATIONS' | 'USERS_READ';
+type Scope = 'MONITOR' | 'NODE_SYNC' | 'NOTIFICATIONS' | 'USERS_READ' | 'NODE_DOMAIN';
 type TokenRow = {
   id: string;
   name: string;
@@ -37,7 +37,7 @@ function errorMessage(e: unknown, fallback: string): string {
   return e instanceof Error && e.message ? e.message : fallback;
 }
 
-const SCOPES: Scope[] = ['MONITOR', 'NODE_SYNC', 'NOTIFICATIONS', 'USERS_READ'];
+const SCOPES: Scope[] = ['MONITOR', 'NODE_SYNC', 'NOTIFICATIONS', 'USERS_READ', 'NODE_DOMAIN'];
 const EVENTS = [
   'NODE_OFFLINE',
   'NODE_ONLINE',
@@ -53,6 +53,7 @@ const scopeKey: Record<Scope, keyof Dict> = {
   NODE_SYNC: 'tokenScopeNodeSync',
   NOTIFICATIONS: 'tokenScopeNotifications',
   USERS_READ: 'tokenScopeUsersRead',
+  NODE_DOMAIN: 'tokenScopeNodeDomain',
 };
 const eventKey: Record<string, keyof Dict> = {
   NODE_OFFLINE: 'eventNodeOffline',

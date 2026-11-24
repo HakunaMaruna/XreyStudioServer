@@ -13,6 +13,27 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 > pg_dump 16 vs PGlite 19 (в CI проходит). `/work` чистый; proot блокирует запись объектов
 > git — синхронизируйте копированием loose objects из `/tmp/opencode/xss-work-225`.
 
+## Current work (2026-11-25)
+
+v2.27.0 — автоматическая выдача доменов нодам и мастер создания ноды (issue **#176**).
+Всю работу выполняет основной агент (агентские задачи #172–#175 закрыты по решению пользователя).
+
+Что реализовано:
+- CONTROL: `NodeDomain`, scope `NODE_DOMAIN`, `/api/control/domains` (allocate/list/release/bind),
+  PowerDNS HTTP-клиент (A/AAAA/TXT, TTL 60), DNS-01 сертификаты certbot (в т.ч. второй домен через CNAME ACME).
+- TENANT: `/wizard` — 3 шага, три режима SSH-авторизации, sudo и установка Docker,
+  249 стран ISO 3166-1 alpha-2 с флагами, вызов CONTROL, inbound VLESS TLS, тесты.
+- SSH-креды шифруются AES-256-GCM (`PANEL_MASTER_KEY`), в API только признак наличия.
+- Инфраструктура: `docker-compose.control.yml`, режим `control` в `install.sh`, `scripts/bootstrap-dns-zone.sh`.
+- Документация: `docs/control-dns.md`, `docs/node-wizard.md`.
+
+Решения по вопросам пользователя: tenant-токен создаётся ADMIN в `/api-tokens` (raw один раз,
+хеш в БД, квота безлимитная); пользовательский домен требует CNAME + ACME CNAME, серт выпускается
+на оба имени; сами записи в зоне `node.h2onetwork.pro`, VLESS TLS вместо Reality.
+
+Тесты: `npm test` — 23 suites / 127 tests, все зелёные (в т.ч. 17 новых).
+Перед продолжением прочитать #176, `docs/control-dns.md` и `docs/node-wizard.md`.
+
 ## Latest (v2.9.0 – v2.17.1, 2026-11-24)
 
 - Live panel: `https://msc.h2onetwork.pro` (current tag v2.17.1, `/api/health` 200, login 201).
