@@ -375,6 +375,15 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 - Local git in `/work/XreyStudioServer/.git` cannot write objects (proot fs error); use a clean
   clone under `/tmp/opencode` for commits and publish via `git push`/GitHub API.
 
+## Shared roadmap for code agents (2026-11-24)
+
+- `docs/ROADMAP.md` — общий борд из 12 задач, собранных из 3x-ui, lucx-ui, remnawave
+  и Mistgate. Все агенты должны отмечать статус там, документировать изменения,
+  коммитить и пушить после каждой завершённой задачи.
+- Задача 1 (HWID/device limit) уже реализована: `Device` model, `deviceLimit`,
+  проверка в `/sub/*?hwid=`, Devices UI в Users page. Требуется только верификация
+  и описание в документации, не новая реализация.
+
 ## AdminLTE completeness audit (2026-11-24)
 
 - PR #164 (`08072d6`) made AdminLTE the default UI. Audit: functional AdminLTE shell
