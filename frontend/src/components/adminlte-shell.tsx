@@ -1,5 +1,5 @@
 'use client';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import Link from 'next/link';
 import Script from 'next/script';
 import { DashboardLayout, type MenuNode } from '@adminlte/react';
@@ -32,6 +32,11 @@ const item = (text: string, href: string, icon: IconName): MenuNode => ({
 
 export default function AdminLiteShell({ children }: { children: ReactNode }) {
   const { t, lang } = useLang();
+
+  useEffect(() => {
+    document.documentElement.dataset.ui = 'adminlte';
+    return () => { delete document.documentElement.dataset.ui; };
+  }, []);
 
   const menu: MenuNode[] = [
     { type: 'header', text: t.overview },

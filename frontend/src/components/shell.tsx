@@ -24,6 +24,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
+    document.documentElement.dataset.ui = 'aurora';
     setAuthed(isLoggedIn());
     setTheme(getTheme());
   }, []);
