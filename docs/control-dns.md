@@ -15,6 +15,9 @@ cd XreyStudioServer
 Режим `control` поднимает `docker-compose.control.yml`: обычные сервисы панели **плюс**
 `powerdns` (UDP/TCP 53 наружу, HTTP API 8081 только внутри Docker-сети).
 Установщик генерирует `PDNS_API_KEY` и `PANEL_MASTER_KEY` и пишет их в `.env`.
+Для smoke-теста на сервере, где `systemd-resolved` занимает `127.0.0.53:53`,
+установите `PDNS_BIND_IP=127.0.0.1` — PowerDNS слушает только локальный адрес,
+а после включения публичного DNS замените на `0.0.0.0`.
 
 Создание зоны (один раз):
 
