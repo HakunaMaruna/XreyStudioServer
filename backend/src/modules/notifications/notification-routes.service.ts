@@ -38,21 +38,22 @@ export class NotificationRoutesService {
       throw new BadRequestException('Unknown event or channel');
     }
     const orgId = input.organizationId ?? null;
-    return this.prisma.notificationRoute.upsert({
-      where: {
-        event_channel_organizationId: {
-          event: input.event,
-          channel: input.channel,
-          organizationId: orgId,
-        },
-      },
-      create: {
+    const existing = await this.prisma.notificationRoute.findFirst({
+      where: { event: input.event, channel: input.channel, organizationId: orgId },
+    });
+    if (existing) {
+      return this.prisma.notificationRoute.update({
+        where: { id: existing.id },
+        data: { enabled: input.enabled },
+      });
+    }
+    return this.prisma.notificationRoute.create({
+      data: {
         event: input.event,
         channel: input.channel,
         enabled: input.enabled,
         organizationId: orgId,
       },
-      update: { enabled: input.enabled },
     });
   }
 }
