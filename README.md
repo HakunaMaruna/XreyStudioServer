@@ -16,6 +16,8 @@ Self-hosted control panel for **Xray-core** with multi-node agents, client manag
 - Subscription formats: raw, base64, Clash / Clash Meta, sing-box, JSON.
 - Format auto-detection by `User-Agent`.
 - RBAC: `ADMIN`, `OPERATOR`, `USER`.
+- Per-user device limit (HWID): bind devices by subscription token, revoke from the Users page,
+  and reject unregistered devices once the cap is reached.
 - Multi-tenant organizations and white-label branding.
 - Audit log, backups and restore.
 - Payments, plans, trials, referrals and resellers (extensible).
