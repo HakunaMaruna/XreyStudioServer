@@ -208,6 +208,14 @@ export class SubscriptionsService {
     return data;
   }
 
+  private parseVmess(link: string): Record<string, any> {
+    try {
+      return JSON.parse(Buffer.from(link.replace(/^vmess:\/\//, ''), 'base64').toString('utf8'));
+    } catch {
+      return {};
+    }
+  }
+
   async clash(token: string) {
     const data = await this.assertUsable(token);
     const proxies = data.links
@@ -216,6 +224,22 @@ export class SubscriptionsService {
       )
       .map((l: any) => {
         const name = l.tag.replace(/[:"']/g, '');
+        if (l.protocol === 'vmess') {
+          const c = this.parseVmess(l.link);
+          return [
+            `  - name: "${name}"`,
+            '    type: vmess',
+            `    server: ${c.add || ''}`,
+            `    port: ${c.port || 443}`,
+            `    uuid: ${c.id || ''}`,
+            `    alterId: ${c.aid ?? 0}`,
+            `    cipher: ${c.scy || 'auto'}`,
+            `    network: ${c.net || 'tcp'}`,
+            `    tls: ${c.tls === 'tls'}`,
+            `    servername: ${c.sni || c.host || ''}`,
+            '    udp: true',
+          ].join('\n');
+        }
         if (l.protocol === 'vless') {
           const url = new URL(l.link);
           return [
@@ -304,6 +328,24 @@ export class SubscriptionsService {
     const data = await this.assertUsable(token);
     const outbounds = data.links.map((l: any) => {
       const url = new URL(l.link);
+      if (l.protocol === 'vmess') {
+        const c = this.parseVmess(l.link);
+        return {
+          type: 'vmess',
+          tag: l.tag,
+          server: c.add || '',
+          server_port: Number(c.port || 443),
+          uuid: c.id || '',
+          security: c.scy || 'auto',
+          alter_id: Number(c.aid || 0),
+          tls: { enabled: c.tls === 'tls', server_name: c.sni || c.host || undefined },
+          transport: {
+            type: c.net || 'tcp',
+            path: c.path || undefined,
+            headers: c.host ? { Host: c.host } : undefined,
+          },
+        };
+      }
       if (l.protocol === 'vless') {
         return {
           type: 'vless',

@@ -1,0 +1,224 @@
+export type DocSection = {
+  id: string;
+  title: string;
+  icon: 'file' | 'key' | 'server' | 'shield' | 'database' | 'activity' | 'globe';
+  markdown: string;
+};
+
+export const DOC_SECTIONS: DocSection[] = [
+  {
+    id: 'quickstart',
+    title: 'Быстрый старт',
+    icon: 'file',
+    markdown: `# Быстрый старт
+
+Панель ставится одной командой. Установщик покажет цветное меню, спросит язык (\`en\`/\`ru\`) и режим, сгенерирует секреты и поднимет сервисы.
+
+\`\`\`bash
+curl -fsSL https://raw.githubusercontent.com/HakunaMaruna/XreyStudioServer/main/install.sh | bash
+\`\`\`
+
+## Режимы
+
+| Режим | Что ставится |
+| --- | --- |
+| \`all-in-one\` | панель + агент + Caddy + PostgreSQL + Redis |
+| \`panel\` | только панель |
+| \`node\` | агент с Xray (нужны \`NODE_ID\` и \`AGENT_TOKEN\`) |
+| \`subscription\` | только страница подписки |
+
+## Неинтерактивно
+
+\`\`\`bash
+./install.sh --mode all-in-one --domain example.com --lang ru --yes
+./install.sh --mode node --ssh-host 203.0.113.10 --ssh-user root --dry-run
+\`\`\`
+
+После установки откройте \`https://<домен>/login\`. Сохраните выведенные учётные данные.
+
+## Обновление
+
+\`\`\`bash
+cd /home/user1/xss
+git fetch origin && git reset --hard origin/main
+sudo docker compose up -d --build backend frontend agent
+\`\`\`
+
+Перед обновлением сделайте бэкап: **Настройки → Резервные копии** или \`make backup\`.
+`,
+  },
+  {
+    id: 'vpn-test',
+    title: 'Тестовое подключение',
+    icon: 'key',
+    markdown: `# Тестовое подключение
+
+В панели создан тестовый пользователь с активной подпиской. Добавьте ссылку в приложение, чтобы проверить, что VPN действительно работает.
+
+## Подписка
+
+\`\`\`text
+https://msc.h2onetwork.pro/sub/2e3897d4-1f8a-4ebc-aba0-3072229d3504
+\`\`\`
+
+В подписке два узла:
+
+- **VMess**, TCP, порт **2053** — без TLS, проверен с внешней машины;
+- **VLESS + Reality**, TCP, порт **2054** — проверен с сервера; с некоторых сетей TLS на нестандартном порту режется, тогда используйте VMess.
+
+## Как добавить
+
+- **v2rayNG / v2rayN**: Подписка → Импорт подписки → вставить URL → обновить.
+- **Shadowrocket**: «+» → тип \`Subscribe\` → URL → выбрать узел.
+- **NekoRay**: Подписка → Добавить → URL → обновить.
+
+## Проверка
+
+После подключения откройте \`https://httpbin.org/get\` — поле \`origin\` должно показывать IP сервера \`213.171.30.186\`, а не ваш прямой IP.
+
+Тестового пользователя и подключение можно удалить после проверки в разделах **Пользователи** и **Подключения**.
+`,
+  },
+  {
+    id: 'nodes',
+    title: 'Ноды и агенты',
+    icon: 'server',
+    markdown: `# Ноды и агенты
+
+Агент получает конфигурацию из панели и запускает **Xray** внутри контейнера (managed-режим, без systemd). Статус ноды и версию конфига видно в разделе **Ноды**.
+
+## Добавление ноды по SSH
+
+\`\`\`bash
+./scripts/add-node.sh --host 203.0.113.10 --user root \\
+  --panel-url https://panel.example.com --admin-token "$PANEL_ADMIN_TOKEN" --dry-run
+\`\`\`
+
+Скрипт проверяет доступ, создаёт ноду через \`POST /api/nodes\`, ставит агента и ждёт статус ONLINE. Требуются \`jq\` или \`python3\`.
+
+## Геопроверка
+
+Раз в 6 часов агент определяет исходящий IP через \`GEOCHECK_URL\` и отправляет страну/город/ASN в панель. Результат виден в таблице нод.
+
+## Проверки доступа
+
+Раздел **Проверки доступа** раз в 5 минут подключается к каждому inbound'у «глазами клиента» и показывает задержку. Настраивается переменной \`HEALTH_CHECK_INTERVAL\`.
+`,
+  },
+  {
+    id: 'api',
+    title: 'API',
+    icon: 'globe',
+    markdown: `# API
+
+Swagger доступен по адресу \`/docs\`, OpenAPI-спецификация — \`/docs-json\`.
+
+## Авторизация
+
+\`\`\`bash
+curl -X POST https://msc.h2onetwork.pro/api/auth/login \\
+  -H 'Content-Type: application/json' \\
+  -d '{"email":"admin@example.com","password":"..."}'
+\`\`\`
+
+Полученный \`accessToken\` передавайте в заголовке \`Authorization: Bearer <token>\`.
+
+## Основные разделы
+
+- \`/users\` — пользователи, подписки, лимиты, устройства;
+- \`/nodes\` — ноды, конфигурации, ревизии, метрики, геоданные;
+- \`/inbounds\`, \`/hosts\`, \`/rules\` — подключения и маршрутизация;
+- \`/subscriptions/:token\` — подписка в форматах \`raw\`, \`base64\`, \`clash\`, \`singbox\`, \`json\`;
+- \`/devices\` — привязка HWID-устройств;
+- \`/geodata\`, \`/subscription-templates\`, \`/health-checks\` — справочники и проверки;
+- \`/mcp\` — read-only MCP-сервер.
+
+Полное описание — в \`docs/api.md\` репозитория.
+`,
+  },
+  {
+    id: 'mcp',
+    title: 'MCP для ИИ-агентов',
+    icon: 'activity',
+    markdown: `# MCP-bridge
+
+Панель предоставляет read-only MCP-сервер по адресу \`POST /api/mcp\` (Streamable HTTP, stateless).
+
+## Авторизация
+
+- заголовок \`X-MCP-Token: <MCP_TOKEN>\` (рекомендуется), или
+- \`Authorization: Bearer <MCP_TOKEN>\`, или
+- ADMIN JWT.
+
+Без токена — \`401\`. \`MCP_TOKEN\` задаётся в \`.env\`.
+
+## Настройка клиента
+
+\`\`\`json
+{
+  "mcpServers": {
+    "xreystudio": {
+      "type": "http",
+      "url": "https://msc.h2onetwork.pro/api/mcp",
+      "headers": { "X-MCP-Token": "<MCP_TOKEN>" }
+    }
+  }
+}
+\`\`\`
+
+## Инструменты
+
+\`panel_status\`, \`list_users\`, \`list_nodes\`, \`health_summary\`, \`list_inbounds\`, \`list_subscription_templates\`, \`geodata_search\`.
+
+Все инструменты только читают данные — изменить что-то через MCP невозможно.
+`,
+  },
+  {
+    id: 'security',
+    title: 'Безопасность',
+    icon: 'shield',
+    markdown: `# Безопасность
+
+## Рекомендации
+
+- храните \`.env\` вне git и задайте длинные \`JWT_SECRET\`, \`JWT_REFRESH_SECRET\`, \`ADMIN_PASSWORD\`;
+- включите \`METRICS_TOKEN\` — без него метрики в проде не отдаются;
+- задайте \`MCP_TOKEN\` для MCP-bridge;
+- не открывайте панель напрямую в интернет без TLS и файрвола.
+
+## Что реализовано
+
+- Argon2id для новых паролей, совместимость со старыми хешами;
+- RBAC: ADMIN / OPERATOR / USER;
+- изоляция подключений и трафика по организациям;
+- защита от SSRF при обращении к агентам (блокировка link-local/metadata и IPv6);
+- rate limiting через Redis;
+- аудит действий администраторов.
+
+Актуальные находки и их статус — в \`security/RE-AUDIT-v2.14.2.md\`.
+`,
+  },
+  {
+    id: 'backup',
+    title: 'Бэкапы и мониторинг',
+    icon: 'database',
+    markdown: `# Бэкапы и мониторинг
+
+## Бэкапы
+
+Раздел **Резервные копии** позволяет создавать, скачивать и удалять снимки PostgreSQL. Доступен расписанный режим: интервал, хранение, последний и следующий запуск.
+
+## Метрики
+
+Агент раз в 15 секунд отправляет CPU/RAM/disk/трафик/подключения. Экспорт Prometheus доступен на \`/api/metrics\` с заголовком \`X-Metrics-Token\`.
+
+## Оповещения
+
+Каналы: Telegram / webhook / SMTP / Signal. Проверки доступны в разделе **Оповещения**, история — в **Audit**.
+
+## Geolocation и проверки
+
+См. разделы **Ноды** (геоданные агента) и **Проверки доступа** (client-eye latency).
+`,
+  },
+];

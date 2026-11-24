@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "2.19.1",
+  "version": "2.20.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -16,7 +16,9 @@
     "qrcode.react": "^4.2.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "recharts": "^3.11.0"
+    "react-markdown": "^10.1.0",
+    "recharts": "^3.11.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "4.3.5",
