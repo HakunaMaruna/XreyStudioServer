@@ -354,17 +354,24 @@ async function checkGeo() {
     }
     const org = String(data.org || '');
     const asn = org.match(/^AS\d+/)?.[0] || '';
-    await fetch(`${PANEL_URL}/api/nodes/${NODE_ID}/geo`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AGENT_TOKEN}` },
-      body: JSON.stringify({
-        ip: data.ip || '',
-        countryCode: data.country || '',
-        city: data.city || '',
-        asn,
-        org,
-      }),
+    const payload = JSON.stringify({
+      ip: data.ip || '',
+      countryCode: data.country || '',
+      city: data.city || '',
+      asn,
+      org,
     });
+    // Панель может ещё подниматься сразу после docker compose up — повторяем.
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const res = await fetch(`${PANEL_URL}/api/nodes/${NODE_ID}/geo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AGENT_TOKEN}` },
+        body: payload,
+      });
+      if (res.ok) break;
+      if (attempt === 3) throw new Error(`geo report failed: ${res.status}`);
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
     console.log(`geo updated: ${data.country || '??'} ${data.city || ''} ${data.ip || ''}`);
   } catch (e) {
     console.error('geocheck failed', e.message);
