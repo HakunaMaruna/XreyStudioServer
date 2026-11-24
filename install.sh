@@ -10,6 +10,13 @@ DOMAIN=""
 LANG_CODE=""
 YES=0
 DRY_RUN=0
+# Онбординг ноды по SSH (issue #95): без этих флагов поведение прежнее.
+SSH_HOST=""
+SSH_USER=""
+SSH_PORT="22"
+# Запоминаем, задал ли пользователь NODE_ID явно: ниже он получает значение
+# по умолчанию, и в SSH-ветку нельзя передавать эту заглушку.
+NODE_ID_EXPLICIT="${NODE_ID:-}"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -18,6 +25,9 @@ while [ $# -gt 0 ]; do
     --lang|--language) LANG_CODE="${2:-}"; shift 2 ;;
     --yes|-y) YES=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
+    --ssh-host) [ $# -ge 2 ] || { echo "--ssh-host requires a value" >&2; exit 1; }; SSH_HOST="$2"; shift 2 ;;
+    --ssh-user) [ $# -ge 2 ] || { echo "--ssh-user requires a value" >&2; exit 1; }; SSH_USER="$2"; shift 2 ;;
+    --ssh-port) [ $# -ge 2 ] || { echo "--ssh-port requires a value" >&2; exit 1; }; SSH_PORT="$2"; shift 2 ;;
     -h|--help)
       cat <<'HELP'
 XreyStudioServer installer
@@ -31,6 +41,10 @@ Options:
   --lang en|ru                                Installer language
   --yes, -y                                   Skip confirmations
   --dry-run                                   Print actions without executing
+  --ssh-host HOST                             Node mode: install the agent on a
+                                              remote host over SSH
+  --ssh-user USER                             SSH user for --ssh-host (default: root)
+  --ssh-port PORT                             SSH port for --ssh-host (default: 22)
   -h, --help                                  Show this help
 
 One-line install:
@@ -261,6 +275,29 @@ say "  $(t dry_run):    ${C_BOLD}$DRY_RUN${C_RESET}"
 line
 
 if ! confirm "$(t proceed)"; then say "$(t cancelled)"; exit 0; fi
+
+# ---------- удалённая нода: онбординг по SSH ----------
+# Режим node + --ssh-host означает «поставить агент не здесь, а на ноде».
+# Вся логика — в scripts/add-node.sh; здесь только передача параметров.
+if [ "$MODE" = "node" ] && [ -n "$SSH_HOST" ]; then
+  INSTALLER_DIR=""
+  if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
+    INSTALLER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  fi
+  ADD_NODE="${INSTALLER_DIR:+$INSTALLER_DIR/scripts/add-node.sh}"
+  if [ -z "$INSTALLER_DIR" ] || [ ! -f "$ADD_NODE" ]; then
+    say "  ${C_RED}scripts/add-node.sh не найден.${C_RESET}"
+    say "  ${C_DIM}Запустите установщик из клонированного репозитория:${C_RESET}"
+    say "  ${C_DIM}git clone https://github.com/HakunaMaruna/XreyStudioServer.git && cd XreyStudioServer && ./install.sh --mode node --ssh-host $SSH_HOST${C_RESET}"
+    exit 1
+  fi
+  ADD_NODE_ARGS=(--host "$SSH_HOST" --panel-url "$PANEL_URL" --user "${SSH_USER:-root}" --ssh-port "$SSH_PORT")
+  [ -n "$NODE_ID_EXPLICIT" ] && ADD_NODE_ARGS+=(--node-id "$NODE_ID_EXPLICIT")
+  [ -n "$AGENT_TOKEN" ] && ADD_NODE_ARGS+=(--token "$AGENT_TOKEN")
+  [ "$DRY_RUN" -eq 1 ] && ADD_NODE_ARGS+=(--dry-run)
+  run bash "$ADD_NODE" "${ADD_NODE_ARGS[@]}"
+  exit $?
+fi
 
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; fi

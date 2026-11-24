@@ -16,3 +16,61 @@
 		reverse_proxy frontend:3000
 	}
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Шаблон shared-port: один TCP/443 для VLESS REALITY и обычного TLS по SNI.
+#
+# Почему не «Caddy слушает 443 и сам разбирает REALITY»: Caddy не терминирует
+# REALITY. Рабочая схема — 443 занимает Xray, а Caddy получает всё, что не
+# прошло REALITY-handshake, через fallback на loopback. Разделение по SNI
+# делает Xray: serverNames из realitySettings + fallback dest.
+#
+# 1) Xray inbound на 443 (фрагмент config.json):
+#   "inbounds": [{
+#     "port": 443,
+#     "protocol": "vless",
+#     "streamSettings": {
+#       "network": "tcp",
+#       "security": "reality",
+#       "realitySettings": {
+#         "dest": "127.0.0.1:8443",
+#         "serverNames": ["panel.example.com", "node.example.com"],
+#         "privateKey": "<из xray x25519>",
+#         "shortIds": ["<8 hex>"]
+#       }
+#     }
+#   }]
+#
+# 2) Caddy слушает только loopback и терминирует TLS для доменов из
+#    serverNames. Порты 80/443 в этом режиме Caddy не занимает.
+#
+# {
+#   auto_https disable_redirects
+# }
+#
+# https://panel.example.com:8443, https://node.example.com:8443 {
+#   bind 127.0.0.1
+#   # Публичного ACME здесь нет: сертификаты кладём файлами или tls internal.
+#   tls /etc/caddy/certs/fullchain.pem /etc/caddy/certs/privkey.pem
+#
+#   handle /api/* {
+#     reverse_proxy backend:3000
+#   }
+#
+#   handle /docs* {
+#     reverse_proxy backend:3000
+#   }
+#
+#   handle {
+#     reverse_proxy frontend:3000
+#   }
+# }
+#
+# Проверка после раскомментирования: caddy adapt --config Caddyfile
+# и curl -vk https://panel.example.com --resolve panel.example.com:443:<ip>
+#
+# Альтернатива: caddy-l4 (нужна сборка с layer4) умеет читать SNI до
+# проксирования, но REALITY-трафик от обычного TLS по SNI неотличим, поэтому
+# схема с fallback из Xray остаётся основной.
+#
+# ─────────────────────────────────────────────────────────────────────────────
