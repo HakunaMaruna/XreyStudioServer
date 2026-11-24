@@ -246,7 +246,7 @@ export default function NodesPage() {
         </div>
       )}
 
-      <div className="mb-5 grid gap-4 sm:grid-cols-3">
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         <Card className="flex items-center gap-3 p-4">
           <div className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-surface-2 text-muted"><Icon name="server" size={17} /></div>
           <div><p className="text-[10px] uppercase tracking-wider text-subtle">{t.totalNodesLabel}</p><p className="text-lg font-semibold text-fg tabular-nums">{nodes.length}</p></div>

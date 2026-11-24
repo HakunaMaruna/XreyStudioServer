@@ -55,22 +55,23 @@ export function PageHeader({
   eyebrow?: string;
 }) {
   return (
-    <div className="animate-fade-up mb-7 flex flex-wrap items-end justify-between gap-4">
-      <div className="flex items-center gap-3.5">
+    <div className="animate-fade-up mb-5 flex flex-wrap items-end justify-between gap-3 sm:mb-7 sm:gap-4">
+      <div className="flex min-w-0 items-center gap-2.5 sm:gap-3.5">
         {icon && (
-          <div className="grid h-12 w-12 place-items-center rounded-2xl border border-brand/30 bg-gradient-to-br from-brand/25 to-brand-2/10 text-brand shadow-[0_10px_30px_-10px_var(--brand)]">
-            <Icon name={icon} size={21} />
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-brand/30 bg-gradient-to-br from-brand/25 to-brand-2/10 text-brand shadow-[0_10px_30px_-10px_var(--brand)] sm:h-12 sm:w-12 sm:rounded-2xl">
+            <Icon name={icon} size={19} className="sm:hidden" />
+            <Icon name={icon} size={21} className="hidden sm:block" />
           </div>
         )}
-        <div>
+        <div className="min-w-0">
           {eyebrow && (
-            <p className="mb-1 bg-gradient-to-r from-brand to-brand-2 bg-clip-text text-[10px] font-semibold uppercase tracking-[0.18em] text-transparent">{eyebrow}</p>
+            <p className="mb-1 bg-gradient-to-r from-brand to-brand-2 bg-clip-text text-[9px] font-semibold uppercase tracking-[0.18em] text-transparent sm:text-[10px]">{eyebrow}</p>
           )}
-          <h1 className="text-2xl font-semibold tracking-tight text-fg">{title}</h1>
-          {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
+          <h1 className="truncate text-xl font-semibold tracking-tight text-fg sm:text-2xl">{title}</h1>
+          {subtitle && <p className="mt-1 text-xs text-muted sm:text-sm">{subtitle}</p>}
         </div>
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{actions}</div>}
     </div>
   );
 }

@@ -84,7 +84,7 @@ export function Icon({ name, size = 18, className, ...props }: IconProps) {
     <Component
       size={size}
       strokeWidth={2}
-      className={['icon-bright', className].filter(Boolean).join(' ')}
+      className={[size >= 18 ? 'icon-bright' : '', className].filter(Boolean).join(' ')}
       aria-hidden="true"
       {...props}
     />

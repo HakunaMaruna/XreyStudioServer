@@ -135,7 +135,7 @@ export default function GeodataPage() {
         } />
       {notice && <div className="mb-5 rounded-xl border border-brand/25 bg-brand-soft px-4 py-3 text-xs text-brand">{notice}</div>}
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         <StatCard label={t.total} value={rows.length} icon="box" tone="brand" />
         <StatCard label="geosite" value={geosite} icon="globe" tone="cyan" />
         <StatCard label="geoip" value={geoip} icon="server" tone="info" />
