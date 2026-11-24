@@ -4,7 +4,7 @@ Context for the next agent. Read this first, then `trail ask "<question>" /work/
 or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `graft/`).
 
 > **Для следующих код-агентов (2026-11-24):** работа по v2.23.3 и AdminLTE завершена и запушена.
-> main = `1ec678e`, тег/релиз `v2.23.3` опубликован, CI/Images/Live API smoke зелёные.
+> main — последний коммит в этом репозитории (cm. `git log -1`), тег/релиз `v2.23.3` опубликован, CI/Images/Live API smoke зелёные.
 > Event-level notification routing (PR #165, `59a8e5e`) доделан; AdminLTE — дефолтный UI
 > (PR #164), все 21 страница и общие компоненты покрыты, awful Aurora оставлен намеренно
 > (`NEXT_PUBLIC_UI=aurora`). Документация обновлена, подписи переключателя локализованы.
