@@ -10,7 +10,8 @@ import {
   SectionTitle, StatusBadge, formatBytes,
 } from '../../components/ui';
 
-type NodeRow = { id: string; name: string; address: string; port: number; status: string };
+type NodeGeo = { countryCode: string | null; city: string | null; ip: string | null; asn: string | null; checkedAt: string };
+type NodeRow = { id: string; name: string; address: string; port: number; status: string; geo?: NodeGeo | null };
 type RevisionRow = { id: string; version: number; applied: boolean; createdAt: string };
 type LogEntry = { timestamp: string; level: string; message: string };
 type NodeLogs = { nodeId: string; logs: LogEntry[] };
@@ -192,6 +193,22 @@ export default function NodesPage() {
         accessorKey: 'status',
         header: t.status,
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
+      },
+      {
+        id: 'geo',
+        header: 'Geo',
+        enableSorting: false,
+        cell: ({ row }) => {
+          const geo = row.original.geo;
+          if (!geo?.countryCode) return <span className="text-xs text-subtle">—</span>;
+          return (
+            <div className="text-xs text-fg">
+              <Badge tone="neutral">{geo.countryCode}</Badge>
+              {geo.city && <span className="ml-1.5 text-muted">{geo.city}</span>}
+              <p className="mono text-[10px] text-subtle">{geo.ip || geo.asn || ''}</p>
+            </div>
+          );
+        },
       },
       {
         id: 'actions',

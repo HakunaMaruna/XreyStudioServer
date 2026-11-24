@@ -24,6 +24,8 @@ const XRAY_STATS_ENABLED = process.env.XRAY_STATS_ENABLED === 'true';
 const XRAY_API_HOST = process.env.XRAY_API_HOST || '127.0.0.1';
 const XRAY_API_PORT = Number(process.env.XRAY_API_PORT || 8080);
 const TRAFFIC_INTERVAL = Math.max(15000, Number(process.env.TRAFFIC_REPORT_INTERVAL || 60000));
+const GEOCHECK_URL = process.env.GEOCHECK_URL || 'https://ipinfo.io/json';
+const GEOCHECK_INTERVAL = Math.max(3600000, Number(process.env.GEOCHECK_INTERVAL || 21600000));
 
 let xrayStatus = 'unknown';
 let singboxStatus = 'unknown';
@@ -337,6 +339,38 @@ async function sendMetrics() {
   }
 }
 
+// Геолокация исходящего IP ноды — чтобы в панели было видно, откуда выходит трафик.
+async function checkGeo() {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    let data;
+    try {
+      const res = await fetch(GEOCHECK_URL, { signal: controller.signal });
+      if (!res.ok) throw new Error(`geo service returned ${res.status}`);
+      data = await res.json();
+    } finally {
+      clearTimeout(timer);
+    }
+    const org = String(data.org || '');
+    const asn = org.match(/^AS\d+/)?.[0] || '';
+    await fetch(`${PANEL_URL}/api/nodes/${NODE_ID}/geo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AGENT_TOKEN}` },
+      body: JSON.stringify({
+        ip: data.ip || '',
+        countryCode: data.country || '',
+        city: data.city || '',
+        asn,
+        org,
+      }),
+    });
+    console.log(`geo updated: ${data.country || '??'} ${data.city || ''} ${data.ip || ''}`);
+  } catch (e) {
+    console.error('geocheck failed', e.message);
+  }
+}
+
 async function register() {
   try {
     const res = await fetch(`${PANEL_URL}/api/nodes/register`, {
@@ -459,6 +493,8 @@ if (XRAY_STATS_ENABLED) {
 }
 setTimeout(sendMetrics, 1000);
 setTimeout(pullConfig, 3000);
+setTimeout(checkGeo, 10000);
+setInterval(checkGeo, GEOCHECK_INTERVAL);
 
 const tlsCert = process.env.AGENT_TLS_CERT;
 const tlsKey = process.env.AGENT_TLS_KEY;
