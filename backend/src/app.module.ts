@@ -32,6 +32,7 @@ import { DevicesModule } from './modules/devices/devices.module';
 import { HealthChecksModule } from './modules/health-checks/health-checks.module';
 import { SubscriptionTemplatesModule } from './modules/subscription-templates/subscription-templates.module';
 import { GeodataModule } from './modules/geodata/geodata.module';
+import { McpModule } from './modules/mcp/mcp.module';
 
 @Module({
   imports: [
@@ -73,6 +74,7 @@ import { GeodataModule } from './modules/geodata/geodata.module';
     HealthChecksModule,
     SubscriptionTemplatesModule,
     GeodataModule,
+    McpModule,
   ],
   providers: [
     SeedService,
