@@ -48,6 +48,7 @@ describe('Rollout API (e2e, real PostgreSQL)', () => {
       .compile();
     app = moduleRef.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.setGlobalPrefix('api');
     await app.init();
     prisma = app.get(PrismaService);
     jwt = app.get(JwtService);
