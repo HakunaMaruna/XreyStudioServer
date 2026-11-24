@@ -8,6 +8,9 @@ dist
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
 
+# local scratch notes copied by the agent (not project sources)
+/temp_git/
+
 # trail's local cache — regenerable, machine specific.
 /.trail/cache/
 
