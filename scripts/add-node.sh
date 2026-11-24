@@ -132,16 +132,12 @@ case "$WAIT_SECONDS" in ''|*[!0-9]*) die "--wait должен быть числ�
 if [ "$DRY_RUN" -eq 0 ]; then
   command -v ssh >/dev/null 2>&1 || die "не найден ssh"
   command -v curl >/dev/null 2>&1 || die "не найден curl"
+  # Ответы панели разбираются jq или python3 (см. json_field); в dry-run разбора нет.
+  command -v jq >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1 \
+    || die "нужен jq или python3 для разбора JSON-ответов панели"
 else
   command -v ssh >/dev/null 2>&1 || warn "ssh не найден — это нормально для --dry-run"
   command -v curl >/dev/null 2>&1 || warn "curl не найден — это нормально для --dry-run"
-fi
-
-# ---------- зависимости ----------
-# Ответы панели разбираются jq или python3 (см. json_field). В dry-run разбора
-# нет, поэтому проверка не мешает посмотреть план на «голом» хосте.
-if [ "$DRY_RUN" -eq 0 ] && ! command -v jq >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
-  die "нужен jq или python3 для разбора JSON-ответов панели — установите один из них"
 fi
 
 # ---------- вспомогательные команды ----------
@@ -160,12 +156,8 @@ show_cmd() {
   printf '  \033[33m[dry-run]\033[0m %s\n' "$1"
 }
 
-# Достаём значение поля из JSON-ответа панели.
-# Нужен jq или python3: оба разбирают JSON по-настоящему (экранирование,
-# вложенность, произвольные пробелы), поэтому pretty-printed ответ панели
-# не ломает разбор. Функция не шумит в stderr и возвращает пустую строку,
-# если ключа нет или JSON не разобрался; отсутствие обоих инструментов
-# проверяется отдельно при старте.
+# Достаём значение поля из JSON-ответа панели: jq или python3 (проверены при старте).
+# Возвращает пустую строку, если ключа нет или JSON не разобрался.
 json_field() {
   local json="$1" key="$2"
   if command -v jq >/dev/null 2>&1; then
