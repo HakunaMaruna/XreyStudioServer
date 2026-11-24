@@ -19,13 +19,15 @@ describe('ConfigGeneratorService: Xray stats, Reality and VMess (QA v2.15)', () 
   const realityNode = () => ({
     id: 'n1',
     address: '127.0.0.1',
+    organizationId: null,
     config: {
       reality: {
         privateKey: 'reality-private-key-value',
         serverNames: ['example.com', 'www.example.com'],
         shortIds: ['abc123', 'def456'],
       },
-      inbounds: [
+    },
+    inbounds: [
         {
           id: 'in-reality',
           tag: 'in-reality',
@@ -47,8 +49,7 @@ describe('ConfigGeneratorService: Xray stats, Reality and VMess (QA v2.15)', () 
           settings: {},
           clients: [],
         },
-      ],
-    },
+    ],
   });
 
   beforeAll(() => {
@@ -178,7 +179,7 @@ describe('ConfigGeneratorService: Xray stats, Reality and VMess (QA v2.15)', () 
       },
     ]);
     const node = realityNode();
-    node.config.inbounds[1].clients = [{ userId: 'u1', enabled: true, trafficLimit: 500n }];
+    node.inbounds[1].clients = [{ userId: 'u1', enabled: true, trafficLimit: 500n }];
     prisma.node.findUnique.mockResolvedValue(node);
 
     const config = await generate();
