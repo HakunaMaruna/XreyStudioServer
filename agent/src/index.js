@@ -190,17 +190,30 @@ async function applyXrayConfig(config, version) {
 }
 
 function parseStatValue(stdout) {
-  const lines = String(stdout || '').split('\n').map((line) => line.trim()).filter(Boolean);
-  for (let i = lines.length - 1; i >= 0; i -= 1) {
-    if (/^\d+$/.test(lines[i])) return Number(lines[i]);
+  const raw = String(stdout || '').trim();
+  if (!raw) return 0;
+  try {
+    const parsed = JSON.parse(raw);
+    const stats = parsed.stat || [];
+    return stats.reduce((sum, item) => sum + Number(item.value || 0), 0);
+  } catch {
+    // Старые версии Xray печатали просто число.
+    const lines = raw.split('\n').map((line) => line.trim()).filter(Boolean);
+    for (let i = lines.length - 1; i >= 0; i -= 1) {
+      if (/^\d+$/.test(lines[i])) return Number(lines[i]);
+    }
+    return 0;
   }
-  return 0;
 }
 
 async function queryUserStat(email, direction) {
   const server = `${XRAY_API_HOST}:${XRAY_API_PORT}`;
   const name = `user>>>${email}>>>traffic>>>${direction}`;
-  const result = await run(XRAY_BIN, ['api', 'statsq', '--server', server, '--name', name], 3000);
+  // В Xray 26 команда statsq переименована в statsquery и принимает -pattern.
+  let result = await run(XRAY_BIN, ['api', 'statsquery', '--server', server, '-pattern', name], 3000);
+  if (!result.ok && /unknown command/i.test(result.stderr || '')) {
+    result = await run(XRAY_BIN, ['api', 'statsq', '--server', server, '--name', name], 3000);
+  }
   return result.ok ? parseStatValue(result.stdout) : 0;
 }
 
