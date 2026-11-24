@@ -76,7 +76,7 @@ export default function AlertsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Overview"
+        eyebrow={t.overview}
         title={t.alerts}
         subtitle={t.alertsSubtitle}
         icon="bell"

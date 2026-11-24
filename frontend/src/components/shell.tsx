@@ -113,14 +113,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </div>
         <div className="leading-tight">
           <p className="text-sm font-semibold tracking-tight text-fg">XreyStudio</p>
-          <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-subtle">Control panel</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">{t.controlPanel}</p>
         </div>
       </div>
 
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
         {sections.map((section) => (
           <div key={section.title}>
-            <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-subtle">{section.title}</p>
+            <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-subtle">{section.title}</p>
             <div className="space-y-1">
               {section.items.map((item) => {
                 const active = pathname === item.href;
@@ -211,7 +211,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               placeholder={t.searchPages}
               className="field pl-9 pr-8"
             />
-            <kbd className="mono pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-line bg-surface-3 px-1.5 py-0.5 text-[9px] text-subtle">/</kbd>
+            <kbd className="mono pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-line bg-surface-3 px-1.5 py-0.5 text-[11px] text-subtle">/</kbd>
             {searchOpen && query.trim() && (
               <div className="panel absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden p-1.5">
                 {results.length === 0 ? (

@@ -85,9 +85,9 @@ export default function DashboardPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Overview"
+        eyebrow={t.overview}
         title={t.dashboard}
-        subtitle="Live snapshot of your infrastructure and subscriber base"
+        subtitle={t.dashboardSubtitle}
         icon="grid"
         actions={
           <>

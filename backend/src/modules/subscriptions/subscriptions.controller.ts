@@ -23,27 +23,32 @@ export class SubscriptionsController {
   }
 
   @Get(':token/raw')
-  async raw(@Param('token') token: string, @Res() res: any) {
+  async raw(@Param('token') token: string, @Query('hwid') hwid: string | undefined, @Res() res: any) {
+    await this.checkDevice(token, hwid);
     return this.send(res, 'text/plain', await this.service.raw(token));
   }
 
   @Get(':token/base64')
-  async base64(@Param('token') token: string, @Res() res: any) {
+  async base64(@Param('token') token: string, @Query('hwid') hwid: string | undefined, @Res() res: any) {
+    await this.checkDevice(token, hwid);
     return this.send(res, 'text/plain', await this.service.base64(token));
   }
 
   @Get(':token/clash')
-  async clash(@Param('token') token: string, @Res() res: any) {
+  async clash(@Param('token') token: string, @Query('hwid') hwid: string | undefined, @Res() res: any) {
+    await this.checkDevice(token, hwid);
     return this.send(res, 'text/yaml', await this.service.clash(token));
   }
 
   @Get(':token/singbox')
-  async singbox(@Param('token') token: string, @Res() res: any) {
+  async singbox(@Param('token') token: string, @Query('hwid') hwid: string | undefined, @Res() res: any) {
+    await this.checkDevice(token, hwid);
     return this.send(res, 'application/json', await this.service.singbox(token));
   }
 
   @Get(':token/json')
-  async getJson(@Param('token') token: string, @Res() res: any) {
+  async getJson(@Param('token') token: string, @Query('hwid') hwid: string | undefined, @Res() res: any) {
+    await this.checkDevice(token, hwid);
     return this.send(res, 'application/json', await this.service.json(token));
   }
 
