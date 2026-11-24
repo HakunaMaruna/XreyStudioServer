@@ -13,7 +13,7 @@ export class TrafficService {
   ) {}
 
   async report(nodeId: string, dto: TrafficReportDto, token: string) {
-    await this.nodes.verifyNodeToken(nodeId, token);
+    const node = await this.nodes.verifyNodeToken(nodeId, token);
     const period = dto.period || new Date().toISOString().slice(0, 7);
     let recorded = 0;
     let skipped = 0;
@@ -27,6 +27,8 @@ export class TrafficService {
           : entry.email
             ? { email: entry.email.toLowerCase() }
             : {};
+      // Агент может репортить трафик только пользователей своей организации.
+      where.organizationId = node.organizationId || null;
       if (!Object.keys(where).length) {
         skipped += 1;
         continue;

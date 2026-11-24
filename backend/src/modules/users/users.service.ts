@@ -135,9 +135,13 @@ export class UsersService {
   }
 
   async update(id: string, dto: UpdateUserDto, actor: AuthUser) {
-    await this.findOne(id, actor);
+    const target = await this.findOne(id, actor);
     if (dto.role === Role.ADMIN && actor.role !== Role.ADMIN) {
       throw new ForbiddenException('Only admin can promote to admin');
+    }
+    // OPERATOR не должен иметь возможности перехватить аккаунт ADMIN.
+    if (target.role === Role.ADMIN && actor.role !== Role.ADMIN) {
+      throw new ForbiddenException('Only admin can modify an admin account');
     }
     const data: Prisma.UserUpdateInput = {};
     if (dto.email) data.email = dto.email.toLowerCase();

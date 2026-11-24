@@ -18,6 +18,19 @@ function isPrivateHost(host: string) {
   );
 }
 
+// Links local/metadata address never valid for an agent, even in private mode.
+function isForbiddenHost(host: string) {
+  const h = host.toLowerCase().replace(/^\[|\]$/g, '');
+  if (h === '0.0.0.0' || h === '::' || h === 'metadata.google.internal') return true;
+  if (isIP(h) === 4) {
+    const p = h.split('.').map(Number);
+    if (p[0] === 169 && p[1] === 254) return true; // link-local / cloud metadata
+    if (p[0] === 100 && p[1] >= 64 && p[1] <= 127) return true; // CGNAT
+  }
+  if (h.startsWith('fe80') || h.startsWith('fc') || h.startsWith('fd')) return true; // IPv6 link-local/ULA
+  return false;
+}
+
 @Injectable()
 export class AgentClientService {
   private readonly logger = new Logger(AgentClientService.name);
@@ -41,6 +54,14 @@ export class AgentClientService {
       process.env.ALLOW_PRIVATE_AGENT_URLS !== 'true'
     ) {
       throw new BadRequestException('Agent URL must use https in production');
+    }
+    if (isForbiddenHost(url.hostname)) {
+      throw new BadRequestException('Link-local or metadata agent URLs are not allowed');
+    }
+    // IPv6 разрешаем только loopback в приватном режиме.
+    const hostOnly = url.hostname.replace(/^\[|\]$/g, '');
+    if (isIP(hostOnly) === 6 && !(allowPrivate && hostOnly === '::1')) {
+      throw new BadRequestException('IPv6 agent URLs are not allowed');
     }
     if (!allowPrivate && process.env.ALLOW_PRIVATE_AGENT_URLS !== 'true' && isPrivateHost(url.hostname)) {
       throw new BadRequestException('Private agent URLs are not allowed');
