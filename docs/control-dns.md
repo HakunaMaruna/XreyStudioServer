@@ -19,6 +19,13 @@ cd XreyStudioServer
 установите `PDNS_BIND_IP=127.0.0.1` — PowerDNS слушает только локальный адрес,
 а после включения публичного DNS замените на `0.0.0.0`.
 
+Инициализация SQLite-базы PowerDNS и зоны (один раз):
+
+```bash
+bash scripts/init-pdns-sqlite.sh
+sudo docker compose -f docker-compose.control.yml restart powerdns
+```
+
 Создание зоны (один раз):
 
 ```bash
