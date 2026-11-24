@@ -1,14 +1,13 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, isLoggedIn } from '../../lib/api';
-import { useLang } from '../../lib/i18n';
+import { useLang, type Dict } from '../../lib/i18n';
 import {
   Badge,
   Button,
   Card,
   EmptyState,
   Field,
-  Icon,
   Modal,
   PageHeader,
   Toggle,
@@ -45,13 +44,13 @@ const EVENTS = [
 ];
 const CHANNELS = ['TELEGRAM', 'WEBHOOK', 'EMAIL'];
 
-const scopeKey: Record<Scope, string> = {
+const scopeKey: Record<Scope, keyof Dict> = {
   MONITOR: 'tokenScopeMonitor',
   NODE_SYNC: 'tokenScopeNodeSync',
   NOTIFICATIONS: 'tokenScopeNotifications',
   USERS_READ: 'tokenScopeUsersRead',
 };
-const eventKey: Record<string, string> = {
+const eventKey: Record<string, keyof Dict> = {
   NODE_OFFLINE: 'eventNodeOffline',
   NODE_ONLINE: 'eventNodeOnline',
   TRAFFIC_ALERT: 'eventTrafficAlert',
@@ -59,7 +58,7 @@ const eventKey: Record<string, string> = {
   BACKUP_FAILED: 'eventBackupFailed',
   CONFIG_APPLIED: 'eventConfigApplied',
 };
-const channelKey: Record<string, string> = {
+const channelKey: Record<string, keyof Dict> = {
   TELEGRAM: 'channelTelegram',
   WEBHOOK: 'channelWebhook',
   EMAIL: 'channelEmail',
@@ -245,7 +244,7 @@ export default function ApiTokensPage() {
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
                       {token.scopes.map((scope) => (
-                        <Badge key={scope} tone="info">{t(scopeKey[scope])}</Badge>
+                        <Badge key={scope} tone="info">{t[scopeKey[scope]]}</Badge>
                       ))}
                     </div>
                   </td>
@@ -283,14 +282,14 @@ export default function ApiTokensPage() {
                 <tr className="border-b border-line text-xs uppercase tracking-wider text-muted">
                   <th className="px-4 py-3">{t.events}</th>
                   {CHANNELS.map((channel) => (
-                    <th key={channel} className="px-4 py-3 text-center">{t(channelKey[channel])}</th>
+                    <th key={channel} className="px-4 py-3 text-center">{t[channelKey[channel]]}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {EVENTS.map((event) => (
                   <tr key={event} className="border-b border-line/60 last:border-0">
-                    <td className="px-4 py-3 font-medium text-fg">{t(eventKey[event])}</td>
+                    <td className="px-4 py-3 font-medium text-fg">{t[eventKey[event]]}</td>
                     {CHANNELS.map((channel) => {
                       const route = routeMap.get(`${event}:${channel}`);
                       const enabled = Boolean(route?.enabled);
@@ -334,7 +333,7 @@ export default function ApiTokensPage() {
                     onChange={() => toggleScope(scope)}
                     className="h-4 w-4 accent-brand"
                   />
-                  {t(scopeKey[scope])}
+                  {t[scopeKey[scope]]}
                 </label>
               ))}
             </div>
