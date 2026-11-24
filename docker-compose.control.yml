@@ -17,8 +17,8 @@ services:
       - --webserver-allow-from=0.0.0.0/0
       - --default-soa-name=ns1.h2onetwork.pro.
     ports:
-      - "53:53/tcp"
-      - "53:53/udp"
+      - "${PDNS_BIND_IP:-0.0.0.0}:53:53/tcp"
+      - "${PDNS_BIND_IP:-0.0.0.0}:53:53/udp"
     volumes:
       - pdns_data:/var/lib/powerdns
     restart: unless-stopped
