@@ -449,7 +449,7 @@ All 12 ideas from `docs/ROADMAP.md` are implemented and pushed, one commit per t
 - 1 HWID/device limit — verified and documented (`7241c48`).
 - 2 Decoy page and hidden admin login (`1690cfa`).
 - 3 Personal subscription page with browser HWID binding (`5313684`).
-- 4 Profile-to-node binding and per-node traffic (`?` before task 5).
+- 4 Profile-to-node binding and per-node traffic (`7499328`).
 - 5 SSH provisioning from UI (`9a1d229`).
 - 6 Doctor read-only checks with allow-listed fixes (`9fe1cea`).
 - 7 Ed25519 signed updates (`d40ce18`).
