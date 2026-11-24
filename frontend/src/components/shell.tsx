@@ -171,6 +171,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="relative min-h-screen">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-brand focus:px-4 focus:py-2 focus:text-sm focus:text-white"
+      >
+        Skip to content
+      </a>
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-[248px] lg:block">{sidebar}</aside>
 
       {mobileOpen && (
@@ -193,6 +199,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <div className="relative ml-auto w-full max-w-[260px]">
             <Icon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
             <input
+              aria-label={t.searchPages}
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
@@ -238,7 +245,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <IconButton icon={theme === 'dark' ? 'sun' : 'moon'} label="Toggle theme" onClick={switchTheme} />
         </header>
 
-        <main className="relative z-10 mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:px-8">{children}</main>
+        <main id="main-content" className="relative z-10 mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:px-8">{children}</main>
       </div>
     </div>
   );

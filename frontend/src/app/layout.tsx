@@ -10,6 +10,14 @@ try {
 } catch (e) {}
 `;
 
+export const metadata = {
+  title: {
+    default: 'XreyStudio Control Panel',
+    template: '%s · XreyStudio',
+  },
+  description: 'Self-hosted VPN control panel',
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ru" suppressHydrationWarning>

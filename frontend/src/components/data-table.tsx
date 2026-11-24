@@ -101,6 +101,7 @@ export default function DataTable<T>({
         <div className="relative max-w-sm">
           <Icon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
           <input
+            aria-label={searchPlaceholder || t.search}
             value={globalFilter ?? ''}
             onChange={(e) => setGlobalFilter(e.target.value)}
             placeholder={searchPlaceholder || t.search}

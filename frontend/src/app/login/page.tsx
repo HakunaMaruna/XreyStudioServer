@@ -108,6 +108,7 @@ export default function LoginPage() {
               <div className="relative">
                 <Icon name="lock" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
                 <input
+                  aria-label={t.password}
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   placeholder="••••••••"
