@@ -365,6 +365,20 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 - Local git in `/work/XreyStudioServer/.git` cannot write objects (proot fs error); use a clean
   clone under `/tmp/opencode` for commits and publish via `git push`/GitHub API.
 
+## AdminLTE completeness audit (2026-11-24)
+
+- PR #164 (`08072d6`) made AdminLTE the default UI. Audit: functional AdminLTE shell
+  (`frontend/src/components/adminlte-shell.tsx`), grouped menu with all 21 admin pages present,
+  shared Card/SectionTitle/Field/EmptyState components have AdminLTE branches, assets copied by
+  `prebuild`, no TODO/FIXME/stubs in the frontend. Legacy Aurora UI intentionally kept behind
+  `NEXT_PUBLIC_UI=aurora` / `localStorage=xss_ui`.
+- Found and fixed unfinished edges in commit `f121bad`: READMEs still advertised v2.6.1 and the
+  old dark SaaS UI (now v2.23.3 + AdminLTE section, EN/RU), and the UI-switch button labels were
+  hardcoded English (`title="Switch UI"`, `label="Switch to AdminLTE UI"`); added `switchUi` /
+  `switchToAdminLte` keys to both i18n dictionaries (346 keys parity) and used them in both shells.
+- Verified locally: `npx tsc --noEmit`, `npx eslint` (0 errors), `npx next build --webpack` pass;
+  CI/Images/Smoke green on main. Turbopack `npm run build` still fails locally on Node 20.15 only.
+
 ## Session context (final, 2026-11-24)
 
 - Version bumped to `2.23.3` in `backend/src/version.ts`, `frontend/src/lib/version.ts`,
