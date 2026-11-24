@@ -1,4 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { NotificationEvent } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BackupsService } from './backups.service';
 
@@ -13,6 +15,7 @@ export class BackupSchedulerService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly backups: BackupsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async onModuleInit() {
@@ -81,6 +84,20 @@ export class BackupSchedulerService implements OnModuleInit, OnModuleDestroy {
       }
     } catch (error: any) {
       this.logger.warn(`Scheduled backup failed: ${error.message}`);
+      try {
+        await this.notifications.emit(
+          NotificationEvent.BACKUP_FAILED,
+          {
+            text: `🔴 Scheduled backup failed: ${error.message}`,
+            plainText: `Scheduled backup failed: ${error.message}`,
+            subject: 'XSS: backup failed',
+            webhook: { event: NotificationEvent.BACKUP_FAILED, error: String(error.message) },
+          },
+          null,
+        );
+      } catch (emitError) {
+        this.logger.error('Failed to emit BACKUP_FAILED', emitError as Error);
+      }
     } finally {
       const settings = await this.ensureSettings();
       await this.prisma.backupSettings.update({

@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'crypto';
-import { UserStatus } from '@prisma/client';
+import { NotificationEvent, UserStatus } from '@prisma/client';
 import { toCsv } from '../../common/csv';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -138,12 +138,16 @@ export class PaymentsService {
       }
     }
 
-    await this.notifications.notifyPayment({
-      id: updated.id,
-      amount: updated.amount.toString(),
-      currency: updated.currency,
-      status: updated.status,
-    });
+    const amount = updated.amount.toString();
+    await this.notifications.emit(NotificationEvent.PAYMENT_RECEIVED, {
+      text: `💳 Payment <b>${updated.id}</b>: ${amount} ${updated.currency} — ${updated.status}`,
+      plainText: `Payment ${updated.id}: ${amount} ${updated.currency} — ${updated.status}`,
+      subject: `XSS: payment ${updated.id}`,
+      webhook: {
+        event: NotificationEvent.PAYMENT_RECEIVED,
+        payment: { id: updated.id, amount, currency: updated.currency, status: updated.status },
+      },
+    }, updated.userId);
     return updated;
   }
 

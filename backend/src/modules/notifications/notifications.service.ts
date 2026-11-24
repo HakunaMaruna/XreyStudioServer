@@ -188,23 +188,4 @@ export class NotificationsService {
     return { data, total, page, limit };
   }
 
-  async notifyNodeOffline(node: { id: string; name: string; address: string }) {
-    const text = `🔴 Node offline: <b>${node.name}</b> (${node.address})`;
-    return this.broadcast({
-      text,
-      plainText: `Node offline: ${node.name} (${node.address})`,
-      subject: `XSS: node offline — ${node.name}`,
-      webhook: { event: 'node.offline', node },
-    });
-  }
-
-  async notifyPayment(payment: { id: string; amount: string; currency: string; status: string }) {
-    const text = `💳 Payment ${payment.id}: ${payment.amount} ${payment.currency} — ${payment.status}`;
-    return this.broadcast({
-      text,
-      plainText: `Payment ${payment.id}: ${payment.amount} ${payment.currency} — ${payment.status}`,
-      subject: `XSS: payment ${payment.id}`,
-      webhook: { event: 'payment', payment },
-    });
-  }
 }

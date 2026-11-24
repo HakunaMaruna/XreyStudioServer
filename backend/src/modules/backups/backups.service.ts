@@ -14,7 +14,13 @@ export class BackupsService {
   }
 
   private databaseUrl(): string {
-    if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+    if (process.env.DATABASE_URL) {
+      // Prisma-specific query parameters are not understood by psql.
+      const url = new URL(process.env.DATABASE_URL);
+      url.searchParams.delete('pgbouncer');
+      url.searchParams.delete('statement_cache_size');
+      return url.toString();
+    }
     const user = process.env.POSTGRES_USER || 'xss';
     const password = encodeURIComponent(process.env.POSTGRES_PASSWORD || 'xss');
     const host = process.env.POSTGRES_HOST || 'postgres';
