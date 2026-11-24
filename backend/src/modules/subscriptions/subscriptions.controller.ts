@@ -1,9 +1,20 @@
-import { Controller, Get, Param, Query, Req, Res } from '@nestjs/common';
+import { Controller, ForbiddenException, Get, Param, Query, Req, Res } from '@nestjs/common';
 import { SubscriptionsService } from './subscriptions.service';
+import { DevicesService } from '../devices/devices.service';
 
 @Controller('subscriptions')
 export class SubscriptionsController {
-  constructor(private service: SubscriptionsService) {}
+  constructor(private service: SubscriptionsService, private devices: DevicesService) {}
+
+  private async checkDevice(token: string, hwid?: string) {
+    if (!hwid) return;
+    const status = await this.service.getStatus(token);
+    const user = await this.service.loadUser(token);
+    if (user.deviceLimit > 0 && status.deviceCount >= user.deviceLimit && !status.deviceIds.includes(hwid)) {
+      throw new ForbiddenException('Device limit reached');
+    }
+    await this.devices.touch(hwid);
+  }
 
   private send(res: any, type: string, body: any) {
     res.setHeader('Cache-Control', 'no-store, private');
@@ -40,9 +51,11 @@ export class SubscriptionsController {
   async get(
     @Param('token') token: string,
     @Query('format') format: string | undefined,
+    @Query('hwid') hwid: string | undefined,
     @Req() req: any,
     @Res() res: any,
   ) {
+    await this.checkDevice(token, hwid);
     const ua = (req.headers['user-agent'] || '').toLowerCase();
     const selected =
       format || (ua.includes('clash') ? 'clash' : ua.includes('sing-box') ? 'singbox' : 'json');

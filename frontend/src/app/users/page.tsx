@@ -41,6 +41,8 @@ export default function UsersPage() {
   const [inbounds, setInbounds] = useState<{ id: string; tag: string }[]>([]);
   const [attachId, setAttachId] = useState('');
   const [profiles, setProfiles] = useState<{ id: string; name: string }[]>([]);
+  const [devices, setDevices] = useState<{ id: string; hwid: string; name: string | null; lastSeenAt: string | null }[]>([]);
+  const [hwidInput, setHwidInput] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -140,6 +142,9 @@ export default function UsersPage() {
       const profileList = await api.get('/api/config-profiles').catch(() => ({ data: [] }));
       const profileRows = Array.isArray(profileList) ? profileList : profileList.data || [];
       setProfiles(profileRows.map((p: any) => ({ id: p.id, name: p.name })));
+      const deviceList = await api.get(`/api/devices?userId=${user.id}`).catch(() => []);
+      const deviceRows = Array.isArray(deviceList) ? deviceList : deviceList.data || [];
+      setDevices(deviceRows);
     } catch (e: any) {
       setError(e.message);
     }
@@ -333,6 +338,54 @@ export default function UsersPage() {
                   <span className="font-medium uppercase">{name}</span><Icon name="copy" size={13} />
                 </button>
               ))}
+            </div>
+            <div className="border-t border-line pt-4">
+              <div className="mb-3 flex items-end gap-2">
+                <Field label={t.deviceLimit}>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={connection.deviceLimit ?? 0}
+                    onChange={(e) => setConnection({ ...connection, deviceLimit: Number(e.target.value) })}
+                    className="field"
+                  />
+                </Field>
+                <Button icon="check" onClick={async () => {
+                  try {
+                    await api.patch(`/api/users/${connection.id}`, { deviceLimit: connection.deviceLimit });
+                    setNotice(t.save);
+                  } catch (e: any) { setError(e.message); }
+                }}>{t.save}</Button>
+              </div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-subtle">{t.devices}</p>
+              <div className="mb-2 flex gap-2">
+                <input value={hwidInput} onChange={(e) => setHwidInput(e.target.value)} placeholder={t.hwid} className="field" />
+                <Button icon="plus" disabled={!hwidInput} onClick={async () => {
+                  try {
+                    await api.post('/api/devices', { userId: connection.id, hwid: hwidInput });
+                    setHwidInput('');
+                    const list = await api.get(`/api/devices?userId=${connection.id}`);
+                    setDevices(Array.isArray(list) ? list : list.data || []);
+                  } catch (e: any) { setError(e.message); }
+                }}>{t.bindDevice}</Button>
+              </div>
+              <div className="space-y-1">
+                {devices.length === 0 && <p className="text-xs text-subtle">—</p>}
+                {devices.map((device) => (
+                  <div key={device.id} className="flex items-center gap-2 rounded-lg border border-line bg-surface-2/50 px-3 py-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="mono truncate text-xs text-fg">{device.hwid}</p>
+                      <p className="text-[10px] text-subtle">{device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString() : device.name || '—'}</p>
+                    </div>
+                    <IconButton icon="trash" label={t.delete} tone="danger" onClick={async () => {
+                      await api.delete(`/api/devices/${device.id}`);
+                      const list = await api.get(`/api/devices?userId=${connection.id}`);
+                      setDevices(Array.isArray(list) ? list : list.data || []);
+                    }} />
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="border-t border-line pt-4">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-subtle">{t.configProfiles}</p>

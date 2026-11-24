@@ -28,6 +28,8 @@ model User {
   status            UserStatus @default(ACTIVE)
   trafficLimit      BigInt    @default(0)
   trafficUsed       BigInt    @default(0)
+  deviceLimit       Int       @default(0)
+  devices           Device[]
   expiresAt         DateTime?
   subscriptionToken String    @unique @default(uuid())
   configProfileId   String?
@@ -277,6 +279,18 @@ model UserTraffic {
 
   @@index([userId, createdAt])
   @@index([period])
+}
+
+model Device {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hwid       String    @unique
+  name       String?
+  lastSeenAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model Squad {

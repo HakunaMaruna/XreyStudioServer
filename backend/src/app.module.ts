@@ -28,6 +28,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { RoutingModule } from './modules/routing/routing.module';
 import { ConfigProfilesModule } from './modules/config-profiles/config-profiles.module';
 import { SquadsModule } from './modules/squads/squads.module';
+import { DevicesModule } from './modules/devices/devices.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { SquadsModule } from './modules/squads/squads.module';
     RoutingModule,
     ConfigProfilesModule,
     SquadsModule,
+    DevicesModule,
   ],
   providers: [
     SeedService,

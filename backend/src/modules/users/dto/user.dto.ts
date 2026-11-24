@@ -6,6 +6,7 @@ import {
   IsString,
   MinLength,
   Min,
+  Max,
   IsDateString,
   IsIn,
 } from 'class-validator';
@@ -31,6 +32,12 @@ export class CreateUserDto {
   @IsInt()
   @Min(0)
   trafficLimit?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  deviceLimit?: number;
 
   @IsOptional()
   @IsDateString()
@@ -63,6 +70,12 @@ export class UpdateUserDto {
   @IsInt()
   @Min(0)
   trafficLimit?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  deviceLimit?: number;
 
   @IsOptional()
   @IsDateString()
