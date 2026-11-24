@@ -18,6 +18,8 @@ model Organization {
   users     User[]
   nodes     Node[]
   rules     Rule[]
+  apiTokens ApiToken[]
+  notificationRoutes NotificationRoute[]
 }
 
 model User {
@@ -46,6 +48,7 @@ model User {
   payments          Payment[]
   trafficReports    UserTraffic[]
   refreshTokens     RefreshToken[]
+  apiTokens         ApiToken[]
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -420,4 +423,61 @@ model AlertHistory {
 
   @@index([createdAt])
   @@index([status, createdAt])
+}
+
+
+
+
+enum ApiTokenScope {
+  MONITOR
+  NODE_SYNC
+  NOTIFICATIONS
+  USERS_READ
+}
+
+model ApiToken {
+  id             String         @id @default(uuid())
+  name           String
+  tokenHash      String         @unique
+  scopes         ApiTokenScope[]
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  lastUsedAt     DateTime?
+  createdAt      DateTime       @default(now())
+
+  @@index([userId, revokedAt])
+  @@index([organizationId])
+}
+
+enum NotificationEvent {
+  NODE_OFFLINE
+  NODE_ONLINE
+  TRAFFIC_ALERT
+  USER_EXPIRED
+  BACKUP_FAILED
+  CONFIG_APPLIED
+}
+
+enum NotificationChannel {
+  TELEGRAM
+  WEBHOOK
+  EMAIL
+}
+
+model NotificationRoute {
+  id             String              @id @default(uuid())
+  event          NotificationEvent
+  channel        NotificationChannel
+  enabled        Boolean             @default(true)
+  organizationId String?
+  organization   Organization?       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@unique([event, channel, organizationId])
+  @@index([organizationId, enabled])
 }

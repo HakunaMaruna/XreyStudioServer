@@ -18,6 +18,7 @@ import { RulesModule } from './modules/rules/rules.module';
 import { ConfigModule as XrayConfigModule } from './modules/config/config.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { ApiTokensModule } from './modules/api-tokens/api-tokens.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { TrafficModule } from './modules/traffic/traffic.module';
@@ -60,6 +61,7 @@ import { McpModule } from './modules/mcp/mcp.module';
     XrayConfigModule,
     MetricsModule,
     NotificationsModule,
+    ApiTokensModule,
     PaymentsModule,
     OrganizationsModule,
     TrafficModule,

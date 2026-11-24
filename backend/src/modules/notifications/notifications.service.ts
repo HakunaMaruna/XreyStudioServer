@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { NotificationChannel, NotificationEvent, Prisma } from '@prisma/client';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationRoutesService } from './notification-routes.service';
 
 export type ChannelResult = { sent: boolean; reason?: string; error?: string };
 
@@ -27,7 +28,10 @@ export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
   private mailer?: Transporter;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private routes: NotificationRoutesService,
+  ) {}
 
   private get mailTransport(): Transporter {
     if (!this.mailer) {
@@ -116,6 +120,34 @@ export class NotificationsService {
       this.sendEmail(process.env.ALERT_EMAIL_TO, options.subject || 'XSS notification', plain),
     ]);
     return { telegram, signal, webhook, email };
+  }
+
+  /**
+   * Event-level routing: unlike broadcast() which hits every configured channel,
+   * emit() delivers only to channels explicitly enabled for the given event.
+   * This is the integration point for fine-grained notification rules.
+   */
+  async emit(
+    event: NotificationEvent,
+    options: BroadcastOptions,
+    organizationId?: string | null,
+  ): Promise<Record<string, ChannelResult>> {
+    const channels = await this.routes.enabledChannels(event, organizationId);
+    const result: Record<string, ChannelResult> = {};
+    if (channels.includes(NotificationChannel.TELEGRAM)) {
+      result.telegram = await this.sendTelegram(options.text);
+    }
+    if (channels.includes(NotificationChannel.WEBHOOK)) {
+      result.webhook = await this.sendWebhook(options.webhook || { event, text: options.plainText || options.text });
+    }
+    if (channels.includes(NotificationChannel.EMAIL)) {
+      result.email = await this.sendEmail(
+        process.env.ALERT_EMAIL_TO,
+        options.subject || `XSS: ${event}`,
+        options.plainText || options.text.replace(/<[^>]*>/g, ''),
+      );
+    }
+    return result;
   }
 
   channels() {
