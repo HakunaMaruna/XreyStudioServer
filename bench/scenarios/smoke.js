@@ -13,6 +13,10 @@ const PROTECTED = [
   '/api/routing',
   '/api/config-profiles',
   '/api/squads',
+  '/api/devices',
+  '/api/health-checks',
+  '/api/subscription-templates',
+  '/api/geodata',
 ];
 
 async function call(path, options = {}) {
