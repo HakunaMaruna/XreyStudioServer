@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import { useLang } from '../../../lib/i18n';
 import { APP_VERSION } from '../../../lib/version';
+import { getBrowserHwid } from '../../../lib/hwid';
 import { Icon } from '../../../components/icons';
 import { Badge, Card, CodeBlock, IconButton, SectionTitle, cn, formatBytes } from '../../../components/ui';
 
@@ -33,22 +34,48 @@ export default function SubscriptionPage() {
   const { token } = useParams<{ token: string }>();
   const [data, setData] = useState<SubData | null>(null);
   const [error, setError] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
   const [format, setFormat] = useState('json');
   const [output, setOutput] = useState('');
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
 
   useEffect(() => {
-    fetch(`${apiBase}/api/subscriptions/${token}?format=json`)
+    const hwid = getBrowserHwid();
+    const query = hwid ? `&hwid=${encodeURIComponent(hwid)}` : '';
+    const load = () => fetch(`${apiBase}/api/subscriptions/${token}?format=json${query}`)
       .then((r) => { if (!r.ok) throw new Error('failed'); return r.json(); })
-      .then(setData)
+      .then(setData);
+
+    if (!hwid) {
+      load().catch(() => setError(true));
+      return;
+    }
+    // Binding is public but authorized by the subscription token. It is idempotent:
+    // unknown devices are rejected when the user has reached their device limit.
+    fetch(`${apiBase}/api/devices/bind`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, hwid, name: 'Browser' }),
+    })
+      .then((r) => {
+        if (r.status === 429 || r.status === 403) {
+          setLimitReached(true);
+          throw new Error('limit');
+        }
+        return r;
+      })
+      .then(load)
       .catch(() => setError(true));
   }, [token, apiBase]);
 
   const loadFormat = async (value: string) => {
     setFormat(value);
-    const res = await fetch(`${apiBase}/api/subscriptions/${token}?format=${value}`);
+    const hwid = getBrowserHwid();
+    const query = hwid ? `&hwid=${encodeURIComponent(hwid)}` : '';
+    const res = await fetch(`${apiBase}/api/subscriptions/${token}?format=${value}${query}`);
     setOutput(await res.text());
   };
 
@@ -57,7 +84,10 @@ export default function SubscriptionPage() {
       await navigator.clipboard.writeText(value);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {}
+    } catch {
+      setCopyError(true);
+      setTimeout(() => setCopyError(false), 2500);
+    }
   };
 
   if (error || !data) {
@@ -67,7 +97,7 @@ export default function SubscriptionPage() {
           <div className="mx-auto mb-4 grid h-11 w-11 place-items-center rounded-xl border border-danger/25 bg-danger/10 text-danger">
             <Icon name="alert" size={20} />
           </div>
-          <p className="text-sm font-medium text-fg">{t.subscriptionUnavailable}</p>
+          <p className="text-sm font-medium text-fg">{limitReached ? t.deviceLimitReached : t.subscriptionUnavailable}</p>
           <p className="mt-1 text-xs text-muted">{t.linkInvalid}</p>
         </Card>
       </main>
@@ -80,7 +110,7 @@ export default function SubscriptionPage() {
   const instructions = tpl?.instructions
     ? Object.entries(tpl.instructions).filter(([, text]) => typeof text === 'string' && text.trim())
     : [];
-  const subscriptionUrl = `${apiBase}/api/subscriptions/${token}?format=base64`;
+  const subscriptionUrl = `${apiBase}/api/subscriptions/${token}?format=base64${getBrowserHwid() ? `&hwid=${encodeURIComponent(getBrowserHwid())}` : ''}`;
   const used = Number(data.trafficUsed || 0);
   const limit = Number(data.trafficLimit || 0);
   const percent = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
@@ -136,6 +166,7 @@ export default function SubscriptionPage() {
             <div className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 p-2">
               <code className="mono min-w-0 flex-1 truncate text-[11px] text-muted">{subscriptionUrl}</code>
               <IconButton icon={copied ? 'check' : 'copy'} label={t.copy} tone={copied ? 'brand' : 'default'} onClick={() => copy(subscriptionUrl)} />
+              {copyError && <span className="text-xs text-red-500">{t.copyFailed}</span>}
             </div>
             <p className="mt-2 text-[11px] text-subtle">{t.keepPrivate}</p>
           </div>

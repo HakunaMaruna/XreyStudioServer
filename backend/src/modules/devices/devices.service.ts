@@ -1,5 +1,6 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { normalizeHwid } from '../../common/hwid';
 
 @Injectable()
 export class DevicesService {
@@ -13,7 +14,9 @@ export class DevicesService {
     });
   }
 
-  async add(userId: string, hwid: string, name?: string) {
+  async add(userId: string, rawHwid: string, name?: string) {
+    const hwid = normalizeHwid(rawHwid);
+    if (!hwid) throw new BadRequestException('hwid is required');
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
     const existing = await this.prisma.device.findUnique({ where: { hwid } });
@@ -29,7 +32,9 @@ export class DevicesService {
     });
   }
 
-  async bind(token: string, hwid: string, name?: string) {
+  async bind(token: string, rawHwid: string, name?: string) {
+    const hwid = normalizeHwid(rawHwid);
+    if (!hwid) throw new BadRequestException('hwid is required');
     const user = await this.prisma.user.findUnique({ where: { subscriptionToken: token } });
     if (!user) throw new NotFoundException('Subscription not found');
     if (user.status !== 'ACTIVE') throw new ForbiddenException('User is not active');

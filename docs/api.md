@@ -129,6 +129,9 @@ All report endpoints require an `ADMIN` JWT.
 - `DELETE /devices/:id` — unbind
 - `GET /subscriptions/:token?hwid=<hwid>` — rejects with 403 when the device limit is reached
   and the HWID is not registered; updates `lastSeenAt` for known devices.
+- The browser page at `/sub/<token>` generates an opaque HWID (`localStorage`, UUID v4),
+  calls `POST /devices/bind` once and sends `?hwid=` with status/config requests.
+  HWIDs are validated (8–128 chars: letters, digits, `_.:-`) before any database lookup.
 
 ## User squads
 
