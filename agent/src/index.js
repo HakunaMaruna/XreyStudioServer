@@ -4,8 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const http = require('http');
-const { execFile, spawn } = require('child_process');
-const { timingSafeEqual } = require('crypto');
+const { execFile } = require('child_process');
+const { timingSafeEqual, createHash } = require('crypto');
 const si = require('systeminformation');
 
 const PANEL_URL = (process.env.PANEL_URL || 'http://localhost:3000').replace(/\/$/, '');
@@ -24,18 +24,15 @@ const XRAY_STATS_ENABLED = process.env.XRAY_STATS_ENABLED === 'true';
 const XRAY_API_HOST = process.env.XRAY_API_HOST || '127.0.0.1';
 const XRAY_API_PORT = Number(process.env.XRAY_API_PORT || 8080);
 const TRAFFIC_INTERVAL = Math.max(15000, Number(process.env.TRAFFIC_REPORT_INTERVAL || 60000));
-const GEOCHECK_URL = process.env.GEOCHECK_URL || 'https://ipinfo.io/json';
-const GEOCHECK_INTERVAL = Math.max(3600000, Number(process.env.GEOCHECK_INTERVAL || 21600000));
 
 let xrayStatus = 'unknown';
 let singboxStatus = 'unknown';
 let lastGood = null;
 let lastConfigVersion = 0;
+let lastConfigHash = null;
 let lastNet = null;
 let lastAppliedConfig = null;
 let activeServer = null;
-let xrayProcess = null;
-const XRAY_MANAGED = process.env.XRAY_MANAGED === 'true';
 const TLS_DIR = process.env.AGENT_TLS_DIR || '/etc/xss-agent/tls';
 const lastUserStats = new Map();
 
@@ -74,6 +71,10 @@ function backupCurrent() {
   return target;
 }
 
+function configHash(config) {
+  return createHash('sha256').update(JSON.stringify(config, Object.keys(config).sort())).digest('hex');
+}
+
 function validateConfig(config) {
   if (!config || typeof config !== 'object') throw new Error('Config must be an object');
   if (!Array.isArray(config.inbounds)) throw new Error('inbounds must be an array');
@@ -93,6 +94,11 @@ function validateSingbox(config) {
 
 async function applySingboxConfig(config, version) {
   validateSingbox(config);
+  const hash = configHash(config);
+  if (hash === lastConfigHash) {
+    console.log('sing-box config unchanged, skipping reload');
+    return { engine: 'sing-box', applied: false, reloaded: false, version: lastConfigVersion, skipped: true };
+  }
   fs.mkdirSync(path.dirname(SINGBOX_CONFIG_PATH), { recursive: true });
   const tmp = path.join(path.dirname(SINGBOX_CONFIG_PATH), `singbox-candidate-${Date.now()}.json`);
   fs.writeFileSync(tmp, JSON.stringify(config, null, 2));
@@ -101,10 +107,12 @@ async function applySingboxConfig(config, version) {
     fs.unlinkSync(tmp);
     throw new Error(`sing-box config check failed: ${test.stderr || test.error}`);
   }
+  backupCurrent();
   fs.copyFileSync(tmp, SINGBOX_CONFIG_PATH);
   fs.unlinkSync(tmp);
   const reload = await run('systemctl', ['reload-or-restart', SINGBOX_SERVICE], 10000);
   singboxStatus = reload.ok ? 'running' : 'error';
+  lastConfigHash = hash;
   return { engine: 'sing-box', applied: true, reloaded: reload.ok, version: version || lastConfigVersion };
 }
 
@@ -119,55 +127,13 @@ async function applyConfig(config, version) {
   return applyXrayConfig(config, version);
 }
 
-// В контейнере нет systemd — Xray живёт как дочерний процесс агента.
-function stopManagedXray() {
-  if (!xrayProcess) return;
-  try { xrayProcess.kill('SIGTERM'); } catch {}
-  xrayProcess = null;
-}
-
-async function startManagedXray() {
-  stopManagedXray();
-  const proc = spawn(XRAY_BIN, ['run', '-c', CONFIG_PATH], {
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: process.env,
-  });
-  xrayProcess = proc;
-  proc.stdout.on('data', (d) => {
-    const line = String(d).trim();
-    if (line) console.log('[xray]', line);
-  });
-  proc.stderr.on('data', (d) => {
-    const line = String(d).trim();
-    if (line) console.error('[xray]', line);
-  });
-  proc.on('exit', (code, signal) => {
-    // Старый процесс может испустить exit уже после того, как мы сохранили
-    // ссылку на новый — не перетираем её.
-    if (xrayProcess !== proc) return;
-    if (code && code !== 0) xrayStatus = 'error';
-    else if (signal) xrayStatus = 'stopped';
-    xrayProcess = null;
-  });
-  await new Promise((resolve) => setTimeout(resolve, 800));
-  const ok = Boolean(xrayProcess === proc && proc.exitCode === null);
-  xrayStatus = ok ? 'running' : 'error';
-  return ok;
-}
-
-async function reloadXrayService() {
-  if (XRAY_MANAGED) {
-    const ok = await startManagedXray();
-    return { ok, stage: 'managed', error: ok ? null : 'xray exited during startup' };
-  }
-  const reload = await run('systemctl', ['reload-or-restart', XRAY_SERVICE], 10000);
-  if (reload.ok) return { ok: true, stage: 'reload' };
-  const restart = await run('systemctl', ['restart', XRAY_SERVICE], 10000);
-  return { ok: restart.ok, stage: 'restart', error: restart.ok ? null : restart.stderr };
-}
-
 async function applyXrayConfig(config, version) {
   validateConfig(config);
+  const hash = configHash(config);
+  if (hash === lastConfigHash) {
+    console.log('xray config unchanged, skipping reload');
+    return { applied: false, reloaded: false, version: lastConfigVersion, skipped: true };
+  }
   ensureDirs();
   const tmp = path.join(BACKUP_DIR, `candidate-${Date.now()}.json`);
   fs.writeFileSync(tmp, JSON.stringify(config, null, 2));
@@ -180,47 +146,75 @@ async function applyXrayConfig(config, version) {
   fs.copyFileSync(tmp, CONFIG_PATH);
   fs.unlinkSync(tmp);
   lastConfigVersion = version || lastConfigVersion;
-  const reload = await reloadXrayService();
-  xrayStatus = reload.ok ? 'running' : 'error';
-  return {
-    applied: true,
-    reloaded: reload.ok,
-    version: lastConfigVersion,
-    managed: XRAY_MANAGED,
-    error: reload.error || null,
-  };
+  lastConfigHash = hash;
+  const reload = await run('systemctl', ['reload-or-restart', XRAY_SERVICE], 10000);
+  if (!reload.ok) {
+    const restart = await run('systemctl', ['restart', XRAY_SERVICE], 10000);
+    xrayStatus = restart.ok ? 'running' : 'error';
+    return { applied: true, reloaded: restart.ok, error: restart.ok ? null : restart.stderr, version: lastConfigVersion };
+  }
+  xrayStatus = 'running';
+  return { applied: true, reloaded: true, version: lastConfigVersion };
 }
 
 function parseStatValue(stdout) {
-  const raw = String(stdout || '').trim();
-  if (!raw) return 0;
-  try {
-    const parsed = JSON.parse(raw);
-    const stats = parsed.stat || [];
-    return stats.reduce((sum, item) => sum + Number(item.value || 0), 0);
-  } catch {
-    // Старые версии Xray печатали просто число.
-    const lines = raw.split('\n').map((line) => line.trim()).filter(Boolean);
-    for (let i = lines.length - 1; i >= 0; i -= 1) {
-      if (/^\d+$/.test(lines[i])) return Number(lines[i]);
-    }
-    return 0;
+  const lines = String(stdout || '').split('\n').map((line) => line.trim()).filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    if (/^\d+$/.test(lines[i])) return Number(lines[i]);
   }
+  return 0;
 }
 
 async function queryUserStat(email, direction) {
   const server = `${XRAY_API_HOST}:${XRAY_API_PORT}`;
   const name = `user>>>${email}>>>traffic>>>${direction}`;
-  // В Xray 26 команда statsq переименована в statsquery и принимает -pattern.
-  let result = await run(XRAY_BIN, ['api', 'statsquery', '--server', server, '-pattern', name], 3000);
-  if (!result.ok && /unknown command/i.test(result.stderr || '')) {
-    result = await run(XRAY_BIN, ['api', 'statsq', '--server', server, '--name', name], 3000);
-  }
+  const result = await run(XRAY_BIN, ['api', 'statsq', '--server', server, '--name', name], 3000);
   return result.ok ? parseStatValue(result.stdout) : 0;
 }
 
-async function collectTrafficEntries() {
+async function collectTrafficEntriesPattern() {
   if (!XRAY_STATS_ENABLED) return [];
+  const config = lastAppliedConfig?.xray || lastAppliedConfig;
+  const emails = new Set();
+  for (const inbound of config?.inbounds || []) {
+    for (const client of inbound.settings?.clients || []) {
+      if (client.email) emails.add(client.email);
+    }
+  }
+  if (!emails.size) return [];
+
+  const server = `${XRAY_API_HOST}:${XRAY_API_PORT}`;
+  const pattern = 'user>>>.*>>>traffic>>>';
+  const result = await run(XRAY_BIN, ['api', 'statsq', '--server', server, '--pattern', pattern, '--type', 'coupled'], 10000);
+  if (!result.ok) {
+    console.error('statsq --pattern failed, falling back to per-user', result.stderr || result.error);
+    return collectTrafficEntriesLegacy();
+  }
+
+  const lines = String(result.stdout || '').split('\n').map((line) => line.trim()).filter(Boolean);
+  const entries = [];
+  for (const line of lines) {
+    const match = line.match(/^(user>>>.+?)>>>traffic>>>(uplink|downlink)\s*,\s*(\d+)/);
+    if (!match) continue;
+    const [, fullPath, direction, value] = match;
+    const email = fullPath.replace(/^user>>>/, '').replace(/>>>.*$/, '');
+    if (!emails.has(email)) continue;
+    const val = Number(value);
+    const prev = lastUserStats.get(email) || { uplink: 0, downlink: 0 };
+    if (direction === 'uplink') {
+      const up = Math.max(0, val - prev.uplink);
+      if (up) entries.push({ email, up });
+      lastUserStats.set(email, { ...prev, uplink: val });
+    } else {
+      const down = Math.max(0, val - prev.downlink);
+      if (down) entries.push({ email, down });
+      lastUserStats.set(email, { ...prev, downlink: val });
+    }
+  }
+  return entries;
+}
+
+async function collectTrafficEntriesLegacy() {
   const config = lastAppliedConfig?.xray || lastAppliedConfig;
   const emails = new Set();
   for (const inbound of config?.inbounds || []) {
@@ -242,6 +236,16 @@ async function collectTrafficEntries() {
   return entries;
 }
 
+async function collectTrafficEntries() {
+  if (!XRAY_STATS_ENABLED) return [];
+  try {
+    return await collectTrafficEntriesPattern();
+  } catch (e) {
+    console.error('collectTrafficEntriesPattern failed', e.message);
+    return collectTrafficEntriesLegacy();
+  }
+}
+
 async function sendTraffic() {
   try {
     const entries = await collectTrafficEntries();
@@ -254,44 +258,6 @@ async function sendTraffic() {
   } catch (e) {
     console.error('traffic report failed', e.message);
   }
-}
-
-function inboundPorts() {
-  const ports = new Set();
-  const collect = (config) => {
-    for (const inbound of config?.inbounds || []) {
-      if (inbound.port) ports.add(Number(inbound.port));
-    }
-  };
-  if (lastAppliedConfig?.xray || lastAppliedConfig?.singbox) {
-    collect(lastAppliedConfig.xray);
-    collect(lastAppliedConfig.singbox);
-  } else {
-    collect(lastAppliedConfig);
-  }
-  return ports;
-}
-
-function countConnections() {
-  const ports = inboundPorts();
-  if (!ports.size) return 0;
-  let count = 0;
-  for (const file of ['/proc/net/tcp', '/proc/net/tcp6']) {
-    let text;
-    try {
-      text = fs.readFileSync(file, 'utf8');
-    } catch {
-      continue;
-    }
-    for (const line of text.split('\n').slice(1)) {
-      const cols = line.trim().split(/\s+/);
-      // Local address is hex "IP:PORT", state 01 == TCP_ESTABLISHED.
-      if (cols.length < 4 || cols[3] !== '01') continue;
-      const port = parseInt((cols[1].split(':')[1] || ''), 16);
-      if (ports.has(port)) count++;
-    }
-  }
-  return count;
 }
 
 async function collectMetrics() {
@@ -320,7 +286,7 @@ async function collectMetrics() {
     disk: Number(fsSize?.[0]?.use || 0),
     trafficUp,
     trafficDown,
-    connections: countConnections(),
+    connections: 0,
     xray: xrayStatus,
     singbox: singboxStatus,
   };
@@ -336,45 +302,6 @@ async function sendMetrics() {
     });
   } catch (e) {
     console.error('metrics failed', e.message);
-  }
-}
-
-// Геолокация исходящего IP ноды — чтобы в панели было видно, откуда выходит трафик.
-async function checkGeo() {
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    let data;
-    try {
-      const res = await fetch(GEOCHECK_URL, { signal: controller.signal });
-      if (!res.ok) throw new Error(`geo service returned ${res.status}`);
-      data = await res.json();
-    } finally {
-      clearTimeout(timer);
-    }
-    const org = String(data.org || '');
-    const asn = org.match(/^AS\d+/)?.[0] || '';
-    const payload = JSON.stringify({
-      ip: data.ip || '',
-      countryCode: data.country || '',
-      city: data.city || '',
-      asn,
-      org,
-    });
-    // Панель может ещё подниматься сразу после docker compose up — повторяем.
-    for (let attempt = 0; attempt < 4; attempt += 1) {
-      const res = await fetch(`${PANEL_URL}/api/nodes/${NODE_ID}/geo`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AGENT_TOKEN}` },
-        body: payload,
-      });
-      if (res.ok) break;
-      if (attempt === 3) throw new Error(`geo report failed: ${res.status}`);
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-    }
-    console.log(`geo updated: ${data.country || '??'} ${data.city || ''} ${data.ip || ''}`);
-  } catch (e) {
-    console.error('geocheck failed', e.message);
   }
 }
 
@@ -398,7 +325,12 @@ async function pullConfig() {
     });
     if (!res.ok) return;
     const data = await res.json();
-    if (!data.config || data.version <= lastConfigVersion) return;
+    if (!data.config) return;
+    const incomingHash = configHash(data.config);
+    if (incomingHash === lastConfigHash) {
+      console.log('config hash unchanged, skipping apply');
+      return;
+    }
     const result = await applyConfig(data.config, data.version);
     console.log('pulled config', result);
   } catch (e) {
@@ -436,14 +368,14 @@ app.post('/rollback', auth, async (req, res) => {
     return res.status(400).json({ error: 'No backup available' });
   }
   fs.copyFileSync(lastGood, CONFIG_PATH);
-  const result = await reloadXrayService();
-  res.json({ rolledBack: true, reloaded: result.ok, managed: XRAY_MANAGED });
+  const result = await run('systemctl', ['reload-or-restart', XRAY_SERVICE], 10000);
+  res.json({ rolledBack: true, reloaded: result.ok });
 });
 
 app.post('/restart-xray', auth, async (req, res) => {
-  const result = await reloadXrayService();
+  const result = await run('systemctl', ['restart', XRAY_SERVICE], 10000);
   xrayStatus = result.ok ? 'running' : 'error';
-  res.json({ restarted: result.ok, managed: XRAY_MANAGED, error: result.error || null });
+  res.json({ restarted: result.ok, error: result.ok ? null : result.stderr });
 });
 
 app.get('/logs', auth, async (req, res) => {
@@ -500,8 +432,6 @@ if (XRAY_STATS_ENABLED) {
 }
 setTimeout(sendMetrics, 1000);
 setTimeout(pullConfig, 3000);
-setTimeout(checkGeo, 10000);
-setInterval(checkGeo, GEOCHECK_INTERVAL);
 
 const tlsCert = process.env.AGENT_TLS_CERT;
 const tlsKey = process.env.AGENT_TLS_KEY;
@@ -519,17 +449,3 @@ const server = tlsCert && tlsKey
   : app;
 
 server.listen(PORT, () => console.log(`XSS agent listening on ${PORT}`));
-
-// При перезапуске контейнера конфиг уже лежит на диске — поднимаем Xray сразу,
-// не дожидаясь следующего pullConfig (панель может быть временно недоступна).
-if (XRAY_MANAGED && fs.existsSync(CONFIG_PATH)) {
-  setTimeout(async () => {
-    try {
-      const ok = await startManagedXray();
-      console.log(`managed xray restored from ${CONFIG_PATH}: ${ok ? 'ok' : 'failed'}`);
-      lastConfigVersion = lastConfigVersion || 1;
-    } catch (error) {
-      console.error('managed xray start failed', error.message);
-    }
-  }, 1500);
-}
