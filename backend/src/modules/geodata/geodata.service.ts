@@ -9,7 +9,13 @@ export class GeodataService implements OnModuleInit {
   constructor(private prisma: PrismaService) {}
 
   async onModuleInit() {
-    await this.seed();
+    try {
+      await this.seed();
+    } catch (error: any) {
+      // Не блокируем старт панели, если каталог временно недоступен
+      // (например, в e2e с моковым Prisma или до первого db push).
+      this.logger.warn(`Geodata catalog seed skipped: ${error.message}`);
+    }
   }
 
   async seed() {
