@@ -152,6 +152,49 @@ show_cmd() {
   printf '  \033[33m[dry-run]\033[0m %s\n' "$1"
 }
 
+# Достаём поле из JSON-ответа панели.
+# Порядок: jq → python3 → node → sed. Первые три разбирают JSON по-настоящему
+# (экранирование, вложенность, пустые значения), sed остаётся подстраховкой
+# для хостов, где нет ничего из перечисленного. Функция не падает и не шумит
+# в stderr: если разобрать не удалось, она вернёт пустую строку.
+json_field() {
+  local json="$1" key="$2" out=""
+  if command -v jq >/dev/null 2>&1; then
+    out="$(printf '%s' "$json" | jq -r --arg k "$key" '.[$k] // empty' 2>/dev/null || true)"
+  elif command -v python3 >/dev/null 2>&1; then
+    out="$(printf '%s' "$json" | python3 -c '
+import json, sys
+try:
+    value = json.load(sys.stdin).get(sys.argv[1])
+except Exception:
+    sys.exit(0)
+if value is None:
+    sys.exit(0)
+if value is True:
+    print("true")
+elif value is False:
+    print("false")
+else:
+    print(value)
+' "$key" 2>/dev/null || true)"
+  elif command -v node >/dev/null 2>&1; then
+    out="$(printf '%s' "$json" | node -e '
+let raw = "";
+process.stdin.on("data", (d) => { raw += d; });
+process.stdin.on("end", () => {
+  try {
+    const v = JSON.parse(raw)[process.argv[1]];
+    if (v !== undefined && v !== null) process.stdout.write(String(v));
+  } catch (e) {}
+});
+' "$key" 2>/dev/null || true)"
+  else
+    # Последнее средство: строковое значение по ключу.
+    out="$(printf '%s' "$json" | sed -n "s/.*\"$key\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -n1)"
+  fi
+  printf '%s' "$out"
+}
+
 # ---------- создание ноды в панели ----------
 create_node_in_panel() {
   local payload response
@@ -160,9 +203,10 @@ create_node_in_panel() {
     -H "Authorization: Bearer $ADMIN_TOKEN" \
     -H 'Content-Type: application/json' \
     -d "$payload")" || die "не удалось создать ноду: POST $PANEL_URL/api/nodes"
-  NODE_ID="$(printf '%s' "$response" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')"
-  TOKEN="$(printf '%s' "$response" | sed -n 's/.*"agentToken":"\([^"]*\)".*/\1/p')"
+  NODE_ID="$(json_field "$response" id)"
+  TOKEN="$(json_field "$response" agentToken)"
   [ -n "$NODE_ID" ] && [ -n "$TOKEN" ] || die "панель не вернула id/agentToken — проверьте права токена (нужен ADMIN/OPERATOR)"
+  valid_node_id "$NODE_ID" || die "панель вернула неожиданный id ноды: $NODE_ID"
   ok "нода создана в панели: $NODE_ID"
 }
 
@@ -271,21 +315,22 @@ if [ "$DRY_RUN" -eq 1 ]; then
 else
   info "Регистрирую ноду (POST /api/nodes/register)"
   REGISTER_RESPONSE="$(register_node)" || die "регистрация не удалась: проверьте NODE_ID/AGENT_TOKEN и доступность $PANEL_URL"
-  case "$REGISTER_RESPONSE" in
-    *'"ONLINE"'*) ok "панель подтвердила статус ONLINE" ;;
+  REGISTER_STATUS="$(json_field "$REGISTER_RESPONSE" status)"
+  case "$REGISTER_STATUS" in
+    ONLINE) ok "панель подтвердила статус ONLINE" ;;
     *) warn "панель ответила без ONLINE: $REGISTER_RESPONSE" ;;
   esac
 fi
 
 # ---------- ожидание ONLINE ----------
 node_online() {
-  local body
+  local body online status
   body="$(curl -fsS "$PANEL_URL/api/nodes/$NODE_ID/health" \
     -H "Authorization: Bearer $ADMIN_TOKEN" 2>/dev/null)" || return 1
-  case "$body" in
-    *'"online":true'*|*'"status":"ONLINE"'*) return 0 ;;
-    *) return 1 ;;
-  esac
+  online="$(json_field "$body" online | tr '[:upper:]' '[:lower:]')"
+  status="$(json_field "$body" status | tr '[:upper:]' '[:lower:]')"
+  [ "$online" = "true" ] || [ "$status" = "online" ] || return 1
+  return 0
 }
 
 if [ "$DRY_RUN" -eq 1 ]; then
