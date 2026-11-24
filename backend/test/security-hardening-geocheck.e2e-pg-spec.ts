@@ -80,8 +80,8 @@ describe('XSS security hardening and geocheck (e2e, real PostgreSQL)', () => {
     const admin = await prisma.user.findUniqueOrThrow({ where: { email: adminEmail } });
     adminId = admin.id;
 
-    const orgA = await prisma.organization.create({ data: { name: 'Org A' } });
-    const orgB = await prisma.organization.create({ data: { name: 'Org B' } });
+    const orgA = await prisma.organization.create({ data: { name: 'Org A', slug: 'org-a' } });
+    const orgB = await prisma.organization.create({ data: { name: 'Org B', slug: 'org-b' } });
     orgAId = orgA.id;
     orgBId = orgB.id;
 
