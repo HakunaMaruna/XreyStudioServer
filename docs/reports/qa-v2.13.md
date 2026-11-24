@@ -64,9 +64,11 @@ Local (Node 20.15.1, PostgreSQL 16 on 127.0.0.1:55442 — the same engine CI use
 
 Live smoke against https://msc.h2onetwork.pro (local run without secrets): **14/14 checks pass** —
 `/api/health` plus anonymous 401 on all protected paths, including the 4 new ones. Authenticated
-reads and node ONLINE are skipped locally because `LIVE_ADMIN_EMAIL`/`LIVE_ADMIN_PASSWORD` are
-not available outside CI; the scheduled/CI smoke job supplies them. Workflow runs for `main` at
-`e38e184` (`CI`, `Live API smoke`, `Infra checks`, `Images`, `Release bundle`) completed `success`.
+reads and node ONLINE are skipped: `LIVE_ADMIN_EMAIL`/`LIVE_ADMIN_PASSWORD` are empty both locally
+and in the CI smoke job (confirmed in run `45306759278` on PR #120 — 14/14 anonymous checks pass,
+both authenticated checks `SKIP`). Configure those secrets to unblock that part of #107. Workflow
+runs for `main` at `e38e184` (`CI`, `Live API smoke`, `Infra checks`, `Images`, `Release bundle`)
+completed `success`.
 
 PGlite caveat: a socket instance only survived the first test suite locally, and backup tests need
 real `psql`, so the authoritative local run uses a real PostgreSQL 16 service rather than PGlite.
