@@ -342,8 +342,10 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 
 ## Event-level notification routing (v2.23.3, 2026-11-24)
 
-- PR #163 (`feat: scoped API tokens and event-level notification routing`) is merged into `main`
-  as `2666b1a`; PR #164 (`AdminLTE is the default UI`, v2.23.2) merged as `08072d6`.
+- PR #165 (`feat: event-level notification routing for real alert producers`, v2.23.3) is merged
+  into `main` as `59a8e5e`; PR #164 (`AdminLTE is the default UI`, v2.23.2) merged as `08072d6`.
+- Release `v2.23.3` published: tag `v2.23.3` points at commit `389b207` (version bump to 2.23.3).
+  CI, Images, Live API smoke and Release bundle jobs are green on both `main` and the tag.
 - `NotificationsService.emit(event, options, organizationId?)` is now the single integration point
   for real alert producers: health-checks emit `NODE_ONLINE`/`NODE_OFFLINE` only on availability
   transitions, failed backups emit `BACKUP_FAILED`, applied config revisions emit
@@ -362,6 +364,26 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
   (`?pgbouncer=true` avoids PGlite's prepared-statement conflict).
 - Local git in `/work/XreyStudioServer/.git` cannot write objects (proot fs error); use a clean
   clone under `/tmp/opencode` for commits and publish via `git push`/GitHub API.
+
+## Session context (final, 2026-11-24)
+
+- Version bumped to `2.23.3` in `backend/src/version.ts`, `frontend/src/lib/version.ts`,
+  both `package.json` and both `package-lock.json`; pushed as `389b207`.
+- Local verification (clean clone `/tmp/opencode/xss-work-225`): backend `npm run typecheck`,
+  `npm run lint` (warnings only), `npm test -- --runInBand` (31 passed), `npm run test:e2e`
+  (11 passed), `npm run build` — all OK. Frontend `npx tsc --noEmit` OK.
+- Not verified locally: frontend production build. Turbopack fails on `magic-string` ESM
+  (`@tailwindcss/turbopack`) with local Node 20.15; webpack build fails on missing
+  `chart.js/auto` from `@adminlte/react`. CI frontend job (Node 20 latest + npm ci) is green.
+- PG e2e `test/v15.e2e-pg-spec.ts` skipped locally: local pg_dump 16 cannot dump PGlite 19.
+  Other PG suites: 15 suites / 69 tests passed with
+  `DATABASE_URL=...?pgbouncer=true`.
+- `/work/XreyStudioServer` recloned from GitHub main (`59a8e5e`), then version bump applied
+  locally (uncommitted there — commits must be made in `/tmp/opencode` clone due to proot
+  git object-write limitations). `core.filemode=false` set locally; `graft/` and `temp_git/`
+  preserved; old checkout in `/work/.trash/2026-11-24-XreyStudioServer.old/`.
+- npm ci in `/work` fails with EACCES on symlinks (proot); use `/tmp/opencode` clone for
+  installing dependencies and running tests.
 
 ## Commands
 
