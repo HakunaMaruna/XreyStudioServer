@@ -8,7 +8,11 @@
 - на ноде: Linux, `git`, `docker` + `docker compose v2`, открытые порты под Xray;
 - DNS-имя ноды (если нужны TLS/подписки);
 - доступ к панели с ролью ADMIN или OPERATOR;
-- для SSH-способа — SSH-ключ или ssh-agent (скрипт работает в `BatchMode=yes`).
+- для SSH-способа — SSH-ключ или ssh-agent (скрипт работает в `BatchMode=yes`);
+- для `scripts/add-node.sh` — `jq` **или** `python3`: ими скрипт разбирает JSON-ответы
+  панели (`POST /api/nodes`, `POST /api/nodes/register`, `GET /api/nodes/:id/health`).
+  Без одного из них он не прочитает `id`/`agentToken` и статус ноды и остановится
+  с ошибкой ещё до установки (в `--dry-run` проверка не мешает — там разбора нет).
 
 ## Способ 1. Вручную (через панель и терминал)
 

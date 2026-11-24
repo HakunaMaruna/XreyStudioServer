@@ -22,8 +22,9 @@
 #   ./scripts/add-node.sh --host 203.0.113.10 --panel-url https://panel.example.com \
 #     --node-id 6f1c… --token "$AGENT_TOKEN"
 #
-# Требования: bash, ssh (ключ или ssh-agent, вход без пароля), curl; на
-# удалённом хосте — git, docker + docker compose v2.
+# Требования: bash, ssh (ключ или ssh-agent, вход без пароля), curl, а также
+# jq или python3 (разбор JSON-ответов панели); на удалённом хосте — git,
+# docker + docker compose v2.
 # ============================================================================
 set -euo pipefail
 
@@ -136,6 +137,13 @@ else
   command -v curl >/dev/null 2>&1 || warn "curl не найден — это нормально для --dry-run"
 fi
 
+# ---------- зависимости ----------
+# Ответы панели разбираются jq или python3 (см. json_field). В dry-run разбора
+# нет, поэтому проверка не мешает посмотреть план на «голом» хосте.
+if [ "$DRY_RUN" -eq 0 ] && ! command -v jq >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
+  die "нужен jq или python3 для разбора JSON-ответов панели — установите один из них"
+fi
+
 # ---------- вспомогательные команды ----------
 SSH_OPTS=(-p "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking="$SSH_HOST_KEY" -o ConnectTimeout=10)
 
@@ -152,17 +160,18 @@ show_cmd() {
   printf '  \033[33m[dry-run]\033[0m %s\n' "$1"
 }
 
-# Достаём поле из JSON-ответа панели.
-# Порядок: jq → python3 → node → sed. Первые три разбирают JSON по-настоящему
-# (экранирование, вложенность, пустые значения), sed остаётся подстраховкой
-# для хостов, где нет ничего из перечисленного. Функция не падает и не шумит
-# в stderr: если разобрать не удалось, она вернёт пустую строку.
+# Достаём значение поля из JSON-ответа панели.
+# Нужен jq или python3: оба разбирают JSON по-настоящему (экранирование,
+# вложенность, произвольные пробелы), поэтому pretty-printed ответ панели
+# не ломает разбор. Функция не шумит в stderr и возвращает пустую строку,
+# если ключа нет или JSON не разобрался; отсутствие обоих инструментов
+# проверяется отдельно при старте.
 json_field() {
-  local json="$1" key="$2" out=""
+  local json="$1" key="$2"
   if command -v jq >/dev/null 2>&1; then
-    out="$(printf '%s' "$json" | jq -r --arg k "$key" '.[$k] // empty' 2>/dev/null || true)"
+    printf '%s' "$json" | jq -r --arg k "$key" '.[$k] // empty' 2>/dev/null || true
   elif command -v python3 >/dev/null 2>&1; then
-    out="$(printf '%s' "$json" | python3 -c '
+    printf '%s' "$json" | python3 -c '
 import json, sys
 try:
     value = json.load(sys.stdin).get(sys.argv[1])
@@ -170,29 +179,9 @@ except Exception:
     sys.exit(0)
 if value is None:
     sys.exit(0)
-if value is True:
-    print("true")
-elif value is False:
-    print("false")
-else:
-    print(value)
-' "$key" 2>/dev/null || true)"
-  elif command -v node >/dev/null 2>&1; then
-    out="$(printf '%s' "$json" | node -e '
-let raw = "";
-process.stdin.on("data", (d) => { raw += d; });
-process.stdin.on("end", () => {
-  try {
-    const v = JSON.parse(raw)[process.argv[1]];
-    if (v !== undefined && v !== null) process.stdout.write(String(v));
-  } catch (e) {}
-});
-' "$key" 2>/dev/null || true)"
-  else
-    # Последнее средство: строковое значение по ключу.
-    out="$(printf '%s' "$json" | sed -n "s/.*\"$key\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -n1)"
+print("true" if value is True else "false" if value is False else value)
+' "$key" 2>/dev/null || true
   fi
-  printf '%s' "$out"
 }
 
 # ---------- создание ноды в панели ----------
