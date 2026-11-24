@@ -372,16 +372,23 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 - Local verification (clean clone `/tmp/opencode/xss-work-225`): backend `npm run typecheck`,
   `npm run lint` (warnings only), `npm test -- --runInBand` (31 passed), `npm run test:e2e`
   (11 passed), `npm run build` — all OK. Frontend `npx tsc --noEmit` OK.
-- Not verified locally: frontend production build. Turbopack fails on `magic-string` ESM
-  (`@tailwindcss/turbopack`) with local Node 20.15; webpack build fails on missing
-  `chart.js/auto` from `@adminlte/react`. CI frontend job (Node 20 latest + npm ci) is green.
-- PG e2e `test/v15.e2e-pg-spec.ts` skipped locally: local pg_dump 16 cannot dump PGlite 19.
-  Other PG suites: 15 suites / 69 tests passed with
-  `DATABASE_URL=...?pgbouncer=true`.
-- `/work/XreyStudioServer` recloned from GitHub main (`59a8e5e`), then version bump applied
-  locally (uncommitted there — commits must be made in `/tmp/opencode` clone due to proot
-  git object-write limitations). `core.filemode=false` set locally; `graft/` and `temp_git/`
-  preserved; old checkout in `/work/.trash/2026-11-24-XreyStudioServer.old/`.
+- GitHub Release `v2.23.3` published (release id 457088550) with assets
+  `xreystudio-v2.23.3.tar.gz` and `xreystudio-v2.23.3.zip`; CI, Images, Live API smoke and
+  Release bundle are green on main and on the tag.
+- Frontend build: added `@adminlte/react`'s optional peers as direct dependencies
+  (`chart.js`, `flatpickr`, `jsvectormap`, `quill`, `sortablejs`, `tabulator-tables`,
+  `tom-select`) in commit `7dac71b`; `npx next build --webpack`, `npm run lint`,
+  `npx tsc --noEmit` all pass locally. Turbopack (`npm run build`) still fails locally on
+  Node 20.15 because `magic-string@1.4.5` is ESM-only and CJS `require()` cannot load it;
+  CI uses Node 20 latest (with require(esm)) and is green — no source change needed.
+- PG e2e `test/v15.e2e-pg-spec.ts` skipped locally: local pg_dump 16 cannot dump PGlite 19
+  (Alpine has pg_dump <=16; CI uses PostgreSQL 16 and passes). Other PG suites: 15 suites /
+  69 tests passed with `DATABASE_URL=...?pgbouncer=true`.
+- `/work/XreyStudioServer` recloned from GitHub main, synced to `7dac71b` by copying loose
+  git objects from `/tmp/opencode/xss-work-225` (proot blocks git object writes directly);
+  working tree clean. `core.filemode=false` set locally; `graft/` preserved;
+  `temp_git/` is local scratch now ignored via `.gitignore`; old checkout in
+  `/work/.trash/2026-11-24-XreyStudioServer.old/`.
 - npm ci in `/work` fails with EACCES on symlinks (proot); use `/tmp/opencode` clone for
   installing dependencies and running tests.
 
