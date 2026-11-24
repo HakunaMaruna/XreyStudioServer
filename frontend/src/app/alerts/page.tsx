@@ -89,7 +89,7 @@ export default function AlertsPage() {
         </div>
       )}
 
-      <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         {channels ? (Object.keys(channels) as (keyof Channels)[]).map((key) => (
           <Card key={key} className="flex items-center gap-3 p-4">
             <div className={cn('grid h-9 w-9 place-items-center rounded-lg border', channels[key] ? 'border-success/25 bg-success/10 text-success' : 'border-line bg-surface-2 text-subtle')}>

@@ -11,6 +11,9 @@ export type IconProps = SVGProps<SVGSVGElement> & { name: IconName; size?: numbe
 const STORAGE_KEY = 'xss_icon_set';
 const ENV_SET: IconSet = process.env.NEXT_PUBLIC_ICON_SET === 'default' ? 'default' : 'tabler';
 
+// Один кэш на модуль: getSnapshot вызывается для каждой иконки на каждом рендере,
+// поэтому читать localStorage каждый раз дорого.
+let cachedSet: IconSet = ENV_SET;
 const listeners = new Set<() => void>();
 const subscribe = (fn: () => void) => {
   listeners.add(fn);
@@ -19,11 +22,11 @@ const subscribe = (fn: () => void) => {
 const emit = () => listeners.forEach((fn) => fn());
 
 export function getIconSet(): IconSet {
-  if (typeof window === 'undefined') return ENV_SET;
-  return (localStorage.getItem(STORAGE_KEY) as IconSet) || ENV_SET;
+  return cachedSet;
 }
 
 export function setIconSet(set: IconSet) {
+  cachedSet = set;
   if (typeof window === 'undefined') return;
   localStorage.setItem(STORAGE_KEY, set);
   emit();
@@ -34,8 +37,14 @@ export function toggleIconSet() {
 }
 
 if (typeof window !== 'undefined') {
-  window.addEventListener('storage', (e) => {
-    if (e.key === STORAGE_KEY) emit();
+  const stored = localStorage.getItem(STORAGE_KEY) as IconSet | null;
+  if (stored === 'default' || stored === 'tabler') cachedSet = stored;
+  window.addEventListener('storage', (event) => {
+    const e = event as StorageEvent;
+    if (e.key === STORAGE_KEY) {
+      cachedSet = e.newValue === 'default' || e.newValue === 'tabler' ? e.newValue : ENV_SET;
+      emit();
+    }
   });
 }
 

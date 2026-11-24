@@ -43,13 +43,13 @@ export default function DocsPage() {
               className="field pl-8 text-xs"
             />
           </div>
-          <nav className="space-y-1">
+          <nav className="flex gap-1 overflow-x-auto pb-1 lg:block lg:space-y-1 lg:overflow-visible lg:pb-0">
             {sections.map((section) => (
               <button
                 key={section.id}
                 onClick={() => setActive(section.id)}
                 className={cn(
-                  'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs transition-colors',
+                  'flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs transition-colors lg:w-full',
                   active === section.id
                     ? 'bg-brand-soft font-medium text-brand'
                     : 'text-muted hover:bg-surface-2 hover:text-fg',
