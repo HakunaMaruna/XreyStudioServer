@@ -84,6 +84,15 @@ keep exports within that cap. Headers:
 
 All report endpoints require an `ADMIN` JWT.
 
+## Subscription templates
+
+- `GET /subscription-templates` — list templates with assigned user counts
+- `GET /subscription-templates/:id`, `POST`, `PATCH :id`, `DELETE :id` — CRUD (ADMIN/OPERATOR)
+  - fields: `name`, `title`, `description`, `accent` (hex color), `instructions` (JSON object: platform → text), `footer`, `enabled`
+- Assign to a user via `PATCH /users/:id { subscriptionTemplateId }`.
+- `GET /subscriptions/:token?format=json` returns `template` when the user's template is enabled.
+  The public `/sub/:token` page applies its title, description, accent, instructions and footer.
+
 ## Client-eye health checks
 
 - `GET /health-checks?nodeId&limit` — TCP connect latency from the panel to every enabled inbound

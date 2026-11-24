@@ -104,6 +104,7 @@ export class SubscriptionsService {
       where: { subscriptionToken: token },
       include: {
         organization: true,
+        subscriptionTemplate: true,
         inbounds: {
           where: { enabled: true },
           include: { node: true },
@@ -163,6 +164,15 @@ export class SubscriptionsService {
       trafficLimit: Number(user.trafficLimit),
       trafficRemaining: Math.max(0, Number(user.trafficLimit) - Number(user.trafficUsed)),
       branding: user.organization?.branding || null,
+      template: user.subscriptionTemplate && user.subscriptionTemplate.enabled
+        ? {
+            title: user.subscriptionTemplate.title,
+            description: user.subscriptionTemplate.description,
+            accent: user.subscriptionTemplate.accent,
+            instructions: user.subscriptionTemplate.instructions,
+            footer: user.subscriptionTemplate.footer,
+          }
+        : null,
       nodes: Array.from(
         new Map(
           user.inbounds

@@ -9,6 +9,13 @@ import { Badge, Card, CodeBlock, IconButton, SectionTitle, cn, formatBytes } fro
 
 type SubNode = { id: string; name: string; address: string };
 type SubLink = { id: string; tag: string; protocol: string; link: string };
+type SubTemplate = {
+  title: string;
+  description: string | null;
+  accent: string;
+  instructions: Record<string, string> | null;
+  footer: string | null;
+};
 type SubData = {
   status: string;
   expiresAt: string | null;
@@ -16,6 +23,7 @@ type SubData = {
   trafficLimit: number;
   nodes?: SubNode[];
   links?: SubLink[];
+  template?: SubTemplate | null;
 };
 
 const formats = ['raw', 'base64', 'clash', 'singbox', 'json'];
@@ -67,6 +75,11 @@ export default function SubscriptionPage() {
   }
 
   const active = data.status.toLowerCase() === 'active';
+  const tpl = data.template;
+  const accent = tpl?.accent || 'var(--brand)';
+  const instructions = tpl?.instructions
+    ? Object.entries(tpl.instructions).filter(([, text]) => typeof text === 'string' && text.trim())
+    : [];
   const subscriptionUrl = `${apiBase}/api/subscriptions/${token}?format=base64`;
   const used = Number(data.trafficUsed || 0);
   const limit = Number(data.trafficLimit || 0);
@@ -76,12 +89,15 @@ export default function SubscriptionPage() {
     <main className="relative mx-auto max-w-4xl space-y-6 px-4 py-10 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-brand to-brand-2 text-white shadow-[0_8px_24px_-8px_var(--brand)]">
+          <div
+            className="grid h-10 w-10 place-items-center rounded-xl text-white shadow-lg"
+            style={{ background: `linear-gradient(135deg, ${accent}, ${accent}bb)`, boxShadow: `0 8px 24px -8px ${accent}` }}
+          >
             <Icon name="zap" size={19} />
           </div>
           <div>
-            <p className="text-sm font-semibold text-fg">XreyStudio</p>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-subtle">{t.subscriptionPage}</p>
+            <p className="text-sm font-semibold text-fg">{tpl?.title || 'XreyStudio'}</p>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-subtle">{tpl?.description || t.subscriptionPage}</p>
           </div>
         </div>
         <Badge tone={active ? 'success' : 'danger'} dot>{data.status.toUpperCase()}</Badge>
@@ -125,6 +141,20 @@ export default function SubscriptionPage() {
           </div>
         </div>
       </Card>
+
+      {instructions.length > 0 && (
+        <Card>
+          <SectionTitle title={t.instructions} subtitle={tpl?.description || undefined} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            {instructions.map(([platform, text]) => (
+              <div key={platform} className="rounded-lg border border-line bg-surface-2/50 p-3">
+                <p className="mb-1 text-xs font-semibold" style={{ color: accent }}>{platform}</p>
+                <p className="whitespace-pre-wrap text-[11px] leading-relaxed text-muted">{text}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
@@ -182,6 +212,7 @@ export default function SubscriptionPage() {
         </Card>
       ) : null}
 
+      {tpl?.footer && <p className="text-center text-xs text-muted">{tpl.footer}</p>}
       <p className="pb-6 text-center text-[10px] text-subtle">{t.poweredBy} · v{APP_VERSION}</p>
     </main>
   );
