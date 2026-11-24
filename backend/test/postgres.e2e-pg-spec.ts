@@ -62,7 +62,7 @@ describe('XSS API (e2e, real PostgreSQL)', () => {
     await request(app.getHttpServer()).get('/api/health/live').expect(200);
     await request(app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email, password: 'definitely-wrong' })
+      .send({ email, password: process.env.TEST_WRONG_PASSWORD || 'definitely-wrong' })
       .expect(401);
   });
 
