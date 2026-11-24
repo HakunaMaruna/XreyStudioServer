@@ -84,6 +84,15 @@ keep exports within that cap. Headers:
 
 All report endpoints require an `ADMIN` JWT.
 
+## Devices (HWID limits)
+
+- `GET /devices?userId` — list devices (ADMIN/OPERATOR)
+- `POST /devices` — bind a device manually `{ userId, hwid, name? }`, enforces `deviceLimit`
+- `POST /devices/bind` — public bind by `{ token, hwid, name? }` using subscription token
+- `DELETE /devices/:id` — unbind
+- `GET /subscriptions/:token?hwid=<hwid>` — rejects with 403 when the device limit is reached
+  and the HWID is not registered; updates `lastSeenAt` for known devices.
+
 ## User squads
 
 - `GET /squads`, `GET /squads/:id` (includes members), `POST /squads`, `PATCH /squads/:id`,

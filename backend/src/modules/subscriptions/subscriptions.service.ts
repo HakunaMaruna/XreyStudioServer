@@ -99,7 +99,7 @@ export class SubscriptionsService {
     }
   }
 
-  private async loadUser(token: string) {
+  async loadUser(token: string) {
     const user = await this.prisma.user.findUnique({
       where: { subscriptionToken: token },
       include: {
@@ -112,6 +112,7 @@ export class SubscriptionsService {
           where: { enabled: true },
           include: { inbound: { include: { node: true } } },
         },
+        devices: { select: { hwid: true, name: true, lastSeenAt: true } },
       },
     });
     if (!user) throw new NotFoundException('Subscription not found');
@@ -170,6 +171,9 @@ export class SubscriptionsService {
         ).values(),
       ),
       links,
+      deviceLimit: user.deviceLimit,
+      deviceCount: (user as any).devices?.length ?? 0,
+      deviceIds: ((user as any).devices || []).map((d: any) => d.hwid),
     };
   }
 
