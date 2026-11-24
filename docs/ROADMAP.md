@@ -9,7 +9,7 @@ Ideas are independently implemented; no code is copied from the source panels
 | # | Task | Source idea | Status | Notes |
 |---|------|-------------|--------|-------|
 | 1 | Device/HWID limit with per-user cap, device list and revoke | remnawave, lucx-ui, Mistgate | **done (verified + documented)** | `Device` model, `deviceLimit`, subscription `?hwid=`, Devices UI, e2e `devices.e2e-pg-spec.ts`; README EN/RU + `docs/test-connection.md`. |
-| 2 | Decoy page + hidden admin entry (secret path/host) | Mistgate | planned | Public address serves a benign site; panel behind secret entry. |
+| 2 | Decoy page + hidden admin entry (secret path) | Mistgate | **done** | `PANEL_DECOY`, `PANEL_ENTRY_PATH`, `/decoy`, routing-only cookie on login (auth still JWT). |
 | 3 | Per-user subscription landing page (QR, instructions, traffic/expiry) | Mistgate | planned | HTML page at subscription URL in browser; config downloads stay. |
 | 4 | Per-node/per-outbound traffic and reusable connection profiles | 3x-ui, Mistgate | planned | Existing config profiles + traffic are the base. |
 | 5 | Add node over SSH from UI with client certificate provisioning | Mistgate | planned | Agent already dials panel. |

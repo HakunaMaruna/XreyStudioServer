@@ -56,6 +56,9 @@ services:
     env_file: .env
     environment:
       NEXT_PUBLIC_API_URL: ${PANEL_URL:-http://localhost:3000}
+      NEXT_PUBLIC_UI: ${NEXT_PUBLIC_UI:-adminlte}
+      PANEL_DECOY: ${PANEL_DECOY:-false}
+      PANEL_ENTRY_PATH: ${PANEL_ENTRY_PATH:-}
     depends_on:
       - backend
     ports:

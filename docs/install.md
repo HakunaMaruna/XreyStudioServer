@@ -155,3 +155,13 @@ The **Logs** button on the Nodes page calls `GET /api/nodes/:id/logs?service=xra
 The agent reads `journalctl -u <service>`; the backend container needs network access to the agent
 and the same `AGENT_SECRET`. If `journalctl` is unavailable in a container, set
 `XRAY_LOG_PATH` / `SINGBOX_LOG_PATH` to readable log files on the node as a fallback.
+
+### Скрытый вход (decoy mode)
+
+Необязательно: `PANEL_DECOY=true` и `PANEL_ENTRY_PATH=<secret>` (6–64 символа: буквы, цифры, `-`, `_`).
+В этом режиме публичный адрес открывает страницу-заглушку, а панель доступна по `/<secret>/login`.
+Успешный логин выставляет httpOnly-cookie `xss_ui_access` — она используется middleware только
+для выбора маршрута и **не заменяет JWT**; все `/api`-запросы остаются под JWT-защитой.
+После выхода cookie удаляется. subscription-ссылки `/sub/*` и API продолжают работать без изменений.
+Неверно заданный `PANEL_ENTRY_PATH` не создаёт вход (fail closed). Переменные пробрасываются
+в frontend через `docker-compose.yml`; backend читает `PANEL_DECOY` из env_file `.env`.

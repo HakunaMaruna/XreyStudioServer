@@ -191,6 +191,15 @@ CORS_ORIGIN=https://example.com
 
 Optional: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (required for Stripe webhooks), `METRICS_TOKEN`, `REDIS_URL` (shared rate limiting; in-memory fallback when unset), `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` by default, `bcrypt` to keep new hashes bcrypt), `ALERT_WEBHOOK_TOKEN` (shared secret for Grafana alerts), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS to agents), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (non-Xray protocols), `XRAY_LOG_PATH`/`SINGBOX_LOG_PATH` (agent log fallback when `journalctl` is unavailable), `NEXT_PUBLIC_UI` (`aurora` to keep the legacy UI; AdminLTE is the default).
 
+## Hidden admin entry (decoy mode)
+
+Set `PANEL_DECOY=true` and `PANEL_ENTRY_PATH=<secret>` (6–64 letters, digits, `-` or `_`)
+to make the public address serve a benign welcome page. The panel is then reachable only at
+`/<secret>/login`, or from a browser that already completed login — successful login sets an
+httpOnly routing cookie. The cookie is **not** an authorization credential: every `/api` request
+is still protected by JWT. `/sub/*` subscription downloads and `/api/*` stay unaffected.
+If `PANEL_ENTRY_PATH` is missing or invalid, no entry route is exposed (fail closed).
+
 ## AdminLTE UI
 
 Since v2.23.2 the frontend uses the AdminLTE shell (`frontend/src/components/adminlte-shell.tsx`)

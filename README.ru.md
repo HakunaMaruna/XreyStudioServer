@@ -191,6 +191,15 @@ CORS_ORIGIN=https://example.com
 
 Опционально: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (обязателен для Stripe-вебхуков), `METRICS_TOKEN`, `REDIS_URL` (общий rate limiting; при отсутствии — память), `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` по умолчанию, `bcrypt` для новых хешей), `ALERT_WEBHOOK_TOKEN` (общий секрет для алертов Grafana), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS с агентами), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (не-Xray протоколы), `XRAY_LOG_PATH`/`SINGBOX_LOG_PATH` (резервный источник логов агента, если нет `journalctl`), `NEXT_PUBLIC_UI` (`aurora` — оставить старый UI; по умолчанию AdminLTE).
 
+## Скрытый вход в панель (режим decoy)
+
+Установите `PANEL_DECOY=true` и `PANEL_ENTRY_PATH=<секрет>` (6–64 буквы, цифры, `-` или `_`):
+публичный адрес будет отдавать безобидную страницу-заглушку, а панель — только по адресу
+`/<секрет>/login` либо в браузере, который уже выполнил вход. После успешного входа ставится
+httpOnly-cookie **только для маршрутизации**; она не является пропуском — каждый запрос `/api`
+попрежнему защищён JWT. Загрузки подписок `/sub/*` и `/api/*` не затрагиваются. Если секрет
+не задан или имеет неверный формат, вход не открывается (fail closed).
+
 ## Интерфейс AdminLTE
 
 Начиная с v2.23.2 фронтенд использует оболочку AdminLTE (`frontend/src/components/adminlte-shell.tsx`)
