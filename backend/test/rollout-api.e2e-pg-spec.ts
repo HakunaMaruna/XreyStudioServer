@@ -56,6 +56,13 @@ describe('Rollout API (e2e, real PostgreSQL)', () => {
       await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" CASCADE`);
     }
 
+    await prisma.organization.create({
+      data: { id: 'rollout-org-a', name: 'Rollout Org A', slug: 'rollout-org-a' },
+    });
+    await prisma.organization.create({
+      data: { id: 'rollout-org-b', name: 'Rollout Org B', slug: 'rollout-org-b' },
+    });
+
     const admin = await prisma.user.create({
       data: {
         email: 'rollout-admin@example.com',
