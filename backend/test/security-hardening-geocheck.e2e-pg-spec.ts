@@ -113,13 +113,13 @@ describe('XSS security hardening and geocheck (e2e, real PostgreSQL)', () => {
     await auth(
       operatorToken,
       request(app.getHttpServer()).patch(`/api/users/${adminId}`).send({ password: 'hacked-password-123' }),
-    ).expect(403);
+    ).expect(404);
 
     const original = await prisma.user.findUniqueOrThrow({ where: { id: adminId } });
     await auth(
       operatorToken,
       request(app.getHttpServer()).patch(`/api/users/${adminId}`).send({ trafficLimit: 123456 }),
-    ).expect(403);
+    ).expect(404);
     const after = await prisma.user.findUniqueOrThrow({ where: { id: adminId } });
     expect(after.passwordHash).toBe(original.passwordHash);
     expect(after.trafficLimit).toBe(original.trafficLimit);
@@ -222,7 +222,7 @@ describe('XSS security hardening and geocheck (e2e, real PostgreSQL)', () => {
         .set('x-metrics-token', token)
         .expect(200);
       expect(ok.headers['content-type']).toContain('text/plain');
-      expect(ok.text).toContain('xray_users_total');
+      expect(ok.text).toContain('xss_users_total');
     } finally {
       if (savedEnv === undefined) delete process.env.NODE_ENV;
       else process.env.NODE_ENV = savedEnv;
@@ -235,7 +235,7 @@ describe('XSS security hardening and geocheck (e2e, real PostgreSQL)', () => {
     await request(app.getHttpServer())
       .post(`/api/nodes/${nodeAId}/geo`)
       .send({ countryCode: 'DE', city: 'Berlin' })
-      .expect(401);
+      .expect(403);
 
     const geo = await nodeAuth(
       request(app.getHttpServer())
