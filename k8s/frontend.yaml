@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: xss-frontend:2.14.2
+          image: xss-frontend:2.15.0
           ports:
             - containerPort: 3000
           env:

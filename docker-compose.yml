@@ -67,8 +67,13 @@ services:
     env_file: .env
     environment:
       PANEL_URL: ${PANEL_URL:-http://backend:3000}
+      XRAY_MANAGED: "true"
     depends_on:
       - backend
+    # Тестовый VLESS-inbound; 443 занят Caddy, поэтому используем 2053.
+    ports:
+      - "2053:2053/tcp"
+      - "2053:2053/udp"
     restart: unless-stopped
 
   caddy:
