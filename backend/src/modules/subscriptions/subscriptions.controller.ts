@@ -1,5 +1,6 @@
 import { Controller, ForbiddenException, Get, Param, Query, Req, Res } from '@nestjs/common';
 import { SubscriptionsService } from './subscriptions.service';
+import { detectSubscriptionFormat, parseSubscriptionFormat } from './subscription-format';
 import { DevicesService } from '../devices/devices.service';
 
 @Controller('subscriptions')
@@ -61,9 +62,8 @@ export class SubscriptionsController {
     @Res() res: any,
   ) {
     await this.checkDevice(token, hwid);
-    const ua = (req.headers['user-agent'] || '').toLowerCase();
     const selected =
-      format || (ua.includes('clash') ? 'clash' : ua.includes('sing-box') ? 'singbox' : 'json');
+      parseSubscriptionFormat(format) || detectSubscriptionFormat(req.headers['user-agent']);
 
     switch (selected) {
       case 'raw':

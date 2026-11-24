@@ -55,6 +55,12 @@ All admin endpoints require `Authorization: Bearer <accessToken>` and, where not
 ## Subscriptions and payments
 
 - `GET /subscriptions/:token` — subscription status (format by User-Agent); status may be
+  filtered with `?status=active|expired|disabled|traffic_exceeded`.
+- Without an explicit `format`, the client is detected from `User-Agent`:
+  Clash / Clash Meta / Mihomo / Happ / ClashVerge -> `clash`, sing-box -> `singbox`,
+  Shadowrocket / Quantumult / Loon / Surge / Stash -> `base64`, other clients -> `json`.
+  Explicit `?format=raw|base64|clash|singbox|json` overrides detection; unknown values are
+  ignored and detection is used instead.
   `active`, `disabled`, `expired` or `exceeded` (traffic quota spent)
 - Config export endpoints return `403` when the subscription is not `active`
 - `GET /subscriptions/:token/raw` — raw links
