@@ -33,6 +33,10 @@ type RouteRow = {
   organizationId: string | null;
 };
 
+function errorMessage(e: unknown, fallback: string): string {
+  return e instanceof Error && e.message ? e.message : fallback;
+}
+
 const SCOPES: Scope[] = ['MONITOR', 'NODE_SYNC', 'NOTIFICATIONS', 'USERS_READ'];
 const EVENTS = [
   'NODE_OFFLINE',
@@ -97,8 +101,8 @@ export default function ApiTokensPage() {
       ]);
       setTokens(Array.isArray(tokenData) ? tokenData : []);
       setRoutes(Array.isArray(routeData) ? routeData : []);
-    } catch (e: any) {
-      setError(e?.message || 'Failed to load');
+    } catch (e) {
+      setError(errorMessage(e, 'Failed to load'));
     } finally {
       setLoading(false);
     }
@@ -141,8 +145,8 @@ export default function ApiTokensPage() {
       setExpiresInDays('');
       setModal(false);
       await load();
-    } catch (e: any) {
-      setError(e?.message || 'Failed to create token');
+    } catch (e) {
+      setError(errorMessage(e, 'Failed to create token'));
     } finally {
       setCreating(false);
     }
@@ -154,8 +158,8 @@ export default function ApiTokensPage() {
     try {
       await api.delete(`/api-tokens/${encodeURIComponent(id)}`);
       await load();
-    } catch (e: any) {
-      setError(e?.message || 'Failed to revoke token');
+    } catch (e) {
+      setError(errorMessage(e, 'Failed to revoke token'));
     } finally {
       setBusyId('');
     }
@@ -167,8 +171,8 @@ export default function ApiTokensPage() {
     try {
       await api.post('/notification-routes', { event, channel, enabled: !current });
       await load();
-    } catch (e: any) {
-      setError(e?.message || 'Failed to update route');
+    } catch (e) {
+      setError(errorMessage(e, 'Failed to update route'));
     } finally {
       setBusyId('');
     }
