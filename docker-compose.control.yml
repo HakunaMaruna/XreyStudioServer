@@ -1,0 +1,163 @@
+version: "3.9"
+
+services:
+  powerdns:
+    image: psitrax/powerdns:latest
+    environment:
+      PDNS_AUTH_API_KEY: ${PDNS_API_KEY:-change-me-dns-api-key}
+      PDNS_AUTH_API: "yes"
+      PDNS_AUTH_WEB_ADDRESS: 0.0.0.0
+      PDNS_AUTH_WEB_PORT: "8081"
+    command:
+      - --api=yes
+      - --api-key=${PDNS_API_KEY:-change-me-dns-api-key}
+      - --webserver=yes
+      - --webserver-address=0.0.0.0
+      - --webserver-port=8081
+      - --webserver-allow-from=0.0.0.0/0
+      - --default-soa-name=ns1.h2onetwork.pro.
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+    volumes:
+      - pdns_data:/var/lib/powerdns
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-xss}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-xss}
+      POSTGRES_DB: ${POSTGRES_DB:-xss}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-xss}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    env_file: .env
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: postgres://${POSTGRES_USER:-xss}:${POSTGRES_PASSWORD:-xss}@postgres:5432/${POSTGRES_DB:-xss}
+      REDIS_URL: redis://redis:6379
+      BACKUP_DIR: /app/backups
+      AGENT_BASE_URL: http://agent:9090
+      MCP_TOKEN: ${MCP_TOKEN:-}
+      PDNS_API_URL: http://powerdns:8081
+      PDNS_API_KEY: ${PDNS_API_KEY:-}
+      NODE_DNS_ZONE: ${NODE_DNS_ZONE:-node.h2onetwork.pro}
+      NODE_DNS_TTL: ${NODE_DNS_TTL:-60}
+      PANEL_MASTER_KEY: ${PANEL_MASTER_KEY:-}
+    volumes:
+      - ./backups:/app/backups
+      - certbot_webroot:/var/www/certbot
+      - node_certs:/app/certs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    env_file: .env
+    environment:
+      NEXT_PUBLIC_API_URL: ${PANEL_URL:-http://localhost:3000}
+      PANEL_DECOY: ${PANEL_DECOY:-false}
+      PANEL_ENTRY_PATH: ${PANEL_ENTRY_PATH:-}
+    depends_on:
+      - backend
+    ports:
+      - "3001:3000"
+    restart: unless-stopped
+
+  agent:
+    build: ./agent
+    env_file: .env
+    environment:
+      PANEL_URL: ${PANEL_URL:-http://backend:3000}
+      XRAY_MANAGED: "true"
+    depends_on:
+      - backend
+    # Тестовые inbound'ы; 443 занят Caddy, поэтому используем 2053/2054.
+    ports:
+      - "2053:2053/tcp"
+      - "2053:2053/udp"
+      - "2054:2054/tcp"
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+      - certbot_webroot:/var/www/certbot
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    profiles: ["monitoring"]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9091:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    profiles: ["monitoring"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      ALERT_WEBHOOK_TOKEN: ${ALERT_WEBHOOK_TOKEN:-change-me-alert-token}
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3002:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  pdns_data:
+  pgdata:
+  redisdata:
+  caddy_data:
+  caddy_config:
+  certbot_webroot:
+  node_certs:
+  prometheus_data:
+  grafana_data:

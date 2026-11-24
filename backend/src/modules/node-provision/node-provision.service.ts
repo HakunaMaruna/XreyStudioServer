@@ -40,8 +40,11 @@ export class NodeProvisionService {
       hostVerifier: (key) => fingerprintMatches(key as Buffer, dto.hostKeyFingerprint),
       readyTimeout: 15_000,
     };
-    if (dto.privateKey) config.privateKey = dto.privateKey;
-    else if (dto.password) config.password = dto.password;
+    if (dto.privateKey) {
+      config.privateKey = dto.privateKey;
+      if (dto.passphrase) config.passphrase = dto.passphrase;
+      if (dto.password) config.password = dto.password; // key + password fallback
+    } else if (dto.password) config.password = dto.password;
     else throw new BadRequestException('privateKey or password is required');
 
     return new Promise((resolve, reject) => {
@@ -96,24 +99,38 @@ export class NodeProvisionService {
     }
   }
 
-  private async writeEnv(conn: Client, content: string) {
+  private sudoPrefix(dto: ProvisionNodeDto) {
+    return dto.useSudo ? 'sudo -n ' : '';
+  }
+
+  private async writeEnv(conn: Client, content: string, dto: ProvisionNodeDto) {
+    if (!dto.useSudo) {
+      await new Promise<void>((resolve, reject) => {
+        conn.sftp((err, sftp) => {
+          if (err) {
+            reject(new BadRequestException('Remote SFTP is unavailable'));
+            return;
+          }
+          const stream = sftp.createWriteStream(`${REMOTE_DIR}/.env`, { flags: 'w', mode: 0o600 });
+          stream.once('error', () => reject(new BadRequestException('Failed to write remote .env')));
+          stream.once('close', () => resolve());
+          stream.end(content, 'utf8');
+        });
+      });
+      return;
+    }
+    const tmp = `/tmp/.xss-env-${randomBytes(6).toString('hex')}`;
     await new Promise<void>((resolve, reject) => {
       conn.sftp((err, sftp) => {
-        if (err) {
-          reject(new BadRequestException('Remote SFTP is unavailable'));
-          return;
-        }
-        const stream = sftp.createWriteStream(`${REMOTE_DIR}/.env`, {
-          flags: 'w',
-          mode: 0o600,
-        });
-        stream.once('error', () => {
-          reject(new BadRequestException('Failed to write remote .env'));
-        });
+        if (err) { reject(new BadRequestException('Remote SFTP is unavailable')); return; }
+        const stream = sftp.createWriteStream(tmp, { flags: 'w', mode: 0o600 });
+        stream.once('error', () => reject(new BadRequestException('Failed to write remote .env')));
         stream.once('close', () => resolve());
         stream.end(content, 'utf8');
       });
     });
+    const move = await this.runRemoteCommand(conn, `install -m 600 -o root -g root ${tmp} ${REMOTE_DIR}/.env && rm -f ${tmp}`);
+    if (move.code !== 0) throw new BadRequestException('Failed to install remote .env');
   }
 
   async provision(dto: ProvisionNodeDto, actor: AuthUser) {
@@ -139,22 +156,24 @@ export class NodeProvisionService {
     const conn = await this.connect(dto);
     try {
       const repo = process.env.NODE_PROVISION_REPO || DEFAULT_REPO;
+      const sudo = this.sudoPrefix(dto);
       const setup =
-        `set -e; mkdir -p ${REMOTE_DIR}; ` +
-        `if [ ! -d ${REMOTE_DIR}/.git ]; then git clone --depth 1 ${repo} ${REMOTE_DIR}; fi; ` +
-        `chmod 700 ${REMOTE_DIR}`;
+        `set -e; ${sudo}mkdir -p ${REMOTE_DIR}; ` +
+        `if [ ! -d ${REMOTE_DIR}/.git ]; then ${sudo}git clone --depth 1 ${repo} ${REMOTE_DIR}; fi; ` +
+        `${sudo}chmod 700 ${REMOTE_DIR}; ` +
+        `if ! command -v docker >/dev/null 2>&1; then curl -fsSL https://get.docker.com | ${sudo}sh; fi`;
       const setupResult = await this.runRemoteCommand(conn, setup);
       if (setupResult.code !== 0) {
-        throw new BadRequestException('Failed to prepare remote directory');
+        throw new BadRequestException('Failed to prepare remote directory or install Docker');
       }
 
       const envContent =
         `NODE_ID=${node.id}\nAGENT_TOKEN=${agentToken}\nPANEL_URL=${panelUrl}\nXRAY_MANAGED=true\n`;
-      await this.writeEnv(conn, envContent);
+      await this.writeEnv(conn, envContent, dto);
 
       const install = await this.runRemoteCommand(
         conn,
-        `cd ${REMOTE_DIR} && bash install.sh --mode node --yes`,
+        `cd ${REMOTE_DIR} && ${sudo}bash install.sh --mode node --yes`,
       );
       if (install.code !== 0) {
         throw new BadRequestException('Remote agent installation failed');

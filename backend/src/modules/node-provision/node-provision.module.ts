@@ -5,5 +5,6 @@ import { NodeProvisionService } from './node-provision.service';
 @Module({
   controllers: [NodeProvisionController],
   providers: [NodeProvisionService],
+  exports: [NodeProvisionService],
 })
 export class NodeProvisionModule {}

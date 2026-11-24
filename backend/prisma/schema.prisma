@@ -440,6 +440,35 @@ enum ApiTokenScope {
   NODE_SYNC
   NOTIFICATIONS
   USERS_READ
+  NODE_DOMAIN
+}
+
+model NodeDomain {
+  id          String    @id @default(uuid())
+  label       String    @unique
+  fqdn        String    @unique
+  tenantOrgId String?
+  nodeId      String?
+  address     String?
+  ipv6        String?
+  location    String?
+  zone        String    @default("node.h2onetwork.pro")
+  releasedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantOrgId, releasedAt])
+}
+
+// SSH-креды мастера: только шифртекст AES-256-GCM, ключ — PANEL_MASTER_KEY.
+model WizardCredential {
+  id         String   @id @default(uuid())
+  nodeId     String   @unique
+  authMode   String
+  password   String?
+  privateKey String?
+  passphrase String?
+  userDomain String?
+  createdAt  DateTime @default(now())
 }
 
 model ApiToken {

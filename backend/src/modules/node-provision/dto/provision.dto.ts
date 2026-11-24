@@ -31,6 +31,14 @@ export class ProvisionNodeDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(256)
+  passphrase?: string;
+
+  @IsOptional()
+  useSudo?: boolean;
+
+  @IsOptional()
+  @IsString()
   @MinLength(8)
   @MaxLength(256)
   password?: string;

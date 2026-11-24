@@ -53,8 +53,9 @@ export class ApiTokensService {
     if (input.expiresAt && input.expiresAt.getTime() <= Date.now()) {
       throw new BadRequestException('expiresAt must be in the future');
     }
-    if (input.actor.role !== Role.ADMIN && input.scopes.includes(ApiTokenScope.USERS_READ)) {
-      throw new BadRequestException('USERS_READ requires ADMIN');
+    if (input.actor.role !== Role.ADMIN &&
+        (input.scopes.includes(ApiTokenScope.USERS_READ) || input.scopes.includes(ApiTokenScope.NODE_DOMAIN))) {
+      throw new BadRequestException('USERS_READ and NODE_DOMAIN require ADMIN');
     }
 
     const raw = `${TOKEN_PREFIX}${randomBytes(32).toString('hex')}`;
