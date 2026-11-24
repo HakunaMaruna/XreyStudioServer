@@ -1,0 +1,82 @@
+'use client';
+import type { ComponentType, SVGProps } from 'react';
+import {
+  IconActivity, IconAdjustmentsHorizontal, IconAlertTriangle, IconArrowUpRight,
+  IconBell, IconBolt, IconBox, IconCheck, IconChevronDown, IconChevronLeft,
+  IconChevronRight, IconCircleCheck, IconCircleX, IconClock, IconCode, IconCommand,
+  IconCopy, IconCpu, IconDatabase, IconDeviceSdCard, IconDownload, IconExternalLink,
+  IconEye, IconFile, IconFilter, IconFingerprint, IconGauge, IconHeartbeat, IconHistory, IconInfoCircle,
+  IconKey, IconLayoutGrid, IconLink, IconList, IconLock, IconLogout, IconMenu2,
+  IconMoon, IconNetwork, IconPencil, IconPlayerPlay, IconPlug, IconPlus, IconPower,
+  IconRefresh, IconRoute, IconSearch, IconServer, IconSettings, IconShieldCheck,
+  IconSparkles, IconSun, IconTerminal2, IconTrash, IconUpload, IconUsers, IconWorld, IconX,
+} from '@tabler/icons-react';
+import type { IconName } from './icons-default';
+
+const map: Record<IconName, ComponentType<any>> = {
+  grid: IconLayoutGrid,
+  users: IconUsers,
+  server: IconServer,
+  plug: IconPlug,
+  globe: IconWorld,
+  route: IconRoute,
+  bell: IconBell,
+  settings: IconSettings,
+  search: IconSearch,
+  sun: IconSun,
+  moon: IconMoon,
+  logout: IconLogout,
+  menu: IconMenu2,
+  close: IconX,
+  plus: IconPlus,
+  edit: IconPencil,
+  trash: IconTrash,
+  refresh: IconRefresh,
+  history: IconHistory,
+  play: IconPlayerPlay,
+  check: IconCheck,
+  chevronLeft: IconChevronLeft,
+  chevronRight: IconChevronRight,
+  chevronDown: IconChevronDown,
+  copy: IconCopy,
+  external: IconExternalLink,
+  key: IconKey,
+  activity: IconActivity,
+  cpu: IconCpu,
+  memory: IconDeviceSdCard,
+  network: IconNetwork,
+  arrowUpRight: IconArrowUpRight,
+  zap: IconBolt,
+  shield: IconShieldCheck,
+  database: IconDatabase,
+  terminal: IconTerminal2,
+  code: IconCode,
+  filter: IconFilter,
+  info: IconInfoCircle,
+  alert: IconAlertTriangle,
+  clock: IconClock,
+  link: IconLink,
+  download: IconDownload,
+  upload: IconUpload,
+  power: IconPower,
+  lock: IconLock,
+  eye: IconEye,
+  sparkles: IconSparkles,
+  gauge: IconGauge,
+  list: IconList,
+  box: IconBox,
+  pulse: IconHeartbeat,
+  checkCircle: IconCircleCheck,
+  xCircle: IconCircleX,
+  file: IconFile,
+  sliders: IconAdjustmentsHorizontal,
+  command: IconCommand,
+  fingerprint: IconFingerprint,
+};
+
+type IconProps = SVGProps<SVGSVGElement> & { name: IconName; size?: number };
+
+export function Icon({ name, size = 18, className, ...props }: IconProps) {
+  const Component = map[name] || IconBox;
+  return <Component size={size} strokeWidth={1.8} className={className} aria-hidden="true" {...props} />;
+}

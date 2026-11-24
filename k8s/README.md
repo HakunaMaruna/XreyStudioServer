@@ -5,10 +5,10 @@ Alternative to Docker Compose. Requires an NGINX Ingress Controller and cert-man
 1. Build and publish the images (or load them into your cluster):
 
 ```bash
-docker build -t xss-backend:2.18.0 ./backend
-docker build -t xss-frontend:2.18.0 ./frontend
-docker build -t xss-agent:2.18.0 ./agent
-# example for kind: kind load docker-image xss-backend:2.18.0 ...
+docker build -t xss-backend:2.19.0 ./backend
+docker build -t xss-frontend:2.19.0 ./frontend
+docker build -t xss-agent:2.19.0 ./agent
+# example for kind: kind load docker-image xss-backend:2.19.0 ...
 ```
 
 2. Replace placeholders in `secret.yaml` (or, preferably, create the secret with `kubectl create
