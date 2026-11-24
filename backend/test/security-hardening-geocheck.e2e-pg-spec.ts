@@ -206,7 +206,7 @@ describe('XSS security hardening and geocheck (e2e, real PostgreSQL)', () => {
   it('gates GET /api/metrics behind METRICS_TOKEN in production', async () => {
     const savedEnv = process.env.NODE_ENV;
     const savedToken = process.env.METRICS_TOKEN;
-    const token = 'qa-metrics-token-value';
+    const token = process.env.TEST_METRICS_TOKEN || 'qa-test-metrics-token';
     process.env.NODE_ENV = 'production';
     try {
       delete process.env.METRICS_TOKEN;
