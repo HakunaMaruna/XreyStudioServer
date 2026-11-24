@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const http = require('http');
-const { execFile } = require('child_process');
+const { execFile, spawn } = require('child_process');
 const { timingSafeEqual } = require('crypto');
 const si = require('systeminformation');
 
@@ -32,6 +32,8 @@ let lastConfigVersion = 0;
 let lastNet = null;
 let lastAppliedConfig = null;
 let activeServer = null;
+let xrayProcess = null;
+const XRAY_MANAGED = process.env.XRAY_MANAGED === 'true';
 const TLS_DIR = process.env.AGENT_TLS_DIR || '/etc/xss-agent/tls';
 const lastUserStats = new Map();
 
@@ -115,6 +117,49 @@ async function applyConfig(config, version) {
   return applyXrayConfig(config, version);
 }
 
+// В контейнере нет systemd — Xray живёт как дочерний процесс агента.
+function stopManagedXray() {
+  if (!xrayProcess) return;
+  try { xrayProcess.kill('SIGTERM'); } catch {}
+  xrayProcess = null;
+}
+
+async function startManagedXray() {
+  stopManagedXray();
+  xrayProcess = spawn(XRAY_BIN, ['run', '-c', CONFIG_PATH], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: process.env,
+  });
+  xrayProcess.stdout.on('data', (d) => {
+    const line = String(d).trim();
+    if (line) console.log('[xray]', line);
+  });
+  xrayProcess.stderr.on('data', (d) => {
+    const line = String(d).trim();
+    if (line) console.error('[xray]', line);
+  });
+  xrayProcess.on('exit', (code, signal) => {
+    if (code && code !== 0) xrayStatus = 'error';
+    else if (signal) xrayStatus = 'stopped';
+    xrayProcess = null;
+  });
+  await new Promise((resolve) => setTimeout(resolve, 800));
+  const ok = Boolean(xrayProcess && xrayProcess.exitCode === null);
+  xrayStatus = ok ? 'running' : 'error';
+  return ok;
+}
+
+async function reloadXrayService() {
+  if (XRAY_MANAGED) {
+    const ok = await startManagedXray();
+    return { ok, stage: 'managed', error: ok ? null : 'xray exited during startup' };
+  }
+  const reload = await run('systemctl', ['reload-or-restart', XRAY_SERVICE], 10000);
+  if (reload.ok) return { ok: true, stage: 'reload' };
+  const restart = await run('systemctl', ['restart', XRAY_SERVICE], 10000);
+  return { ok: restart.ok, stage: 'restart', error: restart.ok ? null : restart.stderr };
+}
+
 async function applyXrayConfig(config, version) {
   validateConfig(config);
   ensureDirs();
@@ -129,14 +174,15 @@ async function applyXrayConfig(config, version) {
   fs.copyFileSync(tmp, CONFIG_PATH);
   fs.unlinkSync(tmp);
   lastConfigVersion = version || lastConfigVersion;
-  const reload = await run('systemctl', ['reload-or-restart', XRAY_SERVICE], 10000);
-  if (!reload.ok) {
-    const restart = await run('systemctl', ['restart', XRAY_SERVICE], 10000);
-    xrayStatus = restart.ok ? 'running' : 'error';
-    return { applied: true, reloaded: restart.ok, error: restart.ok ? null : restart.stderr };
-  }
-  xrayStatus = 'running';
-  return { applied: true, reloaded: true, version: lastConfigVersion };
+  const reload = await reloadXrayService();
+  xrayStatus = reload.ok ? 'running' : 'error';
+  return {
+    applied: true,
+    reloaded: reload.ok,
+    version: lastConfigVersion,
+    managed: XRAY_MANAGED,
+    error: reload.error || null,
+  };
 }
 
 function parseStatValue(stdout) {
@@ -332,14 +378,14 @@ app.post('/rollback', auth, async (req, res) => {
     return res.status(400).json({ error: 'No backup available' });
   }
   fs.copyFileSync(lastGood, CONFIG_PATH);
-  const result = await run('systemctl', ['reload-or-restart', XRAY_SERVICE], 10000);
-  res.json({ rolledBack: true, reloaded: result.ok });
+  const result = await reloadXrayService();
+  res.json({ rolledBack: true, reloaded: result.ok, managed: XRAY_MANAGED });
 });
 
 app.post('/restart-xray', auth, async (req, res) => {
-  const result = await run('systemctl', ['restart', XRAY_SERVICE], 10000);
+  const result = await reloadXrayService();
   xrayStatus = result.ok ? 'running' : 'error';
-  res.json({ restarted: result.ok, error: result.ok ? null : result.stderr });
+  res.json({ restarted: result.ok, managed: XRAY_MANAGED, error: result.error || null });
 });
 
 app.get('/logs', auth, async (req, res) => {
@@ -413,3 +459,17 @@ const server = tlsCert && tlsKey
   : app;
 
 server.listen(PORT, () => console.log(`XSS agent listening on ${PORT}`));
+
+// При перезапуске контейнера конфиг уже лежит на диске — поднимаем Xray сразу,
+// не дожидаясь следующего pullConfig (панель может быть временно недоступна).
+if (XRAY_MANAGED && fs.existsSync(CONFIG_PATH)) {
+  setTimeout(async () => {
+    try {
+      const ok = await startManagedXray();
+      console.log(`managed xray restored from ${CONFIG_PATH}: ${ok ? 'ok' : 'failed'}`);
+      lastConfigVersion = lastConfigVersion || 1;
+    } catch (error) {
+      console.error('managed xray start failed', error.message);
+    }
+  }, 1500);
+}
