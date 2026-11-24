@@ -183,6 +183,15 @@ export function IconButton({
   className,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { icon: IconName; label: string; tone?: 'default' | 'danger' | 'brand' }) {
+  const ui = useUiMode();
+  if (ui === 'adminlte') {
+    const cls = tone === 'danger' ? 'btn-outline-danger' : tone === 'brand' ? 'btn-outline-primary' : 'btn-light';
+    return (
+      <button type={props.type ?? 'button'} title={label} aria-label={label} className={cn('btn btn-sm', cls, className)} {...props}>
+        <i className={cn('bi', bi[icon])} />
+      </button>
+    );
+  }
   return (
     <button
       title={label}
@@ -317,6 +326,23 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
     isValidElement(child) &&
     typeof child.type === 'string' &&
     ['input', 'select', 'textarea'].includes(child.type as string);
+  const ui = useUiMode();
+  if (ui === 'adminlte') {
+    const el = child as ReactElement<any>;
+    const control = isControl
+      ? cloneElement(el, {
+          id,
+          className: cn(el.props.className, el.type === 'select' ? 'form-select' : 'form-control'),
+        })
+      : children;
+    return (
+      <div className="mb-3">
+        <label htmlFor={isControl ? id : undefined} className="form-label text-capitalize">{label}</label>
+        {control}
+        {hint && <div className="form-text">{hint}</div>}
+      </div>
+    );
+  }
   return (
     <label htmlFor={isControl ? id : undefined} className="block space-y-1.5">
       <span className="text-[11px] font-medium uppercase tracking-wider text-subtle">{label}</span>
@@ -327,6 +353,23 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
 }
 
 export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label?: string }) {
+  const ui = useUiMode();
+  if (ui === 'adminlte') {
+    return (
+      <div className="form-check form-switch mb-2">
+        <input
+          className="form-check-input"
+          type="checkbox"
+          role="switch"
+          checked={checked}
+          aria-checked={checked}
+          onChange={() => onChange(!checked)}
+          id={`sw-${label || 'toggle'}`}
+        />
+        {label && <label className="form-check-label" htmlFor={`sw-${label}`}>{label}</label>}
+      </div>
+    );
+  }
   return (
     <button
       type="button"
@@ -344,6 +387,18 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
 }
 
 export function ProgressBar({ value, tone = 'brand' }: { value: number; tone?: Tone }) {
+  const ui = useUiMode();
+  if (ui === 'adminlte') {
+    const bsTone: Record<Tone, string> = {
+      brand: 'primary', success: 'success', warning: 'warning', danger: 'danger',
+      info: 'info', cyan: 'info', neutral: 'secondary',
+    };
+    return (
+      <div className="progress" style={{ height: 6 }}>
+        <div className={cn('progress-bar', `bg-${bsTone[tone]}`)} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
+      </div>
+    );
+  }
   const toneBg: Record<Tone, string> = {
     brand: 'bg-brand',
     success: 'bg-success',
@@ -361,6 +416,16 @@ export function ProgressBar({ value, tone = 'brand' }: { value: number; tone?: T
 }
 
 export function EmptyState({ icon = 'box', title, description }: { icon?: IconName; title: string; description?: string }) {
+  const ui = useUiMode();
+  if (ui === 'adminlte') {
+    return (
+      <div className="text-center py-5 text-muted">
+        <i className={cn('bi', bi[icon], 'fs-1 d-block mb-2 opacity-50')} />
+        <p className="mb-1 fw-semibold text-body">{title}</p>
+        {description && <p className="small mb-0">{description}</p>}
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col items-center justify-center px-4 py-14 text-center">
       <div className="mb-3 grid h-11 w-11 place-items-center rounded-xl border border-line bg-surface-2 text-subtle">
@@ -373,6 +438,10 @@ export function EmptyState({ icon = 'box', title, description }: { icon?: IconNa
 }
 
 export function CodeBlock({ children, className }: { children: ReactNode; className?: string }) {
+  const ui = useUiMode();
+  if (ui === 'adminlte') {
+    return <pre className={cn('bg-body-tertiary border rounded p-3 small mb-0', className)}>{children}</pre>;
+  }
   return (
     <pre className={cn('mono max-h-64 overflow-auto rounded-xl border border-line bg-app/70 p-3 text-[11px] leading-relaxed text-muted', className)}>
       {children}
@@ -381,6 +450,10 @@ export function CodeBlock({ children, className }: { children: ReactNode; classN
 }
 
 export function Avatar({ label = 'AD', size = 'md' }: { label?: string; size?: 'sm' | 'md' }) {
+  const ui = useUiMode();
+  if (ui === 'adminlte') {
+    return <span className={cn('d-inline-grid place-items-center rounded-circle bg-primary text-white fw-semibold', size === 'sm' ? 'avatar-sm' : 'avatar-md')} style={{ width: size === 'sm' ? 32 : 40, height: size === 'sm' ? 32 : 40, fontSize: size === 'sm' ? 11 : 13 }}>{label}</span>;
+  }
   return (
     <div className={cn('grid shrink-0 place-items-center rounded-xl border border-brand/30 bg-gradient-to-br from-brand/30 to-brand-2/10 font-semibold text-brand', size === 'sm' ? 'h-8 w-8 text-[11px]' : 'h-10 w-10 text-xs')}>
       {label}
@@ -407,6 +480,7 @@ export function Modal({
   footer?: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
 }) {
+  const ui = useUiMode();
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
@@ -456,6 +530,26 @@ export function Modal({
   if (!open) return null;
   const widths = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl', xl: 'max-w-5xl' };
 
+  if (ui === 'adminlte') {
+    return (
+      <div className="modal show d-block" style={{ background: 'rgba(0,0,0,.5)' }} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+        <div className={cn('modal-dialog modal-dialog-centered modal-dialog-scrollable', size === 'xl' ? 'modal-xl' : size === 'lg' ? 'modal-lg' : size === 'sm' ? 'modal-sm' : '')}>
+          <div className="modal-content" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
+            <div className="modal-header">
+              <div>
+                <h5 className="modal-title" id={titleId}>{title}</h5>
+                {subtitle && <p className="small text-muted mb-0">{subtitle}</p>}
+              </div>
+              <button type="button" className="btn-close" aria-label="Close" onClick={onClose} />
+            </div>
+            <div className="modal-body">{children}</div>
+            {footer && <div className="modal-footer justify-content-end">{footer}</div>}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="animate-fade-in absolute inset-0 bg-app/80 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
@@ -493,6 +587,24 @@ export function Segmented<T extends string>({
   value: T;
   onChange: (value: T) => void;
 }) {
+  const ui = useUiMode();
+  if (ui === 'adminlte') {
+    return (
+      <div className="btn-group" role="group">
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            className={cn('btn btn-sm', value === option.value ? 'btn-primary' : 'btn-outline-secondary')}
+          >
+            {option.icon && <i className={cn('bi', bi[option.icon], 'me-1')} />}
+            {option.label}
+          </button>
+        ))}
+      </div>
+    );
+  }
   return (
     <div className="inline-flex rounded-lg border border-line bg-surface-2 p-1">
       {options.map((option) => (

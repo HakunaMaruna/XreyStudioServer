@@ -13,6 +13,7 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import { useLang } from '../lib/i18n';
+import { useUiMode } from '../lib/ui-mode';
 import { Icon } from './icons';
 import { cn, EmptyState } from './ui';
 
@@ -50,6 +51,8 @@ export default function DataTable<T>({
   manualSorting = false,
 }: DataTableProps<T>) {
   const { t } = useLang();
+  const ui = useUiMode();
+  const lte = ui === 'adminlte';
   const [internalSorting, setInternalSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
   const sorting = controlledSorting ?? internalSorting;
@@ -96,36 +99,36 @@ export default function DataTable<T>({
   const pageIndex = serverPagination ? serverPagination.pageIndex : table.getState().pagination.pageIndex;
 
   return (
-    <div className="space-y-3">
+    <div className={lte ? '' : 'space-y-3'}>
       {!hideSearch && (
-        <div className="relative max-w-sm">
-          <Icon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
+        <div className={lte ? 'mb-3' : 'relative max-w-sm'}>
+          {!lte && <Icon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />}
           <input
             aria-label={searchPlaceholder || t.search}
             value={globalFilter ?? ''}
             onChange={(e) => setGlobalFilter(e.target.value)}
             placeholder={searchPlaceholder || t.search}
-            className="field pl-9"
+            className={lte ? 'form-control' : 'field pl-9'}
           />
         </div>
       )}
 
-      <div className="panel overflow-hidden p-0">
-        <p className="border-b border-line px-4 py-2 text-[11px] text-subtle md:hidden">{t.scrollHint}</p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+      <div className={lte ? 'card' : 'panel overflow-hidden p-0'}>
+        <p className={lte ? 'small text-muted border-bottom px-3 py-2 d-md-none' : 'border-b border-line px-4 py-2 text-[11px] text-subtle md:hidden'}>{t.scrollHint}</p>
+        <div className={lte ? 'table-responsive' : 'overflow-x-auto'}>
+          <table className={lte ? 'table table-striped table-hover w-100 mb-0' : 'w-full text-left text-sm'}>
             <thead>
-              <tr className="border-b border-line bg-surface-2/70">
+              <tr className={lte ? '' : 'border-b border-line bg-surface-2/70'}>
                 {table.getHeaderGroups().map((headerGroup) =>
                   headerGroup.headers.map((header) => (
-                    <th key={header.id} className="whitespace-nowrap px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-subtle">
+                    <th key={header.id} className={lte ? 'text-uppercase small' : 'whitespace-nowrap px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-subtle'}>
                       {header.column.getCanSort() ? (
                         <button
                           onClick={header.column.getToggleSortingHandler()}
-                          className="inline-flex items-center gap-1.5 transition-colors hover:text-fg"
+                          className={lte ? 'btn btn-link btn-sm p-0 text-decoration-none' : 'inline-flex items-center gap-1.5 transition-colors hover:text-fg'}
                         >
                           {flexRender(header.column.columnDef.header, header.getContext())}
-                          <span className={cn('transition-transform', header.column.getIsSorted() ? 'text-brand' : 'text-subtle/50')}>
+                          <span className={lte ? '' : cn('transition-transform', header.column.getIsSorted() ? 'text-brand' : 'text-subtle/50')}>
                             {header.column.getIsSorted() === 'asc' ? (
                               <Icon name="chevronDown" size={12} className="rotate-180" />
                             ) : header.column.getIsSorted() === 'desc' ? (
@@ -143,7 +146,7 @@ export default function DataTable<T>({
                 )}
               </tr>
             </thead>
-            <tbody className="divide-y divide-line/70">
+            <tbody className={lte ? '' : 'divide-y divide-line/70'}>
               {loading ? (
                 <tr>
                   <td className="px-4 py-10" colSpan={colCount}>
@@ -161,9 +164,9 @@ export default function DataTable<T>({
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <tr key={row.id} className="animate-fade-in group transition-colors hover:bg-surface-2/60">
+                  <tr key={row.id} className={lte ? '' : 'animate-fade-in group transition-colors hover:bg-surface-2/60'}>
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="whitespace-nowrap px-4 py-3 text-[13px] text-muted group-hover:text-fg">
+                      <td key={cell.id} className={lte ? 'text-nowrap' : 'whitespace-nowrap px-4 py-3 text-[13px] text-muted group-hover:text-fg'}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}
@@ -175,12 +178,12 @@ export default function DataTable<T>({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 px-1 text-xs text-muted">
-        <div className="flex items-center gap-1.5">
+      <div className={lte ? 'd-flex flex-wrap align-items-center gap-2 small text-muted mt-2' : 'flex flex-wrap items-center gap-3 px-1 text-xs text-muted'}>
+        <div className={lte ? 'btn-group' : 'flex items-center gap-1.5'}>
           <button
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
-            className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand/40 hover:text-fg disabled:opacity-30"
+            className={lte ? 'btn btn-sm btn-outline-secondary' : 'grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand/40 hover:text-fg disabled:opacity-30'}
             aria-label={t.previous}
           >
             <Icon name="chevronLeft" size={15} />
@@ -191,7 +194,7 @@ export default function DataTable<T>({
           <button
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
-            className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand/40 hover:text-fg disabled:opacity-30"
+            className={lte ? 'btn btn-sm btn-outline-secondary' : 'grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand/40 hover:text-fg disabled:opacity-30'}
             aria-label={t.next}
           >
             <Icon name="chevronRight" size={15} />
@@ -203,7 +206,7 @@ export default function DataTable<T>({
             <select
               value={serverPagination.pageSize}
               onChange={(e) => serverPagination.onPageSizeChange?.(Number(e.target.value))}
-              className="field w-auto py-1"
+              className={lte ? 'form-select form-select-sm w-auto' : 'field w-auto py-1'}
             >
               {[10, 20, 50, 100].map((size) => (
                 <option key={size} value={size}>{size}</option>

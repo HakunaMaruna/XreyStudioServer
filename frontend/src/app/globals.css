@@ -324,6 +324,38 @@ button:focus-visible {
   color: var(--subtle);
 }
 
+/* AdminLTE: приведение оставшихся служебных классов к Bootstrap-виду */
+html[data-ui="adminlte"] .app-main .text-fg { color: var(--bs-body-color) !important; }
+html[data-ui="adminlte"] .app-main .text-muted { color: var(--bs-secondary-color) !important; }
+html[data-ui="adminlte"] .app-main .text-subtle { color: var(--bs-secondary-color) !important; }
+html[data-ui="adminlte"] .app-main .text-brand { color: var(--bs-primary) !important; }
+html[data-ui="adminlte"] .app-main .text-success { color: var(--bs-success) !important; }
+html[data-ui="adminlte"] .app-main .text-danger { color: var(--bs-danger) !important; }
+html[data-ui="adminlte"] .app-main .text-warning { color: var(--bs-warning) !important; }
+html[data-ui="adminlte"] .app-main .bg-surface { background: var(--bs-body-bg) !important; }
+html[data-ui="adminlte"] .app-main .bg-surface-2,
+html[data-ui="adminlte"] .app-main .bg-surface-3 { background: var(--bs-tertiary-bg) !important; }
+html[data-ui="adminlte"] .app-main .bg-app { background: var(--bs-body-bg) !important; }
+html[data-ui="adminlte"] .app-main .border-line { border-color: var(--bs-border-color) !important; }
+html[data-ui="adminlte"] .app-main .rounded-lg,
+html[data-ui="adminlte"] .app-main .rounded-xl { border-radius: var(--bs-border-radius) !important; }
+html[data-ui="adminlte"] .app-main .field {
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+}
+html[data-ui="adminlte"] .app-main .field:focus {
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 .2rem rgba(var(--bs-primary-rgb), .25);
+}
+html[data-ui="adminlte"] .app-main .panel {
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+  background: var(--bs-body-bg);
+  box-shadow: none;
+}
+
 /* Яркий набор иконок: лёгкое свечение в цвет самой иконки. */
 .icon-bright {
   filter: drop-shadow(0 0 4px color-mix(in srgb, currentColor 45%, transparent));
