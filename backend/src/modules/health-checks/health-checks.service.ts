@@ -1,5 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { connect } from 'net';
+import { NotificationEvent } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
 const INTERVAL = Math.max(30, Number(process.env.HEALTH_CHECK_INTERVAL || 300)) * 1000;
@@ -10,7 +12,7 @@ export class HealthChecksService implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
   private running = false;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private notifications: NotificationsService) {}
 
   onModuleInit() {
     this.timer = setInterval(() => this.run(), INTERVAL);
@@ -49,11 +51,26 @@ export class HealthChecksService implements OnModuleInit, OnModuleDestroy {
         include: { node: true },
       });
       const results = [];
+      const previous = new Map<string, boolean>();
+      if (results.length === 0 && inbounds.length) {
+        const recent = await this.prisma.healthCheck.findMany({
+          where: { checkedAt: { gte: new Date(Date.now() - INTERVAL * 2) } },
+          orderBy: { checkedAt: 'desc' },
+        });
+        for (const check of recent) {
+          if (!previous.has(check.inboundId)) previous.set(check.inboundId, check.success);
+        }
+      }
       for (const inbound of inbounds) {
         if (!inbound.node) continue;
         const settings = (inbound.settings || {}) as any;
         const host = settings.publicHost || inbound.node.address;
         const result = await this.probe(host, inbound.port);
+        const last = previous.get(inbound.id);
+        previous.set(inbound.id, result.success);
+        if (last !== undefined && last !== result.success) {
+          await this.notifyAvailability(inbound.node, inbound, result.success, result.error);
+        }
         results.push({
           nodeId: inbound.nodeId!,
           inboundId: inbound.id,
@@ -91,4 +108,31 @@ export class HealthChecksService implements OnModuleInit, OnModuleDestroy {
       take: 500,
     });
   }
+
+  private async notifyAvailability(
+    node: { id: string; name: string; address: string; organizationId: string | null },
+    inbound: { id: string; tag: string; protocol: string },
+    success: boolean,
+    error?: string | null,
+  ) {
+    const event = success ? NotificationEvent.NODE_ONLINE : NotificationEvent.NODE_OFFLINE;
+    const text = success
+      ? `🟢 Inbound <b>${inbound.tag}</b> is reachable on ${node.name}`
+      : `🔴 Inbound <b>${inbound.tag}</b> is unreachable on ${node.name}${error ? `: ${error}` : ''}`;
+    try {
+      await this.notifications.emit(event, {
+        text,
+        plainText: text.replace(/<[^>]*>/g, ''),
+        subject: `XSS: ${inbound.tag} ${success ? 'online' : 'offline'}`,
+        webhook: {
+          event,
+          node: { id: node.id, name: node.name, address: node.address },
+          inbound: { id: inbound.id, tag: inbound.tag, protocol: inbound.protocol },
+        },
+      }, node.organizationId);
+    } catch (e) {
+      this.logger.error(`Failed to emit health check event for ${inbound.id}`, e as Error);
+    }
+  }
+
 }

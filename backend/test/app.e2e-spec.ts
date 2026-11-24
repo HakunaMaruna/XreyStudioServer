@@ -93,6 +93,9 @@ describe('XSS API (e2e)', () => {
         Promise.resolve({ id: 'default', enabled: false, intervalHours: 24, retention: 7, ...data }),
       ),
     },
+    notificationRoute: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
     alertHistory: {
       create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'alert-1', ...data })),
       findMany: jest.fn().mockResolvedValue([

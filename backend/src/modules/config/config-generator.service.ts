@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { NotificationEvent } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { AgentClientService } from './agent-client.service';
 
 const EXTERNAL_PROTOCOLS = ['hysteria2', 'tuic', 'wireguard'];
@@ -11,6 +13,7 @@ export class ConfigGeneratorService {
   constructor(
     private prisma: PrismaService,
     private agentClient: AgentClientService,
+    private notifications: NotificationsService,
   ) {}
 
   private clientFor(user: { id: string; email: string; subscriptionToken: string }, inbound: any) {
@@ -365,6 +368,24 @@ export class ConfigGeneratorService {
         data: { lastError: null },
       }),
     ]);
+    try {
+      await this.notifications.emit(
+        NotificationEvent.CONFIG_APPLIED,
+        {
+          text: `🟢 Config revision <b>v${revision.version}</b> applied on <b>${node.name}</b>`,
+          plainText: `Config revision v${revision.version} applied on ${node.name}`,
+          subject: `XSS: config v${revision.version} applied`,
+          webhook: {
+            event: NotificationEvent.CONFIG_APPLIED,
+            node: { id: node.id, name: node.name },
+            revision: { id: revision.id, version: revision.version },
+          },
+        },
+        node.organizationId,
+      );
+    } catch (e) {
+      this.logger.error(`Failed to emit CONFIG_APPLIED for ${node.id}`, e as Error);
+    }
     return { applied: true, revisionId: revision.id, version: revision.version, agent: result };
   }
 

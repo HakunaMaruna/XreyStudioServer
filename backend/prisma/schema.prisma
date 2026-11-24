@@ -460,6 +460,7 @@ enum NotificationEvent {
   USER_EXPIRED
   BACKUP_FAILED
   CONFIG_APPLIED
+  PAYMENT_RECEIVED
 }
 
 enum NotificationChannel {

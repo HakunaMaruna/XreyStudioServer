@@ -80,7 +80,7 @@ describe('ConfigGeneratorService: Xray stats, Reality and VMess (QA v2.15)', () 
     prisma.node.findUnique.mockResolvedValue(realityNode());
     prisma.user.findMany.mockResolvedValue([]);
     prisma.rule.findMany.mockResolvedValue([]);
-    service = new ConfigGeneratorService(prisma, {} as any);
+    service = new ConfigGeneratorService(prisma, {} as any, { emit: jest.fn() } as any);
   });
 
   const generate = async (): Promise<any> => (await service.generateConfig('n1')).config;

@@ -340,6 +340,29 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 4. After each change: keep `/work/XreyStudioServer` in sync with the git repo, commit, push,
    update README (ru/en), docs and this HANDOFF file. Tag a new release when the stage is complete.
 
+## Event-level notification routing (v2.23.3, 2026-11-24)
+
+- PR #163 (`feat: scoped API tokens and event-level notification routing`) is merged into `main`
+  as `2666b1a`; PR #164 (`AdminLTE is the default UI`, v2.23.2) merged as `08072d6`.
+- `NotificationsService.emit(event, options, organizationId?)` is now the single integration point
+  for real alert producers: health-checks emit `NODE_ONLINE`/`NODE_OFFLINE` only on availability
+  transitions, failed backups emit `BACKUP_FAILED`, applied config revisions emit
+  `CONFIG_APPLIED`, successful payments emit `PAYMENT_RECEIVED`. Grafana webhook alerts are mapped
+  from labels (`alertname`, `event`, `notificationEvent`) to `NotificationEvent` and routed through
+  `emit()`. `broadcast()` is retained only for the manual `POST /notifications/test` endpoint.
+- Only channels enabled for the event in `NotificationRoute` are used; routes with an
+  `organizationId` apply only to notifications emitted for that same organization.
+- Added `PAYMENT_RECEIVED` to `NotificationEvent` in `prisma/schema.prisma`, plus frontend
+  labels (`eventPaymentReceived` in ru/en) and `/api/notifications/routes` documentation in
+  `docs/api.md`.
+- Tests: `alert-webhook.controller.spec.ts` (event mapping), updated payments unit spec
+  (emit + tenant id), `backend/test/notification-routing.e2e-pg-spec.ts` (enabled/disabled
+  channels, Grafana routing, webhook delivery via a local sink). E2E validated against PGlite on
+  port 5432 with `DATABASE_URL=postgres://xss:xss@127.0.0.1:5432/xss_e2e?pgbouncer=true`
+  (`?pgbouncer=true` avoids PGlite's prepared-statement conflict).
+- Local git in `/work/XreyStudioServer/.git` cannot write objects (proot fs error); use a clean
+  clone under `/tmp/opencode` for commits and publish via `git push`/GitHub API.
+
 ## Commands
 
 ```bash

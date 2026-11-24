@@ -37,7 +37,7 @@ describe('ConfigGeneratorService external protocols', () => {
       { id: 'u1', email: 'user@example.com', subscriptionToken: 'token-1' },
     ]);
     prisma.rule.findMany.mockResolvedValue([]);
-    service = new ConfigGeneratorService(prisma, {} as any);
+    service = new ConfigGeneratorService(prisma, {} as any, { emit: jest.fn() } as any);
   });
 
   it('splits Xray and external protocols into separate engine configs', async () => {

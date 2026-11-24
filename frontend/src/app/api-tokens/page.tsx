@@ -61,6 +61,7 @@ const eventKey: Record<string, keyof Dict> = {
   USER_EXPIRED: 'eventUserExpired',
   BACKUP_FAILED: 'eventBackupFailed',
   CONFIG_APPLIED: 'eventConfigApplied',
+  PAYMENT_RECEIVED: 'eventPaymentReceived',
 };
 const channelKey: Record<string, keyof Dict> = {
   TELEGRAM: 'channelTelegram',

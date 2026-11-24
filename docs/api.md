@@ -194,8 +194,20 @@ All certificate endpoints are ADMIN-only.
 - `GET /notifications/alerts?page&limit&status` — persisted alert history (ADMIN)
 - `POST /notifications/alerts` — Grafana alert webhook; requires
   `Authorization: Bearer $ALERT_WEBHOOK_TOKEN`. Persists each alert in `AlertHistory`, returns
-  `{ received, persisted, telegram, signal, webhook, email }` and forwards the message to all
-  configured channels.
+  `{ received, persisted, channels }` and delivers through `NotificationsService.emit()`.
+  The alert name (`labels.alertname`, `labels.event` or `labels.notificationEvent`) is mapped to
+  a `NotificationEvent` (for example `NODE_OFFLINE`, `TRAFFIC_ALERT`, `BACKUP_FAILED`,
+  `PAYMENT_RECEIVED`); unknown names fall back to `TRAFFIC_ALERT`. Only channels explicitly
+  enabled for that event in `NotificationRoute` receive the alert.
+- `GET /notifications/routes` / `POST /notifications/routes` — list and upsert event-level
+  notification routes (`event`, `channel`, `enabled`, optional `organizationId`). The GET endpoint
+  is accessible with an `X-API-Token` holding the `NOTIFICATIONS` scope; POST requires ADMIN or
+  that scoped token. Routes are tenant-scoped: a route with an `organizationId` only applies to
+  notifications emitted with the same organization.
+- Real producers call `emit(event, options, organizationId?)` instead of `broadcast()`: health
+  checks emit `NODE_ONLINE`/`NODE_OFFLINE` only when inbound availability changes; failed backups
+  emit `BACKUP_FAILED`; applied config revisions emit `CONFIG_APPLIED`; successful payments emit
+  `PAYMENT_RECEIVED`. `POST /notifications/test` remains the only broadcast endpoint (manual test).
 - `GET /metrics` — Prometheus text exposition; optional `X-Metrics-Token` header when
   `METRICS_TOKEN` is set (constant-time comparison)
 - `GET /metrics/view` — the same metrics behind an admin JWT, used by the UI instead of exposing

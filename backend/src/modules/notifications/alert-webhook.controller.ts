@@ -1,6 +1,26 @@
 import { Body, Controller, Headers, Post, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { timingSafeEqual } from 'crypto';
+import { NotificationEvent } from '@prisma/client';
 import { NotificationsService } from './notifications.service';
+
+export function eventFromAlertLabels(
+  labels: Record<string, string> | undefined,
+  title?: string,
+): NotificationEvent {
+  const raw = `${labels?.event || labels?.notificationEvent || labels?.alertname || title || ''}`
+    .trim()
+    .toUpperCase();
+  const candidate = Object.values(NotificationEvent).find((event) => raw.includes(event));
+  if (candidate) return candidate;
+  const name = raw.toLowerCase();
+  if (name.includes('traffic')) return NotificationEvent.TRAFFIC_ALERT;
+  if (name.includes('backup')) return NotificationEvent.BACKUP_FAILED;
+  if (name.includes('config')) return NotificationEvent.CONFIG_APPLIED;
+  if (name.includes('payment')) return NotificationEvent.PAYMENT_RECEIVED;
+  if (name.includes('online') && !name.includes('offline')) return NotificationEvent.NODE_ONLINE;
+  if (name.includes('offline') || name.includes('node')) return NotificationEvent.NODE_OFFLINE;
+  return NotificationEvent.TRAFFIC_ALERT;
+}
 
 type GrafanaAlert = {
   status?: string;
@@ -62,12 +82,18 @@ export class AlertWebhookController {
 
     const lines = alertlines(body, alerts);
     const text = lines.length ? lines.join('\n') : `🔴 ${body?.title || body?.message || 'XSS alert'}`;
-    const channels = await this.notifications.broadcast({
+    const event = eventFromAlertLabels(
+      alerts[0]?.labels || { alertname: body?.title },
+      body?.title,
+    );
+    const organizationId = alerts.find((a) => a.labels?.organizationId)?.labels?.organizationId
+      || null;
+    const channels = await this.notifications.emit(event, {
       text,
       plainText: lines.length ? lines.join('\n') : `${body?.title || body?.message || 'XSS alert'}`,
       subject: body?.title || 'XSS alert',
-      webhook: { event: 'alert', status: body?.status, title: body?.title, alerts },
-    });
+      webhook: { event, status: body?.status, title: body?.title, alerts },
+    }, organizationId);
     return { received: alerts.length, persisted: records.length, ...channels };
   }
 }
