@@ -9,6 +9,7 @@ import { SeedService } from './common/seed.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { NodesModule } from './modules/nodes/nodes.module';
+import { NodeProvisionModule } from './modules/node-provision/node-provision.module';
 import { HealthModule } from './modules/health/health.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { AuditModule } from './modules/audit/audit.module';
@@ -52,6 +53,7 @@ import { McpModule } from './modules/mcp/mcp.module';
     AuthModule,
     UsersModule,
     NodesModule,
+    NodeProvisionModule,
     HealthModule,
     SubscriptionsModule,
     AuditModule,

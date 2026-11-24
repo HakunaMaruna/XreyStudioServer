@@ -50,6 +50,13 @@ export default function NodesPage() {
   const [logsData, setLogsData] = useState<NodeLogs | null>(null);
   const [logsLoading, setLogsLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [provisionOpen, setProvisionOpen] = useState(false);
+  const [provisionForm, setProvisionForm] = useState({
+    name: '', host: '', port: '22', username: 'root',
+    privateKey: '', hostKeyFingerprint: '', panelUrl: '',
+  });
+  const [provisionToken, setProvisionToken] = useState('');
+  const [provisioning, setProvisioning] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -228,6 +235,33 @@ export default function NodesPage() {
     [t],
   );
 
+  const provision = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setProvisionToken('');
+    setProvisioning(true);
+    try {
+      const payload = {
+        name: provisionForm.name,
+        host: provisionForm.host,
+        port: Number(provisionForm.port),
+        username: provisionForm.username,
+        privateKey: provisionForm.privateKey,
+        hostKeyFingerprint: provisionForm.hostKeyFingerprint,
+        ...(provisionForm.panelUrl ? { panelUrl: provisionForm.panelUrl } : {}),
+      };
+      const result = await api.post<{ agentToken: string; message: string }>('/api/node-provision', payload);
+      setProvisionToken(result.agentToken || '');
+      setError(result.message || '');
+      setProvisionForm({ name: '', host: '', port: '22', username: 'root', privateKey: '', hostKeyFingerprint: '', panelUrl: '' });
+      load();
+    } catch (err: any) {
+      setError(err.message || 'Provisioning failed');
+    } finally {
+      setProvisioning(false);
+    }
+  };
+
   const online = nodes.filter((node) => node.status === 'ONLINE').length;
 
   return (
@@ -237,7 +271,10 @@ export default function NodesPage() {
         title={t.nodes}
         subtitle={t.nodesSubtitle}
         icon="server"
-        actions={<Button icon="plus" variant="primary" onClick={() => setCreateOpen(true)}>{t.addNode}</Button>}
+        actions={<>
+          <Button icon="plus" onClick={() => setProvisionOpen(true)}>{t.sshProvision}</Button>
+          <Button icon="plus" variant="primary" onClick={() => setCreateOpen(true)}>{t.addNode}</Button>
+        </>}
       />
 
       {error && (
@@ -356,7 +393,7 @@ export default function NodesPage() {
         onClose={() => { setLogsNode(null); setLogsData(null); }}
         title={t.logs}
         subtitle={logsNode?.name}
-        icon={<Icon name="terminal" size={16} />}
+        icon={<Icon name="server" size={16} />}
         size="lg"
       >
         {logsLoading ? (
@@ -378,6 +415,22 @@ export default function NodesPage() {
         ) : (
           <div className="py-12 text-center text-xs text-subtle">{t.noLogs}</div>
         )}
+      </Modal>
+
+      <Modal open={provisionOpen} onClose={() => { setProvisionOpen(false); setProvisionToken(''); }} title={t.sshProvision} subtitle={t.sshProvisionHint} icon={<Icon name="server" size={16} />}
+        footer={<><Button onClick={() => setProvisionOpen(false)}>{t.cancel}</Button><Button type="submit" form="provision-form" variant="primary" icon="check" loading={provisioning}>{t.sshProvision}</Button></>}>
+        <form id="provision-form" onSubmit={provision} className="space-y-4">
+          <Field label={t.name}><input className="field" value={provisionForm.name} onChange={(e) => setProvisionForm({ ...provisionForm, name: e.target.value })} required /></Field>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Field label={t.sshHost}><input className="field" value={provisionForm.host} onChange={(e) => setProvisionForm({ ...provisionForm, host: e.target.value })} required /></Field>
+            <Field label={t.sshPort}><input className="field" type="number" min={1} max={65535} value={provisionForm.port} onChange={(e) => setProvisionForm({ ...provisionForm, port: e.target.value })} required /></Field>
+            <Field label={t.sshUser}><input className="field" value={provisionForm.username} onChange={(e) => setProvisionForm({ ...provisionForm, username: e.target.value })} required /></Field>
+          </div>
+          <Field label={t.privateKey}><textarea className="field mono min-h-24" value={provisionForm.privateKey} onChange={(e) => setProvisionForm({ ...provisionForm, privateKey: e.target.value })} required /></Field>
+          <Field label={t.hostKeyFingerprint}><input className="field mono" placeholder="SHA256:..." value={provisionForm.hostKeyFingerprint} onChange={(e) => setProvisionForm({ ...provisionForm, hostKeyFingerprint: e.target.value })} required /></Field>
+          <Field label={t.panelUrl}><input className="field" placeholder="https://panel.example.com" value={provisionForm.panelUrl} onChange={(e) => setProvisionForm({ ...provisionForm, panelUrl: e.target.value })} /></Field>
+          {provisionToken && <div className="rounded-lg border border-success/25 bg-success/10 p-3 text-xs text-success"><b>{t.provisionToken}:</b> <code className="mono break-all">{provisionToken}</code></div>}
+        </form>
       </Modal>
     </>
   );

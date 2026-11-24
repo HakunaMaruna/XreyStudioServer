@@ -27,6 +27,13 @@ All admin endpoints require `Authorization: Bearer <accessToken>` and, where not
 
 ## Nodes and configuration
 
+- `POST /api/node-provision` (JWT, `ADMIN`) — installs an agent over SSH. Requires
+  `SSH_PROVISION_ENABLED=true` on the panel. Body: `name`, `host`, `port`, `username`,
+  `privateKey` or `password`, `hostKeyFingerprint` (`SHA256:<base64>`), optional `panelUrl`.
+  The host key is verified against the supplied fingerprint; credentials are never stored
+  or logged. Returns `nodeId`, `agentUrl` and a one-time `agentToken`.
+
+
 - `GET /nodes`, `POST /nodes`, `GET /nodes/stats`
 - `GET /nodes/:id`, `PATCH /nodes/:id`, `DELETE /nodes/:id`
 - `GET /nodes/:id/health`, `POST /nodes/:id/restart`
