@@ -7,7 +7,6 @@ import { clearTokens, isLoggedIn } from '../lib/api';
 import { getTheme, applyTheme, type Theme } from '../lib/theme';
 import { APP_VERSION } from '../lib/version';
 import { Icon, toggleIconSet, type IconName } from './icons';
-import { toggleUiMode } from '../lib/ui-mode';
 import { Avatar, Badge, IconButton, cn } from './ui';
 
 type NavItem = { href: string; label: string; icon: IconName };
@@ -24,7 +23,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
-    document.documentElement.dataset.ui = 'aurora';
     setAuthed(isLoggedIn());
     setTheme(getTheme());
   }, []);
@@ -250,7 +248,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           </button>
           <IconButton icon={theme === 'dark' ? 'sun' : 'moon'} label="Toggle theme" onClick={switchTheme} />
           <IconButton icon="sparkles" label="Toggle icon set" onClick={toggleIconSet} />
-          <IconButton icon="grid" label={t.switchToAdminLte} onClick={toggleUiMode} />
         </header>
 
         <main id="main-content" className="relative z-10 mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:px-8">{children}</main>

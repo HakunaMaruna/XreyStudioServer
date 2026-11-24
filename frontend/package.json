@@ -1,20 +1,17 @@
 {
   "name": "frontend",
-  "version": "2.24.2",
+  "version": "2.24.3",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/sync-version.mjs && node scripts/copy-adminlte-assets.mjs",
+    "prebuild": "node scripts/sync-version.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
-    "@adminlte/react": "^0.7.1",
     "@tabler/icons-react": "^3.52.0",
     "@tanstack/react-table": "^8.21.3",
-    "bootstrap": "^5.3.9",
-    "bootstrap-icons": "^1.13.2",
     "chart.js": "^4.6.2",
     "flatpickr": "^4.6.13",
     "jsvectormap": "^1.7.0",

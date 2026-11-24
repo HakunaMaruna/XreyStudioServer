@@ -392,7 +392,6 @@ const dict = {
     tokenScopes: 'Права',
     tokenValue: 'Токен (только один раз)',
     switchUi: 'Сменить интерфейс',
-    switchToAdminLte: 'Перейти на AdminLTE',
   },
   en: {
     dashboard: 'Dashboard',
@@ -773,7 +772,6 @@ const dict = {
     tokenScopes: 'Scopes',
     tokenValue: 'Token (shown once)',
     switchUi: 'Switch UI',
-    switchToAdminLte: 'Switch to AdminLTE UI',
   },
 };
 
