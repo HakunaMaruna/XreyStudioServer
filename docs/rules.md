@@ -14,10 +14,10 @@
 | Рецепт | Условие | Действие |
 | --- | --- | --- |
 | Блокировать рекламу | `geosite:category-ads-all` | `blocked` |
-| Российские сайты напрямую | `geosite:ru`, `geosite:category-ru`, `geoip:ru` | `direct` |
+| Российские сайты напрямую | `geosite:category-ru`, `geoip:ru` | `direct` |
 | Китайские сайты напрямую | `geosite:cn`, `geoip:cn` | `direct` |
 | Локальные сети напрямую | RFC1918 + loopback CIDR | `direct` |
-| Блокировать 18+ | `geosite:porn` | `blocked` |
+| Блокировать 18+ | `geosite:category-porn` | `blocked` |
 | Блокировать торренты | `protocol: bittorrent` | `blocked` |
 | DNS-запросы напрямую | `port: 53` | `direct` |
 
