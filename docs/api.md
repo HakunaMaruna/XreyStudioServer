@@ -84,6 +84,14 @@ keep exports within that cap. Headers:
 
 All report endpoints require an `ADMIN` JWT.
 
+## Geodata catalog
+
+- `GET /geodata?type=geosite|geoip&search&enabled` — browsable catalog of routing categories
+- `POST /geodata/seed` — re-add missing bundled categories (idempotent)
+- `POST /geodata` — custom category `{ type, code, name, description?, enabled? }`
+- `PATCH /geodata/:id`, `DELETE /geodata/:id` — edit/remove (custom categories are removable)
+- Catalog is seeded automatically on startup; copy a rule as `"geosite:google"` / `"geoip:ru"` from the UI.
+
 ## Subscription templates
 
 - `GET /subscription-templates` — list templates with assigned user counts

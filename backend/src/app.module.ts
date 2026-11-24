@@ -31,6 +31,7 @@ import { SquadsModule } from './modules/squads/squads.module';
 import { DevicesModule } from './modules/devices/devices.module';
 import { HealthChecksModule } from './modules/health-checks/health-checks.module';
 import { SubscriptionTemplatesModule } from './modules/subscription-templates/subscription-templates.module';
+import { GeodataModule } from './modules/geodata/geodata.module';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { SubscriptionTemplatesModule } from './modules/subscription-templates/su
     DevicesModule,
     HealthChecksModule,
     SubscriptionTemplatesModule,
+    GeodataModule,
   ],
   providers: [
     SeedService,

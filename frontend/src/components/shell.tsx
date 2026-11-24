@@ -52,6 +52,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           { href: '/hosts', label: t.hosts, icon: 'globe' },
           { href: '/rules', label: t.rules, icon: 'route' },
       { href: '/routing', label: t.routing, icon: 'sliders' },
+      { href: '/geodata', label: t.geodata, icon: 'globe' },
         ],
       },
       {
