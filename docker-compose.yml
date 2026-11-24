@@ -37,6 +37,7 @@ services:
       REDIS_URL: redis://redis:6379
       BACKUP_DIR: /app/backups
       AGENT_BASE_URL: http://agent:9090
+      MCP_TOKEN: ${MCP_TOKEN:-}
     volumes:
       - ./backups:/app/backups
       - certbot_webroot:/var/www/certbot

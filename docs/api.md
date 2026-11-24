@@ -84,6 +84,13 @@ keep exports within that cap. Headers:
 
 All report endpoints require an `ADMIN` JWT.
 
+## MCP bridge
+
+- `POST /api/mcp` — read-only MCP server over Streamable HTTP (stateless). See `docs/mcp.md`.
+- Auth: `X-MCP-Token` (env `MCP_TOKEN`) or an ADMIN JWT bearer token.
+- Tools: `panel_status`, `list_users`, `list_nodes`, `health_summary`, `list_inbounds`,
+  `list_subscription_templates`, `geodata_search`.
+
 ## Geodata catalog
 
 - `GET /geodata?type=geosite|geoip&search&enabled` — browsable catalog of routing categories
