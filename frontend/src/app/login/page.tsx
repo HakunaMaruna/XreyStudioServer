@@ -49,7 +49,7 @@ export default function LoginPage() {
             </div>
             <div>
               <p className="text-sm font-semibold text-fg">XreyStudio</p>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-subtle">Control panel</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-subtle">{t.controlPanel}</p>
             </div>
           </div>
 

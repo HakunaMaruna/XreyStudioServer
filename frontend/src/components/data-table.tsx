@@ -111,6 +111,7 @@ export default function DataTable<T>({
       )}
 
       <div className="panel overflow-hidden p-0">
+        <p className="border-b border-line px-4 py-2 text-[11px] text-subtle md:hidden">{t.scrollHint}</p>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>

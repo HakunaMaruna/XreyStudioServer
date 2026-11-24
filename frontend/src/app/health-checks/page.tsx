@@ -85,7 +85,7 @@ export default function HealthChecksPage() {
       </div>
 
       <Card className="mt-5 mb-5 p-4">
-        <select value={nodeId} onChange={(e) => setNodeId(e.target.value)} className="field w-auto min-w-[240px]">
+        <select aria-label={t.nodes} value={nodeId} onChange={(e) => setNodeId(e.target.value)} className="field w-auto min-w-[240px]">
           <option value="">{t.all} {t.nodes}</option>
           {nodes.map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}
         </select>

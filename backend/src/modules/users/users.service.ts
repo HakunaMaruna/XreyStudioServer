@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { Prisma, Role, UserStatus } from '@prisma/client';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PasswordService } from '../../common/password.service';
@@ -6,11 +6,19 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { BulkUsersDto, CreateUserDto, UpdateUserDto, UsersQueryDto } from './dto/user.dto';
 
 @Injectable()
-export class UsersService {
+export class UsersService implements OnModuleInit {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private prisma: PrismaService,
     private passwords: PasswordService,
   ) {}
+
+  onModuleInit() {
+    if (!process.env.PANEL_URL) {
+      this.logger.warn('PANEL_URL is not set — subscription URLs returned by the API will be relative. Set PANEL_URL to the public panel URL.');
+    }
+  }
 
   private tenantWhere(user: AuthUser): Prisma.UserWhereInput {
     if (user.role === Role.ADMIN) return {};
@@ -117,6 +125,7 @@ export class UsersService {
         role: dto.role || Role.USER,
         status: dto.status || UserStatus.ACTIVE,
         trafficLimit: BigInt(dto.trafficLimit || 0),
+        deviceLimit: dto.deviceLimit ?? 0,
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
         organizationId: dto.organizationId || actor.organizationId || null,
       },
@@ -128,6 +137,7 @@ export class UsersService {
         subscriptionToken: true,
         trafficLimit: true,
         trafficUsed: true,
+        deviceLimit: true,
         expiresAt: true,
         createdAt: true,
       },
@@ -149,6 +159,7 @@ export class UsersService {
     if (dto.role) data.role = dto.role;
     if (dto.status) data.status = dto.status;
     if (dto.trafficLimit !== undefined) data.trafficLimit = BigInt(dto.trafficLimit);
+    if (dto.deviceLimit !== undefined) data.deviceLimit = dto.deviceLimit;
     if (dto.expiresAt !== undefined) data.expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : null;
     if (dto.organizationId !== undefined) {
       if (actor.role !== Role.ADMIN && dto.organizationId !== actor.organizationId) {
@@ -183,6 +194,7 @@ export class UsersService {
         status: true,
         trafficLimit: true,
         trafficUsed: true,
+        deviceLimit: true,
         expiresAt: true,
         organizationId: true,
         configProfileId: true,
