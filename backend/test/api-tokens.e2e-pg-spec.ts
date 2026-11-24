@@ -135,7 +135,7 @@ describe('Scoped API tokens и notification routes (e2e, real PostgreSQL)', () =
       adminToken,
       request(app.getHttpServer())
         .post('/api/api-tokens')
-        .send({ name: 'monitor2', scopes: ['MONITOR'], organizationId: 'tokens-org-a' }),
+        .send({ name: 'monitor2', scopes: ['MONITOR'] }),
     ).expect(201);
 
     const response = await request(app.getHttpServer())
@@ -187,15 +187,19 @@ describe('Scoped API tokens и notification routes (e2e, real PostgreSQL)', () =
 
   it('isolates tenants: OPERATOR cannot list or revoke another organization tokens', async () => {
     const created = await auth(
-      adminToken,
+      outsiderToken,
       request(app.getHttpServer())
         .post('/api/api-tokens')
-        .send({ name: 'org-b', scopes: ['MONITOR'], organizationId: 'tokens-org-b' }),
+        .send({ name: 'org-b', scopes: ['MONITOR'] }),
     ).expect(201);
 
     const list = await auth(operatorToken, request(app.getHttpServer()).get('/api/api-tokens')).expect(200);
     expect(list.body.some((t: { id: string }) => t.id === created.body.id)).toBe(false);
 
+    const ownList = await auth(outsiderToken, request(app.getHttpServer()).get('/api/api-tokens')).expect(200);
+    expect(ownList.body.some((t: { id: string }) => t.id === created.body.id)).toBe(true);
+
+    await auth(operatorToken, request(app.getHttpServer()).delete(`/api/api-tokens/${created.body.id}`)).expect(404);
     await auth(outsiderToken, request(app.getHttpServer()).delete(`/api/api-tokens/${created.body.id}`)).expect(200);
     const after = await prisma.apiToken.findUnique({ where: { id: created.body.id } });
     expect(after?.revokedAt).toBeTruthy();
