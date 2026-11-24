@@ -70,10 +70,11 @@ services:
       XRAY_MANAGED: "true"
     depends_on:
       - backend
-    # Тестовый VLESS-inbound; 443 занят Caddy, поэтому используем 2053.
+    # Тестовые inbound'ы; 443 занят Caddy, поэтому используем 2053/2054.
     ports:
       - "2053:2053/tcp"
       - "2053:2053/udp"
+      - "2054:2054/tcp"
     restart: unless-stopped
 
   caddy:

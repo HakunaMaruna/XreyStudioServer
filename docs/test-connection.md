@@ -17,7 +17,13 @@
   vmess://eyJ2IjoiMiIsInBzIjoidGVzdC12bGVzcy0yMDUzIiwiYWRkIjoiMjEzLjE3MS4zMC4xODYiLCJwb3J0IjoiMjA1MyIsImlkIjoiOWIyZjg3YWMtZTg3ZS00MmM5LTkxYjYtMDFlMzZmYmEzYmRjIiwiYWlkIjoiMCIsInNjeSI6ImF1dG8iLCJuZXQiOiJ0Y3AiLCJ0eXBlIjoibm9uZSIsImhvc3QiOiIiLCJwYXRoIjoiLyIsInRscyI6IiIsInNuaSI6IiJ9
   ```
 
-- Протокол: **VMess**, TCP, port **2053**, без TLS.
+- Альтернативная ссылка (рекомендуемая) — **VLESS + Reality**, TCP, port **2054**:
+
+  ```text
+  vless://9b2f87ac-e87e-42c9-91b6-01e36fba3bdc@msc.h2onetwork.pro:2054?type=tcp&security=reality&encryption=none&pbk=lKNDzxUWLIvS_tgG4x4-s6dAzk73jypzDSxHGMwscjw&sid=a1b2c3d4&sni=www.microsoft.com&fp=chrome#test-reality-2054
+  ```
+
+- Протокол тестового узла №1: **VMess**, TCP, port **2053**, без TLS.
 - Пользователь: `vpn-test@example.com`, лимит трафика 0 (без ограничения), без срока действия.
 
 ## Как добавить
