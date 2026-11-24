@@ -38,6 +38,24 @@ jobs:
           tar -czf "${TAG}.bundle.tar.gz" -C "${STAGE}" .
           sha256sum "${TAG}.bundle.tar.gz" > "${TAG}.bundle.tar.gz.sha256"
           echo "ASSET=${TAG}.bundle.tar.gz" >> "${GITHUB_ENV}"
+      - name: Sign release bundle with Ed25519
+        id: sign
+        env:
+          UPDATE_PRIVATE_KEY: ${{ secrets.UPDATE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${UPDATE_PRIVATE_KEY}" ]; then
+            echo "enabled=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          KEY="${RUNNER_TEMP}/update_signing_key.pem"
+          printf '%s' "${UPDATE_PRIVATE_KEY}" > "${KEY}"
+          chmod 600 "${KEY}"
+          openssl pkeyutl -sign -rawin -inkey "${KEY}" -in "${ASSET}" -out "${ASSET}.sig"
+          openssl pkey -in "${KEY}" -pubout -out update_public.pem
+          sha256sum "${ASSET}.sig" > "${ASSET}.sig.sha256"
+          echo "enabled=true" >> "${GITHUB_OUTPUT}"
+          rm -f "${KEY}"
       - name: Attach assets to the GitHub Release
         uses: softprops/action-gh-release@v3
         with:
@@ -45,4 +63,13 @@ jobs:
             ${{ env.ASSET }}
             ${{ env.ASSET }}.sha256
           generate_release_notes: true
+          fail_on_unmatched_files: true
+      - name: Attach signed update assets
+        if: steps.sign.outputs.enabled == 'true'
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            ${{ env.ASSET }}.sig
+            ${{ env.ASSET }}.sig.sha256
+            update_public.pem
           fail_on_unmatched_files: true

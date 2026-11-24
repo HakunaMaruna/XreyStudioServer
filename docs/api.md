@@ -209,6 +209,18 @@ All certificate endpoints are ADMIN-only.
 
 ## Operations
 
+## Signed updates
+
+- `POST /api/updates/verify` (JWT, `ADMIN`) — body `{ "bundleBase64", "signatureBase64",
+  "version" }` verifies an Ed25519 signature over the raw bundle bytes. The public key is
+  read from `UPDATE_PUBLIC_KEY` (PEM). Returns `{ valid, version }`; fails closed (503) when
+  no key is configured and 400 when sizes are invalid. The panel never accepts an unsigned
+  bundle.
+- Release bundles are signed in CI with the repository secret `UPDATE_PRIVATE_KEY`; the
+  public key and `.sig` asset are attached to the GitHub Release. Local check:
+  `node scripts/verify-update.mjs bundle.tar.gz bundle.tar.gz.sig update_public.pem`.
+
+
 ## Doctor
 
 - `GET /api/doctor` (JWT, `ADMIN`) — read-only checks: database reachability, offline/stale

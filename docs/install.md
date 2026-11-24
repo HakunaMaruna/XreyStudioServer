@@ -165,3 +165,26 @@ and the same `AGENT_SECRET`. If `journalctl` is unavailable in a container, set
 После выхода cookie удаляется. subscription-ссылки `/sub/*` и API продолжают работать без изменений.
 Неверно заданный `PANEL_ENTRY_PATH` не создаёт вход (fail closed). Переменные пробрасываются
 в frontend через `docker-compose.yml`; backend читает `PANEL_DECOY` из env_file `.env`.
+
+## Signed updates (Ed25519)
+
+Release archives can be signed in CI so nodes can verify them before applying. Generate
+a dedicated keypair once (never commit the private key):
+
+```sh
+openssl genpkey -algorithm ed25519 -out update_private.pem
+openssl pkey -in update_private.pem -pubout -out update_public.pem
+chmod 600 update_private.pem
+```
+
+Store `update_private.pem` contents in the GitHub repository secret `UPDATE_PRIVATE_KEY`.
+The release workflow signs each `tar.gz` with `openssl pkeyutl -sign -rawin` and attaches
+`<asset>.sig` plus `update_public.pem` to the release. Set `UPDATE_PUBLIC_KEY` in the panel
+environment to the PEM public key (or its base64 encoding) to enable
+`POST /api/updates/verify`. Verification fails closed when no key is configured.
+
+Verify an asset manually:
+
+```sh
+node scripts/verify-update.mjs release.tar.gz release.tar.gz.sig update_public.pem
+```
