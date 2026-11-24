@@ -161,10 +161,12 @@ describe('XSS API (e2e, real PostgreSQL)', () => {
   });
 
   it('records per-user traffic, enforces the quota and provisions paid plans', async () => {
+    const admin = await prisma.user.findUniqueOrThrow({ where: { email } });
     const node = await prisma.node.create({
       data: {
         name: 'e2e-node',
         address: '127.0.0.1',
+        organizationId: admin.organizationId,
         tokenHash: createHash('sha256').update('pg-node-token').digest('hex'),
       },
     });
