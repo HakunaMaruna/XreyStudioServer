@@ -384,7 +384,7 @@ payments, notifications, monitoring, Docker Compose installation. Target scale: 
 - PG e2e `test/v15.e2e-pg-spec.ts` skipped locally: local pg_dump 16 cannot dump PGlite 19
   (Alpine has pg_dump <=16; CI uses PostgreSQL 16 and passes). Other PG suites: 15 suites /
   69 tests passed with `DATABASE_URL=...?pgbouncer=true`.
-- `/work/XreyStudioServer` recloned from GitHub main, synced to `7dac71b` by copying loose
+- `/work/XreyStudioServer` recloned from GitHub main, synced to `a5438b1` by copying loose
   git objects from `/tmp/opencode/xss-work-225` (proot blocks git object writes directly);
   working tree clean. `core.filemode=false` set locally; `graft/` preserved;
   `temp_git/` is local scratch now ignored via `.gitignore`; old checkout in
