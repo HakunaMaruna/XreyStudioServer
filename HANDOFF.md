@@ -441,3 +441,27 @@ npm run lint && npm run build
 # git (in /tmp/opencode/XSS_REPO)
 git add -A && git commit -m "..." && git push origin main
 ```
+
+## Roadmap session (tasks 1–12, 2026-11-24)
+
+All 12 ideas from `docs/ROADMAP.md` are implemented and pushed, one commit per task:
+
+- 1 HWID/device limit — verified and documented (`7241c48`).
+- 2 Decoy page and hidden admin login (`1690cfa`).
+- 3 Personal subscription page with browser HWID binding (`5313684`).
+- 4 Profile-to-node binding and per-node traffic (`?` before task 5).
+- 5 SSH provisioning from UI (`9a1d229`).
+- 6 Doctor read-only checks with allow-listed fixes (`9fe1cea`).
+- 7 Ed25519 signed updates (`d40ce18`).
+- 8 AES-256-GCM backup encryption and S3/R2 upload (`b39566f`).
+- 9 Subscription format selection by User-Agent (`10d80bb`).
+- 10 Telegram bot with signed one-time login (`3a5b0dc`).
+- 11 Rescue CLI for password/admin recovery (`3a5b0dc`).
+- 12 MCP write-plans with owner approval (`3a5b0dc`).
+
+A parallel AdminLTE restyle commit (`89b085c`, v2.24.0) landed while tasks 10–12 were in
+flight; our commit was cleanly rebased onto it. Local validation after tasks 10–12:
+backend typecheck rc=0, lint rc=0 (141 pre-existing `no-explicit-any` warnings, zero errors),
+unit 19 suites / 110 tests, `npm run test:e2e` 2 suites / 11 tests, nest build rc=0,
+`node dist/scripts/rescue-cli.js --help` rc=0, code_review zero findings.
+Local PG e2e remains skipped (pg_dump 16 cannot dump PGlite 19). CI is the authority.
