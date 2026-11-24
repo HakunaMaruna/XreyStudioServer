@@ -1,27 +1,29 @@
 'use client';
 import type { ComponentType, SVGProps } from 'react';
 import {
-  IconActivity, IconAdjustmentsHorizontal, IconAlertTriangle, IconArrowUpRight,
-  IconBell, IconBolt, IconBox, IconCheck, IconChevronDown, IconChevronLeft,
-  IconChevronRight, IconCircleCheck, IconCircleX, IconClock, IconCode, IconCommand,
-  IconCopy, IconCpu, IconDatabase, IconDeviceSdCard, IconDownload, IconExternalLink,
-  IconEye, IconFile, IconFilter, IconFingerprint, IconGauge, IconHeartbeat, IconHistory, IconInfoCircle,
-  IconKey, IconLayoutGrid, IconLink, IconList, IconLock, IconLogout, IconMenu2,
-  IconMoon, IconNetwork, IconPencil, IconPlayerPlay, IconPlug, IconPlus, IconPower,
-  IconRefresh, IconRoute, IconSearch, IconServer, IconSettings, IconShieldCheck,
-  IconSparkles, IconSun, IconTerminal2, IconTrash, IconUpload, IconUsers, IconWorld, IconX,
+  IconActivity, IconAdjustmentsHorizontal, IconArrowUpRight, IconBox, IconCheck,
+  IconChevronDown, IconChevronLeft, IconChevronRight, IconCode, IconCommand, IconCopy,
+  IconCpu, IconDeviceSdCard, IconExternalLink, IconFingerprint, IconHeartbeat, IconHistory,
+  IconLink, IconLogout, IconMenu2, IconMoon, IconNetwork, IconPencil, IconPlug, IconPlus,
+  IconPower, IconRefresh, IconRoute, IconSearch, IconServer, IconSun, IconTerminal2,
+  IconTrash, IconUpload, IconUsers, IconX,
+  IconAlertTriangleFilled, IconBellFilled, IconBoltFilled, IconCircleCheckFilled,
+  IconCircleXFilled, IconClockFilled, IconDatabaseFilled, IconDownloadFilled, IconEyeFilled,
+  IconFileFilled, IconFilterFilled, IconGaugeFilled, IconInfoCircleFilled, IconKeyFilled,
+  IconLayoutGridFilled, IconListFilled, IconLockFilled, IconPlayerPlayFilled,
+  IconSettingsFilled, IconShieldCheckFilled, IconSparklesFilled, IconWorldFilled,
 } from '@tabler/icons-react';
 import type { IconName } from './icons-default';
 
 const map: Record<IconName, ComponentType<any>> = {
-  grid: IconLayoutGrid,
+  grid: IconLayoutGridFilled,
   users: IconUsers,
   server: IconServer,
   plug: IconPlug,
-  globe: IconWorld,
+  globe: IconWorldFilled,
   route: IconRoute,
-  bell: IconBell,
-  settings: IconSettings,
+  bell: IconBellFilled,
+  settings: IconSettingsFilled,
   search: IconSearch,
   sun: IconSun,
   moon: IconMoon,
@@ -33,42 +35,42 @@ const map: Record<IconName, ComponentType<any>> = {
   trash: IconTrash,
   refresh: IconRefresh,
   history: IconHistory,
-  play: IconPlayerPlay,
+  play: IconPlayerPlayFilled,
   check: IconCheck,
   chevronLeft: IconChevronLeft,
   chevronRight: IconChevronRight,
   chevronDown: IconChevronDown,
   copy: IconCopy,
   external: IconExternalLink,
-  key: IconKey,
+  key: IconKeyFilled,
   activity: IconActivity,
   cpu: IconCpu,
   memory: IconDeviceSdCard,
   network: IconNetwork,
   arrowUpRight: IconArrowUpRight,
-  zap: IconBolt,
-  shield: IconShieldCheck,
-  database: IconDatabase,
+  zap: IconBoltFilled,
+  shield: IconShieldCheckFilled,
+  database: IconDatabaseFilled,
   terminal: IconTerminal2,
   code: IconCode,
-  filter: IconFilter,
-  info: IconInfoCircle,
-  alert: IconAlertTriangle,
-  clock: IconClock,
+  filter: IconFilterFilled,
+  info: IconInfoCircleFilled,
+  alert: IconAlertTriangleFilled,
+  clock: IconClockFilled,
   link: IconLink,
-  download: IconDownload,
+  download: IconDownloadFilled,
   upload: IconUpload,
   power: IconPower,
-  lock: IconLock,
-  eye: IconEye,
-  sparkles: IconSparkles,
-  gauge: IconGauge,
-  list: IconList,
+  lock: IconLockFilled,
+  eye: IconEyeFilled,
+  sparkles: IconSparklesFilled,
+  gauge: IconGaugeFilled,
+  list: IconListFilled,
   box: IconBox,
   pulse: IconHeartbeat,
-  checkCircle: IconCircleCheck,
-  xCircle: IconCircleX,
-  file: IconFile,
+  checkCircle: IconCircleCheckFilled,
+  xCircle: IconCircleXFilled,
+  file: IconFileFilled,
   sliders: IconAdjustmentsHorizontal,
   command: IconCommand,
   fingerprint: IconFingerprint,
@@ -78,5 +80,13 @@ type IconProps = SVGProps<SVGSVGElement> & { name: IconName; size?: number };
 
 export function Icon({ name, size = 18, className, ...props }: IconProps) {
   const Component = map[name] || IconBox;
-  return <Component size={size} strokeWidth={1.8} className={className} aria-hidden="true" {...props} />;
+  return (
+    <Component
+      size={size}
+      strokeWidth={2}
+      className={['icon-bright', className].filter(Boolean).join(' ')}
+      aria-hidden="true"
+      {...props}
+    />
+  );
 }
