@@ -88,10 +88,20 @@ describe('Rollout API (e2e, real PostgreSQL)', () => {
     });
 
     const nodeA = await prisma.node.create({
-      data: { name: 'rollout-node-a', address: '10.9.0.1', organizationId: 'rollout-org-a' },
+      data: {
+        name: 'rollout-node-a',
+        address: '10.9.0.1',
+        organizationId: 'rollout-org-a',
+        tokenHash: 'hash-rollout-a',
+      },
     });
     const nodeB = await prisma.node.create({
-      data: { name: 'rollout-node-b', address: '10.9.0.2', organizationId: 'rollout-org-b' },
+      data: {
+        name: 'rollout-node-b',
+        address: '10.9.0.2',
+        organizationId: 'rollout-org-b',
+        tokenHash: 'hash-rollout-b',
+      },
     });
     nodeAId = nodeA.id;
     nodeBId = nodeB.id;
