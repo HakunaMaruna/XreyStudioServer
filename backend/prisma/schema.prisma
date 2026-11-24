@@ -95,6 +95,7 @@ model Node {
   certificateExpiresAt DateTime?
   metrics        NodeMetric[]
   healthChecks   HealthCheck[]
+  geo            NodeGeo?
   inbounds       Inbound[]
   revisions      ConfigRevision[]
   organizationId String?
@@ -298,6 +299,20 @@ model SubscriptionTemplate {
   updatedAt   DateTime @updatedAt
 
   @@index([enabled])
+}
+
+model NodeGeo {
+  id          String   @id @default(uuid())
+  nodeId      String   @unique
+  node        Node     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  ip          String?
+  countryCode String?
+  city        String?
+  asn         String?
+  org         String?
+  checkedAt   DateTime @default(now())
+
+  @@index([checkedAt])
 }
 
 model HealthCheck {

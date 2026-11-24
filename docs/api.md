@@ -84,6 +84,13 @@ keep exports within that cap. Headers:
 
 All report endpoints require an `ADMIN` JWT.
 
+## Node geocheck
+
+- `POST /nodes/:id/geo` — agent reports its exit IP geolocation (node token auth).
+  Fields: `ip`, `countryCode`, `city`, `asn`, `org`.
+- Result is included in `GET /nodes` as `geo` and shown in the nodes table.
+- Configured with `GEOCHECK_URL` (default `https://ipinfo.io/json`) and `GEOCHECK_INTERVAL` (6h).
+
 ## MCP bridge
 
 - `POST /api/mcp` — read-only MCP server over Streamable HTTP (stateless). See `docs/mcp.md`.

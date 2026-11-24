@@ -11,6 +11,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigGeneratorService } from '../config/config-generator.service';
 import { AgentClientService } from '../config/agent-client.service';
 import { CreateNodeDto, NodeMetricsDto, RegisterNodeDto, UpdateNodeDto } from './dto/node.dto';
+import { NodeGeoDto } from './dto/geo.dto';
 
 @Injectable()
 export class NodesService {
@@ -35,6 +36,7 @@ export class NodesService {
       orderBy: { createdAt: 'desc' },
       include: {
         metrics: { orderBy: { createdAt: 'desc' }, take: 1 },
+        geo: true,
         _count: { select: { inbounds: true, revisions: true } },
       },
     });
@@ -152,6 +154,29 @@ export class NodesService {
       data: { status: NodeStatus.ONLINE, lastSeenAt: new Date(), lastError: null },
     });
     return metric;
+  }
+
+  async reportGeo(nodeId: string, dto: NodeGeoDto, token: string) {
+    await this.verifyNodeToken(nodeId, token);
+    return this.prisma.nodeGeo.upsert({
+      where: { nodeId },
+      create: {
+        nodeId,
+        ip: dto.ip,
+        countryCode: dto.countryCode?.toUpperCase(),
+        city: dto.city,
+        asn: dto.asn,
+        org: dto.org,
+      },
+      update: {
+        ip: dto.ip,
+        countryCode: dto.countryCode?.toUpperCase(),
+        city: dto.city,
+        asn: dto.asn,
+        org: dto.org,
+        checkedAt: new Date(),
+      },
+    });
   }
 
   async health(id: string, actor?: AuthUser) {

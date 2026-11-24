@@ -19,6 +19,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { AuditService } from '../audit/audit.service';
 import { AgentClientService } from '../config/agent-client.service';
 import { CreateNodeDto, NodeMetricsDto, RegisterNodeDto, UpdateNodeDto } from './dto/node.dto';
+import { NodeGeoDto } from './dto/geo.dto';
 import { NodesService } from './nodes.service';
 
 function bearer(value?: string) {
@@ -45,6 +46,15 @@ export class NodesController {
     @Headers('authorization') auth?: string,
   ) {
     return this.service.metrics(id, body, bearer(auth));
+  }
+
+  @Post(':id/geo')
+  geo(
+    @Param('id') id: string,
+    @Body() body: NodeGeoDto,
+    @Headers('authorization') auth?: string,
+  ) {
+    return this.service.reportGeo(id, body, bearer(auth));
   }
 
   @Get(':id/config')
