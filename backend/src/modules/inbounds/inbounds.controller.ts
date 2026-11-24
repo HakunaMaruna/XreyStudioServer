@@ -29,32 +29,32 @@ export class InboundsController {
   ) {}
 
   @Get()
-  list(@Query('nodeId') nodeId?: string) {
-    return this.service.findAll(nodeId);
+  list(@Query('nodeId') nodeId?: string, @CurrentUser() user?: AuthUser) {
+    return this.service.findAll(nodeId, user);
   }
 
   @Post()
   async create(@Body() body: CreateInboundDto, @CurrentUser() user: AuthUser, @Req() req: any) {
-    const created = await this.service.create(body);
+    const created = await this.service.create(body, user);
     await this.audit.log({ userId: user.userId, action: 'inbound.create', entity: 'Inbound', entityId: created.id, ip: req.ip });
     return created;
   }
 
   @Get(':id')
-  get(@Param('id') id: string) {
-    return this.service.findOne(id);
+  get(@Param('id') id: string, @CurrentUser() user?: AuthUser) {
+    return this.service.findOne(id, user);
   }
 
   @Patch(':id')
   async update(@Param('id') id: string, @Body() body: UpdateInboundDto, @CurrentUser() user: AuthUser, @Req() req: any) {
-    const updated = await this.service.update(id, body);
+    const updated = await this.service.update(id, body, user);
     await this.audit.log({ userId: user.userId, action: 'inbound.update', entity: 'Inbound', entityId: id, ip: req.ip });
     return updated;
   }
 
   @Delete(':id')
   async remove(@Param('id') id: string, @CurrentUser() user: AuthUser, @Req() req: any) {
-    const result = await this.service.remove(id);
+    const result = await this.service.remove(id, user);
     await this.audit.log({ userId: user.userId, action: 'inbound.delete', entity: 'Inbound', entityId: id, ip: req.ip });
     return result;
   }

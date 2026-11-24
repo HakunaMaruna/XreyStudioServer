@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma, Role } from '@prisma/client';
+import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateInboundDto, UpdateInboundDto } from './dto/inbound.dto';
 
@@ -6,9 +8,29 @@ import { CreateInboundDto, UpdateInboundDto } from './dto/inbound.dto';
 export class InboundsService {
   constructor(private prisma: PrismaService) {}
 
-  findAll(nodeId?: string) {
+  // Подключения видны только своей организации; ADMIN видит все.
+  private tenantWhere(user?: AuthUser): Prisma.InboundWhereInput {
+    if (!user || user.role === Role.ADMIN) return {};
+    const org = user.organizationId || null;
+    return { OR: [{ node: { organizationId: org } }, { user: { organizationId: org } }] };
+  }
+
+  private async assertOwner(dto: { nodeId?: string; userId?: string }, user?: AuthUser) {
+    if (!user || user.role === Role.ADMIN) return;
+    const org = user.organizationId || null;
+    if (dto.nodeId) {
+      const node = await this.prisma.node.findUnique({ where: { id: dto.nodeId } });
+      if (!node || node.organizationId !== org) throw new ForbiddenException('Node belongs to another organization');
+    }
+    if (dto.userId) {
+      const owner = await this.prisma.user.findUnique({ where: { id: dto.userId } });
+      if (!owner || owner.organizationId !== org) throw new ForbiddenException('User belongs to another organization');
+    }
+  }
+
+  findAll(nodeId?: string, user?: AuthUser) {
     return this.prisma.inbound.findMany({
-      where: nodeId ? { nodeId } : {},
+      where: { ...this.tenantWhere(user), ...(nodeId ? { nodeId } : {}) },
       orderBy: { createdAt: 'desc' },
       include: {
         node: { select: { id: true, name: true } },
@@ -19,9 +41,9 @@ export class InboundsService {
     });
   }
 
-  async findOne(id: string) {
-    const found = await this.prisma.inbound.findUnique({
-      where: { id },
+  async findOne(id: string, user?: AuthUser) {
+    const found = await this.prisma.inbound.findFirst({
+      where: { id, ...this.tenantWhere(user) },
       include: {
         node: true,
         user: { select: { id: true, email: true } },
@@ -33,7 +55,8 @@ export class InboundsService {
     return found;
   }
 
-  create(dto: CreateInboundDto) {
+  async create(dto: CreateInboundDto, user?: AuthUser) {
+    await this.assertOwner(dto, user);
     return this.prisma.inbound.create({
       data: {
         tag: dto.tag,
@@ -64,8 +87,9 @@ export class InboundsService {
     });
   }
 
-  async update(id: string, dto: UpdateInboundDto) {
-    await this.findOne(id);
+  async update(id: string, dto: UpdateInboundDto, user?: AuthUser) {
+    await this.findOne(id, user);
+    await this.assertOwner(dto, user);
     return this.prisma.inbound.update({
       where: { id },
       data: {
@@ -91,8 +115,8 @@ export class InboundsService {
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, user?: AuthUser) {
+    await this.findOne(id, user);
     await this.prisma.inbound.delete({ where: { id } });
     return { success: true };
   }

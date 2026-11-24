@@ -13,7 +13,12 @@ export class MetricsController {
   @Get()
   async metrics(@Headers('x-metrics-token') token: string, @Res() res: any) {
     const expected = process.env.METRICS_TOKEN;
-    if (expected) {
+    if (!expected) {
+      // В проде метрики не должны быть публичными. В dev/test токен можно не задавать.
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(503).send('METRICS_TOKEN is not configured');
+      }
+    } else {
       const a = Buffer.from(token || '');
       const b = Buffer.from(expected);
       if (a.length !== b.length || !timingSafeEqual(a, b)) {
