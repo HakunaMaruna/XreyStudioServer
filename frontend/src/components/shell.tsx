@@ -248,7 +248,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           </button>
           <IconButton icon={theme === 'dark' ? 'sun' : 'moon'} label="Toggle theme" onClick={switchTheme} />
           <IconButton icon="sparkles" label="Toggle icon set" onClick={toggleIconSet} />
-          <IconButton icon="grid" label="Switch to AdminLTE UI" onClick={toggleUiMode} />
+          <IconButton icon="grid" label={t.switchToAdminLte} onClick={toggleUiMode} />
         </header>
 
         <main id="main-content" className="relative z-10 mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:px-8">{children}</main>

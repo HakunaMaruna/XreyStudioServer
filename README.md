@@ -2,7 +2,7 @@
 
 Self-hosted control panel for **Xray-core** with multi-node agents, client management, subscription delivery, payments, Telegram integration and monitoring.
 
-> Short name: **XSS** · Repository: `XreyStudioServer` · Current version: **v2.6.1**
+> Short name: **XSS** · Repository: `XreyStudioServer` · Current version: **v2.23.3**
 
 ---
 
@@ -20,8 +20,9 @@ Self-hosted control panel for **Xray-core** with multi-node agents, client manag
 - Audit log, backups and restore.
 - Payments, plans, trials, referrals and resellers (extensible).
 - Notifications via Telegram, generic webhook, SMTP email and Signal (`signal-cli-rest-api`).
-- Redesigned dark SaaS admin UI (v1.6.0): sidebar navigation, quick page search, modal forms,
-  entrance animations, light theme, full Russian/English localization and mobile layout.
+- AdminLTE-based control panel UI by default (v2.23.2): sidebar, cards and tables, light/dark themes,
+  full Russian/English localization and mobile layout. The legacy Aurora UI is still available via the
+  in-app switch or `NEXT_PUBLIC_UI=aurora`.
 - Searchable, sortable, paginated tables; user edit forms and dashboard charts.
 - Full CRUD forms for hosts and routing rules, plus a config revision browser with rollback.
 - Server-side search, sorting, filtering and pagination for large user lists.
@@ -186,7 +187,15 @@ AGENT_TOKEN=random-agent-token
 CORS_ORIGIN=https://example.com
 ```
 
-Optional: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (required for Stripe webhooks), `METRICS_TOKEN`, `REDIS_URL` (shared rate limiting; in-memory fallback when unset), `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` by default, `bcrypt` to keep new hashes bcrypt), `ALERT_WEBHOOK_TOKEN` (shared secret for Grafana alerts), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS to agents), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (non-Xray protocols), `XRAY_LOG_PATH`/`SINGBOX_LOG_PATH` (agent log fallback when `journalctl` is unavailable).
+Optional: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (required for Stripe webhooks), `METRICS_TOKEN`, `REDIS_URL` (shared rate limiting; in-memory fallback when unset), `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` by default, `bcrypt` to keep new hashes bcrypt), `ALERT_WEBHOOK_TOKEN` (shared secret for Grafana alerts), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS to agents), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (non-Xray protocols), `XRAY_LOG_PATH`/`SINGBOX_LOG_PATH` (agent log fallback when `journalctl` is unavailable), `NEXT_PUBLIC_UI` (`aurora` to keep the legacy UI; AdminLTE is the default).
+
+## AdminLTE UI
+
+Since v2.23.2 the frontend uses the AdminLTE shell (`frontend/src/components/adminlte-shell.tsx`)
+with a grouped sidebar covering all admin pages, shared cards/tables/buttons and RU/EN labels.
+AdminLTE assets are copied into `public/vendor` by the `prebuild` script. The legacy Aurora UI is
+kept for compatibility: switch it in the UI or set `NEXT_PUBLIC_UI=aurora` before build; the choice
+is stored in `localStorage` under `xss_ui`.
 
 ## API
 

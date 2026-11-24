@@ -83,7 +83,7 @@ export default function AdminLiteShell({ children }: { children: ReactNode }) {
         user={{ name: t.administrator, image: avatar, role: t.fullAccess }}
         linkComponent={Link}
         topbarEnd={
-          <button className="btn btn-sm btn-outline-light" onClick={toggleUiMode} title="Switch UI">
+          <button className="btn btn-sm btn-outline-light" onClick={toggleUiMode} title={t.switchUi}>
             <i className="bi bi-stars me-1" /> Aurora
           </button>
         }

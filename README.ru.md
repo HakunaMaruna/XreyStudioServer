@@ -2,7 +2,7 @@
 
 Self-hosted панель управления **Xray-core** с агентами нод, управлением клиентами, выдачей подписок, платежами, интеграцией с Telegram и мониторингом.
 
-> Краткое название: **XSS** · Репозиторий: `XreyStudioServer` · Текущая версия: **v2.6.1**
+> Краткое название: **XSS** · Репозиторий: `XreyStudioServer` · Текущая версия: **v2.23.3**
 
 ---
 
@@ -20,8 +20,9 @@ Self-hosted панель управления **Xray-core** с агентами 
 - Аудит действий, резервное копирование и восстановление.
 - Платежи, тарифы, триалы, рефералы и реселлеры (расширяемо).
 - Уведомления через Telegram, webhook, SMTP email и Signal (`signal-cli-rest-api`).
-- Обновлённый тёмный SaaS-интерфейс (v1.6.0): сайдбар, быстрый поиск по страницам, модальные формы,
-  анимации, светлая тема, полные переводы RU/EN и мобильная адаптивность.
+- Панель на базе AdminLTE по умолчанию (v2.23.2): сайдбар, карточки и таблицы, светлая и тёмная темы,
+  полные переводы RU/EN и мобильная адаптивность. Старый интерфейс Aurora доступен переключателем
+  в UI или через `NEXT_PUBLIC_UI=aurora`.
 - Таблицы с поиском, сортировкой и пагинацией, формы редактирования и графики на дашборде.
 - История алертов в PostgreSQL с интерфейсом просмотра и статусом каналов уведомлений.
 - Hysteria2 / TUIC / WireGuard через адаптер sing-box на ноде.
@@ -186,7 +187,15 @@ AGENT_TOKEN=random-agent-token
 CORS_ORIGIN=https://example.com
 ```
 
-Опционально: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (обязателен для Stripe-вебхуков), `METRICS_TOKEN`, `REDIS_URL` (общий rate limiting; при отсутствии — память), `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` по умолчанию, `bcrypt` для новых хешей), `ALERT_WEBHOOK_TOKEN` (общий секрет для алертов Grafana), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS с агентами), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (не-Xray протоколы), `XRAY_LOG_PATH`/`SINGBOX_LOG_PATH` (резервный источник логов агента, если нет `journalctl`).
+Опционально: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_URL`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`/`ALERT_EMAIL_TO`, `SIGNAL_API_URL`/`SIGNAL_PHONE_NUMBER`/`SIGNAL_RECIPIENT`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (обязателен для Stripe-вебхуков), `METRICS_TOKEN`, `REDIS_URL` (общий rate limiting; при отсутствии — память), `THROTTLE_TTL`, `THROTTLE_LIMIT`, `GRAFANA_PASSWORD`, `BACKUP_DIR`, `BACKUP_KEEP`, `PASSWORD_HASHER` (`argon2id` по умолчанию, `bcrypt` для новых хешей), `ALERT_WEBHOOK_TOKEN` (общий секрет для алертов Grafana), `AGENT_CA`/`AGENT_CERT`/`AGENT_KEY` (mTLS с агентами), `SINGBOX_CONFIG_PATH`/`SINGBOX_BIN`/`SINGBOX_SERVICE` (не-Xray протоколы), `XRAY_LOG_PATH`/`SINGBOX_LOG_PATH` (резервный источник логов агента, если нет `journalctl`), `NEXT_PUBLIC_UI` (`aurora` — оставить старый UI; по умолчанию AdminLTE).
+
+## Интерфейс AdminLTE
+
+Начиная с v2.23.2 фронтенд использует оболочку AdminLTE (`frontend/src/components/adminlte-shell.tsx`)
+с группированным сайдбаром для всех страниц, общими карточками/таблицами/кнопками и переводами RU/EN.
+Ассеты AdminLTE копируются в `public/vendor` скриптом `prebuild`. Старый интерфейс Aurora сохранён
+для совместимости: переключите его в UI или задайте `NEXT_PUBLIC_UI=aurora` перед сборкой; выбор
+сохраняется в `localStorage` под ключом `xss_ui`.
 
 ## API
 
