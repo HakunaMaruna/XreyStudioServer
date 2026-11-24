@@ -2,7 +2,7 @@
 
 Date: 2026-11-24. Owner: second agent, issue #125. Zone: `backend/test`, `docs/reports`.
 Product code, versions, tags and releases are untouched. Branch `qa/mcp-xray-v215` is based on
-`main` at `554a430`, v2.15.5. CI: all four jobs green on the final commit `3e8b509`:
+`main` at `554a430`, v2.15.5. CI: all four jobs green on the final commit `ecbeb82`:
 https://github.com/HakunaMaruna/XreyStudioServer/actions/runs/45344646540
 
 ## Scope
