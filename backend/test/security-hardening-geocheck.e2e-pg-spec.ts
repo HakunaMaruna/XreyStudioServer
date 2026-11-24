@@ -264,12 +264,15 @@ describe('XSS security hardening and geocheck (e2e, real PostgreSQL)', () => {
 
   it('keeps legitimate agent flows working: config, traffic and metrics', async () => {
     const ownUser = await prisma.user.findFirstOrThrow({ where: { email: 'own-user@example.com' } });
+    await prisma.configRevision.create({
+      data: { nodeId: nodeAId, version: 1, content: JSON.stringify({ inbounds: [] }), applied: true },
+    });
 
     const config = await nodeAuth(
       request(app.getHttpServer()).get(`/api/nodes/${nodeAId}/config`),
     ).expect(200);
-    expect(config.body.config).toBeTruthy();
-    expect(config.body.version).toBeTruthy();
+    expect(config.body.config).toEqual({ inbounds: [] });
+    expect(config.body.version).toBe(1);
 
     const traffic = await nodeAuth(
       request(app.getHttpServer())
