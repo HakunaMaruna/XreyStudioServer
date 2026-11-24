@@ -15,6 +15,7 @@ const MCP_TOKEN = 'e2e-mcp-token-qa-v215';
 describe('MCP bridge /api/mcp (e2e, PostgreSQL, QA v2.15)', () => {
   let app: INestApplication;
   let server: any;
+  let baseUrl: string;
   let adminToken: string;
   const previousToken = process.env.MCP_TOKEN;
 
@@ -65,7 +66,11 @@ describe('MCP bridge /api/mcp (e2e, PostgreSQL, QA v2.15)', () => {
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     app.setGlobalPrefix('api');
     await app.init();
+    await app.listen(0);
     server = app.getHttpServer();
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('Failed to start the MCP test HTTP server');
+    baseUrl = `http://127.0.0.1:${address.port}`;
     adminToken = await login();
     expect(adminToken).toBeTruthy();
   }, 60000);
@@ -96,7 +101,7 @@ describe('MCP bridge /api/mcp (e2e, PostgreSQL, QA v2.15)', () => {
   });
 
   it('initializes, lists read-only tools and calls them via the SDK over Streamable HTTP', async () => {
-    const transport = new StreamableHTTPClientTransport(new URL('http://127.0.0.1/api/mcp'), {
+    const transport = new StreamableHTTPClientTransport(new URL(`${baseUrl}/api/mcp`), {
       requestInit: { headers: { 'X-MCP-Token': MCP_TOKEN } },
     });
     const client = new Client({ name: 'qa-v215', version: '1.0.0' });
