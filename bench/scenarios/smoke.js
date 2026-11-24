@@ -12,6 +12,7 @@ const PROTECTED = [
   '/api/settings',
   '/api/routing',
   '/api/config-profiles',
+  '/api/squads',
 ];
 
 async function call(path, options = {}) {
