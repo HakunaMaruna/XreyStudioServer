@@ -205,6 +205,8 @@ model Host {
   port      Int
   sni       String?
   path      String?
+  recipe    String?
+  note      String?
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
 }

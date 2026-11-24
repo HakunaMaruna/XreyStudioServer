@@ -248,6 +248,13 @@ const dict = {
 
     // Hosts and rules
     hostsSubtitle: 'Адреса назначения, SNI и пути',
+    recipe: 'Готовый рецепт',
+    recipeHint: 'Подставит порт, SNI, путь и подсказку по DNS',
+    customHost: 'Свои настройки',
+    dns: 'DNS-запись',
+    note: 'Заметка',
+    applyToInbound: 'Привязать к подключению',
+    hostApplied: 'Хост применён к подключению',
     disabled: 'Отключено',
     newHost: 'Новый хост',
     editHost: 'Редактирование хоста',
@@ -633,6 +640,13 @@ const dict = {
     noSecurity: 'no security',
 
     hostsSubtitle: 'Destination addresses, SNI values and paths',
+    recipe: 'Ready-made recipe',
+    recipeHint: 'Fills port, SNI, path and a DNS hint',
+    customHost: 'Custom host',
+    dns: 'DNS record',
+    note: 'Note',
+    applyToInbound: 'Apply to inbound',
+    hostApplied: 'Host applied to inbound',
     disabled: 'Disabled',
     newHost: 'New host',
     editHost: 'Edit host',

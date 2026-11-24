@@ -3,7 +3,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { Role } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { CreateHostDto, UpdateHostDto } from './dto/host.dto';
+import { ApplyHostDto, CreateHostDto, UpdateHostDto } from './dto/host.dto';
 import { HostsService } from './hosts.service';
 
 @Controller('hosts')
@@ -20,6 +20,16 @@ export class HostsController {
   @Post()
   create(@Body() body: CreateHostDto) {
     return this.service.create(body);
+  }
+
+  @Get('recipes/list')
+  recipes() {
+    return this.service.recipes();
+  }
+
+  @Post(':id/apply-to-inbound')
+  apply(@Param('id') id: string, @Body() body: ApplyHostDto) {
+    return this.service.applyToInbound(id, body);
   }
 
   @Get(':id')
