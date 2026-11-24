@@ -16,6 +16,14 @@ export class CreateHostDto {
   path?: string;
 
   @IsOptional()
+  @IsString()
+  recipe?: string;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
+
+  @IsOptional()
   @IsBoolean()
   enabled?: boolean;
 }
@@ -38,6 +46,19 @@ export class UpdateHostDto {
   path?: string;
 
   @IsOptional()
+  @IsString()
+  recipe?: string;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
+
+  @IsOptional()
   @IsBoolean()
   enabled?: boolean;
+}
+
+export class ApplyHostDto {
+  @IsString()
+  inboundId: string;
 }
