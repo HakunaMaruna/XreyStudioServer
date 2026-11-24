@@ -7,7 +7,7 @@ import { useLang } from '../lib/i18n';
 import { toggleUiMode } from '../lib/ui-mode';
 import type { IconName } from './icons';
 
-const bi: Record<IconName, string> = {
+export const bi: Record<IconName, string> = {
   grid: 'bi-grid-1x2-fill', users: 'bi-people-fill', server: 'bi-hdd-rack', plug: 'bi-plug-fill',
   globe: 'bi-globe2', route: 'bi-signpost-split', bell: 'bi-bell-fill', settings: 'bi-gear-fill',
   search: 'bi-search', sun: 'bi-brightness-high-fill', moon: 'bi-moon-stars-fill', logout: 'bi-box-arrow-right',
