@@ -216,6 +216,8 @@ model Rule {
   name           String
   type           String
   payload        Json
+  recipe         String?
+  note           String?
   enabled        Boolean       @default(true)
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)

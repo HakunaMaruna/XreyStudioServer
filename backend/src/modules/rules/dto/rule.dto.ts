@@ -11,6 +11,14 @@ export class CreateRuleDto {
   payload: Record<string, unknown>;
 
   @IsOptional()
+  @IsString()
+  recipe?: string;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
+
+  @IsOptional()
   @IsBoolean()
   enabled?: boolean;
 
@@ -33,10 +41,23 @@ export class UpdateRuleDto {
   payload?: Record<string, unknown>;
 
   @IsOptional()
+  @IsString()
+  recipe?: string;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
+
+  @IsOptional()
   @IsBoolean()
   enabled?: boolean;
 
   @IsOptional()
   @IsString()
   organizationId?: string | null;
+}
+
+export class ValidateRuleDto {
+  @IsObject()
+  payload: Record<string, unknown>;
 }

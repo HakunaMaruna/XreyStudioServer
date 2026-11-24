@@ -4,7 +4,7 @@ import { Role } from '@prisma/client';
 import { AuthUser, CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { CreateRuleDto, UpdateRuleDto } from './dto/rule.dto';
+import { CreateRuleDto, UpdateRuleDto, ValidateRuleDto } from './dto/rule.dto';
 import { RulesService } from './rules.service';
 
 @Controller('rules')
@@ -21,6 +21,16 @@ export class RulesController {
   @Post()
   create(@Body() body: CreateRuleDto, @CurrentUser() user: AuthUser) {
     return this.service.create(body, user);
+  }
+
+  @Get('recipes/list')
+  recipes() {
+    return this.service.recipes();
+  }
+
+  @Post('validate')
+  validate(@Body() body: ValidateRuleDto) {
+    return this.service.validate(body.payload);
   }
 
   @Get(':id')

@@ -1,7 +1,7 @@
 export type DocSection = {
   id: string;
   title: string;
-  icon: 'file' | 'key' | 'server' | 'shield' | 'database' | 'activity' | 'globe';
+  icon: 'file' | 'key' | 'server' | 'shield' | 'database' | 'activity' | 'globe' | 'route';
   markdown: string;
 };
 
@@ -133,6 +133,33 @@ https://msc.h2onetwork.pro/sub/2e3897d4-1f8a-4ebc-aba0-3072229d3504
 Кнопка **«Привязать к подключению»** в таблице хостов переносит SNI/путь и публичный адрес в inbound. После этого нажмите **Применить** на ноде — подписка сразу отдаст корректную ссылку.
 
 Подробная инструкция и примеры API — в \`docs/hosts.md\`.
+`,
+  },
+  {
+    id: 'rules',
+    title: 'Правила и рецепты',
+    icon: 'route',
+    markdown: `# Правила маршрутизации
+
+Правило решает, куда идёт соединение: \`direct\` (мимо туннеля) или \`blocked\` (blackhole).
+
+## Готовые рецепты
+
+| Рецепт | Условие | Куда |
+| --- | --- | --- |
+| Реклама | \`geosite:category-ads-all\` | blocked |
+| РФ напрямую | \`geosite:ru\`, \`geoip:ru\` | direct |
+| КНР напрямую | \`geosite:cn\`, \`geoip:cn\` | direct |
+| Локальные сети | CIDR RFC1918 | direct |
+| 18+ | \`geosite:porn\` | blocked |
+| Торренты | \`protocol: bittorrent\` | blocked |
+| DNS напрямую | порт 53 | direct |
+
+**Инфраструктура → Правила → Новое правило** → выбрать рецепт → **Проверить** → сохранить.
+
+Проверка API: \`POST /api/rules/validate\`. После сохранения нажмите **Применить** на ноде — иначе правило не попадёт в конфиг.
+
+Подробности: \`docs/rules.md\`.
 `,
   },
   {
