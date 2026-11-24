@@ -36,7 +36,12 @@ describe('ConfigGeneratorService: Xray stats, Reality and VMess (QA v2.15)', () 
           security: 'reality',
           transport: 'raw',
           flow: 'xtls-rprx-vision',
-          settings: { flow: 'xtls-rprx-vision' },
+          settings: {
+            flow: 'xtls-rprx-vision',
+            realityPrivateKey: 'reality-private-key-value',
+            realityServerNames: ['example.com', 'www.example.com'],
+            realityShortIds: ['abc123', 'def456'],
+          },
           clients: [],
         },
         {
