@@ -15,6 +15,8 @@ describe('ConfigGeneratorService: Xray stats, Reality and VMess (QA v2.15)', () 
   let service: ConfigGeneratorService;
   const savedStatsEnabled = process.env.XRAY_STATS_ENABLED;
   const savedApiPort = process.env.XRAY_API_PORT;
+  const TEST_REALITY_PRIVATE_KEY =
+    process.env.TEST_REALITY_PRIVATE_KEY || 'test-only-reality-key-not-a-secret';
 
   const realityNode = () => ({
     id: 'n1',
@@ -22,7 +24,7 @@ describe('ConfigGeneratorService: Xray stats, Reality and VMess (QA v2.15)', () 
     organizationId: null,
     config: {
       reality: {
-        privateKey: 'reality-private-key-value',
+        privateKey: TEST_REALITY_PRIVATE_KEY,
         serverNames: ['example.com', 'www.example.com'],
         shortIds: ['abc123', 'def456'],
       },
@@ -38,7 +40,7 @@ describe('ConfigGeneratorService: Xray stats, Reality and VMess (QA v2.15)', () 
           flow: 'xtls-rprx-vision',
           settings: {
             flow: 'xtls-rprx-vision',
-            realityPrivateKey: 'reality-private-key-value',
+            realityPrivateKey: TEST_REALITY_PRIVATE_KEY,
             realityServerNames: ['example.com', 'www.example.com'],
             realityShortIds: ['abc123', 'def456'],
           },
@@ -145,7 +147,7 @@ describe('ConfigGeneratorService: Xray stats, Reality and VMess (QA v2.15)', () 
           show: false,
           dest: 'www.microsoft.com:443',
           serverNames: ['example.com', 'www.example.com'],
-          privateKey: 'reality-private-key-value',
+          privateKey: TEST_REALITY_PRIVATE_KEY,
           shortIds: ['abc123', 'def456'],
           spiderX: '/',
         },
