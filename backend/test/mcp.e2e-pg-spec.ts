@@ -71,7 +71,7 @@ describe('MCP bridge /api/mcp (e2e, QA v2.15)', () => {
   const adminJwt = () =>
     new JwtService({ secret: JWT_SECRET }).sign({ sub: 'admin-1', username: 'admin', role: 'ADMIN' });
 
-  const rpc = (body: unknown, headers: Record<string, string> = {}) =>
+  const rpc = (body: Record<string, unknown>, headers: Record<string, string> = {}) =>
     request(server)
       .post('/api/mcp')
       .set('Content-Type', 'application/json')
