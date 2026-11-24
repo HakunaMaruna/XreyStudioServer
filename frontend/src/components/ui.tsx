@@ -11,6 +11,8 @@ import {
   type ReactNode,
 } from 'react';
 import { Icon, type IconName } from './icons';
+import { useUiMode } from '../lib/ui-mode';
+import { bi } from './adminlte-shell';
 
 export function cn(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(' ');
@@ -19,6 +21,14 @@ export function cn(...values: Array<string | false | null | undefined>) {
 type CardProps = { children: ReactNode; className?: string; padded?: boolean; delay?: number };
 
 export function Card({ children, className, padded = true, delay }: CardProps) {
+  const ui = useUiMode();
+  if (ui === 'adminlte') {
+    return (
+      <section className={cn('card card-outline card-primary', className)} style={delay ? { animationDelay: `${delay}ms` } : undefined}>
+        <div className={padded ? 'card-body' : ''}>{children}</div>
+      </section>
+    );
+  }
   return (
     <section
       className={cn('panel panel-hover animate-fade-up', padded && 'p-5', className)}
@@ -30,6 +40,18 @@ export function Card({ children, className, padded = true, delay }: CardProps) {
 }
 
 export function SectionTitle({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
+  const ui = useUiMode();
+  if (ui === 'adminlte') {
+    return (
+      <div className="d-flex align-items-start justify-content-between gap-3 mb-3">
+        <div>
+          <h3 className="h6 mb-0">{title}</h3>
+          {subtitle && <p className="text-muted small mb-0">{subtitle}</p>}
+        </div>
+        {action}
+      </div>
+    );
+  }
   return (
     <div className="mb-4 flex items-start justify-between gap-4">
       <div>
@@ -54,6 +76,19 @@ export function PageHeader({
   actions?: ReactNode;
   eyebrow?: string;
 }) {
+  const ui = useUiMode();
+  if (ui === 'adminlte') {
+    return (
+      <div className="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
+        <div>
+          {eyebrow && <small className="text-uppercase text-primary fw-semibold">{eyebrow}</small>}
+          <h3 className="mb-0">{title}</h3>
+          {subtitle && <p className="text-muted mb-0 small">{subtitle}</p>}
+        </div>
+        {actions && <div className="d-flex flex-wrap gap-2">{actions}</div>}
+      </div>
+    );
+  }
   return (
     <div className="animate-fade-up mb-5 flex flex-wrap items-end justify-between gap-3 sm:mb-7 sm:gap-4">
       <div className="flex min-w-0 items-center gap-2.5 sm:gap-3.5">
@@ -102,6 +137,27 @@ export function Button({
   disabled,
   ...props
 }: ButtonProps) {
+  const ui = useUiMode();
+  if (ui === 'adminlte') {
+    const bsVariant: Record<NonNullable<ButtonProps['variant']>, string> = {
+      primary: 'btn-primary',
+      secondary: 'btn-secondary',
+      ghost: 'btn-link',
+      danger: 'btn-outline-danger',
+      subtle: 'btn-light',
+    };
+    return (
+      <button
+        type={props.type ?? 'button'}
+        disabled={disabled || loading}
+        className={cn('btn', size === 'sm' ? 'btn-sm' : '', bsVariant[variant], className)}
+        {...props}
+      >
+        {loading ? <i className="bi bi-arrow-repeat spinner-border spinner-border-sm me-1" /> : icon && <i className={cn('bi', bi[icon], 'me-1')} />}
+        {children}
+      </button>
+    );
+  }
   return (
     <button
       className={cn(
@@ -171,6 +227,14 @@ export function Badge({
   dot?: boolean;
   className?: string;
 }) {
+  const ui = useUiMode();
+  if (ui === 'adminlte') {
+    const bsTone: Record<Tone, string> = {
+      brand: 'primary', success: 'success', warning: 'warning', danger: 'danger',
+      info: 'info', cyan: 'info', neutral: 'secondary',
+    };
+    return <span className={cn('badge', `bg-${bsTone[tone]}`, className)}>{dot && <i className="bi bi-circle-fill me-1 small" />}{children}</span>;
+  }
   return (
     <span
       className={cn(
@@ -211,6 +275,23 @@ export function StatCard({
   hint?: string;
   delay?: number;
 }) {
+  const ui = useUiMode();
+  if (ui === 'adminlte') {
+    const bsTone: Record<Tone, string> = {
+      brand: 'primary', success: 'success', warning: 'warning', danger: 'danger',
+      info: 'info', cyan: 'info', neutral: 'secondary',
+    };
+    return (
+      <div className={cn('small-box', `bg-${bsTone[tone]}`)}>
+        <div className="inner">
+          <h3>{value}</h3>
+          <p>{label}</p>
+          {hint && <p className="small mb-0 opacity-75">{hint}</p>}
+        </div>
+        <div className="icon"><i className={cn('bi', bi[icon])} /></div>
+      </div>
+    );
+  }
   return (
     <Card delay={delay} className="group relative overflow-hidden">
       <div className="absolute -right-8 -top-10 h-32 w-32 rounded-full bg-brand/10 blur-3xl transition-opacity group-hover:opacity-100" />
