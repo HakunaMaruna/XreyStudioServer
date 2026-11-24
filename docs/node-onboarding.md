@@ -8,11 +8,7 @@
 - на ноде: Linux, `git`, `docker` + `docker compose v2`, открытые порты под Xray;
 - DNS-имя ноды (если нужны TLS/подписки);
 - доступ к панели с ролью ADMIN или OPERATOR;
-- для SSH-способа — SSH-ключ или ssh-agent (скрипт работает в `BatchMode=yes`);
-- для `scripts/add-node.sh` — `jq` **или** `python3`: ими скрипт разбирает JSON-ответы
-  панели (`POST /api/nodes`, `POST /api/nodes/register`, `GET /api/nodes/:id/health`).
-  Без одного из них он не прочитает `id`/`agentToken` и статус ноды и остановится
-  с ошибкой ещё до установки (в `--dry-run` проверка не мешает — там разбора нет).
+- для SSH-способа — SSH-ключ или ssh-agent (скрипт работает в `BatchMode=yes`).
 
 ## Способ 1. Вручную (через панель и терминал)
 
@@ -151,6 +147,42 @@ helm lint ./helm/xrey
 | SSH-скрипт падает на `ssh` | нужен ключ или ssh-agent; `BatchMode=yes` пароли не поддерживает |
 | `sudo: a password is required` | запустите с `--user root` или настройте `NOPASSWD` для docker |
 | долгий первый старт в k8s | `startupProbe` даёт до 2 минут, дальше смотрите `kubectl logs` |
+
+## Canary-роллаут и откат конфигурации
+
+`scripts/rollout.sh` применяет конфигурацию на нодах по одной: сначала canary-группа,
+затем health gate, затем остальные. Если canary не проходит health gate, скрипт
+вызывает `POST /api/nodes/:id/rollback/:revisionId` и завершается с кодом `3`.
+
+```bash
+# 1) репетиция без сети и токена
+bash scripts/rollout.sh --nodes NODE_ID_1,NODE_ID_2 --canary 1 --dry-run
+
+# 2) canary-роллаут всех доступных нод с таймаутом health 90 с
+ADMIN_TOKEN='<админ-JWT>' bash scripts/rollout.sh --all --canary 1 --wait 90
+
+# 3) применение конкретной ревизии на двух нодах
+bash scripts/rollout.sh --nodes NODE_ID_1,NODE_ID_2 \
+  --revision-id REVISION_ID --admin-token '<админ-JWT>'
+```
+
+| Флаг | Назначение | По умолчанию |
+|---|---|---|
+| `--nodes <id1,id2,...>` | явный список id нод | — |
+| `--all` | взять список из `GET /api/nodes` | — |
+| `--canary <N>` | размер canary-группы | `1` |
+| `--wait <sec>` | таймаут health gate на ноду | `60` |
+| `--revision-id <id>` | ревизия для apply | активная |
+| `--admin-token <JWT>` | admin JWT (или `ADMIN_TOKEN`) | — |
+| `--dry-run` | только план, без curl | выключен |
+| `--help` | справка | — |
+
+Токен передаётся только в заголовке `Authorization: Bearer` и не попадает в логи
+(в логах выводится `***`). Для non-dry-run он обязателен: `ADMIN_TOKEN` или флаг
+`--admin-token`. `API_URL` по умолчанию `https://msc.h2onetwork.pro/api`.
+
+Коды выхода: `0` — успех, `1` — неверные аргументы, `2` — ошибка API/apply,
+`3` — health gate провален (rollback выполнен или попытка сделана).
 
 ## Ограничения песочницы
 
