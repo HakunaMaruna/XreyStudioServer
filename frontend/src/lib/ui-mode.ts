@@ -4,7 +4,8 @@ import { useSyncExternalStore } from 'react';
 export type UiMode = 'aurora' | 'adminlte';
 
 const KEY = 'xss_ui';
-const ENV_MODE: UiMode = process.env.NEXT_PUBLIC_UI === 'adminlte' ? 'adminlte' : 'aurora';
+// Новый UI по умолчанию. Старый доступен кнопкой переключения или NEXT_PUBLIC_UI=aurora.
+const ENV_MODE: UiMode = process.env.NEXT_PUBLIC_UI === 'aurora' ? 'aurora' : 'adminlte';
 
 let cached: UiMode = ENV_MODE;
 const listeners = new Set<() => void>();
