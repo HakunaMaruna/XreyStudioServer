@@ -32,6 +32,20 @@ v2.27.0 — автоматическая выдача доменов нодам 
 на оба имени; сами записи в зоне `node.h2onetwork.pro`, VLESS TLS вместо Reality.
 
 Тесты: `npm test` — 23 suites / 127 tests, все зелёные (в т.ч. 17 новых).
+
+Деплой на `msc.h2onetwork.pro` завершён (v2.27.0 + infra-фиксы в main):
+- `docker-compose.control.yml` поднят с PowerDNS (sqlite-бэкенд, API внутри Docker-сети,
+  `PDNS_BIND_IP=127.0.0.1` до публичного делегирования зоны).
+- Зона `node.h2onetwork.pro` создана в PowerDNS, NS `ns1/ns2.h2onetwork.pro`.
+- Живые smoke-тесты: неверный токен → 401; невалидный fingerprint мастера → 400;
+  выдача домена → A/AAAA TTL 60 в PowerDNS и `dig @127.0.0.1` вернул IP;
+  удаление → записи исчезли, активных доменов 0; `/wizard` → HTTP 200;
+  агент `xray: running` (версия конфига 17); `/api/health` ok.
+- Тестовые токены отозваны, тестовые домены удалены.
+
+Ожидается от владельца: NS + glue у регистратора `h2onetwork.pro`
+(см. `docs/control-dns.md`) и затем `PDNS_BIND_IP=0.0.0.0`.
+
 Перед продолжением прочитать #176, `docs/control-dns.md` и `docs/node-wizard.md`.
 
 ## Latest (v2.9.0 – v2.17.1, 2026-11-24)
