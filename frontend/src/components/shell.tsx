@@ -132,7 +132,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     className={cn(
                       'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all',
                       active
-                        ? 'bg-brand-soft font-medium text-brand'
+                        ? 'bg-gradient-to-r from-brand/20 via-brand-soft to-transparent font-medium text-brand shadow-[inset_3px_0_0_var(--brand)]'
                         : 'text-muted hover:bg-surface-2 hover:text-fg',
                     )}
                   >

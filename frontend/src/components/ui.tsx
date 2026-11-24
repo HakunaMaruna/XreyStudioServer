@@ -21,7 +21,7 @@ type CardProps = { children: ReactNode; className?: string; padded?: boolean; de
 export function Card({ children, className, padded = true, delay }: CardProps) {
   return (
     <section
-      className={cn('panel animate-fade-up', padded && 'p-5', className)}
+      className={cn('panel panel-hover animate-fade-up', padded && 'p-5', className)}
       style={delay ? { animationDelay: `${delay}ms` } : undefined}
     >
       {children}
@@ -58,13 +58,13 @@ export function PageHeader({
     <div className="animate-fade-up mb-7 flex flex-wrap items-end justify-between gap-4">
       <div className="flex items-center gap-3.5">
         {icon && (
-          <div className="grid h-11 w-11 place-items-center rounded-xl border border-brand/25 bg-brand-soft text-brand shadow-[0_0_24px_-8px_var(--brand)]">
-            <Icon name={icon} size={20} />
+          <div className="grid h-12 w-12 place-items-center rounded-2xl border border-brand/30 bg-gradient-to-br from-brand/25 to-brand-2/10 text-brand shadow-[0_10px_30px_-10px_var(--brand)]">
+            <Icon name={icon} size={21} />
           </div>
         )}
         <div>
           {eyebrow && (
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-brand">{eyebrow}</p>
+            <p className="mb-1 bg-gradient-to-r from-brand to-brand-2 bg-clip-text text-[10px] font-semibold uppercase tracking-[0.18em] text-transparent">{eyebrow}</p>
           )}
           <h1 className="text-2xl font-semibold tracking-tight text-fg">{title}</h1>
           {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
@@ -104,7 +104,7 @@ export function Button({
   return (
     <button
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-lg border font-medium transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50',
+        'inline-flex items-center justify-center gap-2 rounded-xl border font-medium transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50',
         size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm',
         buttonVariants[variant],
         className,
@@ -212,15 +212,16 @@ export function StatCard({
 }) {
   return (
     <Card delay={delay} className="group relative overflow-hidden">
-      <div className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-brand/5 blur-2xl transition-opacity group-hover:opacity-100" />
+      <div className="absolute -right-8 -top-10 h-32 w-32 rounded-full bg-brand/10 blur-3xl transition-opacity group-hover:opacity-100" />
+      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-brand via-brand-2 to-transparent opacity-60" />
       <div className="relative flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-medium text-muted">{label}</p>
-          <p className="mt-3 text-[28px] font-semibold leading-none tracking-tight text-fg tabular-nums">{value}</p>
-          {hint && <p className="mt-2 text-[11px] text-subtle">{hint}</p>}
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-subtle">{label}</p>
+          <p className="mt-3 bg-gradient-to-r from-fg via-fg to-brand-2 bg-clip-text text-[30px] font-semibold leading-none tracking-tight text-transparent tabular-nums">{value}</p>
+          {hint && <p className="mt-2 text-[11px] text-muted">{hint}</p>}
         </div>
-        <div className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-xl border', toneClasses[tone])}>
-          <Icon name={icon} size={18} />
+        <div className={cn('grid h-11 w-11 shrink-0 place-items-center rounded-xl border shadow-[0_8px_24px_-12px_var(--brand)]', toneClasses[tone])}>
+          <Icon name={icon} size={19} />
         </div>
       </div>
     </Card>
