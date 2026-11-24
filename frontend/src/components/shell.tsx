@@ -6,7 +6,7 @@ import { useLang } from '../lib/i18n';
 import { clearTokens, isLoggedIn } from '../lib/api';
 import { getTheme, applyTheme, type Theme } from '../lib/theme';
 import { APP_VERSION } from '../lib/version';
-import { Icon, type IconName } from './icons';
+import { Icon, toggleIconSet, type IconName } from './icons';
 import { Avatar, Badge, IconButton, cn } from './ui';
 
 type NavItem = { href: string; label: string; icon: IconName };
@@ -244,6 +244,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             {lang.toUpperCase()}
           </button>
           <IconButton icon={theme === 'dark' ? 'sun' : 'moon'} label="Toggle theme" onClick={switchTheme} />
+          <IconButton icon="sparkles" label="Toggle icon set" onClick={toggleIconSet} />
         </header>
 
         <main id="main-content" className="relative z-10 mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:px-8">{children}</main>
