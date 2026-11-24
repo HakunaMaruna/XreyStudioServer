@@ -92,6 +92,7 @@ model Node {
   certificateIssuedAt  DateTime?
   certificateExpiresAt DateTime?
   metrics        NodeMetric[]
+  healthChecks   HealthCheck[]
   inbounds       Inbound[]
   revisions      ConfigRevision[]
   organizationId String?
@@ -279,6 +280,24 @@ model UserTraffic {
 
   @@index([userId, createdAt])
   @@index([period])
+}
+
+model HealthCheck {
+  id         String   @id @default(uuid())
+  nodeId     String
+  node       Node     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  inboundId  String?
+  tag        String
+  protocol   String
+  host       String
+  port       Int
+  success    Boolean
+  latencyMs  Int?
+  error      String?
+  checkedAt  DateTime @default(now())
+
+  @@index([nodeId, checkedAt])
+  @@index([checkedAt])
 }
 
 model Device {
