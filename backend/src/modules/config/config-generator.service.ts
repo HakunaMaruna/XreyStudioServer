@@ -248,7 +248,16 @@ export class ConfigGeneratorService {
         ],
       },
       policy: {
-        levels: { '0': { handshake: 4, connIdle: 300, uplinkOnly: 2, downlinkOnly: 5, stats: true } },
+        levels: {
+          '0': {
+            handshake: 4,
+            connIdle: 300,
+            uplinkOnly: 2,
+            downlinkOnly: 5,
+            statsUserUplink: true,
+            statsUserDownlink: true,
+          },
+        },
       },
     };
 
