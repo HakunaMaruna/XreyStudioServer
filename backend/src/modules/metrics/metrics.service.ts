@@ -5,6 +5,25 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class MetricsService {
   constructor(private prisma: PrismaService) {}
 
+  /** Aggregated traffic by node, used by the per-node/per-profile report. */
+  async nodeTraffic() {
+    const [rows, nodes] = await Promise.all([
+      this.prisma.userTraffic.groupBy({
+        by: ['nodeId', 'period'],
+        _sum: { bytesUp: true, bytesDown: true },
+      }),
+      this.prisma.node.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+    ]);
+    const names = new Map(nodes.map((node) => [node.id, node.name]));
+    return rows.map((row) => ({
+      nodeId: row.nodeId,
+      nodeName: row.nodeId ? (names.get(row.nodeId) ?? 'unknown') : 'unassigned',
+      period: row.period,
+      bytesUp: (row._sum.bytesUp ?? 0n).toString(),
+      bytesDown: (row._sum.bytesDown ?? 0n).toString(),
+    }));
+  }
+
   async render() {
     const [users, activeUsers, nodes, onlineNodes, payments, latestMetrics] = await Promise.all([
       this.prisma.user.count(),

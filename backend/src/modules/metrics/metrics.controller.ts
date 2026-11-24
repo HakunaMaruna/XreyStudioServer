@@ -28,6 +28,13 @@ export class MetricsController {
     res.type('text/plain').send(await this.service.render());
   }
 
+  @Get('traffic/nodes')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN)
+  nodeTraffic() {
+    return this.service.nodeTraffic();
+  }
+
   @Get('view')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN)

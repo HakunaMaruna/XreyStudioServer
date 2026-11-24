@@ -77,6 +77,11 @@ keep exports within that cap. Headers:
 
 ## Reports
 
+- `GET /api/metrics/traffic/nodes` (JWT, `ADMIN`) — aggregated `UserTraffic` by node and
+  period: `{ nodeId, nodeName, period, bytesUp, bytesDown }`. Bytes are strings to avoid
+  JSON precision loss.
+
+
 - `GET /reports/organizations?from&to` — per-tenant users, active users, nodes, online nodes and
   traffic totals (includes a bucket for users/nodes without an organization)
 - `GET /reports/protocols` — inbound counts, enabled counts and distinct users/nodes by protocol
@@ -141,6 +146,11 @@ All report endpoints require an `ADMIN` JWT.
 - `PATCH /users/:id` accepts `squadId` to attach a single user.
 
 ## Config profiles
+
+- Config profiles support `nodeId`: `POST/PATCH /config-profiles` accepts a global node id
+  (nodes belonging to an organization are rejected). `GET /config-profiles` returns
+  `node: { id, name }` for each profile.
+
 
 - `GET /config-profiles`, `GET /config-profiles/:id`, `POST /config-profiles`,
   `PATCH /config-profiles/:id`, `DELETE /config-profiles/:id` — manage user config templates.

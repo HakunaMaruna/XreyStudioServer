@@ -4,6 +4,7 @@ import { Role } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { ConfigProfilesService } from './config-profiles.service';
+import { CreateConfigProfileDto, UpdateConfigProfileDto } from './dto/config-profile.dto';
 
 @Controller('config-profiles')
 @UseGuards(AuthGuard('jwt'), RolesGuard)

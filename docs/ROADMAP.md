@@ -11,7 +11,7 @@ Ideas are independently implemented; no code is copied from the source panels
 | 1 | Device/HWID limit with per-user cap, device list and revoke | remnawave, lucx-ui, Mistgate | **done (verified + documented)** | `Device` model, `deviceLimit`, subscription `?hwid=`, Devices UI, e2e `devices.e2e-pg-spec.ts`; README EN/RU + `docs/test-connection.md`. |
 | 2 | Decoy page + hidden admin entry (secret path) | Mistgate | **done** | `PANEL_DECOY`, `PANEL_ENTRY_PATH`, `/decoy`, routing-only cookie on login (auth still JWT). |
 | 3 | Per-user subscription landing page (QR, instructions, traffic/expiry) | Mistgate | **done** | HTML page at `/sub/<token>` with QR, instructions, traffic/expiry; browser HWID binding + `?hwid=` on every fetch; 403/429 shows device-limit message. Optional subscription password — separate follow-up (needs schema + client support). |
-| 4 | Per-node/per-outbound traffic and reusable connection profiles | 3x-ui, Mistgate | planned | Existing config profiles + traffic are the base. |
+| 4 | Per-node/per-outbound traffic and reusable connection profiles | 3x-ui, Mistgate | **partial** | ConfigProfile.nodeId binding + `/api/metrics/traffic/nodes` (per-node traffic from UserTraffic) + UI. Per-outbound breakdown needs agent-side tag collection — follow-up. |
 | 5 | Add node over SSH from UI with client certificate provisioning | Mistgate | planned | Agent already dials panel. |
 | 6 | Host doctor checks and safe auto-fixes | Mistgate | planned | Extend existing health-checks. |
 | 7 | Signed panel/agent updates (Ed25519) | Mistgate | planned | CI can sign releases. |

@@ -9,48 +9,48 @@ datasource db {
 }
 
 model Organization {
-  id        String   @id @default(uuid())
-  name      String
-  slug      String   @unique
-  branding  Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  users     User[]
-  nodes     Node[]
-  rules     Rule[]
-  apiTokens ApiToken[]
+  id                 String              @id @default(uuid())
+  name               String
+  slug               String              @unique
+  branding           Json?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  users              User[]
+  nodes              Node[]
+  rules              Rule[]
+  apiTokens          ApiToken[]
   notificationRoutes NotificationRoute[]
 }
 
 model User {
-  id                String    @id @default(uuid())
-  email             String    @unique
-  passwordHash      String
-  role              Role      @default(USER)
-  status            UserStatus @default(ACTIVE)
-  trafficLimit      BigInt    @default(0)
-  trafficUsed       BigInt    @default(0)
-  deviceLimit       Int       @default(0)
-  devices           Device[]
-  expiresAt         DateTime?
-  subscriptionToken String    @unique @default(uuid())
-  configProfileId   String?
-  configProfile     ConfigProfile? @relation(fields: [configProfileId], references: [id], onDelete: SetNull)
+  id                     String                @id @default(uuid())
+  email                  String                @unique
+  passwordHash           String
+  role                   Role                  @default(USER)
+  status                 UserStatus            @default(ACTIVE)
+  trafficLimit           BigInt                @default(0)
+  trafficUsed            BigInt                @default(0)
+  deviceLimit            Int                   @default(0)
+  devices                Device[]
+  expiresAt              DateTime?
+  subscriptionToken      String                @unique @default(uuid())
+  configProfileId        String?
+  configProfile          ConfigProfile?        @relation(fields: [configProfileId], references: [id], onDelete: SetNull)
   subscriptionTemplateId String?
-  subscriptionTemplate SubscriptionTemplate? @relation(fields: [subscriptionTemplateId], references: [id], onDelete: SetNull)
-  squadId           String?
-  squad             Squad?   @relation(fields: [squadId], references: [id], onDelete: SetNull)
-  organizationId    String?
-  organization      Organization? @relation(fields: [organizationId], references: [id])
-  inbounds          Inbound[]
-  inboundClients    InboundClient[]
-  auditLogs         AuditLog[]
-  payments          Payment[]
-  trafficReports    UserTraffic[]
-  refreshTokens     RefreshToken[]
-  apiTokens         ApiToken[]
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  subscriptionTemplate   SubscriptionTemplate? @relation(fields: [subscriptionTemplateId], references: [id], onDelete: SetNull)
+  squadId                String?
+  squad                  Squad?                @relation(fields: [squadId], references: [id], onDelete: SetNull)
+  organizationId         String?
+  organization           Organization?         @relation(fields: [organizationId], references: [id])
+  inbounds               Inbound[]
+  inboundClients         InboundClient[]
+  auditLogs              AuditLog[]
+  payments               Payment[]
+  trafficReports         UserTraffic[]
+  refreshTokens          RefreshToken[]
+  apiTokens              ApiToken[]
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
 
   @@index([organizationId])
   @@index([organizationId, createdAt, id])
@@ -83,31 +83,33 @@ model RefreshToken {
 }
 
 model Node {
-  id             String     @id @default(uuid())
-  name           String
-  address        String
-  port           Int        @default(443)
-  agentUrl       String?
-  tokenHash      String
-  status         NodeStatus @default(OFFLINE)
-  lastSeenAt     DateTime?
-  lastError      String?
-  xrayVersion    String?
+  id                   String           @id @default(uuid())
+  name                 String
+  address              String
+  port                 Int              @default(443)
+  agentUrl             String?
+  tokenHash            String
+  status               NodeStatus       @default(OFFLINE)
+  lastSeenAt           DateTime?
+  lastError            String?
+  xrayVersion          String?
   certificateHost      String?
   certificateIssuedAt  DateTime?
   certificateExpiresAt DateTime?
-  metrics        NodeMetric[]
-  healthChecks   HealthCheck[]
-  geo            NodeGeo?
-  inbounds       Inbound[]
-  revisions      ConfigRevision[]
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id])
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  metrics              NodeMetric[]
+  healthChecks         HealthCheck[]
+  geo                  NodeGeo?
+  inbounds             Inbound[]
+  revisions            ConfigRevision[]
+  organizationId       String?
+  organization         Organization?    @relation(fields: [organizationId], references: [id])
+  configProfiles       ConfigProfile[]
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
   @@index([organizationId])
   @@index([status])
+  @@index([name])
 }
 
 enum NodeStatus {
@@ -132,34 +134,35 @@ model NodeMetric {
 }
 
 model Inbound {
-  id        String   @id @default(uuid())
-  tag       String   @unique
-  nodeId    String?
-  node      Node?    @relation(fields: [nodeId], references: [id])
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
-  protocol       String
-  transport      String    @default("tcp")
-  security       String    @default("none")
-  port           Int
-  listen         String    @default("0.0.0.0")
-  flow           String?
-  path           String?
-  sni            String?
-  serviceName    String?
-  trafficLimit   BigInt    @default(0)
-  trafficUsed    BigInt    @default(0)
-  expiresAt      DateTime?
-  resetSchedule  String    @default("never")
-  resetDay       Int?
-  settings       Json
-  enabled        Boolean   @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String    @id @default(uuid())
+  tag           String    @unique
+  nodeId        String?
+  node          Node?     @relation(fields: [nodeId], references: [id])
+  userId        String?
+  user          User?     @relation(fields: [userId], references: [id])
+  protocol      String
+  transport     String    @default("tcp")
+  security      String    @default("none")
+  port          Int
+  listen        String    @default("0.0.0.0")
+  flow          String?
+  path          String?
+  sni           String?
+  serviceName   String?
+  trafficLimit  BigInt    @default(0)
+  trafficUsed   BigInt    @default(0)
+  expiresAt     DateTime?
+  resetSchedule String    @default("never")
+  resetDay      Int?
+  settings      Json
+  enabled       Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  fallbacks      InboundFallback[] @relation("InboundFallbacks")
-  fallbackOf     InboundFallback[] @relation("FallbackChildren")
-  clients        InboundClient[]
+  fallbacks  InboundFallback[] @relation("InboundFallbacks")
+  fallbackOf InboundFallback[] @relation("FallbackChildren")
+  clients    InboundClient[]
+
   @@index([nodeId])
   @@index([userId])
 }
@@ -247,30 +250,30 @@ model AuditLog {
 }
 
 model Payment {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  planId    String?
-  plan      SubscriptionPlan? @relation(fields: [planId], references: [id])
-  amount    Decimal  @db.Decimal(10, 2)
-  currency  String   @default("USD")
-  status    String
-  provider  String
+  id         String            @id @default(uuid())
+  userId     String
+  user       User              @relation(fields: [userId], references: [id])
+  planId     String?
+  plan       SubscriptionPlan? @relation(fields: [planId], references: [id])
+  amount     Decimal           @db.Decimal(10, 2)
+  currency   String            @default("USD")
+  status     String
+  provider   String
   externalId String?
-  createdAt DateTime @default(now())
+  createdAt  DateTime          @default(now())
 
   @@index([userId])
   @@index([planId])
 }
 
 model SubscriptionPlan {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   name         String
-  price        Decimal  @db.Decimal(10, 2)
+  price        Decimal   @db.Decimal(10, 2)
   trafficGb    Int
   durationDays Int
-  enabled      Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  enabled      Boolean   @default(true)
+  createdAt    DateTime  @default(now())
   payments     Payment[]
 }
 
@@ -289,17 +292,17 @@ model UserTraffic {
 }
 
 model SubscriptionTemplate {
-  id          String   @id @default(uuid())
-  name        String
-  title       String
-  description String?
-  accent      String   @default("#8474ff")
+  id           String   @id @default(uuid())
+  name         String
+  title        String
+  description  String?
+  accent       String   @default("#8474ff")
   instructions Json?
-  footer      String?
-  enabled     Boolean  @default(true)
-  users       User[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  footer       String?
+  enabled      Boolean  @default(true)
+  users        User[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([enabled])
 }
@@ -319,18 +322,18 @@ model NodeGeo {
 }
 
 model HealthCheck {
-  id         String   @id @default(uuid())
-  nodeId     String
-  node       Node     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
-  inboundId  String?
-  tag        String
-  protocol   String
-  host       String
-  port       Int
-  success    Boolean
-  latencyMs  Int?
-  error      String?
-  checkedAt  DateTime @default(now())
+  id        String   @id @default(uuid())
+  nodeId    String
+  node      Node     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  inboundId String?
+  tag       String
+  protocol  String
+  host      String
+  port      Int
+  success   Boolean
+  latencyMs Int?
+  error     String?
+  checkedAt DateTime @default(now())
 
   @@index([nodeId, checkedAt])
   @@index([checkedAt])
@@ -349,15 +352,15 @@ model Device {
 }
 
 model Squad {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   name         String
   description  String?
-  trafficLimit BigInt   @default(0)
+  trafficLimit BigInt    @default(0)
   expiresAt    DateTime?
-  enabled      Boolean  @default(true)
+  enabled      Boolean   @default(true)
   users        User[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([enabled])
 }
@@ -371,8 +374,11 @@ model ConfigProfile {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   users       User[]
+  nodeId      String?
+  node        Node?    @relation(fields: [nodeId], references: [id], onDelete: SetNull)
 
   @@index([enabled])
+  @@index([nodeId])
 }
 
 model RoutingProfile {
@@ -425,9 +431,6 @@ model AlertHistory {
   @@index([status, createdAt])
 }
 
-
-
-
 enum ApiTokenScope {
   MONITOR
   NODE_SYNC
@@ -436,18 +439,18 @@ enum ApiTokenScope {
 }
 
 model ApiToken {
-  id             String         @id @default(uuid())
+  id             String          @id @default(uuid())
   name           String
-  tokenHash      String         @unique
+  tokenHash      String          @unique
   scopes         ApiTokenScope[]
   userId         String
-  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   organizationId String?
-  organization   Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   expiresAt      DateTime?
   revokedAt      DateTime?
   lastUsedAt     DateTime?
-  createdAt      DateTime       @default(now())
+  createdAt      DateTime        @default(now())
 
   @@index([userId, revokedAt])
   @@index([organizationId])
