@@ -3,9 +3,12 @@
 Context for the next agent. Read this first, then `trail ask "<question>" /work/XreyStudioServer`
 or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `graft/`).
 
-## Latest (v2.9.0 – v2.15.3, 2026-11-24)
+## Latest (v2.9.0 – v2.17.1, 2026-11-24)
 
-- Live panel: `https://msc.h2onetwork.pro` (current tag v2.15.3, `/api/health` 200, login 201).
+- Live panel: `https://msc.h2onetwork.pro` (current tag v2.17.1, `/api/health` 200, login 201).
+  Node geo report works: `RU / Moscow / 213.171.30.186 / AS208677`, visible in the nodes table.
+  VPN tunnel re-verified after all deploys: `httpbin.org/get` and `api.ipify.org` through the
+  subscription returned `213.171.30.186` (not the local direct IP).
   MCP bridge at `/api/mcp` works with `MCP_TOKEN` from `.env` (documented in `docs/mcp.md`).
 - **Real VPN test connection** is set up: `docs/test-connection.md` contains the subscription URL
   and import instructions. The agent image now includes Xray 26.11.9 and runs it as a managed
@@ -26,8 +29,13 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 - Delegated agents: #92/#107 (QA, PR #96/#94/#97/#120/#121/#123), #93 (UX report, PR #100) and
   #95 (SSH node onboarding, PR #103/#110) are closed/merged. Active: #108 (UX re-review),
   #109 (canary rollout), #125 (QA for MCP/Xray).
-- v2.15.x: Xray runs inside the agent container, per-user traffic stats enabled in the Xray
-  policy, managed-restart race fixed, VLESS Reality test port added.
+- v2.15.x: Xray runs inside the agent container, Xray 26 `statsquery` support, managed-restart
+  race fixed, VLESS Reality test port added.
+- v2.16.0: security hardening (tenant isolation for inbounds, SSRF guards in agent-client,
+  OPERATOR cannot modify ADMIN, METRICS_TOKEN required in prod, traffic scoped to node org).
+  Security re-audit findings #137–#140 closed.
+- v2.17.x: node exit-IP geocheck with retry on startup; agent 4's `add-node.sh` JSON parsing
+  hardened (PR #146). Open agent tasks: #145 (agent 2 QA), #148 (agent 4 canary rollouts).
 - Blocked: per-node Let's Encrypt needs a wildcard DNS record `*.msc.h2onetwork.pro`
   pointing at `213.171.30.186` (user action).
 - Still in the plan: decoy sites, canary rollouts, MCP bridge, tunnel sidecars (AmneziaWG /
