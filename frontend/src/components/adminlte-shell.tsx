@@ -50,6 +50,7 @@ export default function AdminLiteShell({ children }: { children: ReactNode }) {
     item(t.users, '/users', 'users'),
     item(t.squads, '/squads', 'fingerprint'),
     item(t.configProfiles, '/config-profiles', 'command'),
+    item(t.doctor, '/doctor', 'activity'),
     item(t.organizations, '/organizations', 'shield'),
     item(t.audit, '/audit', 'list'),
     { type: 'header', text: t.billing },

@@ -209,6 +209,16 @@ All certificate endpoints are ADMIN-only.
 
 ## Operations
 
+## Doctor
+
+- `GET /api/doctor` (JWT, `ADMIN`) — read-only checks: database reachability, offline/stale
+  nodes, failed client-eye health checks in the last 24h, expired node certificates and
+  stale config revisions.
+- `POST /api/doctor/fix` (JWT, `ADMIN`) — allow-listed safe fixes only. Currently
+  `{ "checkId": "stale_revision", "entityId": "<node id>" }` re-applies the latest config
+  revision to an ONLINE node; all other check ids are rejected.
+
+
 - `POST /notifications/test` — broadcast a test notification to all configured channels (ADMIN)
 - `GET /notifications/channels` — which channels are configured (no secrets)
 - `GET /notifications/alerts?page&limit&status` — persisted alert history (ADMIN)

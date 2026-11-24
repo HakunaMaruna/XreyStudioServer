@@ -29,6 +29,7 @@ import { CertificatesModule } from './modules/certificates/certificates.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { RoutingModule } from './modules/routing/routing.module';
 import { ConfigProfilesModule } from './modules/config-profiles/config-profiles.module';
+import { DoctorModule } from './modules/doctor/doctor.module';
 import { SquadsModule } from './modules/squads/squads.module';
 import { DevicesModule } from './modules/devices/devices.module';
 import { HealthChecksModule } from './modules/health-checks/health-checks.module';
@@ -73,6 +74,7 @@ import { McpModule } from './modules/mcp/mcp.module';
     SettingsModule,
     RoutingModule,
     ConfigProfilesModule,
+    DoctorModule,
     SquadsModule,
     DevicesModule,
     HealthChecksModule,
