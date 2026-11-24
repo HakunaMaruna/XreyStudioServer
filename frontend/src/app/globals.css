@@ -227,6 +227,11 @@ button:focus-visible {
   animation: soft-pulse 2.4s ease-in-out infinite;
 }
 
+/* Яркий набор иконок: лёгкое свечение в цвет самой иконки. */
+.icon-bright {
+  filter: drop-shadow(0 0 4px color-mix(in srgb, currentColor 45%, transparent));
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .animate-fade-in,
