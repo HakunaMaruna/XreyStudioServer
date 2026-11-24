@@ -1,6 +1,6 @@
 {
   "name": "xss-backend",
-  "version": "2.20.1",
+  "version": "2.21.0",
   "private": true,
   "scripts": {
     "start": "nest start",
