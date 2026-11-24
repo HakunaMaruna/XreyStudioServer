@@ -384,6 +384,8 @@ app.post('/rollback', auth, async (req, res) => {
     return res.status(400).json({ error: 'No backup available' });
   }
   fs.copyFileSync(lastGood, CONFIG_PATH);
+  // Rolled-back file no longer matches the tracked hash; force re-apply on next push/pull.
+  lastConfigHash = null;
   const result = await run('systemctl', ['reload-or-restart', XRAY_SERVICE], 10000);
   res.json({ rolledBack: true, reloaded: result.ok });
 });
