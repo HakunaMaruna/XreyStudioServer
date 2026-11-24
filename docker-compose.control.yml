@@ -18,7 +18,6 @@ services:
       - --webserver-address=0.0.0.0
       - --webserver-port=8081
       - --webserver-allow-from=0.0.0.0/0
-      - --default-soa-name=ns1.h2onetwork.pro.
     ports:
       - "${PDNS_BIND_IP:-0.0.0.0}:53:53/tcp"
       - "${PDNS_BIND_IP:-0.0.0.0}:53:53/udp"
