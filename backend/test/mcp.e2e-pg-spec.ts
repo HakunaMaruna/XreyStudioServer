@@ -4,6 +4,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { APP_VERSION } from '../src/version';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 /**
@@ -130,7 +131,7 @@ describe('MCP bridge /api/mcp (e2e, PostgreSQL, QA v2.15)', () => {
       expect(Array.isArray(result.content)).toBe(true);
       expect(result.isError).not.toBe(true);
       expect(JSON.parse(String((result.content[0] as any).text))).toMatchObject({
-        version: '2.15.5',
+        version: APP_VERSION,
       });
     } finally {
       await client.close();
