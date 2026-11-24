@@ -11,7 +11,7 @@ services:
       MYSQL_AUTOCONF: "false"
     command:
       - --launch=gsqlite3
-      - --sqlite3-database=/var/lib/powerdns/pdns.sqlite3
+      - --gsqlite3-database=/var/lib/powerdns/pdns.sqlite3
       - --api=yes
       - --api-key=${PDNS_API_KEY:-change-me-dns-api-key}
       - --webserver=yes
