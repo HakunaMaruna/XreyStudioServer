@@ -378,6 +378,21 @@ model BackupSettings {
   updatedAt     DateTime  @updatedAt
 }
 
+model GeodataCategory {
+  id          String   @id @default(uuid())
+  type        String
+  code        String
+  name        String
+  description String?
+  source      String   @default("bundled")
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([type, code])
+  @@index([type, enabled])
+}
+
 model AlertHistory {
   id        String   @id @default(uuid())
   status    String
