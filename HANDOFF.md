@@ -3,9 +3,15 @@
 Context for the next agent. Read this first, then `trail ask "<question>" /work/XreyStudioServer`
 or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `graft/`).
 
-## Latest (v2.9.0 – v2.13.0, 2026-11-24)
+## Latest (v2.9.0 – v2.15.3, 2026-11-24)
 
-- Live panel: `https://msc.h2onetwork.pro` (tag v2.13.0, `/api/health` 200, login 201).
+- Live panel: `https://msc.h2onetwork.pro` (current tag v2.15.3, `/api/health` 200, login 201).
+  MCP bridge at `/api/mcp` works with `MCP_TOKEN` from `.env` (documented in `docs/mcp.md`).
+- **Real VPN test connection** is set up: `docs/test-connection.md` contains the subscription URL
+  and import instructions. The agent image now includes Xray 26.11.9 and runs it as a managed
+  child process (no systemd), with ports 2053 (VMess) and 2054 (VLESS Reality) published.
+  End-to-end test from another machine: `httpbin.org/get` through the tunnel returned
+  `origin: 213.171.30.186` (local direct IP was different) — traffic really exits via the server.
   Server: `ssh user1@213.171.30.186` with `~/.ssh/id_xss_server`; deploy from `/home/user1/xss`
   via `git reset --hard origin/main` + `docker compose up -d --build backend frontend agent`,
   followed by `npx prisma db push --skip-generate` and a backend restart when the schema changes.
@@ -17,8 +23,11 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 - Agent-review findings (PR #100, `docs/reports/ux-review-v2.8.md`) were fixed in v2.12.0:
   dialog semantics/focus trap, label↔input association, `role=switch`, page titles, skip link,
   search/password aria-labels, WCAG AA contrast.
-- Delegated agents: #92 (QA, PR #96/#94/#97), #93 (UX report, PR #100) and #95
-  (SSH node onboarding + shared-port + k8s/helm probes, PR #103) are all closed/merged.
+- Delegated agents: #92/#107 (QA, PR #96/#94/#97/#120/#121/#123), #93 (UX report, PR #100) and
+  #95 (SSH node onboarding, PR #103/#110) are closed/merged. Active: #108 (UX re-review),
+  #109 (canary rollout), #125 (QA for MCP/Xray).
+- v2.15.x: Xray runs inside the agent container, per-user traffic stats enabled in the Xray
+  policy, managed-restart race fixed, VLESS Reality test port added.
 - Blocked: per-node Let's Encrypt needs a wildcard DNS record `*.msc.h2onetwork.pro`
   pointing at `213.171.30.186` (user action).
 - Still in the plan: decoy sites, canary rollouts, MCP bridge, tunnel sidecars (AmneziaWG /
