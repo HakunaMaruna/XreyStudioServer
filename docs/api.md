@@ -84,6 +84,12 @@ keep exports within that cap. Headers:
 
 All report endpoints require an `ADMIN` JWT.
 
+## Client-eye health checks
+
+- `GET /health-checks?nodeId&limit` — TCP connect latency from the panel to every enabled inbound
+- `GET /health-checks/latest` — latest result per inbound
+- Background probe runs every `HEALTH_CHECK_INTERVAL` seconds (default 300), minimum 30.
+
 ## Devices (HWID limits)
 
 - `GET /devices?userId` — list devices (ADMIN/OPERATOR)
