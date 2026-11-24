@@ -47,7 +47,7 @@ export class ApiTokensController {
     return this.tokens.create({
       name: dto.name,
       scopes: dto.scopes,
-      organizationId: dto.organizationId ?? user.organizationId ?? null,
+      organizationId: user.organizationId ?? null,
       expiresAt,
       actor: { userId: user.userId, role: user.role as Role, organizationId: user.organizationId },
     });
