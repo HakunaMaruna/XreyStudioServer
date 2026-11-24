@@ -21,7 +21,7 @@ export const RULE_RECIPES: RuleRecipe[] = [
     title: 'Российские сайты напрямую',
     description: 'geosite:ru/category-ru и geoip:ru идут мимо туннеля. Нужны geodata-файлы на ноде.',
     type: 'field',
-    payload: { type: 'field', domain: ['geosite:ru', 'geosite:category-ru'], ip: ['geoip:ru'], outboundTag: 'direct' },
+    payload: { type: 'field', domain: ['geosite:category-ru'], ip: ['geoip:ru'], outboundTag: 'direct' },
   },
   {
     id: 'cn-direct',
@@ -46,7 +46,7 @@ export const RULE_RECIPES: RuleRecipe[] = [
     title: 'Блокировать 18+',
     description: 'geosite:porn уходит в blackhole.',
     type: 'field',
-    payload: { type: 'field', domain: ['geosite:porn'], outboundTag: 'blocked' },
+    payload: { type: 'field', domain: ['geosite:category-porn'], outboundTag: 'blocked' },
   },
   {
     id: 'block-torrents',
