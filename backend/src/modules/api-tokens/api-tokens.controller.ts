@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTokenScope, Role } from '@prisma/client';
+import { IsArray, IsDateString, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import { AuthGuard } from '@nestjs/passport';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -18,9 +19,16 @@ import { ApiTokensService } from './api-tokens.service';
 import { ApiTokenGuard, ApiTokenUser, RequireScope } from './api-token.guard';
 
 class CreateApiTokenDto {
-  name: string;
-  scopes: ApiTokenScope[];
-  organizationId?: string;
+  @IsString()
+  @MaxLength(120)
+  name!: string;
+
+  @IsArray()
+  @IsIn(Object.values(ApiTokenScope), { each: true })
+  scopes!: ApiTokenScope[];
+
+  @IsOptional()
+  @IsDateString()
   expiresAt?: string;
 }
 
