@@ -1,5 +1,4 @@
-import { INestApplication } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -9,67 +8,15 @@ import { PrismaService } from '../src/prisma/prisma.service';
 
 /**
  * QA v2.15 issue 125: end-to-end coverage of the read-only MCP bridge.
- * The real Nest application and MCP SDK are used; only Prisma is replaced with
- * a delegate mock so no database fixtures are needed.
+ * Uses the real Nest application and MCP SDK against the PostgreSQL e2e database.
  */
 const MCP_TOKEN = 'e2e-mcp-token-qa-v215';
-const JWT_SECRET = 'e2e-test-jwt-secret';
 
-describe('MCP bridge /api/mcp (e2e, QA v2.15)', () => {
+describe('MCP bridge /api/mcp (e2e, PostgreSQL, QA v2.15)', () => {
   let app: INestApplication;
   let server: any;
-  const savedEnv: Record<string, string | undefined> = {};
-
-  beforeAll(async () => {
-    savedEnv.MCP_TOKEN = process.env.MCP_TOKEN;
-    savedEnv.JWT_SECRET = process.env.JWT_SECRET;
-    process.env.MCP_TOKEN = MCP_TOKEN;
-    process.env.JWT_SECRET = JWT_SECRET;
-
-    const prisma = {
-      $connect: jest.fn(),
-      $disconnect: jest.fn(),
-      onModuleInit: jest.fn(),
-      enableShutdownHooks: jest.fn(),
-      user: {
-        count: jest.fn().mockResolvedValue(3),
-        findMany: jest.fn().mockResolvedValue([]),
-      },
-      node: {
-        count: jest.fn().mockResolvedValue(2),
-        findMany: jest.fn().mockResolvedValue([]),
-      },
-      subscriptionTemplate: {
-        count: jest.fn().mockResolvedValue(1),
-        findMany: jest.fn().mockResolvedValue([]),
-      },
-      healthCheck: {
-        count: jest.fn().mockResolvedValue(0),
-        findMany: jest.fn().mockResolvedValue([]),
-      },
-      inbound: { findMany: jest.fn().mockResolvedValue([]) },
-      geodataCategory: { findMany: jest.fn().mockResolvedValue([]) },
-    };
-
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(PrismaService)
-      .useValue(prisma)
-      .compile();
-    app = moduleRef.createNestApplication();
-    await app.init();
-    server = app.getHttpServer();
-  });
-
-  afterAll(async () => {
-    if (app) await app.close();
-    for (const key of ['MCP_TOKEN', 'JWT_SECRET']) {
-      if (savedEnv[key] === undefined) delete process.env[key];
-      else process.env[key] = savedEnv[key];
-    }
-  });
-
-  const adminJwt = () =>
-    new JwtService({ secret: JWT_SECRET }).sign({ sub: 'admin-1', username: 'admin', role: 'ADMIN' });
+  let adminToken: string;
+  const previousToken = process.env.MCP_TOKEN;
 
   const rpc = (body: Record<string, unknown>, headers: Record<string, string> = {}) =>
     request(server)
@@ -102,19 +49,40 @@ describe('MCP bridge /api/mcp (e2e, QA v2.15)', () => {
     throw new Error(`No JSON-RPC payload in response: ${text.slice(0, 300)}`);
   };
 
-  // The transport is stateless: no session id is issued, so tools/list and
-  // tools/call are self-contained requests authenticated by the same header.
-  const initialize = async (headers: Record<string, string>): Promise<void> => {
-    const response = await rpc(initRequest, headers).expect(200);
-    expect(parseRpc(response).result?.protocolVersion).toBeDefined();
+  const login = async () => {
+    const response = await request(server)
+      .post('/api/auth/login')
+      .send({ email: process.env.ADMIN_EMAIL || 'e2e-admin@example.com', password: process.env.ADMIN_PASSWORD || 'e2e-password123' })
+      .expect(201);
+    return response.body.accessToken as string;
   };
 
-  it('rejects initialize and tools/list without a token (401)', async () => {
-    await rpc(initRequest).expect(401);
+  beforeAll(async () => {
+    process.env.MCP_TOKEN = MCP_TOKEN;
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    expect(moduleRef.get(PrismaService)).toBeDefined();
+    app = moduleRef.createNestApplication();
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.setGlobalPrefix('api');
+    await app.init();
+    server = app.getHttpServer();
+    adminToken = await login();
+    expect(adminToken).toBeTruthy();
+  }, 60000);
+
+  afterAll(async () => {
+    await app?.close();
+    if (previousToken === undefined) delete process.env.MCP_TOKEN;
+    else process.env.MCP_TOKEN = previousToken;
+  }, 60000);
+
+  it('rejects initialize and tools/list without a token', async () => {
+    const missing = await rpc(initRequest).expect(401);
+    expect(missing.body.message).toMatch(/token|JWT/i);
     await rpc({ jsonrpc: '2.0', id: 2, method: 'tools/list' }).expect(401);
   });
 
-  it('rejects an invalid MCP token and an invalid JWT (401)', async () => {
+  it('rejects an invalid MCP token and an invalid JWT', async () => {
     await rpc(initRequest, { 'X-MCP-Token': 'wrong-token' }).expect(401);
     await rpc(initRequest, { Authorization: 'Bearer not-a-jwt' }).expect(401);
   });
@@ -123,7 +91,7 @@ describe('MCP bridge /api/mcp (e2e, QA v2.15)', () => {
     const byToken = await rpc(initRequest, { 'X-MCP-Token': MCP_TOKEN }).expect(200);
     expect(parseRpc(byToken).result?.protocolVersion).toBeDefined();
 
-    const byJwt = await rpc({ ...initRequest, id: 3 }, { Authorization: `Bearer ${adminJwt()}` }).expect(200);
+    const byJwt = await rpc({ ...initRequest, id: 3 }, { Authorization: `Bearer ${adminToken}` }).expect(200);
     expect(parseRpc(byJwt).result?.protocolVersion).toBeDefined();
   });
 
@@ -148,7 +116,6 @@ describe('MCP bridge /api/mcp (e2e, QA v2.15)', () => {
           'geodata_search',
         ]),
       );
-
       const writeLike = names.filter((name) =>
         /^(create|update|delete|remove|set|add|patch|revoke|restart|stop|start)[-_]/i.test(name),
       );
@@ -157,11 +124,8 @@ describe('MCP bridge /api/mcp (e2e, QA v2.15)', () => {
       const result = await client.callTool({ name: 'panel_status', arguments: {} });
       expect(Array.isArray(result.content)).toBe(true);
       expect(result.isError).not.toBe(true);
-      expect(result.content[0]).toMatchObject({ type: 'text' });
       expect(JSON.parse(String((result.content[0] as any).text))).toMatchObject({
         version: '2.15.5',
-        users: 3,
-        nodes: 2,
       });
     } finally {
       await client.close();
@@ -169,11 +133,8 @@ describe('MCP bridge /api/mcp (e2e, QA v2.15)', () => {
   });
 
   it('supports initialize -> tools/list -> tools/call as stateless requests', async () => {
-    await initialize({ 'X-MCP-Token': MCP_TOKEN });
-    const list = await rpc(
-      { jsonrpc: '2.0', id: 2, method: 'tools/list' },
-      { 'X-MCP-Token': MCP_TOKEN },
-    ).expect(200);
+    await rpc(initRequest, { 'X-MCP-Token': MCP_TOKEN }).expect(200);
+    const list = await rpc({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, { 'X-MCP-Token': MCP_TOKEN }).expect(200);
     const tools = parseRpc(list).result.tools;
     expect(Array.isArray(tools)).toBe(true);
     expect(tools.map((tool: any) => tool.name)).toContain('panel_status');
@@ -185,8 +146,7 @@ describe('MCP bridge /api/mcp (e2e, QA v2.15)', () => {
     expect(Array.isArray(parseRpc(call).result.content)).toBe(true);
   });
 
-  it('rejects a tool name that does not exist', async () => {
-    await initialize({ 'X-MCP-Token': MCP_TOKEN });
+  it('returns an error for an unknown tool name', async () => {
     const response = await rpc(
       { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'delete_user', arguments: {} } },
       { 'X-MCP-Token': MCP_TOKEN },
