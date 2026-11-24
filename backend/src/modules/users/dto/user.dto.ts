@@ -91,6 +91,10 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
+  subscriptionTemplateId?: string;
+
+  @IsOptional()
+  @IsString()
   squadId?: string;
 }
 

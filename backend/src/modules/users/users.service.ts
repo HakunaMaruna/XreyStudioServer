@@ -88,6 +88,9 @@ export class UsersService {
         expiresAt: true,
         subscriptionToken: true,
         organizationId: true,
+        configProfileId: true,
+        squadId: true,
+        subscriptionTemplateId: true,
         createdAt: true,
         inbounds: true,
       },
@@ -156,6 +159,11 @@ export class UsersService {
         ? { connect: { id: dto.configProfileId } }
         : { disconnect: true };
     }
+    if (dto.subscriptionTemplateId !== undefined) {
+      data.subscriptionTemplate = dto.subscriptionTemplateId
+        ? { connect: { id: dto.subscriptionTemplateId } }
+        : { disconnect: true };
+    }
     if (dto.squadId !== undefined) {
       data.squad = dto.squadId
         ? { connect: { id: dto.squadId } }
@@ -175,6 +183,7 @@ export class UsersService {
         organizationId: true,
         configProfileId: true,
         squadId: true,
+        subscriptionTemplateId: true,
         updatedAt: true,
       },
     });

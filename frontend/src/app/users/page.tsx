@@ -41,6 +41,7 @@ export default function UsersPage() {
   const [inbounds, setInbounds] = useState<{ id: string; tag: string }[]>([]);
   const [attachId, setAttachId] = useState('');
   const [profiles, setProfiles] = useState<{ id: string; name: string }[]>([]);
+  const [subTemplates, setSubTemplates] = useState<{ id: string; name: string }[]>([]);
   const [devices, setDevices] = useState<{ id: string; hwid: string; name: string | null; lastSeenAt: string | null }[]>([]);
   const [hwidInput, setHwidInput] = useState('');
 
@@ -142,6 +143,9 @@ export default function UsersPage() {
       const profileList = await api.get('/api/config-profiles').catch(() => ({ data: [] }));
       const profileRows = Array.isArray(profileList) ? profileList : profileList.data || [];
       setProfiles(profileRows.map((p: any) => ({ id: p.id, name: p.name })));
+      const templateList = await api.get('/api/subscription-templates').catch(() => ({ data: [] }));
+      const templateRows = Array.isArray(templateList) ? templateList : templateList.data || [];
+      setSubTemplates(templateRows.map((p: any) => ({ id: p.id, name: p.name })));
       const deviceList = await api.get(`/api/devices?userId=${user.id}`).catch(() => []);
       const deviceRows = Array.isArray(deviceList) ? deviceList : deviceList.data || [];
       setDevices(deviceRows);
@@ -402,6 +406,23 @@ export default function UsersPage() {
               >
                 <option value="">—</option>
                 {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+            <div className="border-t border-line pt-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-subtle">{t.subscriptionTemplates}</p>
+              <select
+                value={connection.subscriptionTemplateId || ''}
+                onChange={async (e) => {
+                  const value = e.target.value || null;
+                  try {
+                    await api.patch(`/api/users/${connection.id}`, { subscriptionTemplateId: value });
+                    setConnection({ ...connection, subscriptionTemplateId: value });
+                  } catch (err: any) { setError(err.message); }
+                }}
+                className="field"
+              >
+                <option value="">—</option>
+                {subTemplates.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div className="border-t border-line pt-4">

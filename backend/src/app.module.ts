@@ -30,6 +30,7 @@ import { ConfigProfilesModule } from './modules/config-profiles/config-profiles.
 import { SquadsModule } from './modules/squads/squads.module';
 import { DevicesModule } from './modules/devices/devices.module';
 import { HealthChecksModule } from './modules/health-checks/health-checks.module';
+import { SubscriptionTemplatesModule } from './modules/subscription-templates/subscription-templates.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { HealthChecksModule } from './modules/health-checks/health-checks.module
     SquadsModule,
     DevicesModule,
     HealthChecksModule,
+    SubscriptionTemplatesModule,
   ],
   providers: [
     SeedService,
