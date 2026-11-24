@@ -3,9 +3,11 @@ import * as path from 'path';
 import { spawn } from 'child_process';
 import { createGzip, gunzipSync } from 'zlib';
 import { createWriteStream } from 'fs';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { backupEncryptionKey, decryptFile, encryptFile } from './backup-crypto';
+import { s3Enabled, uploadToS3 } from './backup-s3';
 
-const NAME_PATTERN = /^db-\d{8}-\d{6}\.sql\.gz$/;
+const NAME_PATTERN = /^db-\d{8}-\d{6}\.sql\.gz(\.enc)?$/;
 
 @Injectable()
 export class BackupsService {
@@ -57,25 +59,29 @@ export class BackupsService {
     const names = (await fs.readdir(dir)).filter((name) => NAME_PATTERN.test(name));
     const files = await Promise.all(names.map(async (name) => {
       const stat = await fs.stat(path.join(dir, name));
-      return { name, size: stat.size, createdAt: stat.mtime.toISOString() };
+      return { name, size: stat.size, createdAt: stat.mtime.toISOString(), encrypted: name.endsWith('.enc') };
     }));
     files.sort((a, b) => b.name.localeCompare(a.name));
     return { data: files, total: files.length };
   }
 
   async create() {
+    const key = backupEncryptionKey();
+    if (s3Enabled() && !key) {
+      throw new ServiceUnavailableException('BACKUP_ENCRYPTION_KEY is required for S3 backups');
+    }
     const dir = this.dir();
     await fs.mkdir(dir, { recursive: true });
     const now = new Date();
     const pad = (value: number) => String(value).padStart(2, '0');
     const stamp = `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}-${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}`;
-    const name = `db-${stamp}.sql.gz`;
-    const file = path.join(dir, name);
+    const plainName = `db-${stamp}.sql.gz`;
+    const plainFile = path.join(dir, plainName);
 
     await new Promise<void>((resolve, reject) => {
       const dump = spawn('pg_dump', [this.databaseUrl(), '--no-owner', '--no-privileges']);
       const gzip = createGzip();
-      const out = createWriteStream(file);
+      const out = createWriteStream(plainFile);
       let stderr = '';
       let exitCode: number | null = null;
       let finished = false;
@@ -91,16 +97,34 @@ export class BackupsService {
       out.on('finish', () => { finished = true; settle(); });
       dump.stdout.pipe(gzip).pipe(out);
     }).catch(async (error) => {
-      await fs.unlink(file).catch(() => undefined);
+      await fs.unlink(plainFile).catch(() => undefined);
       throw error;
     });
+
+    let name = plainName;
+    let finalFile = plainFile;
+    if (key) {
+      name = `${plainName}.enc`;
+      finalFile = path.join(dir, name);
+      await encryptFile(plainFile, finalFile, key).catch(async (error) => {
+        await fs.unlink(finalFile).catch(() => undefined);
+        throw error;
+      });
+      await fs.unlink(plainFile).catch(() => undefined);
+    }
+
+    try {
+      await uploadToS3(finalFile, name);
+    } catch (error) {
+      throw new Error(`Local backup ${name} created, but S3 upload failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
 
     const keep = Math.max(1, Number(process.env.BACKUP_KEEP ?? 7) || 7);
     const { data } = await this.list();
     for (const old of data.slice(keep)) {
       await fs.unlink(path.join(dir, old.name)).catch(() => undefined);
     }
-    return { name, size: (await fs.stat(file)).size };
+    return { name, size: (await fs.stat(finalFile)).size, encrypted: Boolean(key) };
   }
 
   async prune(retention: number) {
@@ -115,7 +139,17 @@ export class BackupsService {
   }
 
   async read(name: string): Promise<Buffer> {
-    return fs.readFile(this.validate(name));
+    const file = this.validate(name);
+    if (!name.endsWith('.enc')) return fs.readFile(file);
+    const key = backupEncryptionKey();
+    if (!key) throw new ServiceUnavailableException('BACKUP_ENCRYPTION_KEY is not configured');
+    const temp = path.join(this.dir(), `.restore-${Date.now()}-${Math.random().toString(16).slice(2)}.gz`);
+    try {
+      await decryptFile(file, temp, key);
+      return await fs.readFile(temp);
+    } finally {
+      await fs.unlink(temp).catch(() => undefined);
+    }
   }
 
   async remove(name: string) {
@@ -124,8 +158,8 @@ export class BackupsService {
   }
 
   async restore(name: string) {
-    const file = this.validate(name);
-    const sql = gunzipSync(await fs.readFile(file));
+    const gzip = await this.read(name);
+    const sql = gunzipSync(gzip);
     await this.run('psql', [this.databaseUrl(), '-v', 'ON_ERROR_STOP=1'], sql);
     return { restored: name };
   }

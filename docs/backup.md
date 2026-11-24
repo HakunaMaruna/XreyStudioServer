@@ -60,3 +60,21 @@ Off-site copy example (add to the same crontab line after `backup.sh`):
 ```cron
 15 3 * * * cd /opt/XreyStudioServer && ./scripts/backup.sh && rclone copy backups remote:xss-backups >> /var/log/xss-backup.log 2>&1
 ```
+
+## Encrypted backups and S3/R2
+
+New backups created by `POST /api/backups` are encrypted client-side with AES-256-GCM when
+`BACKUP_ENCRYPTION_KEY` (base64, 32 bytes) is set. Generate it with
+`openssl rand -base64 32` and store it outside the repository. Encrypted files use the
+suffix `.sql.gz.enc` with the layout `XSS1 | version(1) | IV(12) | ciphertext | tag(16)`.
+Reads and restores decrypt transparently and verify the GCM tag; legacy `.sql.gz` files
+remain readable. Tampered or truncated files are rejected.
+
+To upload each new backup to S3 or Cloudflare R2, set `BACKUP_S3_BUCKET`,
+`BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY`, optionally `BACKUP_S3_ENDPOINT`
+(https only, for R2), `BACKUP_S3_REGION` (default `auto`), `BACKUP_S3_PREFIX` (default
+`backups/`) and `BACKUP_S3_SSE` (only if the provider supports the AES256 header). When a
+bucket is configured, encryption is mandatory: an unset `BACKUP_ENCRYPTION_KEY` fails the
+request instead of uploading plaintext. Credentials are never stored in the database or
+logged. If the upload fails, the encrypted local backup is retained and the error is
+returned to the caller.
