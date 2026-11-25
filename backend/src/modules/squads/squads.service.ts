@@ -63,7 +63,9 @@ export class SquadsService {
         enabled: data.enabled ?? true,
         // Сквад без явной организации — общий дефолт панели (создаёт ADMIN).
         organizationId:
-          actor.role === Role.ADMIN ? (data.organizationId ?? null) : (actor.organizationId ?? null),
+          actor.role === Role.ADMIN
+            ? (data.organizationId === '' ? null : (data.organizationId ?? null))
+            : (actor.organizationId ?? null),
       },
     });
   }
@@ -80,7 +82,9 @@ export class SquadsService {
         ...(data.trafficLimit !== undefined ? { trafficLimit: BigInt(data.trafficLimit) } : {}),
         ...(data.expiresAt !== undefined ? { expiresAt: data.expiresAt ? new Date(data.expiresAt) : null } : {}),
         ...(data.enabled !== undefined ? { enabled: data.enabled } : {}),
-        ...(data.organizationId !== undefined ? { organizationId: data.organizationId } : {}),
+        ...(data.organizationId !== undefined
+          ? { organizationId: data.organizationId === '' ? null : data.organizationId }
+          : {}),
       },
     });
   }

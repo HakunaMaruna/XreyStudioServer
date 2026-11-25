@@ -153,7 +153,8 @@ export class UsersService implements OnModuleInit {
     if (actor.role === Role.ADMIN) return;
     const organizationId = actor.organizationId || null;
     if (kind === 'squad') {
-      // Глобальные сквады (organizationId = null) назначает администратор.
+      // Глобальные сквады (organizationId = null) видны всем и могут быть
+      // привязаны к пользователю; редактировать их может только ADMIN (writeWhere).
       const squad = await this.prisma.squad.findFirst({
         where: { id, OR: [{ organizationId }, { organizationId: null }] },
       });

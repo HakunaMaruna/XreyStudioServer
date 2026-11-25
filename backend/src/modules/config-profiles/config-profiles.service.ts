@@ -73,7 +73,9 @@ export class ConfigProfilesService {
         nodeId: data.nodeId || null,
         // Профиль без явной организации — общий дефолт панели (создаёт ADMIN).
         organizationId:
-          actor.role === Role.ADMIN ? (data.organizationId ?? null) : (actor.organizationId ?? null),
+          actor.role === Role.ADMIN
+            ? (data.organizationId === '' ? null : (data.organizationId ?? null))
+            : (actor.organizationId ?? null),
       },
     });
   }
@@ -91,7 +93,9 @@ export class ConfigProfilesService {
         ...(data.payload !== undefined ? { payload: data.payload as object } : {}),
         ...(data.enabled !== undefined ? { enabled: data.enabled } : {}),
         ...(data.nodeId !== undefined ? { nodeId: data.nodeId || null } : {}),
-        ...(data.organizationId !== undefined ? { organizationId: data.organizationId } : {}),
+        ...(data.organizationId !== undefined
+          ? { organizationId: data.organizationId === '' ? null : data.organizationId }
+          : {}),
       },
     });
   }

@@ -65,7 +65,9 @@ export class SubscriptionTemplatesService {
         enabled: data.enabled ?? true,
         // Шаблон без явной организации — общий дефолт панели (создаёт ADMIN).
         organizationId:
-          actor.role === Role.ADMIN ? (data.organizationId ?? null) : (actor.organizationId ?? null),
+          actor.role === Role.ADMIN
+            ? (data.organizationId === '' ? null : (data.organizationId ?? null))
+            : (actor.organizationId ?? null),
       },
     });
   }
@@ -86,7 +88,9 @@ export class SubscriptionTemplatesService {
         ...(data.instructions !== undefined ? { instructions: data.instructions as any } : {}),
         ...(data.footer !== undefined ? { footer: data.footer } : {}),
         ...(data.enabled !== undefined ? { enabled: data.enabled } : {}),
-        ...(data.organizationId !== undefined ? { organizationId: data.organizationId } : {}),
+        ...(data.organizationId !== undefined
+          ? { organizationId: data.organizationId === '' ? null : data.organizationId }
+          : {}),
       },
     });
   }
