@@ -835,3 +835,8 @@ CI note for this change: backend lint failure introduced by the remote balancers
   `wizard.service.spec.ts` verifies the default inbound settings. Focused Jest 13/13 green.
 - Docs updated: `docs/node-onboarding.md` (new selfSNI section), `docs/hosts.md`,
   `docs/api.md`.
+
+CI verification for e54a395: smoke, docker, backend, frontend, both image builds green.
+`e2e-postgres` fails in `test/rollout-api.e2e-pg-spec.ts` with
+`this.agentClient.ping is not a function` — pre-existing issue #188, unrelated to
+selfSNI/decoy changes.
