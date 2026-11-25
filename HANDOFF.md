@@ -31,6 +31,11 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Wizard SSH provisioning flag (v2.40.3, 2026-11-26)
+
+`SSH_PROVISION_ENABLED` по умолчанию включается в `docker-compose.control.yml`; на живой
+панели добавлено в `.env`. Без флага мастер выдавал «SSH provisioning is disabled».
+
 ## Wizard fixes (v2.40.2, 2026-11-26)
 
 В мастере создания ноды в режиме «логин и пароль» поле отпечатка SSH-ключа скрыто и не

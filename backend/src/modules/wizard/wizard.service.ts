@@ -110,7 +110,10 @@ export class WizardService {
       );
     } catch (error: any) {
       await this.control.release(domain.id, this.context(user)).catch(() => undefined);
-      throw new ServiceUnavailableException(`Node installation failed: ${error.message}`);
+      const hint = error.message.includes('SSH provisioning is disabled')
+        ? 'Enable SSH_PROVISION_ENABLED=true on the panel (docker-compose.control.yml sets it by default).'
+        : error.message;
+      throw new ServiceUnavailableException(`Node installation failed: ${hint}`);
     }
 
     // Секреты сохраняем только в зашифрованном виде; в ответ и логи не попадают.
