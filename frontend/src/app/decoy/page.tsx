@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Welcome',
   description: 'This host is not configured to serve a control panel.',
+  robots: { index: false, follow: false },
 };
 
 export default function DecoyPage() {

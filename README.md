@@ -4,6 +4,22 @@ Self-hosted control panel for **Xray-core** with multi-node agents, client manag
 
 > Short name: **XSS** · Repository: `XreyStudioServer` · Current version: **v2.23.3**
 
+Self-hosted Xray VPN panel, node manager and subscription server with traffic analytics, HWID
+device limits, encrypted backups and a documented operator workflow.
+
+**Keywords:** self-hosted VPN panel, Xray control panel, VPN subscription manager, multi-node
+management, encrypted backups, Prometheus metrics.
+
+## Contents
+
+- [Features](#features)
+- [Architecture](#architecture)
+- [Quick start](#quick-start)
+- [Documentation](#documentation)
+- [Testing and CI](#testing-and-ci)
+- [Roadmap](#roadmap)
+- [License](#license)
+
 ---
 
 ## Features
@@ -340,6 +356,26 @@ cd frontend && npm install && npm run dev
 # agent
 cd agent && npm install && npm start
 ```
+
+## Documentation
+
+Start with the [operator UI guide](docs/user-guide.md) and the [process diagrams](docs/processes.md).
+The full set of guides lives in [`docs/`](docs/):
+
+- [Installation](docs/install.md) — deployment modes, verification checklist and rollback.
+- [Node onboarding](docs/node-onboarding.md) — connect an agent and verify traffic.
+- [Subscriptions and test connection](docs/test-connection.md) — formats, HWID limits and client setup.
+- [Backup and restore](docs/backup.md) — AES-256-GCM encryption and S3/R2.
+- [Operations processes](docs/processes.md) — end-to-end flows with diagrams.
+- [Operator UI guide](docs/user-guide.md) — screenshots of login, decoy mode and public docs.
+- [API reference](docs/api.md) and [MCP](docs/mcp.md).
+- [Runbooks](docs/runbooks/) — incidents, restore drills and load tests.
+- [Roadmap](docs/ROADMAP.md) — completed and planned work.
+
+![Login screen](docs/screenshots/login.png)
+
+Public documentation is also server-rendered at `/docs` with `robots.txt`, `sitemap.xml`,
+canonical links and Open Graph metadata. Set `NEXT_PUBLIC_SITE_URL` to your external origin.
 
 ## Testing and CI
 

@@ -17,6 +17,17 @@ const UI_COOKIE = 'xss_ui_access';
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Public documentation and SEO endpoints are intentionally reachable even
+  // when the decoy page hides the management interface.
+  if (
+    pathname === '/docs' ||
+    pathname.startsWith('/docs/') ||
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml'
+  ) {
+    return NextResponse.next();
+  }
+
   if (!DECOY_ENABLED) {
     if (pathname.startsWith('/sub/')) {
       const ua = req.headers.get('user-agent') || '';

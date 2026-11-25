@@ -78,3 +78,41 @@ bucket is configured, encryption is mandatory: an unset `BACKUP_ENCRYPTION_KEY` 
 request instead of uploading plaintext. Credentials are never stored in the database or
 logged. If the upload fails, the encrypted local backup is retained and the error is
 returned to the caller.
+
+## Encrypted backups and S3/R2 (v2.23.4+)
+
+Backups can be encrypted at rest with AES-256-GCM before they leave the host. Generate the key
+once and store it in a password manager:
+
+```sh
+openssl rand -base64 32
+```
+
+Set the result as `BACKUP_ENCRYPTION_KEY` in `.env`. The encrypted format is
+`XSS1 | version(1) | IV(12) | ciphertext | tag(16)`; the header and tag are authenticated, so a
+modified or truncated file is rejected before any SQL is executed.
+
+### Step-by-step
+
+1. Set `BACKUP_ENCRYPTION_KEY` (and optionally `S3_BUCKET`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`,
+   `S3_SECRET_ACCESS_KEY`). Never commit these values.
+2. Restart the backend so it picks up the new environment, then create a snapshot from the
+   **Backups** screen or with `make backup`.
+3. Confirm the file name ends in `.sql.gz.enc`. If a bucket is configured, confirm the object is
+   present there and that no plaintext `.sql.gz` was uploaded — the backend refuses an
+   unencrypted backup while S3 is enabled.
+4. To restore, use `POST /api/backups/:name/restore` with `{ "confirm": true }` or `scripts/restore.sh`.
+   Legacy plaintext `.sql.gz` backups remain readable for migration, but new plaintext backups are
+   only allowed when no bucket is configured.
+5. Verify the restore on a staging host with [runbooks/backup-restore-drill.md](runbooks/backup-restore-drill.md).
+   Practise a key-rotation drill too: decrypt with the old key, re-encrypt with the new one, and
+   confirm the GCM tag validates.
+
+### Failure modes
+
+- **Missing or wrong key** → restore fails with a clear decryption error; the database is untouched.
+- **Tampered ciphertext or truncated tag** → authentication fails; the backup is not applied.
+- **S3 configured without an encryption key** → backup creation fails closed instead of uploading
+  plaintext.
+
+For the full orchestration flow, see [processes.md](processes.md#5-backup-and-restore).

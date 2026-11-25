@@ -20,6 +20,7 @@ Ideas are independently implemented; no code is copied from the source panels
 | 10 | Telegram bot commands + OAuth login | remnawave | **done** | Telegram currently notifications-only. |
 | 11 | Rescue CLI for password/admin recovery | remnawave | **done** | Avoid raw DB edits. |
 | 12 | MCP write-plan with owner approval | Mistgate | **done** | MCP currently read-only; keep strict consent + audit. |
+| 13 | Expanded operator docs, process diagrams, screenshots and SEO | — | **done** | `docs/processes.md`, `docs/user-guide.md`, real UI screenshots, public `/docs` with robots.txt/sitemap.xml/JSON-LD, README TOCs in EN/RU. |
 
 ## Rules for agents
 

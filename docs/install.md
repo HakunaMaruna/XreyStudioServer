@@ -188,3 +188,36 @@ Verify an asset manually:
 ```sh
 node scripts/verify-update.mjs release.tar.gz release.tar.gz.sig update_public.pem
 ```
+
+## Verification checklist
+
+After the stack is up, work through this list before inviting users:
+
+1. `curl -fsS https://<domain>/api/health` returns `ok` with a database check.
+2. `https://<domain>/docs` renders the public documentation; `https://<domain>/robots.txt`
+   and `/sitemap.xml` are reachable. Set `NEXT_PUBLIC_SITE_URL` to the external origin so the
+   generated canonical links are correct.
+3. Sign in at `/login`. If you enabled decoy mode, use `/<PANEL_ENTRY_PATH>/login` instead.
+4. Create one inbound and one node. The node reports `ONLINE` and a non-empty revision.
+5. Create a test user with `deviceLimit=1`, open the subscription link, and confirm the second
+   device receives a clear 403 message.
+6. Create a backup and confirm the file name ends in `.sql.gz.enc` when
+   `BACKUP_ENCRYPTION_KEY` is set. If S3 is configured, confirm the encrypted object exists.
+7. Run `/doctor` and resolve every warning before going live.
+
+For the exact click-by-click UI workflow, see [user-guide.md](user-guide.md); for diagrams of the
+same processes, see [processes.md](processes.md).
+
+## Rollback
+
+Keep the previous image tag in `docker-compose.yml`. To roll back:
+
+1. Stop writes: put the panel into maintenance mode or block the frontend at the reverse proxy.
+2. Take a fresh snapshot with `make backup` — even if the new version is broken, it captures the
+   current database state.
+3. Restore the last known-good database backup *before* starting the older backend when schemas
+   differ; see [backup.md](backup.md) and the restore drill runbook.
+4. Change image tags to the previous version, run `docker compose up -d`, and repeat the
+   verification checklist above.
+
+Never remove the database volume to "fix" a failed migration: that destroys user data.
