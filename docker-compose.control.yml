@@ -15,7 +15,8 @@ services:
       - |
         chmod 0777 /var/lib/powerdns
         if [ -f /var/lib/powerdns/pdns.sqlite3 ]; then chmod 0666 /var/lib/powerdns/pdns.sqlite3; fi
-        exec pdns_server --launch=gsqlite3 --gsqlite3-database=/var/lib/powerdns/pdns.sqlite3 --dnssec=yes --default-ksk-algorithm=ecdsap256sha256 --default-ksk-size=256 --default-zsk-algorithm=ecdsap256sha256 --default-zsk-size=256 --api=yes --api-key=${PDNS_API_KEY:-change-me-dns-api-key} --webserver=yes --webserver-address=0.0.0.0 --webserver-port=8081 --webserver-allow-from=0.0.0.0/0
+        printf 'dnssec=yes\ndefault-ksk-algorithm=ecdsap256sha256\ndefault-ksk-size=256\ndefault-zsk-algorithm=ecdsap256sha256\ndefault-zsk-size=256\n' >> /etc/pdns/pdns.conf
+        exec pdns_server --launch=gsqlite3 --gsqlite3-database=/var/lib/powerdns/pdns.sqlite3 --api=yes --api-key=${PDNS_API_KEY:-change-me-dns-api-key} --webserver=yes --webserver-address=0.0.0.0 --webserver-port=8081 --webserver-allow-from=0.0.0.0/0
     ports:
       - "${PDNS_BIND_IP:-0.0.0.0}:53:53/tcp"
       - "${PDNS_BIND_IP:-0.0.0.0}:53:53/udp"
