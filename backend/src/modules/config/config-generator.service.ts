@@ -187,12 +187,12 @@ export class ConfigGeneratorService {
         const streamSettings: Record<string, unknown> = { network: inbound.transport || 'tcp' };
         if (inbound.security === 'reality') {
           streamSettings.security = 'reality';
+          // Клиентская REALITY-конфигурация: только outbound-поля.
           streamSettings.realitySettings = {
-            show: false,
-            dest: settings.realityDest || 'www.microsoft.com:443',
-            serverNames: settings.realityServerNames || ['www.microsoft.com'],
-            publicKey: settings.realityPublicKey || '',
-            shortIds: settings.realityShortIds || [''],
+            serverName: (settings.realityServerNames || ['www.microsoft.com'])[0] || 'www.microsoft.com',
+            fingerprint: 'chrome',
+            password: settings.realityPublicKey || '',
+            shortId: (settings.realityShortIds || [''])[0] || '',
             spiderX: '/',
           };
         } else if (inbound.security === 'tls') {
