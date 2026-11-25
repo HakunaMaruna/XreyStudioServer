@@ -39,6 +39,11 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 по приоритету в генераторе конфига. `fakedns` намеренно не поддерживается.
 Документация `docs/dns-profiles.md`, `docs/api.md`.
 
+Живая проверка: v2.35.0, рецепты `secure-doh/ru-split/local-direct`; валидация отклонила
+`ftp://bad`; созданный профиль с hosts + localhost(geosite:category-ru) + DoH попал в
+сгенерированный `dns` блок, `xray run -test` на выгруженном конфиге — `Configuration OK`;
+профиль удалён, конфиг применён повторно, агент `xray: running` (revision 26).
+
 ## Load balancers (v2.34.0, 2026-11-25)
 
 Новый раздел `/balancers`: форма создания балансировщика (стратегия random/roundRobin/
