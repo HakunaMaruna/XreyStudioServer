@@ -635,3 +635,55 @@ model NotificationDelivery {
   @@index([dedupeKey, createdAt])
   @@index([createdAt])
 }
+
+enum SnapshotKind {
+  MANUAL
+  PRE_UPDATE
+  PRE_SETTINGS_CHANGE
+  SCHEDULED
+  PRE_RESTORE
+}
+
+enum SnapshotScope {
+  FULL
+  SETTINGS
+}
+
+enum SnapshotStatus {
+  CREATING
+  READY
+  FAILED
+  RESTORING
+  RESTORED
+}
+
+model SystemSnapshot {
+  id           String         @id @default(uuid())
+  label        String
+  kind         SnapshotKind   @default(MANUAL)
+  scope        SnapshotScope  @default(FULL)
+  status       SnapshotStatus @default(CREATING)
+  reason       String?
+  directory    String
+  checksum     String
+  sizeBytes    Int            @default(0)
+  appVersion   String
+  actorId      String?
+  error        String?
+  restoreError String?
+  createdAt    DateTime       @default(now())
+  finishedAt   DateTime?
+  restoredAt   DateTime?
+
+  @@index([kind, createdAt])
+  @@index([status, createdAt])
+}
+
+model SnapshotPolicy {
+  id                 String   @id @default("default")
+  autoBeforeUpdates  Boolean  @default(true)
+  autoBeforeSettings Boolean  @default(true)
+  retention          Int      @default(10)
+  cooldownMinutes    Int      @default(15)
+  updatedAt          DateTime @updatedAt
+}

@@ -90,3 +90,48 @@ kubectl -n "$NAMESPACE" exec deploy/backend -- pg_dump "$DATABASE_URL" --no-owne
 - При ошибке `psql` приложить первые 50 строк вывода и имя файла бэкапа (без содержимого секретов).
 - Если дриль выявляет расхождение в количестве строк, оформить отдельный issue с датой бэкапа и командами воспроизведения; не обновлять боевую БД вручную.
 - Подозрение на повреждение файлов бэкапа — немедленно сделать новый снимок и проверить место на диске (`df -h`).
+
+## Snapshot drill and offline restore
+
+Snapshots complement the SQL backup drill above: they include settings and metadata, and can be
+restored from the panel, the CLI, or directly from disk when the API is unavailable.
+
+1. Export the ADMIN JWT in the shell environment (`XSS_ADMIN_TOKEN`, never passed as an argv
+   item or written to a file shown in logs). Create a labelled snapshot and record its UUID:
+
+   ```sh
+   LABEL='drill' REASON='restore drill' sh scripts/snapshot.sh create
+   sh scripts/snapshot.sh list
+   ```
+
+2. Preview the restore before changing anything:
+
+   ```sh
+   DRY_RUN=1 CONFIRM=1 sh scripts/snapshot.sh restore <uuid>
+   ```
+
+3. Perform the restore and verify the panel, settings and recent data:
+
+   ```sh
+   CONFIRM=1 sh scripts/snapshot.sh restore <uuid>
+   ```
+
+4. Offline fallback (API down). From a host with filesystem access to `BACKUP_DIR`, set
+   `DATABASE_URL` and `SETTINGS_FILE`, then:
+
+   ```sh
+   OFFLINE=1 CONFIRM=1 DRY_RUN=1 sh scripts/snapshot.sh restore <uuid>
+   OFFLINE=1 CONFIRM=1 sh scripts/snapshot.sh restore <uuid>
+   ```
+
+   The CLI reads `<BACKUP_DIR>/snapshots/<uuid>/manifest.json`, verifies the `sha256` checksum
+   of `db.sql.gz`, writes the current settings to `pre-restore-settings.json` inside the
+   snapshot directory, restores the database with `psql "$DATABASE_URL"`, and copies
+   `settings.json` back only if the settings component is selected. `COMPONENTS=db` or
+   `COMPONENTS=settings` limits the drill to one component. Never skip `DRY_RUN=1` on a
+   production drill, and keep the pre-restore file until verification is complete.
+
+5. After the drill, use `make snapshot-list` to confirm snapshot status and retention. Delete
+   drill snapshots only after sign-off with `CONFIRM=1 sh scripts/snapshot.sh delete <uuid>`.
+
+See [snapshots.md](../snapshots.md) for the full contract and security notes.

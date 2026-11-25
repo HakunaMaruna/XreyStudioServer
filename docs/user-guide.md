@@ -92,3 +92,14 @@ full mapping of settings to endpoints and the rationale.
   with `?format=json` to bypass User-Agent detection.
 - **Doctor warns about a stale revision** → confirm the node is online, then use the fix action.
 - **No admin can sign in** → use the Rescue CLI; see [processes.md](processes.md#6-recovery-tools).
+
+## Settings → State snapshots
+
+The **State snapshots** tab in Settings lists point-in-time captures of the installation. An
+ADMIN can create a snapshot with an optional label and reason, inspect its status and checksum,
+preview a restore (`dryRun`), restore it after confirmation, or delete it. Automatic snapshots
+may be created before updates or settings changes according to the policy. A restore keeps a
+pre-restore snapshot so the previous state can be recovered.
+
+For terminal and offline restore workflows, environment variables and the API contract, see
+[System snapshots](snapshots.md).

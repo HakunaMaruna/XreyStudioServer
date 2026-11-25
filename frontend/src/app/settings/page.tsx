@@ -1,19 +1,54 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, isLoggedIn } from '../../lib/api';
-import { useLang } from '../../lib/i18n';
+import { useLang, type Dict } from '../../lib/i18n';
 import { getTheme, applyTheme, type Theme } from '../../lib/theme';
 import { APP_VERSION } from '../../lib/version';
 import { Icon } from '../../components/icons';
 import {
+  Badge,
   Button,
   Card,
   Field,
+  Modal,
   PageHeader,
   SectionTitle,
   Segmented,
   Toggle,
+  formatBytes,
 } from '../../components/ui';
+
+type Snapshot = {
+  id: string;
+  label: string;
+  kind: 'MANUAL' | 'PRE_UPDATE' | 'PRE_SETTINGS_CHANGE' | 'SCHEDULED' | 'PRE_RESTORE';
+  scope: 'FULL' | 'SETTINGS';
+  status: 'CREATING' | 'READY' | 'FAILED' | 'RESTORING' | 'RESTORED';
+  reason?: string;
+  appVersion: string;
+  sizeBytes: number;
+  checksum: string;
+  createdAt: string;
+  restoredAt?: string;
+};
+
+type SnapshotPolicy = {
+  autoBeforeUpdates: boolean;
+  autoBeforeSettings: boolean;
+  retention: number;
+  cooldownMinutes: number;
+};
+
+type RestorePlan = {
+  components?: string[];
+  [key: string]: unknown;
+};
+
+type SnapshotModal =
+  | { kind: 'restore'; snapshot: Snapshot }
+  | { kind: 'plan'; snapshot: Snapshot; plan: RestorePlan }
+  | { kind: 'delete'; snapshot: Snapshot }
+  | null;
 
 type PanelSettings = {
   language: 'ru' | 'en';
@@ -75,6 +110,31 @@ const DEFAULT_BACKUP: BackupSettings = {
   lastStatus: null,
 };
 
+const DEFAULT_SNAPSHOT_POLICY: SnapshotPolicy = {
+  autoBeforeUpdates: false,
+  autoBeforeSettings: false,
+  retention: 10,
+  cooldownMinutes: 30,
+};
+
+const SNAPSHOT_COMPONENTS = ['db', 'settings'] as const;
+
+const snapshotKindLabel: Record<Snapshot['kind'], keyof Dict> = {
+  MANUAL: 'snapshotKindManual',
+  PRE_UPDATE: 'snapshotKindPreUpdate',
+  PRE_SETTINGS_CHANGE: 'snapshotKindPreSettings',
+  SCHEDULED: 'snapshotKindScheduled',
+  PRE_RESTORE: 'snapshotKindPreRestore',
+};
+
+const snapshotStatusLabel: Record<Snapshot['status'], keyof Dict> = {
+  CREATING: 'snapshotStatusCreating',
+  READY: 'snapshotStatusReady',
+  FAILED: 'snapshotStatusFailed',
+  RESTORING: 'snapshotStatusRestoring',
+  RESTORED: 'snapshotStatusRestored',
+};
+
 const INTEGRATIONS = [
   { key: 'telegram', labelKey: 'integrationTelegram', href: '/alerts' },
   { key: 'webhook', labelKey: 'integrationWebhook', href: '/alerts' },
@@ -105,6 +165,12 @@ export default function SettingsPage() {
   const [hubSaved, setHubSaved] = useState(false);
   const [config, setConfig] = useState<Record<string, string>>({});
   const [dnsMode, setDnsMode] = useState('tenant');
+  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
+  const [snapshotPolicy, setSnapshotPolicy] = useState<SnapshotPolicy>(DEFAULT_SNAPSHOT_POLICY);
+  const [snapshotForm, setSnapshotForm] = useState({ label: '', reason: '', scope: 'FULL' as Snapshot['scope'] });
+  const [snapshotModal, setSnapshotModal] = useState<SnapshotModal>(null);
+  const [snapshotBusy, setSnapshotBusy] = useState(false);
+  const [snapshotNotice, setSnapshotNotice] = useState('');
 
   useEffect(() => {
     const stored = localStorage.getItem('xss_settings');
@@ -151,6 +217,30 @@ export default function SettingsPage() {
       cancelled = true;
     };
   }, [isAdmin]);
+
+  const loadSnapshots = useCallback(async () => {
+    const [list, policyData] = await Promise.all([
+      api.get<{ items: Snapshot[] }>('/api/snapshots'),
+      api.get<SnapshotPolicy>('/api/snapshots/policy'),
+    ]);
+    setSnapshots(Array.isArray(list.items) ? list.items : []);
+    setSnapshotPolicy({ ...DEFAULT_SNAPSHOT_POLICY, ...policyData });
+  }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    let cancelled = false;
+    loadSnapshots()
+      .then(() => {
+        if (!cancelled) setHubError('');
+      })
+      .catch((err) => {
+        if (!cancelled) setHubError(err instanceof Error ? err.message : String(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, loadSnapshots]);
 
   useEffect(() => {
     applyTheme(settings.theme);
@@ -211,6 +301,100 @@ export default function SettingsPage() {
         : [...prev.channels, channel],
     }));
   }, []);
+
+  const saveSnapshotPolicy = useCallback(async () => {
+    setSnapshotBusy(true);
+    setHubSaved(false);
+    try {
+      const result = await api.patch<SnapshotPolicy>('/api/snapshots/policy', {
+        autoBeforeUpdates: snapshotPolicy.autoBeforeUpdates,
+        autoBeforeSettings: snapshotPolicy.autoBeforeSettings,
+        retention: snapshotPolicy.retention,
+        cooldownMinutes: snapshotPolicy.cooldownMinutes,
+      });
+      setSnapshotPolicy({ ...DEFAULT_SNAPSHOT_POLICY, ...result });
+      setHubError('');
+      setHubSaved(true);
+      setSnapshotNotice(t.snapshotSavePolicy);
+      window.setTimeout(() => setHubSaved(false), 2000);
+    } catch (err) {
+      setHubError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSnapshotBusy(false);
+    }
+  }, [snapshotPolicy, t.snapshotSavePolicy]);
+
+  const createSnapshot = useCallback(async () => {
+    setSnapshotBusy(true);
+    try {
+      const body: { label?: string; reason?: string; scope: Snapshot['scope'] } = {
+        scope: snapshotForm.scope,
+      };
+      if (snapshotForm.label.trim()) body.label = snapshotForm.label.trim();
+      if (snapshotForm.reason.trim()) body.reason = snapshotForm.reason.trim();
+      await api.post<Snapshot>('/api/snapshots', body);
+      setSnapshotForm({ label: '', reason: '', scope: 'FULL' });
+      await loadSnapshots();
+      setHubError('');
+      setSnapshotNotice(t.snapshotCreatedOk);
+    } catch (err) {
+      setHubError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSnapshotBusy(false);
+    }
+  }, [snapshotForm, loadSnapshots, t.snapshotCreatedOk]);
+
+  const openRestore = useCallback((snapshot: Snapshot) => {
+    setHubError('');
+    setSnapshotNotice('');
+    setSnapshotModal({ kind: 'restore', snapshot });
+  }, []);
+
+  const startRestore = useCallback(async () => {
+    if (!snapshotModal || (snapshotModal.kind !== 'restore' && snapshotModal.kind !== 'plan')) return;
+    const snapshot = snapshotModal.snapshot;
+    setSnapshotBusy(true);
+    try {
+      const result = await api.post<RestorePlan>(
+        `/api/snapshots/${encodeURIComponent(snapshot.id)}/restore`,
+        {
+          confirm: true,
+          components: [...SNAPSHOT_COMPONENTS],
+          ...(snapshotModal.kind === 'restore' ? { dryRun: true } : {}),
+        },
+      );
+      if (snapshotModal.kind === 'restore') {
+        setSnapshotModal({ kind: 'plan', snapshot, plan: result || {} });
+        setSnapshotNotice(t.snapshotDryRunOk);
+      } else {
+        setSnapshotModal(null);
+        await loadSnapshots();
+        setSnapshotNotice(t.snapshotRestoreDone);
+      }
+      setHubError('');
+    } catch (err) {
+      setHubError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSnapshotBusy(false);
+    }
+  }, [snapshotModal, loadSnapshots, t.snapshotDryRunOk, t.snapshotRestoreDone]);
+
+  const deleteSnapshot = useCallback(async () => {
+    if (!snapshotModal || snapshotModal.kind !== 'delete') return;
+    const snapshot = snapshotModal.snapshot;
+    setSnapshotBusy(true);
+    try {
+      await api.delete(`/api/snapshots/${encodeURIComponent(snapshot.id)}`);
+      setSnapshotModal(null);
+      await loadSnapshots();
+      setHubError('');
+      setSnapshotNotice(t.snapshotDeleted);
+    } catch (err) {
+      setHubError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSnapshotBusy(false);
+    }
+  }, [snapshotModal, loadSnapshots, t.snapshotDeleted]);
 
   const configRows = useMemo(
     () =>
@@ -396,6 +580,168 @@ export default function SettingsPage() {
           </div>
 
           <Card>
+            <SectionTitle title={t.snapshotStateTitle} subtitle={t.snapshotStateSubtitle} />
+            <div className="space-y-5">
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-subtle">{t.snapshotPolicyTitle}</p>
+                <Toggle
+                  checked={snapshotPolicy.autoBeforeUpdates}
+                  onChange={(value) => setSnapshotPolicy((prev) => ({ ...prev, autoBeforeUpdates: value }))}
+                  label={t.snapshotAutoUpdates}
+                />
+                <Toggle
+                  checked={snapshotPolicy.autoBeforeSettings}
+                  onChange={(value) => setSnapshotPolicy((prev) => ({ ...prev, autoBeforeSettings: value }))}
+                  label={t.snapshotAutoSettings}
+                />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label={t.snapshotRetention}>
+                    <input
+                      className="input"
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={snapshotPolicy.retention}
+                      onChange={(event) =>
+                        setSnapshotPolicy((prev) => ({
+                          ...prev,
+                          retention: Math.max(1, Math.min(100, Number(event.target.value) || 1)),
+                        }))
+                      }
+                    />
+                  </Field>
+                  <Field label={t.snapshotCooldown}>
+                    <input
+                      className="input"
+                      type="number"
+                      min={0}
+                      max={10080}
+                      value={snapshotPolicy.cooldownMinutes}
+                      onChange={(event) =>
+                        setSnapshotPolicy((prev) => ({
+                          ...prev,
+                          cooldownMinutes: Math.max(0, Math.min(10080, Number(event.target.value) || 0)),
+                        }))
+                      }
+                    />
+                  </Field>
+                </div>
+                <Button onClick={saveSnapshotPolicy} disabled={snapshotBusy}>
+                  <Icon name="check" size={14} /> {t.snapshotSavePolicy}
+                </Button>
+              </div>
+
+              <div className="space-y-3 border-t border-line pt-5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-subtle">{t.snapshotCreateTitle}</p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Field label={t.snapshotLabel}>
+                    <input
+                      className="input"
+                      maxLength={120}
+                      value={snapshotForm.label}
+                      onChange={(event) => setSnapshotForm((prev) => ({ ...prev, label: event.target.value }))}
+                    />
+                  </Field>
+                  <Field label={t.snapshotReason}>
+                    <input
+                      className="input"
+                      maxLength={240}
+                      value={snapshotForm.reason}
+                      onChange={(event) => setSnapshotForm((prev) => ({ ...prev, reason: event.target.value }))}
+                    />
+                  </Field>
+                  <Field label={t.snapshotScope}>
+                    <select
+                      className="input"
+                      value={snapshotForm.scope}
+                      onChange={(event) =>
+                        setSnapshotForm((prev) => ({
+                          ...prev,
+                          scope: event.target.value === 'SETTINGS' ? 'SETTINGS' : 'FULL',
+                        }))
+                      }
+                    >
+                      <option value="FULL">{t.snapshotScopeFull}</option>
+                      <option value="SETTINGS">{t.snapshotScopeSettings}</option>
+                    </select>
+                  </Field>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button icon="plus" onClick={createSnapshot} disabled={snapshotBusy}>
+                    {t.snapshotCreate}
+                  </Button>
+                  <Button icon="refresh" onClick={() => loadSnapshots().catch((err) => setHubError(err instanceof Error ? err.message : String(err)))} disabled={snapshotBusy}>
+                    {t.snapshotRefresh}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2 border-t border-line pt-5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-subtle">{t.snapshotStateTitle}</p>
+                {snapshotNotice && (
+                  <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+                    {snapshotNotice}
+                  </div>
+                )}
+                {snapshots.length === 0 ? (
+                  <p className="text-xs text-muted">{t.snapshotNoItems}</p>
+                ) : (
+                  <div className="space-y-2">
+                    {snapshots.map((snapshot) => (
+                      <div className="rounded-lg border border-line bg-surface-2 p-3" key={snapshot.id}>
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-fg">{snapshot.label || snapshot.id}</p>
+                            <p className="text-[11px] text-subtle">
+                              {new Date(snapshot.createdAt).toLocaleString()}
+                              {snapshot.reason ? ` · ${snapshot.reason}` : ''}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge tone="neutral">{t[snapshotKindLabel[snapshot.kind]]}</Badge>
+                            <Badge tone="info">{snapshot.scope}</Badge>
+                            <Badge tone={snapshot.status === 'FAILED' ? 'danger' : snapshot.status === 'READY' ? 'success' : 'warning'}>
+                              {t[snapshotStatusLabel[snapshot.status]]}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
+                          <span>{t.snapshotSize}: {formatBytes(snapshot.sizeBytes)}</span>
+                          <span>{t.snapshotVersion}: {snapshot.appVersion}</span>
+                          <span className="mono">{t.snapshotChecksum}: {String(snapshot.checksum || '').slice(0, 12)}</span>
+                          {snapshot.restoredAt && <span>{t.snapshotStatusRestored}: {new Date(snapshot.restoredAt).toLocaleString()}</span>}
+                        </div>
+                        <div className="mt-3 flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            icon="history"
+                            disabled={snapshotBusy || snapshot.status !== 'READY'}
+                            onClick={() => openRestore(snapshot)}
+                          >
+                            {t.snapshotRestore}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            icon="trash"
+                            disabled={snapshotBusy}
+                            onClick={() => {
+                              setHubError('');
+                              setSnapshotModal({ kind: 'delete', snapshot });
+                            }}
+                          >
+                            {t.snapshotDelete}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          <Card>
             <SectionTitle title={t.quickLinks} subtitle={t.quickLinksSubtitle} />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {QUICK_LINKS.map((link) => (
@@ -512,6 +858,66 @@ export default function SettingsPage() {
           </table>
         </div>
       </Card>
+
+      <Modal
+        open={snapshotModal !== null}
+        onClose={() => setSnapshotModal(null)}
+        title={
+          snapshotModal?.kind === 'delete'
+            ? t.snapshotDeleteConfirm
+            : snapshotModal?.kind === 'plan'
+              ? t.snapshotDryRunBadge
+              : t.snapshotRestore
+        }
+        subtitle={snapshotModal ? snapshotModal.snapshot.label || snapshotModal.snapshot.id : undefined}
+        icon={<Icon name={snapshotModal?.kind === 'delete' ? 'trash' : 'history'} size={16} />}
+        footer={
+          snapshotModal?.kind === 'plan' ? (
+            <>
+              <Button onClick={() => setSnapshotModal(null)} disabled={snapshotBusy}>{t.cancel}</Button>
+              <Button variant="danger" icon="check" onClick={startRestore} loading={snapshotBusy}>
+                {t.snapshotRestore}
+              </Button>
+            </>
+          ) : snapshotModal?.kind === 'delete' ? (
+            <>
+              <Button onClick={() => setSnapshotModal(null)} disabled={snapshotBusy}>{t.cancel}</Button>
+              <Button variant="danger" icon="trash" onClick={deleteSnapshot} loading={snapshotBusy}>
+                {t.snapshotDelete}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button onClick={() => setSnapshotModal(null)} disabled={snapshotBusy}>{t.cancel}</Button>
+              <Button icon="check" onClick={startRestore} loading={snapshotBusy}>
+                {t.snapshotDryRunBadge}
+              </Button>
+            </>
+          )
+        }
+      >
+        {snapshotModal?.kind === 'delete' && <p className="text-sm text-fg">{t.snapshotDeleteConfirm}</p>}
+        {snapshotModal?.kind === 'restore' && (
+          <div className="space-y-3 text-sm text-fg">
+            <p>{t.snapshotRestoreConfirm}</p>
+            {snapshotModal.snapshot.status === 'RESTORED' && (
+              <p className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+                {t.snapshotRestoredConfirm}
+              </p>
+            )}
+            <p className="text-xs text-muted">{t.snapshotDryRunConfirm}</p>
+          </div>
+        )}
+        {snapshotModal?.kind === 'plan' && (
+          <div className="space-y-2 text-sm text-fg">
+            <p>{t.snapshotRestoreConfirm}</p>
+            <p className="text-xs text-muted">{t.snapshotComponents}: {SNAPSHOT_COMPONENTS.join(', ')}</p>
+            <div className="mono max-h-48 overflow-auto rounded-lg border border-line bg-surface-2 p-3 text-xs text-muted">
+              {JSON.stringify(snapshotModal.plan)}
+            </div>
+          </div>
+        )}
+      </Modal>
     </>
   );
 }

@@ -765,3 +765,22 @@ Local PG e2e remains skipped (pg_dump 16 cannot dump PGlite 19). CI is the autho
   backend lint rc=0 and focused Jest suites 8/8 passed; `git diff --check` clean; code_review
   0 findings. GitHub CI on 912fdba: backend, frontend, docker, e2e-postgres, images and smoke
   all success.
+
+
+## System snapshots / rollback (2026-11-25)
+
+- Added an ADMIN-only snapshots module: immutable DB+settings artifacts under
+  `BACKUP_DIR/snapshots/<uuid>` with a checksummed manifest, Prisma metadata (`SystemSnapshot`,
+  `SnapshotPolicy`, new enums), policy with cooldown/retention, dry-run restore, explicit
+  confirmation, pre-restore snapshot, audit records and fail-closed auto snapshots before
+  serious settings mutations.
+- Declarative `@SnapshotBefore('settings'|'update')` + global interceptor cover settings,
+  notification settings, backup settings, config profiles and routing mutations; the shell
+  `scripts/rollout.sh` creates a pre-update snapshot before any node changes.
+- UI: new **State snapshots** tab on `/settings` with create/list/policy/restore/delete and a
+  two-step confirmation; RU/EN i18n keys added.
+- CLI/docs: `scripts/snapshot.sh` works online via JWT or offline from the snapshot directory,
+  with dry-run first; Makefile targets and docs (`docs/snapshots.md`, `docs/api.md`,
+  `docs/user-guide.md`, restore drill) updated.
+- Validation: backend tsc/lint/build rc=0; focused Jest 5/5; frontend tsc/lint rc=0 and
+  `next build --webpack` rc=0; shell syntax checked; code_review 0 findings.

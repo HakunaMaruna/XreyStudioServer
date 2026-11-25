@@ -387,3 +387,48 @@ npm run rescue -- demote admin@example.com
 are never part of the argv when `RESCUE_NEW_PASSWORD` is used, never logged and never written to
 the database in plaintext. `demote` refuses to remove the last active ADMIN. All operations go
 through Prisma with bound parameters and print only email, id, role and status.
+
+## Snapshots API
+
+All endpoints in this section require an ADMIN JWT. System snapshots capture database and
+settings state and support restore with an explicit confirmation step.
+
+- `GET /snapshots` — list snapshots with metadata: `id`, `label`, `kind`, `scope`, `status`,
+  `reason`, `appVersion`, `sizeBytes`, `checksum`, `createdAt`, `restoredAt`.
+- `GET /snapshots/policy` — read the policy: `autoBeforeUpdates`, `autoBeforeSettings`,
+  `retention`, `cooldownMinutes`.
+- `PATCH /snapshots/policy` — update any subset of those policy fields. Body example:
+  `{ "autoBeforeUpdates": true, "retention": 10, "cooldownMinutes": 30 }`.
+- `POST /snapshots` — create a manual snapshot. Body: `{ "label"?, "reason"?, "scope"? }`.
+- `GET /snapshots/:id` — one snapshot by UUID.
+- `POST /snapshots/:id/restore` — restore. Body:
+  `{ "confirm": true, "dryRun"?: false, "components"?: ["db", "settings"] }`. Without
+  `confirm: true` nothing changes. A pre-restore snapshot is created before applying changes.
+- `DELETE /snapshots/:id` — delete a snapshot by UUID.
+
+`dryRun: true` validates and reports the restore plan without applying it. `components` limits
+the restore to the listed parts; omit it to restore both database and settings. `id` must be a
+UUID. Unknown ids return `404`; a missing or non-ADMIN JWT returns `401`/`403`.
+
+```sh
+curl -fsS -H "Authorization: Bearer $XSS_ADMIN_TOKEN" \
+  "$API_BASE_URL/api/snapshots"
+
+curl -fsS -X POST -H "Authorization: Bearer $XSS_ADMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"label":"before-upgrade","reason":"planned maintenance"}' \
+  "$API_BASE_URL/api/snapshots"
+
+curl -fsS -X PATCH -H "Authorization: Bearer $XSS_ADMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"retention":10,"cooldownMinutes":30}' \
+  "$API_BASE_URL/api/snapshots/policy"
+
+curl -fsS -X POST -H "Authorization: Bearer $XSS_ADMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"confirm":true,"dryRun":true,"components":["db","settings"]}' \
+  "$API_BASE_URL/api/snapshots/<uuid>/restore"
+```
+
+Keep the JWT out of shell history and logs. The `scripts/snapshot.sh` CLI wraps these endpoints;
+see [snapshots.md](snapshots.md) for the terminal and offline workflow.

@@ -3,6 +3,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { Role } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { SnapshotBefore } from '../snapshots/snapshot-before.decorator';
 import { SettingsService } from './settings.service';
 
 @Controller('settings')
@@ -17,6 +18,7 @@ export class SettingsController {
   }
 
   @Patch()
+  @SnapshotBefore('settings', 'Panel settings update')
   update(@Body() body: any) {
     return this.service.update(body);
   }

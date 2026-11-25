@@ -9,6 +9,28 @@ import { s3Enabled, uploadToS3 } from './backup-s3';
 
 const NAME_PATTERN = /^db-\d{8}-\d{6}\.sql\.gz(\.enc)?$/;
 
+export function backupDatabaseUrl(): string {
+  if (process.env.DATABASE_URL) {
+    // Prisma-specific query parameters are not understood by psql.
+    const url = new URL(process.env.DATABASE_URL);
+    url.searchParams.delete('pgbouncer');
+    url.searchParams.delete('statement_cache_size');
+    return url.toString();
+  }
+  const user = process.env.POSTGRES_USER || 'xss';
+  const password = encodeURIComponent(process.env.POSTGRES_PASSWORD || 'xss');
+  const host = process.env.POSTGRES_HOST || 'postgres';
+  const port = process.env.POSTGRES_PORT || '5432';
+  const db = process.env.POSTGRES_DB || 'xss';
+  return `postgresql://${user}:${password}@${host}:${port}/${db}`;
+}
+
+export function sanitizeDatabaseError(message: string): string {
+  return message
+    .replace(backupDatabaseUrl(), 'postgresql://***')
+    .replace(process.env.DATABASE_URL || '\u0000', 'postgresql://***');
+}
+
 @Injectable()
 export class BackupsService {
   private dir(): string {
@@ -16,19 +38,7 @@ export class BackupsService {
   }
 
   private databaseUrl(): string {
-    if (process.env.DATABASE_URL) {
-      // Prisma-specific query parameters are not understood by psql.
-      const url = new URL(process.env.DATABASE_URL);
-      url.searchParams.delete('pgbouncer');
-      url.searchParams.delete('statement_cache_size');
-      return url.toString();
-    }
-    const user = process.env.POSTGRES_USER || 'xss';
-    const password = encodeURIComponent(process.env.POSTGRES_PASSWORD || 'xss');
-    const host = process.env.POSTGRES_HOST || 'postgres';
-    const port = process.env.POSTGRES_PORT || '5432';
-    const db = process.env.POSTGRES_DB || 'xss';
-    return `postgresql://${user}:${password}@${host}:${port}/${db}`;
+    return backupDatabaseUrl();
   }
 
   private validate(name: string): string {

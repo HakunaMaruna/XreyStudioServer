@@ -42,6 +42,7 @@ import { WizardModule } from './modules/wizard/wizard.module';
 import { CheburcheckModule } from './modules/cheburcheck/cheburcheck.module';
 import { BalancersModule } from './modules/balancers/balancers.module';
 import { TelegramBotModule } from './modules/telegram-bot/telegram-bot.module';
+import { SnapshotsModule } from './modules/snapshots/snapshots.module';
 
 @Module({
   imports: [
@@ -93,6 +94,7 @@ import { TelegramBotModule } from './modules/telegram-bot/telegram-bot.module';
     CheburcheckModule,
     BalancersModule,
     TelegramBotModule,
+    SnapshotsModule,
   ],
   providers: [
     SeedService,

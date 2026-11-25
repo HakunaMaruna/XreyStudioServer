@@ -4,6 +4,7 @@ import { Role } from '@prisma/client';
 import { BadRequestException } from '@nestjs/common';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { SnapshotBefore } from '../snapshots/snapshot-before.decorator';
 import { TestNotificationDto, UpdateNotificationSettingsDto, DeliveryQueryDto } from './dto/notification-settings.dto';
 import { NotificationsService } from './notifications.service';
 import { NotificationSettingsService } from './notification-settings.service';
@@ -41,6 +42,7 @@ export class NotificationsController {
   }
 
   @Patch('settings')
+  @SnapshotBefore('settings', 'Notification policy update')
   async settingsUpdate(@Body() body: UpdateNotificationSettingsDto) {
     try {
       if (body.credentials) await this.settings.setCredentials(body.credentials);

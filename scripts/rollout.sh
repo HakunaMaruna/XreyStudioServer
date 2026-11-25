@@ -206,6 +206,15 @@ wait_health() {
   done
 }
 
+# --- snapshot preflight ---------------------------------------------------------
+if [ "$DRY_RUN" = false ]; then
+  log 'creating pre-rollout snapshot'
+  api POST /snapshots '{"label":"Pre-rollout snapshot","reason":"Configuration rollout","scope":"FULL"}' \
+    || die 2 'не удалось создать снимок перед раскаткой'
+  [ "$CURL_STATUS" = 201 ] || die 2 "POST /snapshots: HTTP ${CURL_STATUS}"
+  log 'pre-rollout snapshot created'
+fi
+
 # --- основная логика ----------------------------------------------------------
 if [ "$ALL_NODES" = true ]; then
   if [ "$DRY_RUN" = true ]; then

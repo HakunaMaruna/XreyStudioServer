@@ -5,6 +5,7 @@ import { CurrentUser, AuthUser } from '../../common/decorators/current-user.deco
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { AuditService } from '../audit/audit.service';
+import { SnapshotBefore } from '../snapshots/snapshot-before.decorator';
 import { RestoreBackupDto, UpdateBackupSettingsDto } from './dto/backup.dto';
 import { BackupSchedulerService } from './backup-scheduler.service';
 import { BackupsService } from './backups.service';
@@ -30,6 +31,7 @@ export class BackupsController {
   }
 
   @Patch('settings')
+  @SnapshotBefore('settings', 'Backup schedule and retention update')
   async updateSettings(@Body() body: UpdateBackupSettingsDto, @CurrentUser() user: AuthUser) {
     const settings = await this.scheduler.updateSettings(body);
     await this.audit.log({
