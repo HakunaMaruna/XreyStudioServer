@@ -1,8 +1,10 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Role } from '@prisma/client';
+import { AuthUser, CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { CreateRoutingDto, UpdateRoutingDto, ValidateRoutingDto } from './dto/routing.dto';
 import { RoutingService } from './routing.service';
 
 @Controller('routing')
@@ -12,14 +14,32 @@ export class RoutingController {
   constructor(private readonly service: RoutingService) {}
 
   @Get()
-  list() { return this.service.list(); }
+  list(@CurrentUser() user: AuthUser) {
+    return this.service.list(user);
+  }
+
+  @Get('recipes/list')
+  recipes() {
+    return this.service.recipes();
+  }
+
+  @Post('validate')
+  validate(@Body() body: ValidateRoutingDto) {
+    return this.service.validate(body.payload);
+  }
 
   @Post()
-  create(@Body() body: any) { return this.service.create(body); }
+  create(@Body() body: CreateRoutingDto, @CurrentUser() user: AuthUser) {
+    return this.service.create(body, user);
+  }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: any) { return this.service.update(id, body); }
+  update(@Param('id') id: string, @Body() body: UpdateRoutingDto, @CurrentUser() user: AuthUser) {
+    return this.service.update(id, body, user);
+  }
 
   @Delete(':id')
-  remove(@Param('id') id: string) { return this.service.remove(id); }
+  remove(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.remove(id, user);
+  }
 }

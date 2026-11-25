@@ -5,6 +5,7 @@ describe('ConfigGeneratorService external protocols', () => {
     node: { findUnique: jest.fn() },
     user: { findMany: jest.fn() },
     rule: { findMany: jest.fn() },
+    routingProfile: { findMany: jest.fn() },
   };
   let service: ConfigGeneratorService;
 
@@ -37,6 +38,7 @@ describe('ConfigGeneratorService external protocols', () => {
       { id: 'u1', email: 'user@example.com', subscriptionToken: 'token-1' },
     ]);
     prisma.rule.findMany.mockResolvedValue([]);
+    prisma.routingProfile.findMany.mockResolvedValue([]);
     service = new ConfigGeneratorService(prisma, {} as any, { emit: jest.fn() } as any);
   });
 
@@ -91,5 +93,39 @@ describe('ConfigGeneratorService external protocols', () => {
     });
     expect(config.routing.rules[0]).toEqual({ name: 'global' });
     expect(config.routing.rules[1]).toEqual({ name: 'tenant' });
+  });
+
+  it('merges enabled routing profiles into DNS, outbounds and routing rules', async () => {
+    prisma.node.findUnique.mockResolvedValue({ id: 'n1', organizationId: 'org-a', inbounds: [] });
+    prisma.routingProfile.findMany.mockResolvedValue([
+      {
+        payload: {
+          dnsServers: ['9.9.9.9'],
+          outbounds: [{ tag: 'xss-test-direct', protocol: 'freedom' }],
+          routingRules: [{ type: 'field', ip: ['10.0.0.0/8'], outboundTag: 'xss-test-direct' }],
+        },
+      },
+    ]);
+
+    const { config }: any = await service.generateConfig('n1');
+
+    expect(prisma.routingProfile.findMany).toHaveBeenCalledWith({
+      where: {
+        enabled: true,
+        OR: [{ organizationId: null }, { organizationId: 'org-a' }],
+      },
+    });
+    expect(config.dns.servers[0]).toBe('9.9.9.9');
+    expect(config.outbounds).toContainEqual({ tag: 'xss-test-direct', protocol: 'freedom' });
+    expect(config.routing.rules).toContainEqual({
+      type: 'field',
+      ip: ['10.0.0.0/8'],
+      outboundTag: 'xss-test-direct',
+    });
+    expect(config.routing.rules[config.routing.rules.length - 1]).toEqual({
+      type: 'field',
+      network: 'tcp,udp',
+      outboundTag: 'direct',
+    });
   });
 });

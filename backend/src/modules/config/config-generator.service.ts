@@ -232,21 +232,45 @@ export class ConfigGeneratorService {
       };
     });
 
+    // Routing profiles are curated presets stored in the database. Enabled profiles
+    // for the node's organization are merged into the generated Xray config.
+    const routingProfiles = await this.prisma.routingProfile.findMany({
+      where: {
+        enabled: true,
+        OR: [{ organizationId: null }, ...(node.organizationId ? [{ organizationId: node.organizationId }] : [])],
+      },
+    });
+    const profileRules: Record<string, unknown>[] = [];
+    const profileDns: string[] = [];
+    const profileOutbounds: Record<string, unknown>[] = [];
+    for (const profile of routingProfiles) {
+      const payload = (profile.payload || {}) as {
+        routingRules?: Record<string, unknown>[];
+        dnsServers?: string[];
+        outbounds?: Record<string, unknown>[];
+      };
+      if (Array.isArray(payload.routingRules)) profileRules.push(...payload.routingRules);
+      if (Array.isArray(payload.dnsServers)) profileDns.push(...payload.dnsServers);
+      if (Array.isArray(payload.outbounds)) profileOutbounds.push(...payload.outbounds);
+    }
+
     const config: any = {
       log: { loglevel: 'warning' },
       dns: {
-        servers: ['1.1.1.1', '8.8.8.8', 'localhost'],
+        servers: [...new Set([...profileDns, '1.1.1.1', '8.8.8.8', 'localhost'])],
         queryStrategy: 'UseIP',
       },
       inbounds,
       outbounds: [
         { tag: 'direct', protocol: 'freedom' },
         { tag: 'blocked', protocol: 'blackhole' },
+        ...profileOutbounds,
       ],
       routing: {
         domainStrategy: 'IPIfNonMatch',
         rules: [
           ...rules.map((r) => r.payload),
+          ...profileRules,
           { type: 'field', network: 'tcp,udp', outboundTag: 'direct' },
         ],
       },

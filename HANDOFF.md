@@ -31,6 +31,17 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Routing profiles (v2.28.0, 2026-11-25)
+
+Профили маршрутизации теперь реально влияют на генерацию конфига (раньше `/routing` только
+хранил JSON в БД): `enabled`-профили добавляются в `routing.rules`, `dns.servers`, `outbounds`
+(`backend/src/modules/config/config-generator.service.ts`). Добавлены 5 рецептов
+(`backend/src/modules/routing/routing-recipes.ts`), валидация(payload), tenant-изоляция
+через `organizationId`, UI-пикер рецептов и кнопка «Проверить». Тестовый рецепт
+`test-custom-outbound` создаёт outbound `xss-test-direct`.
+Документация: `docs/routing.md`, обновлён `docs/api.md`.
+Тесты: 24 suites / 134 tests.
+
 ## Current work (2026-11-25)
 
 v2.27.0 — автоматическая выдача доменов нодам и мастер создания ноды (issue **#176**).
