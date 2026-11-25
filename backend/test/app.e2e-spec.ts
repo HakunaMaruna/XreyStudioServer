@@ -1,7 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import * as bcrypt from 'bcryptjs';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { SeedService } from '../src/common/seed.service';
@@ -11,10 +11,11 @@ describe('XSS API (e2e)', () => {
   let app: INestApplication;
   let token: string;
 
+  const password = `e2e-${randomUUID()}`;
   const admin = {
     id: 'admin-1',
     email: 'admin@example.com',
-    passwordHash: bcrypt.hashSync('password123', 4),
+    passwordHash: bcrypt.hashSync(password, 4),
     role: 'ADMIN',
     status: 'ACTIVE',
     organizationId: null,
@@ -133,7 +134,7 @@ describe('XSS API (e2e)', () => {
 
     const login = await request(app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email: admin.email, password: 'password123' })
+      .send({ email: admin.email, password })
       .expect(201);
     token = login.body.accessToken;
   });
@@ -150,7 +151,7 @@ describe('XSS API (e2e)', () => {
   it('rejects invalid credentials', async () => {
     await request(app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email: admin.email, password: 'wrong-password' })
+      .send({ email: admin.email, password: `wrong-${randomUUID()}` })
       .expect(401);
   });
 
