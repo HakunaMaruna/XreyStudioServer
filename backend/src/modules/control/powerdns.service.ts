@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { DnsSettingsService } from './dns-settings.service';
 
-type Rrset = {
+export type Rrset = {
   name: string;
   type: string;
   ttl: number;
@@ -11,48 +12,58 @@ type Rrset = {
 @Injectable()
 export class PowerDnsService {
   private readonly logger = new Logger(PowerDnsService.name);
-  private readonly url = (process.env.PDNS_API_URL || 'http://powerdns:8081').replace(/\/$/, '');
-  private readonly key = process.env.PDNS_API_KEY || '';
-  private readonly zone = process.env.NODE_DNS_ZONE || 'node.h2onetwork.pro';
-  private readonly ttl = Number(process.env.NODE_DNS_TTL || 60);
 
-  private get enabled() {
-    return Boolean(this.key);
+  constructor(private readonly settings: DnsSettingsService) {}
+
+  private async config() {
+    return this.settings.config();
   }
 
-  private fqdn(label: string) {
-    return `${label}.${this.zone}.`.toLowerCase();
+  private fqdn(label: string, zone: string) {
+    return `${label}.${zone}.`.toLowerCase();
   }
 
-  private async patch(rrsets: Rrset[]) {
-    if (!this.enabled) {
-      this.logger.warn('PDNS_API_KEY not set — DNS changes are simulated');
-      return;
-    }
-    const response = await fetch(`${this.url}/api/v1/servers/localhost/zones/${this.zone}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'X-API-Key': this.key },
-      body: JSON.stringify({ rrsets }),
+  private async request(path: string, init: RequestInit = {}) {
+    const { apiUrl, apiKey } = await this.config();
+    if (!apiKey) throw new BadRequestException('PowerDNS API key is not configured');
+    const response = await fetch(`${apiUrl.replace(/\/$/, '')}${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey,
+        ...(init.headers || {}),
+      },
     });
     if (!response.ok) {
       throw new BadRequestException(`PowerDNS API error ${response.status}: ${(await response.text()).slice(0, 300)}`);
     }
+    return response;
+  }
+
+  private async patch(rrsets: Rrset[]) {
+    const { zone } = await this.config();
+    await this.request(`/api/v1/servers/localhost/zones/${encodeURIComponent(zone)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ rrsets }),
+    });
   }
 
   async setAddress(label: string, ipv4: string, ipv6?: string | null) {
+    const { zone, ttl } = await this.config();
     const sets: Rrset[] = [
-      { name: this.fqdn(label), type: 'A', ttl: this.ttl, changetype: 'REPLACE', records: [{ content: ipv4, disabled: false }] },
+      { name: this.fqdn(label, zone), type: 'A', ttl, changetype: 'REPLACE', records: [{ content: ipv4, disabled: false }] },
     ];
     if (ipv6) {
-      sets.push({ name: this.fqdn(label), type: 'AAAA', ttl: this.ttl, changetype: 'REPLACE', records: [{ content: ipv6, disabled: false }] });
+      sets.push({ name: this.fqdn(label, zone), type: 'AAAA', ttl, changetype: 'REPLACE', records: [{ content: ipv6, disabled: false }] });
     }
     await this.patch(sets);
   }
 
   async setTxt(label: string, value: string) {
+    const { zone } = await this.config();
     await this.patch([
       {
-        name: this.fqdn(label),
+        name: this.fqdn(label, zone),
         type: 'TXT',
         ttl: 60,
         changetype: 'REPLACE',
@@ -62,30 +73,85 @@ export class PowerDnsService {
   }
 
   async removeTxt(label: string) {
-    await this.patch([{ name: this.fqdn(label), type: 'TXT', ttl: 60, changetype: 'DELETE', records: [] }]);
+    const { zone } = await this.config();
+    await this.patch([{ name: this.fqdn(label, zone), type: 'TXT', ttl: 60, changetype: 'DELETE', records: [] }]);
   }
 
   async remove(label: string) {
+    const { zone, ttl } = await this.config();
     await this.patch([
-      { name: this.fqdn(label), type: 'A', ttl: this.ttl, changetype: 'DELETE', records: [] },
-      { name: this.fqdn(label), type: 'AAAA', ttl: this.ttl, changetype: 'DELETE', records: [] },
-      { name: this.fqdn(label), type: 'TXT', ttl: 60, changetype: 'DELETE', records: [] },
+      { name: this.fqdn(label, zone), type: 'A', ttl, changetype: 'DELETE', records: [] },
+      { name: this.fqdn(label, zone), type: 'AAAA', ttl, changetype: 'DELETE', records: [] },
+      { name: this.fqdn(label, zone), type: 'TXT', ttl: 60, changetype: 'DELETE', records: [] },
     ]);
   }
 
-  get zoneName() {
-    return this.zone;
+  async zoneName() {
+    return (await this.config()).zone;
   }
 
-  get isConfigured() {
-    return this.enabled;
+  async isConfigured() {
+    return Boolean((await this.config()).apiKey);
   }
 
-  get apiUrl() {
-    return this.url;
+  async apiUrl() {
+    return (await this.config()).apiUrl;
   }
 
-  get apiKey() {
-    return this.key;
+  async apiKey() {
+    return (await this.config()).apiKey;
+  }
+
+  async serverInfo() {
+    const response = await this.request('/api/v1/servers/localhost');
+    return response.json();
+  }
+
+  async zones() {
+    const response = await this.request('/api/v1/servers/localhost/zones');
+    return response.json();
+  }
+
+  async statistics() {
+    const response = await this.request('/api/v1/servers/localhost/statistics');
+    return response.json();
+  }
+
+  async metrics() {
+    const response = await this.request('/metrics', { headers: { Accept: 'text/plain' } });
+    const text = await response.text();
+    const result: Record<string, number> = {};
+    for (const line of text.split('\n')) {
+      const match = /^(pdns_auth_[a-z0-9_]+)\s+([0-9.]+)$/.exec(line.trim());
+      if (match) result[match[1]] = Number(match[2]);
+    }
+    return result;
+  }
+
+  async zone(id: string) {
+    const response = await this.request(`/api/v1/servers/localhost/zones/${encodeURIComponent(id)}`);
+    return response.json();
+  }
+
+  async createZone(name: string, ns1: string, ns2: string) {
+    const zone = name.endsWith('.') ? name : `${name}.`;
+    const response = await this.request('/api/v1/servers/localhost/zones', {
+      method: 'POST',
+      body: JSON.stringify({ name: zone, kind: 'Native', nameservers: [ns1, ns2] }),
+    });
+    return response.json();
+  }
+
+  async deleteZone(name: string) {
+    await this.request(`/api/v1/servers/localhost/zones/${encodeURIComponent(name)}`, { method: 'DELETE' });
+    return { deleted: name };
+  }
+
+  async patchRrsets(zone: string, rrsets: Rrset[]) {
+    const response = await this.request(`/api/v1/servers/localhost/zones/${encodeURIComponent(zone)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ rrsets }),
+    });
+    return response.json().catch(() => ({ ok: true }));
   }
 }

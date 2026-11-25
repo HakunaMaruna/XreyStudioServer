@@ -29,11 +29,11 @@ export class ControlService {
   async allocate(dto: AllocateDto, ctx: ApiTokenContext) {
     if (!IPV4.test(dto.ipv4 || '')) throw new BadRequestException('Invalid IPv4 address');
     if (dto.ipv6 && !IPV6.test(dto.ipv6)) throw new BadRequestException('Invalid IPv6 address');
-    if (!this.dns.isConfigured) throw new BadRequestException('CONTROL DNS is not configured (PDNS_API_KEY missing)');
+    if (!(await this.dns.isConfigured())) throw new BadRequestException('CONTROL DNS is not configured (PDNS_API_KEY missing)');
 
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const label = randomBytes(6).toString('hex');
-      const fqdn = `${label}.${this.dns.zoneName}`;
+      const fqdn = `${label}.${await this.dns.zoneName()}`;
       const exists = await this.prisma.nodeDomain.findUnique({ where: { label } });
       if (exists) continue;
       await this.dns.setAddress(label, dto.ipv4, dto.ipv6);
@@ -77,7 +77,7 @@ export class ControlService {
   async issueCertificate(domainId: string, ctx: ApiTokenContext, extraDomains: string[] = []) {
     const domain = await this.prisma.nodeDomain.findFirst({ where: { id: domainId, tenantOrgId: this.tenantId(ctx) } });
     if (!domain) throw new NotFoundException('Node domain not found');
-    if (!this.dns.isConfigured) throw new BadRequestException('CONTROL DNS is not configured');
+    if (!(await this.dns.isConfigured())) throw new BadRequestException('CONTROL DNS is not configured');
 
     const names = [domain.fqdn, ...extraDomains.filter((name) => name && name !== domain.fqdn)];
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'xss-acme-'));
@@ -104,9 +104,12 @@ fetch(process.env.PDNS_API_URL + '/api/v1/servers/localhost/zones/' + zone, {
 `;
     const hook = path.join(dir, 'hook.mjs');
     await fs.writeFile(hook, hookScript, { mode: 0o700 });
+    const [pdnsUrl, pdnsKey, pdnsZone] = await Promise.all([
+      this.dns.apiUrl(), this.dns.apiKey(), this.dns.zoneName(),
+    ]);
     const shellHook = (change: string) => `#!/bin/sh
 set -e
-PDNS_API_URL='${this.dns.apiUrl}' PDNS_API_KEY='${this.dns.apiKey}' PDNS_ZONE='${this.dns.zoneName}' \\
+PDNS_API_URL='${pdnsUrl}' PDNS_API_KEY='${pdnsKey}' PDNS_ZONE='${pdnsZone}' \\
 PDNS_CHANGETYPE='${change}' CERTBOT_LABEL='${domain.label}' node '${hook}'
 ${change === 'REPLACE' ? 'sleep 5' : ''}
 `;

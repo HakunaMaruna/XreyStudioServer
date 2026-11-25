@@ -31,6 +31,16 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## DNS section (v2.33.0, 2026-11-25)
+
+CONTROL/TENANT выявлены через `PANEL_MODE` (control-compose выставляет `control`).
+Новый пункт меню «DNS» показывается только в CONTROL. Раздел `/dns`: обзор зон/запросов/
+uptime, управление зонами и записями через HTTP API PowerDNS, метрики `pdns_auth_*`,
+настройки (API URL/ключ, зона, TTL, NS1/NS2, bind IP). API-ключ шифруется, не отдаётся.
+Выбран вариант «свой модуль поверх API PowerDNS» вместо отдельного PowerDNS-Admin
+или микросервиса: единый JWT/RBAC и сохранение выдачи доменов через `/api/control/domains`.
+Документация `docs/powerdns.md`, `docs/api.md`. Тесты 29 suites / 156 tests.
+
 ## Nodes grid (v2.32.3, 2026-11-25)
 
 Таблица нод заменена сеткой карточек: по две карточки в ряд (`md:grid-cols-2`), поиск,

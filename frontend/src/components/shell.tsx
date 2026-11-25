@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { useLang } from '../lib/i18n';
-import { clearTokens, isLoggedIn } from '../lib/api';
+import { api, clearTokens, isLoggedIn } from '../lib/api';
 import { getTheme, applyTheme, type Theme } from '../lib/theme';
 import { APP_VERSION } from '../lib/version';
 import { Icon, toggleIconSet, type IconName } from './icons';
@@ -21,10 +21,16 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [controlMode, setControlMode] = useState(false);
 
   useEffect(() => {
     setAuthed(isLoggedIn());
     setTheme(getTheme());
+    if (isLoggedIn()) {
+      api.get<{ mode: string }>('/api/dns/status')
+        .then((status) => setControlMode(status.mode === 'control'))
+        .catch(() => setControlMode(false));
+    }
   }, []);
 
   useEffect(() => {
@@ -54,6 +60,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           { href: '/rules', label: t.rules, icon: 'route' },
       { href: '/routing', label: t.routing, icon: 'sliders' },
       { href: '/geodata', label: t.geodata, icon: 'globe' },
+          ...(controlMode ? [{ href: '/dns', label: t.dnsSection, icon: 'network' as IconName }] : []),
         ],
       },
       {
@@ -86,7 +93,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         ],
       },
     ],
-    [t],
+    [t, controlMode],
   );
 
   const allItems = useMemo(() => sections.flatMap((section) => section.items), [sections]);

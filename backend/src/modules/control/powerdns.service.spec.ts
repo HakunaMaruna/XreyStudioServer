@@ -20,7 +20,15 @@ describe('PowerDnsService', () => {
     global.fetch = originalFetch;
   });
 
-  const service = () => new PowerDnsService();
+  const service = () => new PowerDnsService({
+    config: jest.fn(async () => ({
+      apiUrl: process.env.PDNS_API_URL || 'http://powerdns:8081',
+      apiKey: process.env.PDNS_API_KEY || '',
+      zone: process.env.NODE_DNS_ZONE || 'node.h2onetwork.pro',
+      ttl: Number(process.env.NODE_DNS_TTL || 60),
+      ns1: 'ns1.h2onetwork.pro.', ns2: 'ns2.h2onetwork.pro.', bindIp: '0.0.0.0', mode: 'control' as const,
+    })),
+  } as any);
 
   it('creates A and AAAA records with the configured TTL', async () => {
     await service().setAddress('abcdef123456', '203.0.113.10', '2001:db8::1');
@@ -47,7 +55,7 @@ describe('PowerDnsService', () => {
 
   it('does not call the API when no key is configured', async () => {
     delete process.env.PDNS_API_KEY;
-    await service().setAddress('label', '203.0.113.1');
+    await expect(service().setAddress('label', '203.0.113.1')).rejects.toThrow('API key is not configured');
     expect(calls).toHaveLength(0);
   });
 
