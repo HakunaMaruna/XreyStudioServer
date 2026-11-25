@@ -37,7 +37,7 @@ API:
 `SIGNAL` (добавлен в `NotificationChannel`). OPERATOR видит и меняет только маршруты
 своей организации, ADMIN — глобальные. Матрица на странице показывает 7 событий:
 NODE_OFFLINE, NODE_ONLINE, TRAFFIC_ALERT, USER_EXPIRED, BACKUP_FAILED, CONFIG_APPLIED,
-PAYMENT_RECEIVED.
+PAYMENT_RECEIVED, CHEBURCHECK_BLOCKED.
 
 ### Правила отправки
 

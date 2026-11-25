@@ -170,6 +170,13 @@ All report endpoints require an `ADMIN` JWT.
 - Payload accepts `routingRules[]`, `dnsServers[]` and `outbounds[]`, merged into generated Xray config.
 - `PATCH /users/:id` with `configProfileId` attaches a profile to a user.
 
+## Cheburcheck
+
+- `POST /cheburcheck/check { nodeId?, target? }` — live block-list + SSE probe check.
+- `GET /cheburcheck/results?nodeId&limit` — stored checks (tenant-scoped).
+- `GET /cheburcheck/status` — service status and token credits.
+- `GET /reports/cheburcheck?from&to` and `.csv` — report. See `docs/cheburcheck.md`.
+
 ## Notifications
 
 - `GET/PATCH /notifications/settings` — channel configuration (encrypted at rest, secrets

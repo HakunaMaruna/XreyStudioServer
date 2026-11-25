@@ -12,6 +12,16 @@ import { ReportsService } from './reports.service';
 export class ReportsController {
   constructor(private readonly service: ReportsService) {}
 
+  @Get('cheburcheck')
+  cheburcheck(@Query() query: { from?: string; to?: string }) {
+    return this.service.cheburcheck(query);
+  }
+
+  @Get('cheburcheck.csv')
+  async cheburcheckCsv(@Query() query: { from?: string; to?: string }, @Res() res: any) {
+    sendCsv(res, 'cheburcheck.csv', await this.service.cheburcheckCsv(query));
+  }
+
   @Get('traffic/timeseries')
   traffic(@Query() query: { from?: string; to?: string; days?: string }) {
     return this.service.trafficTimeseries(query);

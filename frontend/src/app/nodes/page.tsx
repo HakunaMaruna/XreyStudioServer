@@ -54,6 +54,10 @@ export default function NodesPage() {
   const [metricsNode, setMetricsNode] = useState<NodeRow | null>(null);
   const [metricsData, setMetricsData] = useState<any>(null);
   const [metricsLoading, setMetricsLoading] = useState(false);
+  const [checkNode, setCheckNode] = useState<NodeRow | null>(null);
+  const [checkData, setCheckData] = useState<any>(null);
+  const [checkBusy, setCheckBusy] = useState(false);
+  const [checkStep, setCheckStep] = useState(0);
 
   const countryNames = useMemo(
     () => new Intl.DisplayNames([lang === 'ru' ? 'ru' : 'en'], { type: 'region' }),
@@ -211,6 +215,26 @@ export default function NodesPage() {
     }
   };
 
+  const runCheburcheck = async (node: NodeRow) => {
+    setCheckNode(node);
+    setCheckData(null);
+    setCheckStep(1);
+    setCheckBusy(true);
+    setError('');
+    const timer = window.setInterval(() => setCheckStep((current) => Math.min(3, current + 1)), 6000);
+    try {
+      const data = await api.post('/api/cheburcheck/check', { nodeId: node.id });
+      setCheckData(data);
+      setCheckStep(4);
+    } catch (e: any) {
+      setError(e.message);
+      setCheckStep(4);
+    } finally {
+      window.clearInterval(timer);
+      setCheckBusy(false);
+    }
+  };
+
   const columns = useMemo<ColumnDef<NodeRow>[]>(
     () => [
       {
@@ -268,6 +292,7 @@ export default function NodesPage() {
         enableSorting: false,
         cell: ({ row }) => (
           <div className="flex items-center gap-1">
+            <IconButton icon="shield" label={t.cheburcheckCheck} tone="brand" onClick={() => runCheburcheck(row.original)} />
             <IconButton icon="gauge" label={t.metrics} tone="brand" onClick={() => openMetrics(row.original)} />
             <IconButton icon="activity" label={t.health} onClick={() => openHealth(row.original)} />
             <IconButton icon="edit" label={t.edit} onClick={() => openEdit(row.original)} />
@@ -538,6 +563,82 @@ export default function NodesPage() {
           </div>
         ) : (
           <div className="py-12 text-center text-xs text-subtle">{t.noData}</div>
+        )}
+      </Modal>
+
+
+      <Modal
+        open={Boolean(checkNode)}
+        onClose={() => { setCheckNode(null); setCheckData(null); }}
+        title={t.cheburcheck}
+        subtitle={checkNode?.address}
+        icon={<Icon name="shield" size={16} />}
+        size="lg"
+        footer={<Button onClick={() => { setCheckNode(null); setCheckData(null); }}>{t.close}</Button>}
+      >
+        {checkBusy && (
+          <div className="flex flex-col items-center gap-5 py-6">
+            <div className="cheb-radar"><span /><span /><span /><i /></div>
+            <p className="text-sm font-medium text-fg">{t.cheburcheckChecking}</p>
+            <div className="w-full max-w-md space-y-2">
+              {[t.cheburcheckStep1, t.cheburcheckStep2, t.cheburcheckStep3].map((label, index) => (
+                <div key={label} className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-all ${checkStep >= index + 1 ? 'border-brand/30 bg-brand/10 text-fg' : 'border-line bg-surface-2 text-subtle'}`}>
+                  <span className={`grid h-5 w-5 place-items-center rounded-full border ${checkStep > index + 1 ? 'border-success/40 bg-success/20 text-success' : checkStep === index + 1 ? 'border-brand/40 bg-brand/20 text-brand' : 'border-line text-subtle'}`}>
+                    {checkStep > index + 1 ? '✓' : index + 1}
+                  </span>
+                  {label}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!checkBusy && checkData && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone={checkData.blocked ? 'danger' : 'success'} dot>
+                {checkData.blocked ? t.cheburcheckBlocked : t.cheburcheckOk}
+              </Badge>
+              <Badge tone="brand">{t.cheburcheckVerdict}: {checkData.verdict}</Badge>
+              <Badge tone="neutral">{checkData.targetType || '—'}</Badge>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-line bg-surface-2/50 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-subtle">{t.cheburcheckTarget}</p>
+                <p className="mono mt-1 text-sm text-fg">{checkData.target}</p>
+                <p className="mt-1 text-[11px] text-muted">{checkData.ips?.join(', ') || '—'}</p>
+              </div>
+              <div className="rounded-xl border border-line bg-surface-2/50 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-subtle">{t.cheburcheckGeo}</p>
+                <p className="mt-1 text-sm text-fg">{checkData.geo?.location || '—'}</p>
+                <p className="mt-1 text-[11px] text-muted">{checkData.geo?.organisation || ''} {checkData.geo?.asn || ''}</p>
+              </div>
+            </div>
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-[10px] uppercase tracking-wider text-subtle">{t.cheburcheckProbes}</p>
+                <Badge tone="neutral">{checkData.probes?.length || 0}</Badge>
+              </div>
+              <div className="max-h-56 space-y-2 overflow-y-auto">
+                {(checkData.probes || []).map((probe: any, index: number) => (
+                  <div key={`${probe.probeId}-${index}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-surface-2/40 px-3 py-2 text-xs">
+                    <div className="flex flex-wrap items-center gap-2 text-muted">
+                      <span className="mono text-brand">#{probe.probeId}</span>
+                      <span>{probe.region || '—'}</span>
+                      <span>{probe.provider || ''}</span>
+                      <span className="mono">{probe.asn || ''}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {(probe.verdicts || []).map((verdict: string) => (
+                        <Badge key={verdict} tone={verdict === 'ok' ? 'success' : verdict === 'uncertain' ? 'warning' : 'danger'}>{verdict}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {!checkData.probes?.length && <p className="py-4 text-center text-xs text-subtle">{checkData.probeError || t.noData}</p>}
+              </div>
+            </div>
+          </div>
         )}
       </Modal>
 

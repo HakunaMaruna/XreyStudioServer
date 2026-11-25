@@ -31,6 +31,16 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Cheburcheck (v2.32.0, 2026-11-25)
+
+Кнопка «Проверить в Cheburcheck» на ноде: модальное окно с анимированным радаром и шагами,
+результат (списки, гео, ASN, сканеры с region/provider/verdicts). Бэкенд читает SSE `/probe/<id>`
+до `done`, token только в заголовке; результат пишется в новую модель `CheburcheckResult`.
+Добавлены отчёт `/reports/cheburcheck[.csv]`, событие `CHEBURCHECK_BLOCKED` в матрицу
+уведомлений и ключ `CHEBURCHECK_API_TOKEN` в зашифрованные настройки. Идея — из Mistgate
+«Check now / cheburcheck», код не копировался. Документация `docs/cheburcheck.md`.
+Тесты: 28 suites / 151 tests.
+
 ## Telegram-уведомления — остановились здесь (2026-11-25, issue #190)
 
 Код поддержки Telegram готов (v2.31.0). На боевой панели сохранён токен бота

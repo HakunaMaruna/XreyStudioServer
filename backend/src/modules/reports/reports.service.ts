@@ -146,6 +146,46 @@ export class ReportsService {
     );
   }
 
+  async cheburcheck(range: Range = {}) {
+    const createdAt = this.dateWhere(range);
+    const rows = await this.prisma.cheburcheckResult.findMany({
+      where: createdAt ? { createdAt } : {},
+      include: { node: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 1000,
+    });
+    return {
+      data: rows.map((row) => ({
+        id: row.id,
+        createdAt: row.createdAt,
+        nodeId: row.nodeId,
+        nodeName: row.node?.name || null,
+        target: row.target,
+        targetType: row.targetType,
+        blocked: row.blocked,
+        verdict: row.verdict,
+        probes: Array.isArray((row.payload as any)?.probes) ? (row.payload as any).probes.length : 0,
+      })),
+      total: rows.length,
+    };
+  }
+
+  async cheburcheckCsv(range: Range = {}) {
+    const { data } = await this.cheburcheck(range);
+    return toCsv(
+      ['createdAt', 'node', 'target', 'targetType', 'verdict', 'blocked', 'probes'],
+      data.map((row) => [
+        new Date(row.createdAt).toISOString(),
+        row.nodeName || '',
+        row.target,
+        row.targetType || '',
+        row.verdict || '',
+        String(row.blocked),
+        row.probes,
+      ]),
+    );
+  }
+
   async organizations(range: Range = {}) {
     const createdAt = this.dateWhere(range);
     const organizations = await this.prisma.organization.findMany({
