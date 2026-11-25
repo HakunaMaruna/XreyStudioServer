@@ -212,17 +212,16 @@ export function StatCard({
   delay?: number;
 }) {
   return (
-    <Card delay={delay} className="group relative overflow-hidden">
-      <div className="absolute -right-8 -top-10 h-32 w-32 rounded-full bg-brand/10 blur-3xl transition-opacity group-hover:opacity-100" />
-      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-brand via-brand-2 to-transparent opacity-60" />
-      <div className="relative flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-subtle">{label}</p>
-          <p className="mt-3 bg-gradient-to-r from-fg via-fg to-brand-2 bg-clip-text text-[30px] font-semibold leading-none tracking-tight text-transparent tabular-nums">{value}</p>
-          {hint && <p className="mt-2 text-[11px] text-muted">{hint}</p>}
+    <Card delay={delay} className="group relative overflow-hidden p-4">
+      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-brand via-brand-2 to-transparent opacity-50" />
+      <div className="relative flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-[10px] font-semibold uppercase tracking-[0.1em] text-subtle">{label}</p>
+          <p className="mt-2 text-[23px] font-semibold leading-none tracking-tight text-fg tabular-nums">{value}</p>
+          {hint && <p className="mt-1.5 truncate text-[10px] text-muted">{hint}</p>}
         </div>
-        <div className={cn('grid h-11 w-11 shrink-0 place-items-center rounded-xl border shadow-[0_8px_24px_-12px_var(--brand)]', toneClasses[tone])}>
-          <Icon name={icon} size={19} />
+        <div className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-xl border', toneClasses[tone])}>
+          <Icon name={icon} size={22} />
         </div>
       </div>
     </Card>

@@ -19,6 +19,7 @@ import { Icon } from '../../components/icons';
 import { Button, Card, PageHeader, ProgressBar, SectionTitle, StatCard, formatBytes } from '../../components/ui';
 
 type Stats = { total: number; active: number; expired: number; disabled: number; trafficUsed: string };
+type DoctorCheck = { id: string; severity: 'ok' | 'warning' | 'critical'; title: string };
 type NodeStats = { total: number; online: number; offline: number; error: number };
 type NodeLoad = { name: string; cpu: number; ram: number };
 
@@ -38,6 +39,8 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [nodeStats, setNodeStats] = useState<NodeStats | null>(null);
   const [loads, setLoads] = useState<NodeLoad[]>([]);
+  const [inboundCount, setInboundCount] = useState<number | null>(null);
+  const [problems, setProblems] = useState<DoctorCheck[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -45,6 +48,12 @@ export default function DashboardPage() {
     await Promise.all([
       api.get<Stats>('/api/users/stats').then(setStats).catch(() => setStats(null)),
       api.get<NodeStats>('/api/nodes/stats').then(setNodeStats).catch(() => setNodeStats(null)),
+      api.get<any[]>('/api/inbounds')
+        .then((rows) => setInboundCount((Array.isArray(rows) ? rows : (rows as any).data || []).length))
+        .catch(() => setInboundCount(null)),
+      api.get<DoctorCheck[]>('/api/doctor')
+        .then((checks) => setProblems((Array.isArray(checks) ? checks : []).filter((check) => check.severity !== 'ok')))
+        .catch(() => setProblems([])),
       api
         .get<any>('/api/nodes')
         .then((nodes) =>
@@ -100,21 +109,32 @@ export default function DashboardPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 xl:grid-cols-6">
         <StatCard delay={0} label={t.totalUsers} value={stats?.total ?? '—'} icon="users" tone="brand" hint={t.registeredAccounts} />
         <StatCard delay={60} label={t.activeUsers} value={stats?.active ?? '—'} icon="checkCircle" tone="success" hint={totalUsers ? `${Math.round(((stats?.active || 0) / totalUsers) * 100)}${t.percentOfUsers}` : undefined} />
         <StatCard delay={120} label={t.totalNodes} value={nodeStats?.total ?? '—'} icon="server" tone="cyan" hint={t.configuredNodes} />
         <StatCard delay={180} label={t.onlineNodes} value={nodeStats?.online ?? '—'} icon="activity" tone="success" hint={totalNodes ? `${Math.round(((nodeStats?.online || 0) / totalNodes) * 100)}% ${t.availability}` : undefined} />
+        <StatCard delay={240} label={t.totalInbounds} value={inboundCount ?? '—'} icon="plug" tone="cyan" hint={t.configuredInbounds} />
+        <Link href="/doctor" className="block">
+          <StatCard
+            delay={300}
+            label={t.problems}
+            value={problems.length}
+            icon={problems.length ? 'alert' : 'checkCircle'}
+            tone={problems.length ? 'danger' : 'success'}
+            hint={problems.length ? problems[0].title : t.noProblems}
+          />
+        </Link>
       </div>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-2">
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
         <Card delay={240}>
           <SectionTitle title={t.usersByStatus} subtitle={t.distributionStatuses} />
           <div className="flex items-center gap-4">
-            <div className="relative h-[190px] w-[190px] shrink-0">
+            <div className="relative h-[150px] w-[150px] shrink-0">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={userStatus} dataKey="value" nameKey="name" innerRadius={58} outerRadius={82} paddingAngle={3} stroke="none">
+                  <Pie data={userStatus} dataKey="value" nameKey="name" innerRadius={46} outerRadius={66} paddingAngle={3} stroke="none">
                     {userStatus.map((entry, index) => (
                       <Cell key={entry.name} fill={CHART_COLORS[index]} />
                     ))}
@@ -146,7 +166,7 @@ export default function DashboardPage() {
 
         <Card delay={300}>
           <SectionTitle title={t.nodesByStatus} subtitle={t.healthAcrossLocations} />
-          <ResponsiveContainer width="100%" height={224}>
+          <ResponsiveContainer width="100%" height={180}>
             <BarChart data={nodeStatus} barSize={42}>
               <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 3" />
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--subtle)', fontSize: 11 }} dy={8} />
@@ -162,13 +182,13 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-3">
+      <div className="mt-4 grid gap-3 xl:grid-cols-3">
         <Card delay={360} className="xl:col-span-2">
           <SectionTitle title={t.nodeLoad} subtitle={t.cpuRamByNode} />
           {loads.length === 0 ? (
-            <div className="grid h-[220px] place-items-center text-xs text-subtle">{t.noNodeMetrics}</div>
+            <div className="grid h-[180px] place-items-center text-xs text-subtle">{t.noNodeMetrics}</div>
           ) : (
-            <ResponsiveContainer width="100%" height={224}>
+            <ResponsiveContainer width="100%" height={180}>
               <BarChart data={loads} barGap={4}>
                 <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 3" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--subtle)', fontSize: 10 }} dy={8} />
@@ -183,17 +203,17 @@ export default function DashboardPage() {
 
         <Card delay={420}>
           <SectionTitle title={t.trafficOverview} subtitle={t.aggregatedUsage} />
-          <div className="rounded-xl border border-line bg-surface-2/60 p-4">
+          <div className="rounded-xl border border-line bg-surface-2/60 p-3">
             <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-xl border border-cyan/25 bg-cyan/10 text-cyan">
-                <Icon name="activity" size={18} />
+              <div className="grid h-9 w-9 place-items-center rounded-xl border border-cyan/25 bg-cyan/10 text-cyan">
+                <Icon name="activity" size={20} />
               </div>
               <div>
                 <p className="text-[11px] uppercase tracking-wider text-subtle">{t.trafficUsed}</p>
                 <p className="text-xl font-semibold tracking-tight text-fg tabular-nums">{formatBytes(stats?.trafficUsed)}</p>
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-3 border-t border-line pt-4">
+            <div className="mt-3 grid grid-cols-2 gap-3 border-t border-line pt-3">
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-subtle">{t.active}</p>
                 <p className="mt-1 text-sm font-medium text-fg tabular-nums">{stats?.active ?? '—'}</p>
@@ -204,14 +224,14 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-          <div className="mt-4 space-y-2">
+          <div className="mt-3 space-y-2">
             <Link href="/users" className="flex items-center justify-between rounded-lg border border-line bg-surface-2/40 px-3 py-2.5 text-xs text-muted transition-colors hover:border-brand/30 hover:text-fg">
-              <span className="flex items-center gap-2"><Icon name="users" size={14} className="text-brand" /> {t.manageSubscribers}</span>
-              <Icon name="arrowUpRight" size={13} />
+              <span className="flex items-center gap-2"><Icon name="users" size={18} className="text-brand" /> {t.manageSubscribers}</span>
+              <Icon name="arrowUpRight" size={18} />
             </Link>
             <Link href="/nodes" className="flex items-center justify-between rounded-lg border border-line bg-surface-2/40 px-3 py-2.5 text-xs text-muted transition-colors hover:border-brand/30 hover:text-fg">
-              <span className="flex items-center gap-2"><Icon name="server" size={14} className="text-cyan" /> {t.inspectNodes}</span>
-              <Icon name="arrowUpRight" size={13} />
+              <span className="flex items-center gap-2"><Icon name="server" size={18} className="text-cyan" /> {t.inspectNodes}</span>
+              <Icon name="arrowUpRight" size={18} />
             </Link>
           </div>
         </Card>
