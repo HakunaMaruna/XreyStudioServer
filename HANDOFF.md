@@ -50,7 +50,8 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
   создаётся и для существующих `.env`, control-панель не опрашивает несуществующий updater.
 - Ядро: изоляция api-токенов для OPERATOR без организации, проверка tenant-владения ноды
   при bind, безопасная компиляция ACME shell-хуков, timingSafeEqual для токена ноды,
-  санитизация stderr pg_dump/psql, скрытие вывода updateAgent.
+  санитизация stderr pg_dump/psql, скрытие вывода updateAgent, MONITOR-токен с организацией
+  больше не видит глобальный счётчик алертов.
 
 Осталось как осознанные ограничения: docker.sock в updater даёт host-root (только profile
 `updater`), settings плагина передаются в env воркера, автоматический rollback при провале

@@ -77,10 +77,11 @@ export class MonitorController {
   @RequireScope(ApiTokenScope.MONITOR)
   async summary(@ApiTokenUser() token: { organizationId: string | null }) {
     const org = token.organizationId ?? undefined;
-    const [users, nodes, alerts] = await Promise.all([
+    // AlertHistory has no tenant column yet: never expose a global alert count to a tenant token.
+    const alerts = org ? null : await this.prisma.alertHistory.count();
+    const [users, nodes] = await Promise.all([
       this.prisma.user.count({ where: org ? { organizationId: org } : {} }),
       this.prisma.node.count({ where: org ? { organizationId: org } : {} }),
-      this.prisma.alertHistory.count(),
     ]);
     return {
       users,
