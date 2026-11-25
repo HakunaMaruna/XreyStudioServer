@@ -30,6 +30,8 @@ describe('BalancersService', () => {
     await expect(service().create({ name: 'x', members: [] } as any, admin)).rejects.toThrow(BadRequestException);
     await expect(service().create({ name: 'x', strategy: 'magic', members: [member] } as any, admin)).rejects.toThrow('Unknown balancing strategy');
     await expect(service().create({ name: 'x', rule: {}, members: [member] } as any, admin)).rejects.toThrow('at least one matcher');
+    await expect(service().create({ name: 'x', observatoryMode: 'magic', members: [member] } as any, admin)).rejects.toThrow('Unknown observatory mode');
+    await expect(service().create({ name: 'x', burstIntervalSec: 5, members: [member] } as any, admin)).rejects.toThrow('Burst interval');
   });
 
   it('encrypts member settings on create and exposes them decrypted to admin', async () => {

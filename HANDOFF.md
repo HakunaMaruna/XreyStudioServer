@@ -31,6 +31,12 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Burst Observatory (v2.36.0, 2026-11-25)
+
+В балансировщике добавлен выбор `observatoryMode`: `observatory` или `burstObservatory`
+с настройками destination/interval/sampling/timeout. Если включён burst, генератор пишет
+только `burstObservatory` с объединённым subjectSelector. Документация `docs/balancers.md`.
+
 ## DNS profiles (v2.35.0, 2026-11-25)
 
 Новый раздел `/dns-profiles`: визуальный редактор Xray `dns` — hosts, серверы

@@ -22,6 +22,11 @@ export class BalancerMemberDto {
 }
 
 export class CreateBalancerDto {
+  @IsOptional() @IsIn(['observatory', 'burstObservatory']) observatoryMode?: string;
+  @IsOptional() @IsString() @MaxLength(512) burstDestination?: string;
+  @IsOptional() @IsInt() @Min(10) @Max(3600) burstIntervalSec?: number;
+  @IsOptional() @IsInt() @Min(1) @Max(50) burstSampling?: number;
+  @IsOptional() @IsInt() @Min(1) @Max(60) burstTimeoutSec?: number;
   @IsString() @MaxLength(120) name: string;
   @IsOptional() @IsIn(['random', 'roundRobin', 'leastPing', 'leastLoad']) strategy?: string;
   @IsOptional() @IsBoolean() enabled?: boolean;
@@ -34,6 +39,11 @@ export class CreateBalancerDto {
 }
 
 export class UpdateBalancerDto {
+  @IsOptional() @IsIn(['observatory', 'burstObservatory']) observatoryMode?: string;
+  @IsOptional() @IsString() @MaxLength(512) burstDestination?: string;
+  @IsOptional() @IsInt() @Min(10) @Max(3600) burstIntervalSec?: number;
+  @IsOptional() @IsInt() @Min(1) @Max(50) burstSampling?: number;
+  @IsOptional() @IsInt() @Min(1) @Max(60) burstTimeoutSec?: number;
   @IsOptional() @IsString() @MaxLength(120) name?: string;
   @IsOptional() @IsIn(['random', 'roundRobin', 'leastPing', 'leastLoad']) strategy?: string;
   @IsOptional() @IsBoolean() enabled?: boolean;

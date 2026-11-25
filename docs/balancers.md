@@ -68,11 +68,23 @@ DELETE /api/balancers/:id
 POST   /api/balancers/:id/preview
 ```
 
+## Burst Observatory
+
+В форме балансировщика можно выбрать `observatoryMode`:
+
+- `observatory` — обычный HTTPing с фиксированным интервалом (`probeUrl`, `probeIntervalSec`);
+- `burstObservatory` — случайные во времени пробы (`burstDestination`, `burstIntervalSec`,
+  `burstSampling`, `burstTimeoutSec`), менее заметный трафик и быстрее определяет отказ.
+
+Если хотя бы один включённый балансировщик использует burst, в конфиг пишется только
+`burstObservatory` с объединённым `subjectSelector` всех балансировщиков — Xray рекомендует
+использовать один из двух механизмов наблюдения.
+
 ## Ограничения MVP
 
 - Нет per-user и per-inbound выбора балансировщика.
 - Нет весов участников и стратегии `leastLoad.settings` (только базовый `strategy.type`).
-- У всех балансировщиков общий `observatory` (один probe URL и интервал — от первого включённого).
+- У всех балансировщиков один общий observatory/burstObservatory; параметры берутся от первого включённого балансировщика соответствующего режима.
 - sing-box и external-ноды (Hysteria2/TUIC/WireGuard) balancer не затрагивает.
 - Участник с невалидными учётными данными не проверяется заранее — проверяйте конфиг
   через `xray run -test` / предпросмотр.

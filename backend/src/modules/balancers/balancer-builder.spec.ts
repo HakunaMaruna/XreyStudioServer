@@ -12,6 +12,11 @@ describe('buildBalancers', () => {
       fallbackTag: 'direct',
       probeUrl: 'https://www.google.com/generate_204',
       probeIntervalSec: 30,
+      observatoryMode: 'burstObservatory',
+      burstDestination: 'https://connectivitycheck.gstatic.com/generate_204',
+      burstIntervalSec: 60,
+      burstSampling: 10,
+      burstTimeoutSec: 5,
       rule: { domain: ['example.com'] },
       members: [
         { id: 'm1', protocol: 'vless', enabled: true, config: encryptSecret(JSON.stringify({ settings: { address: 'a.example.com', port: 443 } })) },
@@ -29,6 +34,8 @@ describe('buildBalancers', () => {
     });
     expect(built.rules[0]).toMatchObject({ balancerTag: 'balancer-abcdef12', domain: ['example.com'] });
     expect(built.observerSelectors).toEqual(['bal-abcdef12-out-']);
+    expect(built.observatoryMode).toBe('burstObservatory');
+    expect(built.burst).toMatchObject({ interval: '60s', sampling: 10, timeout: '5s' });
     expect(JSON.stringify(built)).not.toContain('v1:');
   });
 
