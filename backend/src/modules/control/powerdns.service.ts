@@ -185,7 +185,8 @@ export class PowerDnsService {
   async setDnssec(zone: string, enabled: boolean) {
     const response = await this.request(`/api/v1/servers/localhost/zones/${encodeURIComponent(zone)}`, {
       method: 'PATCH',
-      body: JSON.stringify({ dnssec: enabled, ...(enabled ? { api_rectify: true } : {}) }),
+      // PowerDNS 4.x требует rrsets даже при изменении только флага dnssec.
+      body: JSON.stringify({ dnssec: enabled, ...(enabled ? { api_rectify: true } : {}), rrsets: [] }),
     });
     return response.json().catch(() => ({ ok: true }));
   }
