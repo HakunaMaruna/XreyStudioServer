@@ -46,6 +46,7 @@ import { ReverseModule } from './modules/reverse/reverse.module';
 import { SubscriptionPageModule } from './modules/subscription-page/subscription-page.module';
 import { TelegramBotModule } from './modules/telegram-bot/telegram-bot.module';
 import { SnapshotsModule } from './modules/snapshots/snapshots.module';
+import { PluginsModule } from './modules/plugins/plugins.module';
 
 @Module({
   imports: [
@@ -101,6 +102,7 @@ import { SnapshotsModule } from './modules/snapshots/snapshots.module';
     SubscriptionPageModule,
     TelegramBotModule,
     SnapshotsModule,
+    PluginsModule,
   ],
   providers: [
     SeedService,

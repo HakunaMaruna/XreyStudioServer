@@ -1,0 +1,45 @@
+{
+  "id": "com.example.hello-widget",
+  "name": "Hello Widget",
+  "version": "1.0.0",
+  "author": "Developer",
+  "description": "Simple dashboard widget example",
+  "license": "MIT",
+  "minPanelVersion": "2.38.0",
+  "maxPanelVersion": null,
+  "dependencies": [],
+  "permissions": [
+    "users:read"
+  ],
+  "entrypoints": {
+    "backend": "backend/index.js",
+    "frontend": null,
+    "migrations": "migrations"
+  },
+  "hooks": [
+    "onInstall",
+    "onEnable",
+    "onDisable",
+    "onUninstall",
+    "dashboardWidget",
+    "health"
+  ],
+  "settingsSchema": {
+    "type": "object",
+    "properties": {
+      "greeting": {
+        "type": "string",
+        "title": "Greeting"
+      }
+    }
+  },
+  "healthcheck": "health",
+  "i18n": {
+    "ru": {
+      "title": "Hello Widget"
+    },
+    "en": {
+      "title": "Hello Widget"
+    }
+  }
+}

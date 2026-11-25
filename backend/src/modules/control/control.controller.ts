@@ -2,13 +2,27 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@n
 import { ApiTokenGuard, ApiTokenUser, RequireScope } from '../api-tokens/api-token.guard';
 import type { ApiTokenContext } from '../api-tokens/api-tokens.service';
 import { ControlService } from './control.service';
+import { PluginCatalogService } from '../plugins/plugin-catalog.service';
 import { AllocateDomainDto, BindDomainDto, IssueCertificateDto } from './dto/control.dto';
 
 @Controller('control')
 @UseGuards(ApiTokenGuard)
 @RequireScope('NODE_DOMAIN' as any)
 export class ControlController {
-  constructor(private readonly service: ControlService) {}
+  constructor(
+    private readonly service: ControlService,
+    private readonly catalog: PluginCatalogService,
+  ) {}
+
+  @Get('plugins/catalog')
+  pluginCatalog() {
+    return this.catalog.masterCatalog();
+  }
+
+  @Get('plugins/download/:id')
+  pluginDownload(@Param('id') id: string) {
+    return this.catalog.downloadUrl(id);
+  }
 
   @Post('domains')
   allocate(@Body() body: AllocateDomainDto, @ApiTokenUser() token: ApiTokenContext) {

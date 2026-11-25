@@ -497,6 +497,7 @@ enum ApiTokenScope {
   NOTIFICATIONS
   USERS_READ
   NODE_DOMAIN
+  PLUGIN_STORE
 }
 
 model NodeDomain {
@@ -641,6 +642,116 @@ model ReverseTunnel {
   updatedAt      DateTime      @updatedAt
 
   @@index([nodeId, enabled])
+}
+
+enum PluginStatus {
+  INSTALLED
+  ENABLED
+  DISABLED
+  QUARANTINED
+  FAILED
+}
+
+model Plugin {
+  id            String       @id @default(uuid())
+  pluginId      String       @unique
+  version       String
+  manifest      Json
+  status        PluginStatus @default(INSTALLED)
+  settings      Json?
+  permissions   Json?
+  artifactPath  String?
+  signature     Json?
+  lastError     String?
+  lastHealthAt  DateTime?
+  enabledAt     DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model PluginStorage {
+  pluginId  String
+  key       String
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@id([pluginId, key])
+}
+
+model PluginLog {
+  id        String   @id @default(uuid())
+  pluginId  String
+  level     String
+  message   String
+  createdAt DateTime @default(now())
+
+  @@index([pluginId, createdAt])
+}
+
+model PluginCatalogCache {
+  id        String   @id @default("default")
+  etag      String?
+  body      Json
+  fetchedAt DateTime
+  offline   Boolean  @default(false)
+}
+
+model PluginPolicy {
+  id            String   @id @default("default")
+  whitelist     Json?
+  blacklist     Json?
+  mandatory     Json?
+  forcedUpdates Json?
+  updatedAt     DateTime @updatedAt
+}
+
+enum StorePluginStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  SUSPENDED
+}
+
+model StorePlugin {
+  id          String            @id @default(uuid())
+  slug        String            @unique
+  name        String
+  author      String
+  description String
+  category    String            @default("utility")
+  iconUrl     String?
+  screenshots Json?
+  rating      Float             @default(0)
+  status      StorePluginStatus @default(DRAFT)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  versions    StoreVersion[]
+}
+
+model StoreVersion {
+  id          String      @id @default(uuid())
+  pluginId    String
+  plugin      StorePlugin @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  version     String
+  manifest    Json
+  payload     Json
+  sha256      String
+  signature   Json?
+  changelog   String?
+  compatibility Json?
+  createdAt   DateTime    @default(now())
+
+  @@unique([pluginId, version])
+}
+
+model StoreRevocation {
+  id        String   @id @default(uuid())
+  pluginId  String
+  version   String?
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([pluginId])
 }
 
 model Balancer {

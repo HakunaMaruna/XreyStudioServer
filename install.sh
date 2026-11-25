@@ -357,10 +357,11 @@ if [ ! -f .env ]; then
   JWT="$(openssl rand -hex 32)"; REFRESH="$(openssl rand -hex 32)"; ADMIN="$(openssl rand -hex 24)"
   AGENT="${AGENT_TOKEN:-$(openssl rand -hex 32)}"; ALERT="$(openssl rand -hex 24)"; POSTGRES="$(openssl rand -hex 16)"
   if [ "$MODE" = "control" ]; then
-    PDNS_KEY="$(openssl rand -hex 24)"; MASTER_KEY="$(openssl rand 32 | base64 -w0)"
+    PDNS_KEY="$(openssl rand -hex 24)"; MASTER_KEY="$(openssl rand 32 | base64 -w0)"; STORE_TOKEN="$(openssl rand -hex 24)"
     say "  ${C_DIM}PDNS_API_KEY=$PDNS_KEY${C_RESET}"
     say "  ${C_DIM}PANEL_MASTER_KEY=$MASTER_KEY${C_RESET}"
-    run_sh "printf 'PANEL_MODE=control\\n' >> .env"
+    say "  ${C_DIM}STORE_ADMIN_TOKEN=$STORE_TOKEN${C_RESET}"
+    run_sh "printf 'PANEL_MODE=control\\nSTORE_ADMIN_TOKEN=%s\\n' '$STORE_TOKEN' >> .env"
   fi
   run_sh "sed -i 's|^JWT_SECRET=.*|JWT_SECRET=$JWT|' .env"
   run_sh "sed -i 's|^JWT_REFRESH_SECRET=.*|JWT_REFRESH_SECRET=$REFRESH|' .env"
