@@ -48,6 +48,11 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 поэтому уведомление не отправлялось (журнал доставок пуст) — это корректно. Публичные
 сканеры работают и при 0 кредитов; кредиты нужны только платным функциям Cheburcheck.
 
+Настройки (v2.32.1): пользователь может указать **свой** `CHEBURCHECK_API_TOKEN` и
+`CHEBURCHECK_BASE_URL` в «Оповещения → Настройки»; в UI есть ссылки на документацию
+<https://cheburcheck.ru/kb/api> и форму заявки <https://forms.gle/LSPcAV5n3CrdQLMP6>.
+Свой API URL проверяется на SSRF (только HTTPS в проде, нельзя приватные адреса).
+
 ## Telegram-уведомления — остановились здесь (2026-11-25, issue #190)
 
 Код поддержки Telegram готов (v2.31.0). На боевой панели сохранён токен бота

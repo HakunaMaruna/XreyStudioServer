@@ -40,7 +40,10 @@ const CREDENTIAL_FIELDS = [
   { key: 'SIGNAL_API_URL', label: 'Signal API URL', secret: false },
   { key: 'SIGNAL_PHONE_NUMBER', label: 'Signal phone', secret: false },
   { key: 'SIGNAL_RECIPIENT', label: 'Signal recipient', secret: false },
-  { key: 'CHEBURCHECK_API_TOKEN', label: 'Cheburcheck API token', secret: true },
+  { key: 'CHEBURCHECK_API_TOKEN', label: 'Cheburcheck API token', secret: true,
+    hint: 'Заявка на токен: https://forms.gle/LSPcAV5n3CrdQLMP6 · Документация: https://cheburcheck.ru/kb/api' },
+  { key: 'CHEBURCHECK_BASE_URL', label: 'Cheburcheck API URL', secret: false,
+    hint: 'Пусто = https://cheburcheck.ru/api/v1. Свой API: https://cheburcheck.ru/kb/api' },
 ];
 
 const EVENTS = ['NODE_OFFLINE', 'NODE_ONLINE', 'TRAFFIC_ALERT', 'USER_EXPIRED', 'BACKUP_FAILED', 'CONFIG_APPLIED', 'PAYMENT_RECEIVED', 'CHEBURCHECK_BLOCKED'];
@@ -260,16 +263,24 @@ export default function AlertsPage() {
             <SectionTitle title={t.notificationChannels} subtitle={t.leaveEmptyToKeep} />
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {CREDENTIAL_FIELDS.map((field) => (
-                <Field key={field.key} label={field.label} hint={settingsData?.configured[field.key] ? t.connected : undefined}>
-                  <input
-                    className="field"
-                    type={field.secret ? 'password' : 'text'}
-                    autoComplete="off"
-                    placeholder={field.secret ? '••••••••' : ''}
-                    value={credentialDraft[field.key] ?? ''}
-                    onChange={(e) => setCredentialDraft({ ...credentialDraft, [field.key]: e.target.value })}
-                  />
-                </Field>
+                <div key={field.key} className="space-y-1.5">
+                  <Field label={field.label} hint={settingsData?.configured[field.key] ? t.connected : undefined}>
+                    <input
+                      className="field"
+                      type={field.secret ? 'password' : 'text'}
+                      autoComplete="off"
+                      placeholder={field.secret ? '••••••••' : ''}
+                      value={credentialDraft[field.key] ?? ''}
+                      onChange={(e) => setCredentialDraft({ ...credentialDraft, [field.key]: e.target.value })}
+                    />
+                  </Field>
+                  {field.hint && <p className="break-all text-[10px] leading-relaxed text-subtle">
+                    {field.hint.split(' · ').map((part) => {
+                      const [label, url] = part.split(': ');
+                      return url?.startsWith('http') ? <a key={url} href={url} target="_blank" rel="noreferrer" className="mr-2 text-brand underline">{label || url}</a> : <span key={part}>{part}</span>;
+                    })}
+                  </p>}
+                </div>
               ))}
             </div>
             <div className="mt-4 flex flex-wrap gap-2">

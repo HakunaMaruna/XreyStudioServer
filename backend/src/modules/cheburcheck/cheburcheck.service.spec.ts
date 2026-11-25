@@ -49,7 +49,7 @@ describe('CheburcheckService', () => {
         findMany: jest.fn(async () => []),
       },
     };
-    settings = { value: jest.fn(async () => 'token') };
+    settings = { value: jest.fn(async (key: string) => (key === 'CHEBURCHECK_API_TOKEN' ? 'token' : undefined)) };
     notifications = { emit: jest.fn(async () => ({})) };
   });
 
@@ -82,8 +82,17 @@ describe('CheburcheckService', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
+  it('rejects a private self-hosted API URL in production', async () => {
+    const previous = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    settings.value.mockImplementation(async (key: string) =>
+      key === 'CHEBURCHECK_API_TOKEN' ? 'token' : key === 'CHEBURCHECK_BASE_URL' ? 'https://127.0.0.1/api/v1' : undefined);
+    await expect(service().check({ target: 'example.com' }, admin)).rejects.toThrow('Private Cheburcheck API');
+    process.env.NODE_ENV = previous;
+  });
+
   it('works without a token (block lists only)', async () => {
-    settings.value.mockResolvedValueOnce(undefined);
+    settings.value.mockImplementation(async () => undefined);
     const result = await service().check({ nodeId: 'n1' }, admin);
     expect(result.probeError).toContain('not configured');
     expect(result.verdict).toBe('unknown');

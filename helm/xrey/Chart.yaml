@@ -3,7 +3,7 @@ name: xrey
 description: Self-hosted XreyStudioServer control panel for Xray-core
 type: application
 version: 0.1.0
-appVersion: "2.32.0"
+appVersion: "2.32.1"
 keywords:
   - xray
   - xrey
