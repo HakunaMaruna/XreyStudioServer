@@ -29,9 +29,14 @@ type ProtocolRow = {
   nodes: number;
 };
 
-type Tab = 'traffic' | 'organizations' | 'protocols';
+type Tab = 'traffic' | 'cheburcheck' | 'organizations' | 'protocols';
 type TrafficRow = { date: string; bytesUp: string; bytesDown: string; total: string };
 type TrafficSummary = { bytesUp: string; bytesDown: string; total: string; previousTotal: string; changePct: number | null };
+type ChebRow = {
+  id: string; createdAt: string; nodeId: string | null; nodeName: string | null;
+  target: string; targetType: string | null; blocked: boolean; verdict: string | null; probes: number;
+};
+
 type TrafficReport = {
   data: TrafficRow[];
   summary: TrafficSummary;
@@ -52,6 +57,7 @@ export default function ReportsPage() {
   const [tab, setTab] = useState<Tab>('traffic');
   const [trafficDays, setTrafficDays] = useState(30);
   const [traffic, setTraffic] = useState<TrafficReport | null>(null);
+  const [cheb, setCheb] = useState<ChebRow[]>([]);
   const [orgs, setOrgs] = useState<OrgRow[]>([]);
   const [protocols, setProtocols] = useState<ProtocolRow[]>([]);
   const [from, setFrom] = useState('');
@@ -70,12 +76,14 @@ export default function ReportsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [trafficData, orgData, protocolData] = await Promise.all([
+      const [trafficData, chebData, orgData, protocolData] = await Promise.all([
         api.get<TrafficReport>(`/api/reports/traffic/timeseries?${query()}`),
+        api.get<{ data: ChebRow[] }>(`/api/reports/cheburcheck?${query()}`),
         api.get(`/api/reports/organizations?${query()}`),
         api.get('/api/reports/protocols'),
       ]);
       setTraffic(trafficData);
+      setCheb(chebData.data || []);
       setOrgs(orgData.data || []);
       setProtocols(protocolData.data || []);
     } catch (e: any) {
@@ -97,6 +105,8 @@ export default function ReportsPage() {
     try {
       if (tab === 'traffic') {
         await api.download(`/api/reports/traffic/timeseries.csv?${query()}`, 'traffic-timeseries.csv');
+      } else if (tab === 'cheburcheck') {
+        await api.download(`/api/reports/cheburcheck.csv?${query()}`, 'cheburcheck.csv');
       } else if (tab === 'organizations') {
         await api.download(`/api/reports/organizations.csv?${query()}`, 'organizations.csv');
       } else {
@@ -146,6 +156,17 @@ export default function ReportsPage() {
     [t],
   );
 
+  const chebColumns = useMemo<ColumnDef<ChebRow>[]>(
+    () => [
+      { accessorKey: 'createdAt', header: t.createdAt, cell: ({ row }) => <span className="text-xs text-muted">{new Date(row.original.createdAt).toLocaleString()}</span> },
+      { accessorKey: 'target', header: t.cheburcheckTarget, cell: ({ row }) => <span className="mono text-xs text-fg">{row.original.target}</span> },
+      { accessorKey: 'nodeName', header: t.nodes, cell: ({ row }) => <span className="text-xs text-muted">{row.original.nodeName || '—'}</span> },
+      { accessorKey: 'verdict', header: t.cheburcheckVerdict, cell: ({ row }) => <Badge tone={row.original.blocked ? 'danger' : 'success'}>{row.original.verdict || '—'}</Badge> },
+      { accessorKey: 'probes', header: t.cheburcheckProbes, cell: ({ row }) => <span className="text-xs text-fg tabular-nums">{row.original.probes}</span> },
+    ],
+    [t],
+  );
+
   return (
     <>
       <PageHeader
@@ -160,6 +181,7 @@ export default function ReportsPage() {
               onChange={setTab}
               options={[
                 { value: 'traffic', label: t.trafficDynamics, icon: 'activity' },
+                { value: 'cheburcheck', label: t.cheburcheck, icon: 'shield' },
                 { value: 'organizations', label: t.byOrganization, icon: 'shield' },
                 { value: 'protocols', label: t.byProtocol, icon: 'plug' },
               ]}
@@ -280,7 +302,9 @@ export default function ReportsPage() {
         </Card>
       )}
 
-      {tab !== 'traffic' && (loading ? (
+      {tab === 'cheburcheck' ? (
+        <DataTable data={cheb} columns={chebColumns} loading={loading} getRowId={(row) => row.id} />
+      ) : tab !== 'traffic' && (loading ? (
         <Card className="py-20 text-center text-xs text-muted">{t.loading}</Card>
       ) : tab === 'organizations' ? (
         <DataTable data={orgs} columns={orgColumns} loading={loading} getRowId={(row) => row.id} />

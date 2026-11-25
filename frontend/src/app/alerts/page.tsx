@@ -40,9 +40,10 @@ const CREDENTIAL_FIELDS = [
   { key: 'SIGNAL_API_URL', label: 'Signal API URL', secret: false },
   { key: 'SIGNAL_PHONE_NUMBER', label: 'Signal phone', secret: false },
   { key: 'SIGNAL_RECIPIENT', label: 'Signal recipient', secret: false },
+  { key: 'CHEBURCHECK_API_TOKEN', label: 'Cheburcheck API token', secret: true },
 ];
 
-const EVENTS = ['NODE_OFFLINE', 'NODE_ONLINE', 'TRAFFIC_ALERT', 'USER_EXPIRED', 'BACKUP_FAILED', 'CONFIG_APPLIED', 'PAYMENT_RECEIVED'];
+const EVENTS = ['NODE_OFFLINE', 'NODE_ONLINE', 'TRAFFIC_ALERT', 'USER_EXPIRED', 'BACKUP_FAILED', 'CONFIG_APPLIED', 'PAYMENT_RECEIVED', 'CHEBURCHECK_BLOCKED'];
 const MATRIX_CHANNELS = ['TELEGRAM', 'WEBHOOK', 'EMAIL', 'SIGNAL'];
 
 const channelIcons: Record<keyof Channels, IconName> = {

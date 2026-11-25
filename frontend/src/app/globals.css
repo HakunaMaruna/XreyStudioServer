@@ -346,3 +346,53 @@ button:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Cheburcheck live check: radar pulse while scanners answer. */
+.cheb-radar {
+  position: relative;
+  width: 112px;
+  height: 112px;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--brand) 35%, transparent);
+  background: radial-gradient(circle, color-mix(in srgb, var(--brand) 12%, transparent) 0%, transparent 70%);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.cheb-radar span {
+  position: absolute;
+  inset: 18px;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--brand) 35%, transparent);
+  animation: cheb-pulse 2.4s ease-out infinite;
+}
+.cheb-radar span:nth-child(2) { inset: 30px; animation-delay: .8s; }
+.cheb-radar span:nth-child(3) { inset: 42px; animation-delay: 1.6s; }
+.cheb-radar i {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: var(--brand);
+  box-shadow: 0 0 18px var(--brand);
+  animation: cheb-core 1.8s ease-in-out infinite;
+}
+.cheb-radar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(from 0deg, color-mix(in srgb, var(--brand) 35%, transparent), transparent 32%);
+  animation: cheb-spin 2.2s linear infinite;
+}
+@keyframes cheb-pulse {
+  0% { transform: scale(.6); opacity: 0; }
+  40% { opacity: .8; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+@keyframes cheb-core {
+  0%, 100% { transform: scale(.8); opacity: .7; }
+  50% { transform: scale(1.25); opacity: 1; }
+}
+@keyframes cheb-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .cheb-radar span, .cheb-radar i, .cheb-radar::after { animation: none; }
+}

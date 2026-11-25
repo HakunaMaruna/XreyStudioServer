@@ -18,6 +18,11 @@
 
 Для ускорения диапазонных запросов добавлен индекс `UserTraffic(createdAt)`.
 
+## Cheburcheck
+
+`GET /api/reports/cheburcheck?from&to` и `/reports/cheburcheck.csv` — сохранённые проверки
+доступности нод из России: цель, вердикт, число сканеров, привязка к ноде. См. `docs/cheburcheck.md`.
+
 ## По организациям и протоколам
 
 - `GET /api/reports/organizations?from&to` — пользователи, активные пользователи, ноды,

@@ -39,6 +39,7 @@ import { GeodataModule } from './modules/geodata/geodata.module';
 import { McpModule } from './modules/mcp/mcp.module';
 import { ControlModule } from './modules/control/control.module';
 import { WizardModule } from './modules/wizard/wizard.module';
+import { CheburcheckModule } from './modules/cheburcheck/cheburcheck.module';
 import { TelegramBotModule } from './modules/telegram-bot/telegram-bot.module';
 
 @Module({
@@ -88,6 +89,7 @@ import { TelegramBotModule } from './modules/telegram-bot/telegram-bot.module';
     McpModule,
     ControlModule,
     WizardModule,
+    CheburcheckModule,
     TelegramBotModule,
   ],
   providers: [
