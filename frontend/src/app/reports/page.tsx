@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
@@ -28,11 +29,29 @@ type ProtocolRow = {
   nodes: number;
 };
 
-type Tab = 'organizations' | 'protocols';
+type Tab = 'traffic' | 'organizations' | 'protocols';
+type TrafficRow = { date: string; bytesUp: string; bytesDown: string; total: string };
+type TrafficSummary = { bytesUp: string; bytesDown: string; total: string; previousTotal: string; changePct: number | null };
+type TrafficReport = {
+  data: TrafficRow[];
+  summary: TrafficSummary;
+  topUsers: Array<{ userId: string; email: string; bytes: string }>;
+  range: { from: string; to: string; days: number };
+};
+
+const chartTooltip = {
+  background: 'var(--surface-2)',
+  border: '1px solid var(--line)',
+  borderRadius: 10,
+  fontSize: 11,
+  color: 'var(--fg)',
+};
 
 export default function ReportsPage() {
   const { t } = useLang();
-  const [tab, setTab] = useState<Tab>('organizations');
+  const [tab, setTab] = useState<Tab>('traffic');
+  const [trafficDays, setTrafficDays] = useState(30);
+  const [traffic, setTraffic] = useState<TrafficReport | null>(null);
   const [orgs, setOrgs] = useState<OrgRow[]>([]);
   const [protocols, setProtocols] = useState<ProtocolRow[]>([]);
   const [from, setFrom] = useState('');
@@ -42,6 +61,7 @@ export default function ReportsPage() {
 
   const query = () => {
     const params = new URLSearchParams();
+    if (tab === 'traffic' && !from && !to) params.set('days', String(trafficDays));
     if (from) params.set('from', from);
     if (to) params.set('to', to);
     return params.toString();
@@ -50,10 +70,12 @@ export default function ReportsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [orgData, protocolData] = await Promise.all([
+      const [trafficData, orgData, protocolData] = await Promise.all([
+        api.get<TrafficReport>(`/api/reports/traffic/timeseries?${query()}`),
         api.get(`/api/reports/organizations?${query()}`),
         api.get('/api/reports/protocols'),
       ]);
+      setTraffic(trafficData);
       setOrgs(orgData.data || []);
       setProtocols(protocolData.data || []);
     } catch (e: any) {
@@ -61,7 +83,7 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  }, [from, to]);
+  }, [from, to, tab, trafficDays]);
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -73,7 +95,9 @@ export default function ReportsPage() {
 
   const exportCsv = async () => {
     try {
-      if (tab === 'organizations') {
+      if (tab === 'traffic') {
+        await api.download(`/api/reports/traffic/timeseries.csv?${query()}`, 'traffic-timeseries.csv');
+      } else if (tab === 'organizations') {
         await api.download(`/api/reports/organizations.csv?${query()}`, 'organizations.csv');
       } else {
         await api.download('/api/reports/protocols.csv', 'protocols.csv');
@@ -135,6 +159,7 @@ export default function ReportsPage() {
               value={tab}
               onChange={setTab}
               options={[
+                { value: 'traffic', label: t.trafficDynamics, icon: 'activity' },
                 { value: 'organizations', label: t.byOrganization, icon: 'shield' },
                 { value: 'protocols', label: t.byProtocol, icon: 'plug' },
               ]}
@@ -150,6 +175,101 @@ export default function ReportsPage() {
         </div>
       )}
 
+      {tab === 'traffic' && (
+        <Card className="mb-4 p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {[7, 30, 90].map((days) => (
+              <Button
+                key={days}
+                size="sm"
+                variant={!from && !to && trafficDays === days ? 'primary' : 'subtle'}
+                onClick={() => { setTrafficDays(days); setFrom(''); setTo(''); }}
+              >
+                {days === 7 ? t.last7Days : days === 30 ? t.last30Days : t.last90Days}
+              </Button>
+            ))}
+            <span className="mx-1 h-5 w-px bg-line" />
+            <Field label={t.from}><input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="field w-auto" /></Field>
+            <Field label={t.to}><input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="field w-auto" /></Field>
+            <Badge tone="neutral">{traffic?.range?.days ?? trafficDays} {t.periodDays}</Badge>
+          </div>
+        </Card>
+      )}
+
+      {tab === 'traffic' && !traffic && loading && (
+        <Card className="py-20 text-center text-xs text-muted">{t.loading}</Card>
+      )}
+      {tab === 'traffic' && traffic && (
+        <>
+          <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            <Card className="p-4">
+              <p className="text-[10px] uppercase tracking-wider text-subtle">{t.trafficUsed}</p>
+              <p className="mt-2 text-[23px] font-semibold leading-none text-fg tabular-nums">{formatBytes(traffic.summary.total)}</p>
+              <p className="mt-1.5 text-[10px] text-muted">{t.periodDays}: {traffic.range.days}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-[10px] uppercase tracking-wider text-subtle">{t.bytesUp}</p>
+              <p className="mt-2 text-[23px] font-semibold leading-none text-brand tabular-nums">{formatBytes(traffic.summary.bytesUp)}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-[10px] uppercase tracking-wider text-subtle">{t.bytesDown}</p>
+              <p className="mt-2 text-[23px] font-semibold leading-none text-cyan tabular-nums">{formatBytes(traffic.summary.bytesDown)}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-[10px] uppercase tracking-wider text-subtle">{t.change}</p>
+              <p className={`mt-2 text-[23px] font-semibold leading-none tabular-nums ${traffic.summary.changePct === null ? 'text-muted' : traffic.summary.changePct >= 0 ? 'text-success' : 'text-danger'}`}>
+                {traffic.summary.changePct === null ? '—' : `${traffic.summary.changePct > 0 ? '+' : ''}${traffic.summary.changePct}%`}
+              </p>
+              <p className="mt-1.5 text-[10px] text-muted">{t.previousPeriod}: {formatBytes(traffic.summary.previousTotal)}</p>
+            </Card>
+          </div>
+
+          <Card className="mb-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-semibold text-fg">{t.trafficDynamics}</h2>
+                <p className="text-xs text-muted">{traffic.range.from} — {traffic.range.to}</p>
+              </div>
+              <Badge tone="brand">{traffic.data.length} {t.periodDays}</Badge>
+            </div>
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={traffic.data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+                <defs>
+                  <linearGradient id="upFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--brand)" stopOpacity={0.55} />
+                    <stop offset="95%" stopColor="var(--brand)" stopOpacity={0.05} />
+                  </linearGradient>
+                  <linearGradient id="downFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--cyan)" stopOpacity={0.55} />
+                    <stop offset="95%" stopColor="var(--cyan)" stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 3" />
+                <XAxis dataKey="date" tick={{ fill: 'var(--subtle)', fontSize: 10 }} axisLine={false} tickLine={false} minTickGap={24} />
+                <YAxis tick={{ fill: 'var(--subtle)', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatBytes(v)} width={56} />
+                <Tooltip contentStyle={chartTooltip} labelStyle={{ color: 'var(--fg)' }} formatter={(value: any, name: any) => [formatBytes(value), name === 'bytesUp' ? t.bytesUp : t.bytesDown]} />
+                <Area type="monotone" dataKey="bytesUp" stackId="1" stroke="var(--brand)" fill="url(#upFill)" strokeWidth={2} />
+                <Area type="monotone" dataKey="bytesDown" stackId="1" stroke="var(--cyan)" fill="url(#downFill)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </Card>
+
+          {traffic.topUsers.length > 0 && (
+            <Card className="mb-4 p-4">
+              <h2 className="mb-3 text-sm font-semibold text-fg">{t.topUsers}</h2>
+              <div className="space-y-2">
+                {traffic.topUsers.map((user) => (
+                  <div key={user.userId} className="flex items-center justify-between rounded-lg border border-line bg-surface-2/40 px-3 py-2 text-xs">
+                    <span className="flex items-center gap-2 text-muted"><Icon name="users" size={18} className="text-brand" />{user.email}</span>
+                    <Badge tone="brand">{formatBytes(user.bytes)}</Badge>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </>
+      )}
+
       {tab === 'organizations' && (
         <Card className="mb-5 p-4">
           <div className="flex flex-wrap items-end gap-3">
@@ -160,13 +280,13 @@ export default function ReportsPage() {
         </Card>
       )}
 
-      {loading ? (
+      {tab !== 'traffic' && (loading ? (
         <Card className="py-20 text-center text-xs text-muted">{t.loading}</Card>
       ) : tab === 'organizations' ? (
         <DataTable data={orgs} columns={orgColumns} loading={loading} getRowId={(row) => row.id} />
       ) : (
         <DataTable data={protocols} columns={protocolColumns} loading={loading} getRowId={(row) => row.protocol} />
-      )}
+      ))}
     </>
   );
 }
