@@ -1,4 +1,4 @@
-import { IsInt, IsNumber, IsOptional, IsString, Matches } from 'class-validator';
+import { IsInt, IsNumber, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 
 export class CreateNodeDto {
   @IsString()
@@ -61,6 +61,11 @@ export class RegisterNodeDto {
   @IsOptional()
   @IsString()
   xrayVersion?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  agentVersion?: string;
 }
 
 export class NodeMetricsDto {
@@ -91,4 +96,9 @@ export class NodeMetricsDto {
   @IsOptional()
   @IsString()
   xray?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  agentVersion?: string;
 }

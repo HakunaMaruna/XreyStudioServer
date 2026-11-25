@@ -28,6 +28,15 @@ const XRAY_API_PORT = Number(process.env.XRAY_API_PORT || 8080);
 const TRAFFIC_INTERVAL = Math.max(15000, Number(process.env.TRAFFIC_REPORT_INTERVAL || 60000));
 const GEOCHECK_URL = process.env.GEOCHECK_URL || 'https://ipinfo.io/json';
 const GEOCHECK_INTERVAL = Math.max(3600000, Number(process.env.GEOCHECK_INTERVAL || 21600000));
+// Версия агента: панель сравнивает её со своей и показывает устаревшие ноды.
+const AGENT_VERSION = (() => {
+  if (process.env.AGENT_VERSION) return String(process.env.AGENT_VERSION).trim();
+  try {
+    return String(require('../package.json').version || '').trim() || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+})();
 
 let xrayStatus = 'unknown';
 let singboxStatus = 'unknown';
@@ -334,7 +343,7 @@ async function sendMetrics() {
     await fetch(`${PANEL_URL}/api/nodes/${NODE_ID}/metrics`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AGENT_TOKEN}` },
-      body: JSON.stringify(metrics),
+      body: JSON.stringify({ ...metrics, agentVersion: AGENT_VERSION }),
     });
   } catch (e) {
     console.error('metrics failed', e.message);
@@ -385,9 +394,9 @@ async function register() {
     const res = await fetch(`${PANEL_URL}/api/nodes/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AGENT_TOKEN}` },
-      body: JSON.stringify({ nodeId: NODE_ID, address: process.env.NODE_ADDRESS }),
+      body: JSON.stringify({ nodeId: NODE_ID, address: process.env.NODE_ADDRESS, agentVersion: AGENT_VERSION }),
     });
-    console.log('register:', res.status, await res.text());
+    console.log(`register: ${res.status} (agent ${AGENT_VERSION})`, await res.text());
   } catch (e) {
     console.error('register failed', e.message);
   }
@@ -415,6 +424,7 @@ app.get('/health', (req, res) => {
     xray: xrayStatus,
     singbox: singboxStatus,
     version: lastConfigVersion,
+    agentVersion: AGENT_VERSION,
   });
 });
 

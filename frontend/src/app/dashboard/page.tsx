@@ -15,8 +15,10 @@ import {
 } from 'recharts';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
+import { fetchUpdateStatus, type UpdateStatus } from '../../lib/updates';
+import { UpdateDialog } from '../../components/update-dialog';
 import { Icon } from '../../components/icons';
-import { Button, Card, PageHeader, ProgressBar, SectionTitle, StatCard, formatBytes } from '../../components/ui';
+import { Badge, Button, Card, PageHeader, ProgressBar, SectionTitle, StatCard, formatBytes } from '../../components/ui';
 
 type Stats = { total: number; active: number; expired: number; disabled: number; trafficUsed: string };
 type DoctorCheck = { id: string; severity: 'ok' | 'warning' | 'critical'; title: string };
@@ -42,6 +44,8 @@ export default function DashboardPage() {
   const [inboundCount, setInboundCount] = useState<number | null>(null);
   const [problems, setProblems] = useState<DoctorCheck[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [update, setUpdate] = useState<UpdateStatus | null>(null);
+  const [updateOpen, setUpdateOpen] = useState(false);
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -54,6 +58,9 @@ export default function DashboardPage() {
       api.get<DoctorCheck[]>('/api/doctor')
         .then((checks) => setProblems((Array.isArray(checks) ? checks : []).filter((check) => check.severity !== 'ok')))
         .catch(() => setProblems([])),
+      fetchUpdateStatus()
+        .then(setUpdate)
+        .catch(() => setUpdate(null)),
       api
         .get<any>('/api/nodes')
         .then((nodes) =>
@@ -108,6 +115,56 @@ export default function DashboardPage() {
           </>
         }
       />
+
+      {update?.updateAvailable && (
+        <Card className="mb-4 border-warning/30 bg-warning/5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-warning/30 bg-warning/10 text-warning">
+                <Icon name="download" size={18} />
+              </div>
+              <div>
+                <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-fg">
+                  {t.updateAvailable}
+                  <Badge tone="warning">v{update.latestVersion}</Badge>
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  {t.updateAvailableHint
+                    .replace('{current}', update.currentVersion)
+                    .replace('{latest}', update.latestVersion || '')}
+                </p>
+                {update.releaseUrl && (
+                  <a
+                    href={update.releaseUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-brand hover:underline"
+                  >
+                    {t.updateNotes}
+                    <Icon name="external" size={12} />
+                  </a>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {update.agents.outdated > 0 && (
+                <Link href="/nodes">
+                  <Badge tone="danger" dot>
+                    {t.agentsOutdated.replace('{count}', String(update.agents.outdated))}
+                  </Badge>
+                </Link>
+              )}
+              <Button
+                icon="download"
+                variant="primary"
+                onClick={() => setUpdateOpen(true)}
+              >
+                {t.updateNow}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 xl:grid-cols-6">
         <StatCard delay={0} label={t.totalUsers} value={stats?.total ?? '—'} icon="users" tone="brand" hint={t.registeredAccounts} />
@@ -236,6 +293,8 @@ export default function DashboardPage() {
           </div>
         </Card>
       </div>
+
+      {updateOpen && <UpdateDialog open onClose={() => setUpdateOpen(false)} status={update} />}
     </>
   );
 }

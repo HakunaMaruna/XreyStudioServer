@@ -11,14 +11,27 @@ import { Client, ConnectConfig } from 'ssh2';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ProvisionNodeDto } from './dto/provision.dto';
+import { UpdateNodeAgentDto } from './dto/update-agent.dto';
 
 const DEFAULT_REPO = 'https://github.com/HakunaMaruna/XreyStudioServer.git';
 const REMOTE_DIR = '/opt/xrey-agent';
 const DEFAULT_COMMAND_TIMEOUT_MS = 600_000;
+const UPDATE_TIMEOUT_MS = 600_000;
 const MAX_OUTPUT = 16_384;
 
 type ExecResult = { code: number; output: string };
 export type ProvisionProgress = (stage: string, message: string, level?: string) => Promise<void> | void;
+
+// Общие параметры SSH-подключения для установки и обновления агента.
+type SshTarget = {
+  host: string;
+  port?: number;
+  username: string;
+  hostKeyFingerprint?: string;
+  privateKey?: string;
+  passphrase?: string;
+  password?: string;
+};
 
 export function fingerprintMatches(key: Buffer, fingerprint: string): boolean {
   return `SHA256:${createHash('sha256').update(key).digest('base64')}` === fingerprint;
@@ -36,10 +49,10 @@ export class NodeProvisionService {
     }
   }
 
-  private connect(dto: ProvisionNodeDto): Promise<Client> {
+  private connect(dto: SshTarget): Promise<Client> {
     const config: ConnectConfig = {
       host: dto.host,
-      port: dto.port,
+      port: dto.port || 22,
       username: dto.username,
       // Fingerprint pinning is enforced for key-based auth by the wizard. Password-only
       // auth may omit it; in that case ssh2 falls back to its default TOFU behaviour.
@@ -88,13 +101,15 @@ export class NodeProvisionService {
   private runRemoteCommand(
     conn: Client,
     command: string,
-    onOutput?: (text: string) => void,
+    onOutputOrTimeout?: ((text: string) => void) | number,
     label = 'remote command',
   ): Promise<ExecResult> {
+    const onOutput = typeof onOutputOrTimeout === 'function' ? onOutputOrTimeout : undefined;
+    const timeoutMs = typeof onOutputOrTimeout === 'number' ? onOutputOrTimeout : this.commandTimeout();
     return new Promise((resolve, reject) => {
       const timer = setTimeout(
         () => reject(new BadRequestException(`Remote command timed out during ${label}`)),
-        this.commandTimeout(),
+        timeoutMs,
       );
       conn.exec(command, { pty: false }, (err, stream) => {
         if (err) {
@@ -139,8 +154,31 @@ export class NodeProvisionService {
     }
   }
 
-  private sudoPrefix(dto: ProvisionNodeDto) {
+  private sudoPrefix(dto: { useSudo?: boolean }) {
     return dto.useSudo ? 'sudo -n ' : '';
+  }
+
+  // `git checkout <тег>` оставляет репозиторий в detached HEAD, где `git pull`
+  // падает. Перед pull возвращаемся на ветку: её имя берём из HEAD, а если HEAD
+  // отвязан — первую локальную ветку.
+  private gitUpdate(sudo: string, targetVersion?: string) {
+    const git = `${sudo}git`;
+    if (targetVersion) {
+      // Теги — с префиксом `v`, а панель отдаёт версию без него.
+      return (
+        `( test -z "$(${git} status --porcelain)" || { echo 'refusing update: working tree has uncommitted changes' >&2; exit 1; }; ` +
+        `tag=${targetVersion}; ${git} rev-parse -q --verify "refs/tags/$tag" >/dev/null || tag=v$tag; ` +
+        `${git} checkout -q "$tag" )`
+      );
+    }
+    return [
+      // `for-each-ref` перечисляет только реальные ветки: `git branch` в detached
+      // HEAD выдаёт первой псевдо-запись «(HEAD detached at ...)».
+      `test -z "$(${git} status --porcelain)" || { echo 'refusing update: working tree has uncommitted changes' >&2; exit 1; }`,
+      `branch=$(${git} symbolic-ref -q --short HEAD || ${git} for-each-ref --format='%(refname:short)' refs/heads | head -n 1)`,
+      `${git} checkout -q "\${branch:-main}"`,
+      `${git} pull -q --ff-only`,
+    ].join('; ');
   }
 
   private async writeEnv(conn: Client, content: string, dto: ProvisionNodeDto) {
@@ -271,5 +309,46 @@ export class NodeProvisionService {
       agentToken,
       message: 'Agent installed; wait for the node to report ONLINE',
     };
+  }
+
+  // Обновление агента на ноде: панель заходит по SSH в каталог репозитория
+  // (его создаёт provision) и пересобирает только контейнер агента.
+  async updateAgent(nodeId: string, dto: UpdateNodeAgentDto, actor: AuthUser) {
+    this.enabled();
+    if (actor.role !== Role.ADMIN) throw new ForbiddenException('Admin role required');
+
+    const node = await this.prisma.node.findUnique({ where: { id: nodeId }, select: { id: true, name: true } });
+    if (!node) throw new BadRequestException('Node not found');
+
+    const repoDir = dto.repoDir || REMOTE_DIR;
+    const sudo = this.sudoPrefix(dto);
+    const command =
+      `set -e; cd ${repoDir}; ` +
+      `${sudo}git fetch --tags --force origin; ` +
+      `${this.gitUpdate(sudo, dto.targetVersion)}; ` +
+      `${sudo}docker compose build agent; ` +
+      `${sudo}docker compose up -d --no-deps agent`;
+
+    const conn = await this.connect(dto);
+    try {
+      const result = await this.runRemoteCommand(conn, command, UPDATE_TIMEOUT_MS);
+      if (result.code !== 0) {
+        return {
+          updated: false,
+          nodeId: node.id,
+          targetVersion: dto.targetVersion || null,
+          error: 'Update command failed',
+          output: result.output.slice(-4000),
+        };
+      }
+      return {
+        updated: true,
+        nodeId: node.id,
+        targetVersion: dto.targetVersion || null,
+        output: result.output.slice(-4000),
+      };
+    } finally {
+      this.close(conn);
+    }
   }
 }

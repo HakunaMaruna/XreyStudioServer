@@ -102,6 +102,8 @@ model Node {
   lastSeenAt           DateTime?
   lastError            String?
   xrayVersion          String?
+  agentVersion         String?
+  agentUpdatedAt       DateTime?
   location             String?
   certificateHost      String?
   certificateIssuedAt  DateTime?

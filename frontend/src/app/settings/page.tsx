@@ -4,11 +4,14 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang, type Dict } from '../../lib/i18n';
 import { getTheme, applyTheme, type Theme } from '../../lib/theme';
 import { APP_VERSION } from '../../lib/version';
+import { fetchUpdateStatus, type UpdateStatus } from '../../lib/updates';
+import { UpdateDialog } from '../../components/update-dialog';
 import { Icon } from '../../components/icons';
 import {
   Badge,
   Button,
   Card,
+  CodeBlock,
   Field,
   Modal,
   PageHeader,
@@ -59,6 +62,8 @@ type PanelSettings = {
   metricsEnabled: boolean;
   autoRefresh: boolean;
   compactMode: boolean;
+  updateCheckEnabled: boolean;
+  updateChannel: 'stable' | 'dev';
 };
 
 type NotificationPolicy = {
@@ -90,6 +95,8 @@ const DEFAULT_SETTINGS: PanelSettings = {
   metricsEnabled: true,
   autoRefresh: true,
   compactMode: false,
+  updateCheckEnabled: true,
+  updateChannel: 'stable',
 };
 
 const DEFAULT_POLICY: NotificationPolicy = {
@@ -171,6 +178,9 @@ export default function SettingsPage() {
   const [snapshotModal, setSnapshotModal] = useState<SnapshotModal>(null);
   const [snapshotBusy, setSnapshotBusy] = useState(false);
   const [snapshotNotice, setSnapshotNotice] = useState('');
+  const [update, setUpdate] = useState<UpdateStatus | null>(null);
+  const [updateLoading, setUpdateLoading] = useState(true);
+  const [updateOpen, setUpdateOpen] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem('xss_settings');
@@ -186,6 +196,10 @@ export default function SettingsPage() {
       .get<Record<string, string>>('/api/config')
       .then(setConfig)
       .catch(() => setConfig({}));
+    fetchUpdateStatus()
+      .then(setUpdate)
+      .catch(() => setUpdate(null))
+      .finally(() => setUpdateLoading(false));
     setReady(true);
   }, []);
 
@@ -248,10 +262,36 @@ export default function SettingsPage() {
     localStorage.setItem('xss_settings', JSON.stringify(settings));
   }, [settings]);
 
-  const saveSettings = useCallback(() => {
+  const checkUpdate = async () => {
+    setUpdateLoading(true);
+    try {
+      setUpdate(await fetchUpdateStatus(true));
+    } catch {
+      setUpdate(null);
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
+  const saveSettings = useCallback(async () => {
     localStorage.setItem('xss_settings', JSON.stringify(settings));
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2000);
+    try {
+      const updated = await api.patch('/api/settings', {
+        updateCheckEnabled: settings.updateCheckEnabled,
+        updateChannel: settings.updateChannel,
+      });
+      setSettings((prev) => ({
+        ...prev,
+        updateCheckEnabled: Boolean(updated.updateCheckEnabled ?? prev.updateCheckEnabled),
+        updateChannel: updated.updateChannel === 'dev' ? 'dev' : 'stable',
+      }));
+      fetchUpdateStatus(true).then(setUpdate).catch(() => undefined);
+      setHubError('');
+    } catch (err) {
+      setHubError(err instanceof Error ? err.message : String(err));
+    }
   }, [settings]);
 
   const saveNotificationPolicy = useCallback(async () => {
@@ -837,6 +877,85 @@ export default function SettingsPage() {
         {saved && <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-300">{t.settingsSaved}</span>}
       </div>
 
+      <SectionTitle
+        title={t.updates}
+        subtitle={t.updateCheckSubtitle}
+        action={<Badge tone="neutral">{t.version}: {APP_VERSION}</Badge>}
+      />
+      <Card>
+        <div className="space-y-5">
+          <Toggle
+            checked={settings.updateCheckEnabled}
+            onChange={(updateCheckEnabled) => setSettings((prev) => ({ ...prev, updateCheckEnabled }))}
+            label={t.updateCheck}
+          />
+          <div>
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-subtle">{t.updateChannel}</p>
+            <Segmented
+              value={settings.updateChannel}
+              onChange={(value) => setSettings((prev) => ({ ...prev, updateChannel: value as 'stable' | 'dev' }))}
+              options={[
+                { value: 'stable', label: t.updateChannelStable },
+                { value: 'dev', label: t.updateChannelDev },
+              ]}
+            />
+          </div>
+
+          {updateLoading ? (
+            <div className="flex items-center gap-2 text-xs text-muted">
+              <Icon name="refresh" size={15} className="animate-spin text-brand" />{t.loading}
+            </div>
+          ) : !update ? (
+            <p className="text-xs text-subtle">{t.updateSourceDisabled}</p>
+          ) : (
+            <div className="space-y-3 border-t border-line pt-4">
+              <div className="flex flex-wrap items-center gap-2">
+                {update.latestVersion && (
+                  <Badge tone={update.updateAvailable ? 'warning' : 'success'} dot>
+                    {update.updateAvailable ? `v${update.latestVersion}` : t.upToDate}
+                  </Badge>
+                )}
+                {update.checkedAt && (
+                  <span className="text-[11px] text-subtle">
+                    {t.updateCheckedAt}: {new Date(update.checkedAt).toLocaleString()}
+                  </span>
+                )}
+              </div>
+              {update.updateAvailable && update.releaseUrl && (
+                <a
+                  href={update.releaseUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-brand hover:underline"
+                >
+                  {t.updateNotes}
+                  <Icon name="external" size={12} />
+                </a>
+              )}
+              {update.error && <p className="text-[11px] text-warning">{update.error}</p>}
+              {update.agents.outdated > 0 && (
+                <p className="text-[11px] text-danger">{t.agentsOutdated.replace('{count}', String(update.agents.outdated))}</p>
+              )}
+              {update.apply.mode === 'manual' && <CodeBlock>{update.apply.command}</CodeBlock>}
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" icon="refresh" onClick={checkUpdate} loading={updateLoading}>
+                  {t.checkNow}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  icon="download"
+                  onClick={() => setUpdateOpen(true)}
+                  disabled={!update.canApply || !update.updateAvailable}
+                >
+                  {t.updateNow}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+
       <SectionTitle title={t.environment} subtitle={t.environmentSubtitle} />
       <Card>
         <div className="table-wrap">
@@ -918,6 +1037,8 @@ export default function SettingsPage() {
           </div>
         )}
       </Modal>
+
+      {updateOpen && <UpdateDialog open onClose={() => setUpdateOpen(false)} status={update} />}
     </>
   );
 }

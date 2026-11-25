@@ -8,6 +8,7 @@ import { NodeStatus, Prisma, Role } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
+import { APP_VERSION, isAgentOutdated } from '../../version';
 import { ConfigGeneratorService } from '../config/config-generator.service';
 import { AgentClientService } from '../config/agent-client.service';
 import { CreateNodeDto, NodeMetricsDto, RegisterNodeDto, UpdateNodeDto } from './dto/node.dto';
@@ -44,6 +45,7 @@ export class NodesService {
       ...n,
       tokenHash: undefined,
       online: n.lastSeenAt ? Date.now() - n.lastSeenAt.getTime() < 60_000 : false,
+      agentOutdated: isAgentOutdated(n.agentVersion),
     }));
   }
 
@@ -131,14 +133,23 @@ export class NodesService {
         lastSeenAt: new Date(),
         lastError: null,
         xrayVersion: dto.xrayVersion || node.xrayVersion,
+        ...this.agentVersionData(dto.agentVersion, node.agentVersion),
         ...(dto.address ? { address: dto.address } : {}),
       },
-      select: { id: true, name: true, status: true, lastSeenAt: true },
+      select: { id: true, name: true, status: true, lastSeenAt: true, agentVersion: true },
     });
   }
 
+  // Отчёт агента — единственный источник его версии; обновляем отметку времени
+  // только когда версия действительно изменилась.
+  private agentVersionData(reported: string | undefined, stored: string | null) {
+    const version = String(reported || '').trim();
+    if (!version || version === stored) return {};
+    return { agentVersion: version.slice(0, 64), agentUpdatedAt: new Date() };
+  }
+
   async metrics(nodeId: string, dto: NodeMetricsDto, token: string) {
-    await this.verifyNodeToken(nodeId, token);
+    const node = await this.verifyNodeToken(nodeId, token);
     const metric = await this.prisma.nodeMetric.create({
       data: {
         nodeId,
@@ -153,7 +164,12 @@ export class NodesService {
     });
     await this.prisma.node.update({
       where: { id: nodeId },
-      data: { status: NodeStatus.ONLINE, lastSeenAt: new Date(), lastError: null },
+      data: {
+        status: NodeStatus.ONLINE,
+        lastSeenAt: new Date(),
+        lastError: null,
+        ...this.agentVersionData(dto.agentVersion, node.agentVersion),
+      },
     });
     return metric;
   }
@@ -196,6 +212,11 @@ export class NodesService {
       online: node.lastSeenAt ? Date.now() - node.lastSeenAt.getTime() < 60_000 : false,
       lastSeenAt: node.lastSeenAt,
       lastError: node.lastError,
+      agent: {
+        version: node.agentVersion || null,
+        expectedVersion: APP_VERSION,
+        outdated: isAgentOutdated(node.agentVersion),
+      },
       xray: last?.xrayStatus || 'unknown',
       network: {
         uploadBps,

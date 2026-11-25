@@ -3,9 +3,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { api, isLoggedIn } from '../../lib/api';
 import { COUNTRIES } from '../../lib/countries';
 import { useLang } from '../../lib/i18n';
+import { APP_VERSION } from '../../lib/version';
 import { Icon } from '../../components/icons';
 import {
-  Badge, Button, Card, Field, HelpButton, IconButton, Modal, PageHeader,
+  Badge, Button, Card, CodeBlock, Field, HelpButton, IconButton, Modal, PageHeader,
   ProgressBar, SectionTitle, StatusBadge, formatBytes,
 } from '../../components/ui';
 
@@ -18,7 +19,21 @@ type NodeMetricRow = {
 type NodeRow = {
   id: string; name: string; address: string; port: number; status: string;
   location?: string | null; geo?: NodeGeo | null; metrics?: NodeMetricRow[];
+  agentVersion?: string | null;
+  agentOutdated?: boolean;
 };
+type AgentForm = {
+  host: string;
+  port: number | string;
+  username: string;
+  password: string;
+  privateKey: string;
+  passphrase: string;
+  hostKeyFingerprint: string;
+  useSudo: boolean;
+  targetVersion: string;
+};
+type AgentUpdateResult = { updated?: boolean; error?: string; output?: string };
 type RevisionRow = { id: string; version: number; applied: boolean; createdAt: string };
 type LogEntry = { timestamp: string; level: string; message: string };
 type NodeLogs = { nodeId: string; logs: LogEntry[] };
@@ -65,6 +80,10 @@ export default function NodesPage() {
   const [checkBusy, setCheckBusy] = useState(false);
   const [checkStep, setCheckStep] = useState(0);
   const [search, setSearch] = useState('');
+  const [agentNode, setAgentNode] = useState<NodeRow | null>(null);
+  const [agentForm, setAgentForm] = useState<AgentForm | null>(null);
+  const [agentBusy, setAgentBusy] = useState(false);
+  const [agentResult, setAgentResult] = useState<AgentUpdateResult | null>(null);
 
   const countryNames = useMemo(
     () => new Intl.DisplayNames([lang === 'ru' ? 'ru' : 'en'], { type: 'region' }),
@@ -91,6 +110,49 @@ export default function NodesPage() {
     }
     load();
   }, []);
+
+  const openAgentUpdate = (node: NodeRow) => {
+    setAgentNode(node);
+    setAgentResult(null);
+    setAgentForm({
+      host: node.address,
+      port: 22,
+      username: 'root',
+      password: '',
+      privateKey: '',
+      passphrase: '',
+      hostKeyFingerprint: '',
+      useSudo: true,
+      targetVersion: APP_VERSION,
+    });
+  };
+
+  const submitAgentUpdate = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!agentNode || !agentForm) return;
+    setAgentBusy(true);
+    setAgentResult(null);
+    try {
+      const payload: Record<string, unknown> = {
+        host: agentForm.host,
+        port: Number(agentForm.port) || 22,
+        username: agentForm.username,
+        hostKeyFingerprint: agentForm.hostKeyFingerprint,
+        useSudo: agentForm.useSudo,
+        targetVersion: agentForm.targetVersion || undefined,
+      };
+      if (agentForm.password) payload.password = agentForm.password;
+      if (agentForm.privateKey) payload.privateKey = agentForm.privateKey;
+      if (agentForm.passphrase) payload.passphrase = agentForm.passphrase;
+      const result = await api.post(`/api/node-provision/${agentNode.id}/update`, payload);
+      setAgentResult(result);
+      if (result?.updated) await load();
+    } catch (e: any) {
+      setAgentResult({ updated: false, error: e.message });
+    } finally {
+      setAgentBusy(false);
+    }
+  };
 
   const apply = async (id: string) => {
     await api.post(`/api/nodes/${id}/apply`, {});
@@ -329,6 +391,11 @@ export default function NodesPage() {
                       <p className="truncate font-semibold text-fg">{node.name}</p>
                       <StatusBadge status={node.status} />
                       {node.geo?.countryCode && <Badge tone="neutral">{node.geo.countryCode}</Badge>}
+                      {node.agentVersion && (
+                        <Badge tone={node.agentOutdated ? 'warning' : 'success'} dot>
+                          {t.agentVersion}: {node.agentVersion}
+                        </Badge>
+                      )}
                     </div>
                     <p className="mono mt-0.5 truncate text-[10px] text-subtle">
                       {node.address}:{node.port} · {t.idLabel} {node.id.slice(0, 8)}
@@ -365,6 +432,7 @@ export default function NodesPage() {
                   <IconButton icon="shield" label={t.cheburcheckCheck} tone="brand" onClick={() => runCheburcheck(node)} />
                   <IconButton icon="edit" label={t.edit} onClick={() => openEdit(node)} />
                   <IconButton icon="play" label={t.apply} tone="brand" onClick={() => apply(node.id)} />
+                  <IconButton icon="download" label={t.updateAgent} tone="brand" onClick={() => openAgentUpdate(node)} />
                   <IconButton icon="refresh" label={t.restart} onClick={() => restart(node.id)} />
                   <IconButton icon="history" label={t.revisions} onClick={() => openRevisions(node)} />
                   <IconButton icon="terminal" label={t.logs} onClick={() => openLogs(node)} />
@@ -449,6 +517,74 @@ export default function NodesPage() {
           </div>
         ) : (
           <div className="py-12 text-center text-xs text-subtle">{t.noData}</div>
+        )}
+      </Modal>
+
+      <Modal
+        open={Boolean(agentNode)}
+        onClose={() => { setAgentNode(null); setAgentForm(null); setAgentResult(null); }}
+        title={t.updateAgentTitle}
+        subtitle={agentNode ? `${agentNode.name} · ${agentNode.agentVersion || '—'}` : undefined}
+        icon={<Icon name="download" size={16} />}
+        size="lg"
+        footer={<>
+          <Button onClick={() => { setAgentNode(null); setAgentForm(null); setAgentResult(null); }}>{t.close}</Button>
+          <Button variant="primary" icon="download" form="agent-update-form" loading={agentBusy}>{t.updateNow}</Button>
+        </>}
+      >
+        {agentForm ? (
+          <form id="agent-update-form" onSubmit={submitAgentUpdate} className="space-y-4">
+            <p className="text-xs text-muted">{t.updateAgentHint}</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={t.wizardHost}>
+                <input className="field" value={agentForm.host} onChange={(e) => setAgentForm({ ...agentForm, host: e.target.value })} required />
+              </Field>
+              <Field label={t.wizardPort}>
+                <input className="field" type="number" min={1} max={65535} value={agentForm.port} onChange={(e) => setAgentForm({ ...agentForm, port: e.target.value })} required />
+              </Field>
+              <Field label={t.wizardUser}>
+                <input className="field" value={agentForm.username} onChange={(e) => setAgentForm({ ...agentForm, username: e.target.value })} required />
+              </Field>
+              <Field label={t.updateAgentTarget}>
+                <input className="field mono" value={agentForm.targetVersion} placeholder={`v${APP_VERSION}`} onChange={(e) => setAgentForm({ ...agentForm, targetVersion: e.target.value })} />
+              </Field>
+              <Field label={t.wizardFingerprint} hint={t.wizardFingerprintHint}>
+                <input className="field mono text-[11px]" value={agentForm.hostKeyFingerprint} onChange={(e) => setAgentForm({ ...agentForm, hostKeyFingerprint: e.target.value })} placeholder="SHA256:..." required />
+              </Field>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={t.wizardPassword} hint={t.secretNeverStored}>
+                <input className="field" type="password" autoComplete="new-password" value={agentForm.password} onChange={(e) => setAgentForm({ ...agentForm, password: e.target.value })} />
+              </Field>
+              <Field label={t.wizardPassphrase} hint={t.secretNeverStored}>
+                <input className="field" type="password" autoComplete="off" value={agentForm.passphrase} onChange={(e) => setAgentForm({ ...agentForm, passphrase: e.target.value })} />
+              </Field>
+            </div>
+            <Field label={t.wizardKey} hint={t.secretNeverStored}>
+              <textarea className="field mono min-h-24 text-[11px]" value={agentForm.privateKey} onChange={(e) => setAgentForm({ ...agentForm, privateKey: e.target.value })} />
+            </Field>
+            <label className="flex items-center gap-2 text-xs text-muted">
+              <input type="checkbox" className="h-4 w-4 accent-[var(--brand)]" checked={agentForm.useSudo} onChange={(e) => setAgentForm({ ...agentForm, useSudo: e.target.checked })} />
+              sudo
+            </label>
+
+            {agentResult && (
+              <div className="space-y-2 border-t border-line pt-4">
+                <div className={`flex items-center gap-2 text-xs ${agentResult.updated ? 'text-success' : 'text-danger'}`}>
+                  <Icon name={agentResult.updated ? 'checkCircle' : 'alert'} size={14} />
+                  {agentResult.updated ? t.updateAgentDone : (agentResult.error || t.updateAgentFailed)}
+                </div>
+                {agentResult.output && (
+                  <>
+                    <p className="text-[11px] uppercase tracking-wider text-subtle">{t.updateAgentOutput}</p>
+                    <CodeBlock className="max-h-56">{agentResult.output}</CodeBlock>
+                  </>
+                )}
+              </div>
+            )}
+          </form>
+        ) : (
+          <div className="py-10 text-center text-xs text-subtle"><Icon name="refresh" size={15} className="mx-auto animate-spin text-brand" /></div>
         )}
       </Modal>
 

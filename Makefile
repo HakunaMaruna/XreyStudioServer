@@ -20,7 +20,9 @@ k8s-monitoring:
 	node k8s/generate-monitoring.mjs
 
 update:
-	git pull && docker compose build && docker compose up -d
+	@test -z "$$(git status --porcelain)" || { echo "refusing update: working tree has uncommitted changes" >&2; exit 1; }
+	branch=$$(git symbolic-ref -q --short HEAD || git for-each-ref --format='%(refname:short)' refs/heads | head -n 1); \
+	git checkout -q "$${branch:-main}" && git pull --ff-only && docker compose build && docker compose up -d
 
 backup:
 	bash scripts/backup.sh

@@ -357,6 +357,7 @@ if [ ! -f .env ]; then
   run cp .env.example .env
   JWT="$(openssl rand -hex 32)"; REFRESH="$(openssl rand -hex 32)"; ADMIN="$(openssl rand -hex 24)"
   AGENT="${AGENT_TOKEN:-$(openssl rand -hex 32)}"; ALERT="$(openssl rand -hex 24)"; POSTGRES="$(openssl rand -hex 16)"
+  UPDATER="$(openssl rand -hex 24)"
   if [ "$MODE" = "control" ]; then
     PDNS_KEY="$(openssl rand -hex 24)"; MASTER_KEY="$(openssl rand 32 | base64 -w0)"; STORE_TOKEN="$(openssl rand -hex 24)"
     say "  ${C_DIM}PDNS_API_KEY=$PDNS_KEY${C_RESET}"
@@ -370,6 +371,7 @@ if [ ! -f .env ]; then
   run_sh "sed -i 's|^AGENT_SECRET=.*|AGENT_SECRET=$AGENT|' .env"
   run_sh "sed -i 's|^AGENT_TOKEN=.*|AGENT_TOKEN=$AGENT|' .env"
   run_sh "sed -i 's|^ALERT_WEBHOOK_TOKEN=.*|ALERT_WEBHOOK_TOKEN=$ALERT|' .env"
+  run_sh "sed -i 's|^UPDATER_TOKEN=.*|UPDATER_TOKEN=$UPDATER|' .env"
   run_sh "sed -i 's|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$POSTGRES|' .env"
   run_sh "sed -i 's|^DOMAIN=.*|DOMAIN=$DOMAIN|' .env"
   run_sh "sed -i 's|^PANEL_URL=.*|PANEL_URL=$PANEL_URL|' .env"

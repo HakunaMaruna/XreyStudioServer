@@ -183,9 +183,13 @@ make monitoring     # start Prometheus + Grafana
 make k8s-monitoring # regenerate k8s monitoring ConfigMaps from monitoring/
 ```
 
-Upgrades: run `make update` (rebuild + restart); the database schema is applied automatically
-(`prisma db push`). Back up first with `make backup`. See `docs/install.md` for traffic reporting,
-plan provisioning and node log setup.
+Upgrades: the dashboard shows an available release and can apply it through the optional
+`updater` profile (`docker compose --profile updater up -d updater`); without it the same page
+shows the manual `make update` command, which rebuilds and restarts and applies the database
+schema automatically (`prisma db push`). Node agents are updated from the nodes page over SSH.
+Back up first with `make backup`. See [docs/updates.md](docs/updates.md) for update channels,
+the updater sidecar and agent updates, and `docs/install.md` for traffic reporting, plan
+provisioning and node log setup.
 
 ## Configuration
 
@@ -366,6 +370,7 @@ The full set of guides lives in [`docs/`](docs/):
 - [Node onboarding](docs/node-onboarding.md) — connect an agent and verify traffic.
 - [Subscriptions and test connection](docs/test-connection.md) — formats, HWID limits and client setup.
 - [Backup and restore](docs/backup.md) — AES-256-GCM encryption and S3/R2.
+- [Updates](docs/updates.md) — release checks, the updater sidecar and agent updates.
 - [Operations processes](docs/processes.md) — end-to-end flows with diagrams.
 - [Operator UI guide](docs/user-guide.md) — screenshots of login, decoy mode and public docs.
 - [API reference](docs/api.md) and [MCP](docs/mcp.md).

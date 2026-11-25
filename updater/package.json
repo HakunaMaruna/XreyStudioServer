@@ -1,0 +1,8 @@
+{
+  "name": "xss-updater",
+  "version": "2.32.0",
+  "private": true,
+  "scripts": {
+    "start": "node index.js"
+  }
+}

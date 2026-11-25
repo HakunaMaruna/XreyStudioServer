@@ -21,6 +21,9 @@ ENV XRAY_BIN=/usr/local/bin/xray \
     XRAY_MANAGED=true \
     XRAY_STATS_ENABLED=true
 
+ARG AGENT_VERSION=
+ENV AGENT_VERSION=${AGENT_VERSION}
+
 WORKDIR /app
 COPY package.json ./
 RUN npm install --omit=dev

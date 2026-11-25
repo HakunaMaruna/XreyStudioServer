@@ -38,6 +38,8 @@ services:
       BACKUP_DIR: /app/backups
       AGENT_BASE_URL: http://agent:9090
       MCP_TOKEN: ${MCP_TOKEN:-}
+      UPDATER_URL: ${UPDATER_URL:-http://updater:7070}
+      UPDATER_TOKEN: ${UPDATER_TOKEN:-}
     volumes:
       - ./backups:/app/backups
       - certbot_webroot:/var/www/certbot
@@ -83,6 +85,19 @@ services:
       - "2053:2053/tcp"
       - "2053:2053/udp"
       - "2054:2054/tcp"
+    restart: unless-stopped
+
+  # Опциональный сайдкар автообновления (docker compose --profile updater up -d updater).
+  # Панель общается с ним по внутренней сети; docker.sock в backend не попадает.
+  updater:
+    build: ./updater
+    profiles: ["updater"]
+    environment:
+      UPDATER_TOKEN: ${UPDATER_TOKEN:-}
+      WORKSPACE_DIR: /workspace
+    volumes:
+      - .:/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
 
   caddy:

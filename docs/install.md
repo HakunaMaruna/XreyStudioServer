@@ -30,6 +30,10 @@ Then open `https://<domain>/login`. Keep the printed admin credentials in a safe
 
 ## Upgrades
 Pull the new version, rebuild and restart with `make update` (or `docker compose up -d --build`).
+To update from the dashboard instead, start the optional sidecar once:
+`docker compose --profile updater up -d updater` (needs `UPDATER_TOKEN` in `.env`; `install.sh`
+generates it). See [docs/updates.md](updates.md) for channels, the updater sidecar and node
+agent updates.
 The agent container now reads only `.agent.env` (agent-only keys, no panel secrets);
 after upgrading a deployment created by an older version run `./install.sh` once — it
 writes `.agent.env` from the existing `.env` without changing any secrets or data.
