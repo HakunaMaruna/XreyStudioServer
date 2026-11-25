@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { execFile } from 'child_process';
 import { promises as fs } from 'fs';
@@ -132,7 +132,16 @@ ${change === 'REPLACE' ? 'sleep 5' : ''}
             '--cert-name', domain.fqdn,
           ],
           { timeout: 180_000, maxBuffer: 4 * 1024 * 1024 },
-          (error, _stdout, stderr) => (error ? reject(new Error(stderr?.trim() || error.message)) : resolve()),
+          (error, _stdout, stderr) => {
+            if (!error) { resolve(); return; }
+            const raw = String(stderr || error.message || '').trim();
+            const acmeDetail = raw.match(/"detail"\s*:\s*"([^"]+)"/)?.[1];
+            const detail = (acmeDetail || raw).split('\n').slice(-3).join(' ').slice(0, 600);
+            const hint = /query timed out|NXDOMAIN|SERVFAIL|dns/i.test(detail)
+              ? ` Ensure ${pdnsZone} is delegated to this CONTROL server (NS + glue records) and UDP/TCP 53 are reachable.`
+              : '';
+            reject(new ServiceUnavailableException(`Certificate issuance failed: ${detail}${hint}`));
+          },
         );
       });
       const live = `/etc/letsencrypt/live/${domain.fqdn}`;

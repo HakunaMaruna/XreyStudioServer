@@ -239,9 +239,14 @@ export class NodeProvisionService {
       await this.emit(progress, 'env', 'Agent configuration written');
 
       await this.emit(progress, 'install', 'Installing agent (install.sh --mode node)…');
+      // Pass PANEL_URL explicitly and skip interactive prompts/DNS lookup on the node.
+      const quotedPanelUrl = `'${panelUrl.replace(/'/g, `'\\''`)}'`;
+      const installCommand = sudo
+        ? `cd ${REMOTE_DIR} && ${sudo}env PANEL_URL=${quotedPanelUrl} bash install.sh --mode node --yes --domain localhost`
+        : `cd ${REMOTE_DIR} && PANEL_URL=${quotedPanelUrl} bash install.sh --mode node --yes --domain localhost`;
       const install = await this.runRemoteCommand(
         conn,
-        `cd ${REMOTE_DIR} && ${sudo}bash install.sh --mode node --yes`,
+        installCommand,
         (text) => { void this.emit(progress, 'install', text, 'output'); },
         'agent installation',
       );

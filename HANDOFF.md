@@ -31,6 +31,21 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Certificate and agent URL fixes (v2.40.6, 2026-11-26)
+
+- Ошибка 500 при выпуске сертификата заменена на 503 с подробностью ACME и подсказкой
+  о делегировании зоны `node.h2onetwork.pro` на CONTROL.
+- Мастер создаёт ноды с `agentUrl=http://host:9090`; добавлен флаг
+  `ALLOW_HTTP_AGENT_URLS` (в CONTROL по умолчанию true), снимающий только требование HTTPS.
+  Приватные/link-local адреса по-прежнему запрещены.
+
+## Wizard install prompt fix (v2.40.6, 2026-11-26)
+
+`ask()/confirm()` в install.sh печатали приглашения в stdout, из-за чего `DOMAIN` и
+`PANEL_URL` получали текст приглашения и нода-установка застревала на проверке DNS.
+Приглашения перенаправлены в stderr, DNS пропускается для localhost. Мастер теперь
+явно передаёт `PANEL_URL` и `--domain localhost` при вызове install.sh.
+
 ## Wizard node install hang fix (v2.40.5, 2026-11-26)
 
 Причина зависания на `install.sh --mode node`: штатный `docker-compose.yml` поднимает

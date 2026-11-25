@@ -89,6 +89,7 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       PANEL_MODE: control
       SSH_PROVISION_ENABLED: ${SSH_PROVISION_ENABLED:-true}
+      ALLOW_HTTP_AGENT_URLS: ${ALLOW_HTTP_AGENT_URLS:-true}
       DATABASE_URL: postgres://${POSTGRES_USER:-xss}:${POSTGRES_PASSWORD:-xss}@postgres:5432/${POSTGRES_DB:-xss}
       REDIS_URL: redis://redis:6379
       BACKUP_DIR: /app/backups

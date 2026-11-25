@@ -51,6 +51,7 @@ export class AgentClientService {
       process.env.NODE_ENV === 'production' &&
       explicit &&
       url.protocol !== 'https:' &&
+      process.env.ALLOW_HTTP_AGENT_URLS !== 'true' &&
       process.env.ALLOW_PRIVATE_AGENT_URLS !== 'true'
     ) {
       throw new BadRequestException('Agent URL must use https in production');

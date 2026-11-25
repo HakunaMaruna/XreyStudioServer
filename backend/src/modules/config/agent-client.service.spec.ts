@@ -6,6 +6,7 @@ describe('AgentClientService base URL', () => {
     AGENT_BASE_URL: process.env.AGENT_BASE_URL,
     NODE_ENV: process.env.NODE_ENV,
     ALLOW_PRIVATE_AGENT_URLS: process.env.ALLOW_PRIVATE_AGENT_URLS,
+    ALLOW_HTTP_AGENT_URLS: process.env.ALLOW_HTTP_AGENT_URLS,
   };
   const base = (node: { address: string; agentUrl?: string | null }) => (service as any).base(node);
 
@@ -36,12 +37,24 @@ describe('AgentClientService base URL', () => {
   it('requires https for explicit agent URLs in production', () => {
     process.env.NODE_ENV = 'production';
     delete process.env.ALLOW_PRIVATE_AGENT_URLS;
+    delete process.env.ALLOW_HTTP_AGENT_URLS;
     expect(() => base({ address: '203.0.113.5', agentUrl: 'http://node.example.com:9090' })).toThrow(
       /https/,
     );
     expect(base({ address: '203.0.113.5', agentUrl: 'https://node.example.com:9090' })).toBe(
       'https://node.example.com:9090',
     );
+  });
+
+  it('allows explicit http agent URLs when ALLOW_HTTP_AGENT_URLS is set', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.ALLOW_HTTP_AGENT_URLS = 'true';
+    delete process.env.ALLOW_PRIVATE_AGENT_URLS;
+    expect(base({ address: '203.0.113.5', agentUrl: 'http://node.example.com:9090' })).toBe(
+      'http://node.example.com:9090',
+    );
+    expect(() => base({ address: '203.0.113.5', agentUrl: 'http://10.0.0.5:9090' })).toThrow(/Private/);
+    delete process.env.ALLOW_HTTP_AGENT_URLS;
   });
 
   it('allows internal http and explicit opt-in for private agent URLs', () => {

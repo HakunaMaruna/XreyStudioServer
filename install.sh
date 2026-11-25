@@ -208,7 +208,8 @@ read_choice() {
 
 ask() {
   local prompt="$1" default="${2:-}" value=""
-  if [ -n "$default" ]; then printf '%b [%s]: ' "$prompt" "$default"; else printf '%b: ' "$prompt"; fi
+  # Prompts go to stderr: ask() is used inside $(...) and stdout must contain only the answer.
+  if [ -n "$default" ]; then printf '%b [%s]: ' "$prompt" "$default" >&2; else printf '%b: ' "$prompt" >&2; fi
   if [ -t 0 ]; then IFS= read -r value || true; fi
   printf '%s\n' "${value:-$default}"
 }
@@ -216,7 +217,7 @@ ask() {
 confirm() {
   [ "$YES" -eq 1 ] && return 0
   local answer
-  printf '%b [y/N]: ' "$1"
+  printf '%b [y/N]: ' "$1" >&2
   if [ -t 0 ]; then IFS= read -r answer || true; fi
   case "$answer" in y|Y|yes|YES) return 0 ;; *) return 1 ;; esac
 }
@@ -277,8 +278,8 @@ if [ -z "$MODE" ] && [ -t 0 ]; then
   say "  ${C_CYAN}5)${C_RESET} $(t control)"
   say "  ${C_CYAN}0)${C_RESET} $(t exit)"
   say ""
-  printf '%b' "$(t choice)"
-  while ! MODE="$(read_choice)"; do printf '%b' "$(t choice)"; done
+  printf '%b' "$(t choice)" >&2
+  while ! MODE="$(read_choice)"; do printf '%b' "$(t choice)" >&2; done
 fi
 MODE="${MODE:-all-in-one}"
 
@@ -389,7 +390,11 @@ fi
 # docker-compose.yml монтирует агенту только .agent.env, а не весь .env.
 write_agent_env
 
-if [ "$DOMAIN" != "localhost" ]; then
+case "$DOMAIN" in
+  localhost|http://localhost|https://localhost) SKIP_DNS=1 ;;
+  *) SKIP_DNS=0 ;;
+esac
+if [ "$SKIP_DNS" -eq 0 ]; then
   say "${C_BLUE}▸ $(t checking_dns)${C_RESET}"
   if command -v getent >/dev/null 2>&1 && ! getent hosts "$DOMAIN" >/dev/null 2>&1; then
     say "  ${C_YELLOW}$(printf "$(t dns_fail)" "$DOMAIN")${C_RESET}"
