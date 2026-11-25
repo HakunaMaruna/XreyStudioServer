@@ -44,7 +44,10 @@ describe('Rollout API (e2e, real PostgreSQL)', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(AgentClientService)
-      .useValue({ applyConfig: applyMock })
+      .useValue({
+        applyConfig: applyMock,
+        ping: jest.fn().mockResolvedValue({ reachable: true, latencyMs: 1 }),
+      })
       .compile();
     app = moduleRef.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
