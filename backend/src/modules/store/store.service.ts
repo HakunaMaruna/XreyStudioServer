@@ -1,8 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { createHash } from 'crypto';
 import { StorePluginStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { validatePackage, PluginPackage } from '../plugins/plugin-package';
+import { PluginPackage, sha256Package, validatePackage } from '../plugins/plugin-package';
 
 @Injectable()
 export class StoreService {
@@ -133,9 +132,7 @@ export class StoreService {
         status: body.status || StorePluginStatus.DRAFT,
       },
     });
-    const checksum = createHash('sha256')
-      .update(JSON.stringify({ manifest: pkg.manifest, files: pkg.files }))
-      .digest('hex');
+    const checksum = sha256Package(pkg);
     const version = await this.prisma.storeVersion.upsert({
       where: { pluginId_version: { pluginId: plugin.id, version: manifest.version } },
       create: {

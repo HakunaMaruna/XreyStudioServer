@@ -26,8 +26,17 @@ const SEMVER_RE = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;
 const MAX_FILES = 200;
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
+export function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value as Record<string, unknown>).sort()
+      .map((key) => `${JSON.stringify(key)}:${stableStringify((value as Record<string, unknown>)[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+
 const canonicalPayload = (value: Pick<PluginPackage, 'manifest' | 'files'>) =>
-  Buffer.from(JSON.stringify({ manifest: value.manifest, files: value.files }), 'utf8');
+  Buffer.from(stableStringify({ manifest: value.manifest, files: value.files }), 'utf8');
 
 export function sha256Package(value: Pick<PluginPackage, 'manifest' | 'files'>) {
   return createHash('sha256').update(canonicalPayload(value)).digest('hex');

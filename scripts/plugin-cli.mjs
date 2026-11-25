@@ -66,7 +66,12 @@ async function pack() {
   const manifest = JSON.parse(await fs.readFile(path.join(dir, 'plugin.json'), 'utf8'));
   const files = await walk(dir);
   delete files['plugin.json'];
-  const payload = Buffer.from(JSON.stringify({ manifest, files }));
+  const stable = (value) => {
+  if (Array.isArray(value)) return '[' + value.map(stable).join(',') + ']';
+  if (value && typeof value === 'object') return '{' + Object.keys(value).sort().map((k) => JSON.stringify(k) + ':' + stable(value[k])).join(',') + '}';
+  return JSON.stringify(value) ?? 'null';
+};
+  const payload = Buffer.from(stable({ manifest, files }));
   const sha256 = createHash('sha256').update(payload).digest('hex');
   const pkg = { format: 'xss-plugin/1', manifest, files, signature: null };
   if (privatePath) {

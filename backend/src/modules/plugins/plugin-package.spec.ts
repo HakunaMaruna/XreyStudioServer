@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { generateKeyPairSync, sign } from 'crypto';
 import {
-  PluginPackage, sha256Package, validatePackage, verifyPackageSignature,
+  PluginPackage, sha256Package, stableStringify, validatePackage, verifyPackageSignature,
 } from './plugin-package';
 
 const basePackage = (): PluginPackage => ({
@@ -34,7 +34,7 @@ describe('plugin package', () => {
   it('verifies Ed25519 signatures and rejects tampering', () => {
     const { privateKey, publicKey } = generateKeyPairSync('ed25519');
     const pkg = basePackage();
-    const payload = Buffer.from(JSON.stringify({ manifest: pkg.manifest, files: pkg.files }));
+    const payload = Buffer.from(stableStringify({ manifest: pkg.manifest, files: pkg.files }));
     pkg.signature = {
       algorithm: 'Ed25519',
       signature: sign(null, payload, privateKey).toString('base64'),
