@@ -41,6 +41,12 @@ CPU/RAM и скорость сети ↑/↓ + connections из метрик а�
 Добавлен переиспользуемый `HelpButton` (иконка «?» в новом `help` icon set) с модальным окном
 на страницах: Nodes, Routing, Hosts, Rules, Reports, Alerts, Wizard.
 
+Живая проверка: версия 2.32.2, `/api/health` ok; метрики ноды приходят в `/api/nodes`
+(cpu 6.1, ram 94.13, up/down/connections), все 7 страниц отдают кнопку «Справка».
+Важно: деплой v2.32.2 подтянул изменения агента 2 из main (86833fa — `User.telegramId`
+уникальный). `prisma db push` потребовал `--accept-data-loss` из-за нового unique на
+`telegram_id`; на проде выполнено, БД синхронизирована, backend работает.
+
 ## Cheburcheck (v2.32.0, 2026-11-25)
 
 Кнопка «Проверить в Cheburcheck» на ноде: модальное окно с анимированным радаром и шагами,
