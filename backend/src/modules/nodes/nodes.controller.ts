@@ -16,6 +16,7 @@ import { Role } from '@prisma/client';
 import { AuthUser, CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { SnapshotBefore } from '../snapshots/snapshot-before.decorator';
 import { AuditService } from '../audit/audit.service';
 import { AgentClientService } from '../config/agent-client.service';
 import { CreateNodeDto, NodeMetricsDto, RegisterNodeDto, UpdateNodeDto } from './dto/node.dto';
@@ -155,6 +156,7 @@ export class NodesController {
   }
 
   @Post(':id/apply')
+  @SnapshotBefore('update', 'Node configuration apply')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN, Role.OPERATOR)
   async apply(
@@ -176,6 +178,7 @@ export class NodesController {
   }
 
   @Post(':id/rollback/:revisionId')
+  @SnapshotBefore('update', 'Node configuration rollback')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN, Role.OPERATOR)
   async rollback(
