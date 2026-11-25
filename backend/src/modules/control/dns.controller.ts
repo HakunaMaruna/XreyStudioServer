@@ -6,7 +6,10 @@ import { Role } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { DnsAdminService } from './dns-admin.service';
-import { CreateZoneDto, SetRecordDto, UpdateDnsSettingsDto } from './dto/dns-admin.dto';
+import {
+  CreateDnssecKeyDto, CreateZoneDto, SetDnssecDto, SetRecordDto,
+  UpdateDnssecKeyDto, UpdateDnsSettingsDto,
+} from './dto/dns-admin.dto';
 
 @Controller('dns')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -51,6 +54,31 @@ export class DnsController {
     @Query('type') type: string,
   ) {
     return this.service.deleteRecord(decodeURIComponent(zone), name, type);
+  }
+
+  @Get('zone/:zone/dnssec')
+  dnssec(@Param('zone') zone: string) {
+    return this.service.dnssec(decodeURIComponent(zone));
+  }
+
+  @Patch('zone/:zone/dnssec')
+  setDnssec(@Param('zone') zone: string, @Body() body: SetDnssecDto) {
+    return this.service.setDnssec(decodeURIComponent(zone), body.enabled);
+  }
+
+  @Post('zone/:zone/dnssec/keys')
+  createDnssecKey(@Param('zone') zone: string, @Body() body: CreateDnssecKeyDto) {
+    return this.service.createDnssecKey(decodeURIComponent(zone), body);
+  }
+
+  @Patch('zone/:zone/dnssec/keys/:id')
+  updateDnssecKey(@Param('zone') zone: string, @Param('id') id: string, @Body() body: UpdateDnssecKeyDto) {
+    return this.service.updateDnssecKey(decodeURIComponent(zone), Number(id), body);
+  }
+
+  @Delete('zone/:zone/dnssec/keys/:id')
+  deleteDnssecKey(@Param('zone') zone: string, @Param('id') id: string) {
+    return this.service.deleteDnssecKey(decodeURIComponent(zone), Number(id));
   }
 
   @Get('settings')

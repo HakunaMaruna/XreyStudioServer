@@ -1,5 +1,5 @@
 import {
-  IsArray, IsIn, IsInt, IsOptional, IsString, Matches, Max, Min,
+  IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Matches, Max, Min,
 } from 'class-validator';
 
 export class CreateZoneDto {
@@ -27,6 +27,26 @@ export class SetRecordDto {
 
   @IsArray()
   records: RecordInput[];
+}
+
+export class SetDnssecDto {
+  @IsBoolean()
+  enabled: boolean;
+}
+
+export class CreateDnssecKeyDto {
+  @IsIn(['ksk', 'zsk', 'csk'])
+  keytype: 'ksk' | 'zsk' | 'csk';
+
+  @IsOptional() @IsBoolean() active?: boolean;
+  @IsOptional() @IsBoolean() published?: boolean;
+  @IsOptional() @IsString() algorithm?: string;
+  @IsOptional() @IsInt() @Min(512) @Max(4096) bits?: number;
+}
+
+export class UpdateDnssecKeyDto {
+  @IsOptional() @IsBoolean() active?: boolean;
+  @IsOptional() @IsBoolean() published?: boolean;
 }
 
 export class UpdateDnsSettingsDto {

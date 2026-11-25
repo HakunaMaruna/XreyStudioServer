@@ -31,7 +31,9 @@ type Settings = {
   apiUrl: string; zone: string; ttl: number; ns1: string; ns2: string;
   bindIp: string; apiKeyConfigured: boolean; mode: string;
 };
-type Tab = 'overview' | 'zones' | 'records' | 'metrics' | 'settings';
+type Tab = 'overview' | 'zones' | 'records' | 'dnssec' | 'metrics' | 'settings';
+type DnssecKey = { id: number; keytype: string; algorithm: string | null; bits: number | null; active: boolean; published: boolean; dnskey: string | null; ds: string[]; cds: string[] };
+type DnssecState = { zone: string; enabled: boolean; keys: DnssecKey[]; ds: string[]; dnskeys: string[] };
 
 const RECORD_TYPES = ['A', 'AAAA', 'CNAME', 'TXT', 'NS', 'MX', 'SRV', 'PTR'];
 
@@ -48,10 +50,12 @@ export default function DnsPage() {
   const [zones, setZones] = useState<ZoneRow[]>([]);
   const [selectedZone, setSelectedZone] = useState<string>('');
   const [records, setRecords] = useState<RecordRow[]>([]);
+  const [dnssecState, setDnssecState] = useState<DnssecState | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [apiKeyDraft, setApiKeyDraft] = useState('');
   const [zoneForm, setZoneForm] = useState({ name: '', ns1: 'ns1.h2onetwork.pro.', ns2: 'ns2.h2onetwork.pro.' });
   const [recordForm, setRecordForm] = useState({ name: '', type: 'A', ttl: 60, content: '' });
+  const [keyForm, setKeyForm] = useState({ keytype: 'ksk', algorithm: '', bits: '' });
   const [zoneModal, setZoneModal] = useState(false);
   const [recordModal, setRecordModal] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -96,7 +100,57 @@ export default function DnsPage() {
     load();
   }, [load]);
 
+  const loadDnssec = useCallback(async (zone: string) => {
+    if (!zone) return;
+    setBusy(true);
+    try {
+      setDnssecState(await api.get<DnssecState>(`/api/dns/zone/${encodeURIComponent(zone)}/dnssec`));
+    } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+  }, []);
+
   useEffect(() => { if (tab === 'records' && selectedZone) loadRecords(selectedZone); }, [tab, selectedZone, loadRecords]);
+  useEffect(() => { if (tab === 'dnssec' && selectedZone) loadDnssec(selectedZone); }, [tab, selectedZone, loadDnssec]);
+
+  const toggleDnssec = async (enabled: boolean) => {
+    if (!selectedZone) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      await api.patch(`/api/dns/zone/${encodeURIComponent(selectedZone)}/dnssec`, { enabled });
+      setNotice(`${t.dnssec}: ${enabled ? 'ON' : 'OFF'}`);
+      await loadDnssec(selectedZone);
+    } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+  };
+
+  const createDnssecKey = async () => {
+    if (!selectedZone) return;
+    setBusy(true); setError('');
+    try {
+      const body: Record<string, unknown> = { keytype: keyForm.keytype, active: true, published: true };
+      if (keyForm.algorithm) body.algorithm = keyForm.algorithm;
+      if (keyForm.bits) body.bits = Number(keyForm.bits);
+      await api.post(`/api/dns/zone/${encodeURIComponent(selectedZone)}/dnssec/keys`, body);
+      setNotice(`${t.dnssecCreateKey}: ${keyForm.keytype}`);
+      await loadDnssec(selectedZone);
+    } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+  };
+
+  const toggleKey = async (key: DnssecKey, field: 'active' | 'published') => {
+    if (!selectedZone) return;
+    setBusy(true); setError('');
+    try {
+      await api.patch(`/api/dns/zone/${encodeURIComponent(selectedZone)}/dnssec/keys/${key.id}`, { [field]: !key[field] });
+      await loadDnssec(selectedZone);
+    } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+  };
+
+  const deleteDnssecKey = async (key: DnssecKey) => {
+    if (!selectedZone || !window.confirm(`${t.delete}? ${key.keytype} #${key.id}`)) return;
+    setBusy(true); setError('');
+    try {
+      await api.delete(`/api/dns/zone/${encodeURIComponent(selectedZone)}/dnssec/keys/${key.id}`);
+      await loadDnssec(selectedZone);
+    } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+  };
 
   const createZone = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,6 +259,7 @@ export default function DnsPage() {
             { value: 'overview', label: t.dnsOverview, icon: 'grid' },
             { value: 'zones', label: t.dnsZones, icon: 'database' },
             { value: 'records', label: t.dnsRecords, icon: 'list' },
+            { value: 'dnssec', label: t.dnssec, icon: 'shield' },
             { value: 'metrics', label: t.dnsMetrics, icon: 'activity' },
             { value: 'settings', label: t.dnsSettings, icon: 'settings' },
           ]}
@@ -302,6 +357,74 @@ ns2.h2onetwork.pro.\tA\t<IP CONTROL>`}</pre>
             </div>
           )}
         </Card>
+      )}
+
+      {tab === 'dnssec' && (
+        <div className="space-y-4">
+          <Card>
+            <SectionTitle
+              title={t.dnssec}
+              subtitle={`${selectedZone || '—'}`}
+              action={<Button size="sm" variant={dnssecState?.enabled ? 'danger' : 'primary'} icon="shield" loading={busy} onClick={() => toggleDnssec(!dnssecState?.enabled)}>
+                {dnssecState?.enabled ? t.disable : t.dnssecEnable}
+              </Button>}
+            />
+            <div className="rounded-xl border border-warning/25 bg-warning/10 px-4 py-3 text-xs text-warning">{t.dnssecWarning}</div>
+            <div className="mt-4 flex items-center gap-2">
+              <Badge tone={dnssecState?.enabled ? 'success' : 'neutral'} dot>{dnssecState?.enabled ? 'DNSSEC ON' : 'DNSSEC OFF'}</Badge>
+              <Badge tone="neutral">{dnssecState?.keys.length || 0} {t.dnssecKeys}</Badge>
+            </div>
+          </Card>
+
+          <Card>
+            <SectionTitle title={t.dnssecCreateKey} />
+            <div className="flex flex-wrap items-end gap-3">
+              <Field label={t.dnssecKeytype}>
+                <select className="field w-auto" value={keyForm.keytype} onChange={(e) => setKeyForm({ ...keyForm, keytype: e.target.value })}>
+                  <option value="ksk">KSK</option><option value="zsk">ZSK</option><option value="csk">CSK</option>
+                </select>
+              </Field>
+              <Field label={t.dnssecAlgorithm}>
+                <input className="field w-auto" placeholder="ECDSAP256SHA256" value={keyForm.algorithm} onChange={(e) => setKeyForm({ ...keyForm, algorithm: e.target.value })} />
+              </Field>
+              <Field label="Bits">
+                <input className="field w-auto" type="number" placeholder="256" value={keyForm.bits} onChange={(e) => setKeyForm({ ...keyForm, bits: e.target.value })} />
+              </Field>
+              <Button size="sm" icon="plus" variant="primary" onClick={createDnssecKey} loading={busy}>{t.dnssecCreateKey}</Button>
+            </div>
+          </Card>
+
+          <Card>
+            <SectionTitle title={t.dnssecKeys} />
+            {!dnssecState?.keys.length ? <div className="py-8 text-center text-xs text-subtle">{t.dnssecNoKeys}</div> : (
+              <div className="space-y-2">
+                {dnssecState.keys.map((key) => (
+                  <div key={key.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface-2/40 px-3 py-2 text-xs">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge tone="brand">#{key.id} {key.keytype.toUpperCase()}</Badge>
+                      <span className="text-muted">{key.algorithm || '—'}</span>
+                      <span className="text-subtle">{key.bits || '—'} bits</span>
+                      <button type="button" onClick={() => toggleKey(key, 'active')} className="transition hover:text-fg">
+                        <Badge tone={key.active ? 'success' : 'neutral'}>{t.dnssecActive}: {String(key.active)}</Badge>
+                      </button>
+                      <button type="button" onClick={() => toggleKey(key, 'published')} className="transition hover:text-fg">
+                        <Badge tone={key.published ? 'success' : 'neutral'}>{t.dnssecPublished}: {String(key.published)}</Badge>
+                      </button>
+                    </div>
+                    <Button size="sm" variant="danger" icon="trash" onClick={() => deleteDnssecKey(key)}>{t.delete}</Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card>
+            <SectionTitle title={t.dnssecDs} subtitle={lang === 'ru' ? 'Скопируйте DS-записи в родительскую зону' : 'Copy DS records to the parent zone'} />
+            {!dnssecState?.ds.length ? <div className="py-8 text-center text-xs text-subtle">{t.noData}</div> : (
+              <pre className="mono overflow-x-auto rounded-xl border border-line bg-surface-2/60 p-3 text-[11px] leading-relaxed text-muted">{dnssecState.ds.join('\n')}</pre>
+            )}
+          </Card>
+        </div>
       )}
 
       {tab === 'metrics' && status?.metrics && (

@@ -176,6 +176,8 @@ All report endpoints require an `ADMIN` JWT.
 - `GET/POST /dns/zones`, `DELETE /dns/zones/:name` — zone management.
 - `GET/POST /dns/zone/:zone/records`, `DELETE /dns/zone/:zone/records` — record management.
 - `GET/PATCH /dns/settings` — API URL/key (encrypted), zone, TTL, NS, bind IP.
+- `GET/PATCH /dns/zone/:zone/dnssec` — DNSSEC state and zone toggle.
+- `POST/PATCH/DELETE /dns/zone/:zone/dnssec/keys[/:id]` — KSK/ZSK management; private keys are never returned.
 
 ADMIN only; hidden in TENANT mode. See `docs/powerdns.md`.
 

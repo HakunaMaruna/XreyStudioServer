@@ -147,6 +147,49 @@ export class PowerDnsService {
     return { deleted: name };
   }
 
+  // DNSSEC: бумажные ключи и подпись зоны через Cryptokeys API.
+  async cryptokeys(zone: string) {
+    const response = await this.request(`/api/v1/servers/localhost/zones/${encodeURIComponent(zone)}/cryptokeys`);
+    return response.json();
+  }
+
+  async createCryptokey(zone: string, body: {
+    keytype: 'ksk' | 'zsk' | 'csk';
+    active?: boolean;
+    published?: boolean;
+    algorithm?: string;
+    bits?: number;
+  }) {
+    const response = await this.request(`/api/v1/servers/localhost/zones/${encodeURIComponent(zone)}/cryptokeys`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    return response.json();
+  }
+
+  async updateCryptokey(zone: string, id: number | string, body: { active?: boolean; published?: boolean }) {
+    await this.request(`/api/v1/servers/localhost/zones/${encodeURIComponent(zone)}/cryptokeys/${encodeURIComponent(String(id))}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+    return { updated: id };
+  }
+
+  async deleteCryptokey(zone: string, id: number | string) {
+    await this.request(`/api/v1/servers/localhost/zones/${encodeURIComponent(zone)}/cryptokeys/${encodeURIComponent(String(id))}`, {
+      method: 'DELETE',
+    });
+    return { deleted: id };
+  }
+
+  async setDnssec(zone: string, enabled: boolean) {
+    const response = await this.request(`/api/v1/servers/localhost/zones/${encodeURIComponent(zone)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ dnssec: enabled, ...(enabled ? { api_rectify: true } : {}) }),
+    });
+    return response.json().catch(() => ({ ok: true }));
+  }
+
   async patchRrsets(zone: string, rrsets: Rrset[]) {
     const response = await this.request(`/api/v1/servers/localhost/zones/${encodeURIComponent(zone)}`, {
       method: 'PATCH',

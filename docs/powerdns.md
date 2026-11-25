@@ -49,6 +49,27 @@ ns2.h2onetwork.pro.    A    <IP CONTROL>
 открыть UDP/TCP 53; `PDNS_BIND_IP=127.0.0.1` используется до делегирования,
 затем заменяется на `0.0.0.0`.
 
+## DNSSEC
+
+Вкладка **DNSSEC** на странице `/dns` работает с Cryptokeys API PowerDNS:
+
+```text
+GET    /api/dns/zone/:zone/dnssec
+PATCH  /api/dns/zone/:zone/dnssec              { enabled }
+POST   /api/dns/zone/:zone/dnssec/keys         { keytype: ksk|zsk|csk, algorithm?, bits?, active?, published? }
+PATCH  /api/dns/zone/:zone/dnssec/keys/:id     { active?, published? }
+DELETE /api/dns/zone/:zone/dnssec/keys/:id
+```
+
+При включении зона переводится в `dnssec: true` и `api_rectify: true`. Ключи KSK/ZSK
+создаются отдельно; приватный материал **никогда не возвращается** в API панели —
+только тип, алгоритм, битность, флаги active/published, DNSKEY и DS/CDS.
+DS-записи нужно вручную добавить в родительскую зону у регистратора — до этого зона
+работает, но не валидируется. При отключении DNSSEC ключи остаются в PowerDNS и могут
+быть удалены вручную.
+
+Ссылка: https://doc.powerdns.com/authoritative/http-api/cryptokey.html
+
 ## Что лучше: варианты и выбор
 
 1. **Встроить PowerDNS-Admin** (отдельный контейнер) — готовый UI зон/записей,

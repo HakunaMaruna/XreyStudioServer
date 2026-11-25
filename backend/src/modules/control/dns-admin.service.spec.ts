@@ -24,7 +24,15 @@ describe('DnsAdminService', () => {
         { name: 'tcp-queries', value: '2' },
       ]),
       metrics: jest.fn(async () => ({ pdns_auth_uptime: 120, pdns_auth_latency: 3 })),
-      zone: jest.fn(async () => ({ rrsets: [{ name: 'a.node.h2onetwork.pro.', type: 'A', ttl: 60, records: [{ content: '1.2.3.4' }] }] })),
+      zone: jest.fn(async () => ({ dnssec: false, rrsets: [{ name: 'a.node.h2onetwork.pro.', type: 'A', ttl: 60, records: [{ content: '1.2.3.4' }] }] })),
+      cryptokeys: jest.fn(async () => [
+        { id: 1, keytype: 'ksk', active: true, published: true, algorithm: 'ECDSAP256SHA256', bits: 256,
+          dnskey: '257 3 13 xxx', ds: ['12345 13 2 abcd'], cds: ['12345 13 2 abcd'], privatekey: 'SECRET-PRIVATE-KEY' },
+      ]),
+      setDnssec: jest.fn(async (_zone: string, enabled: boolean) => ({ dnssec: enabled })),
+      createCryptokey: jest.fn(async (zone: string, body: any) => ({ id: 2, ...body })),
+      updateCryptokey: jest.fn(async (_zone: string, id: number) => ({ updated: id })),
+      deleteCryptokey: jest.fn(async (_zone: string, id: number) => ({ deleted: id })),
       patchRrsets: jest.fn(async () => ({ ok: true })),
       createZone: jest.fn(async (name: string) => ({ id: name })),
       deleteZone: jest.fn(async (name: string) => ({ deleted: name })),
@@ -56,6 +64,25 @@ describe('DnsAdminService', () => {
     expect(dns.patchRrsets.mock.calls[0][1][0]).toMatchObject({
       name: 'a.node.h2onetwork.pro.', type: 'A', changetype: 'REPLACE',
     });
+  });
+
+  it('exposes DNSSEC keys without private material', async () => {
+    const result = await service().dnssec('node.h2onetwork.pro.');
+    expect(result).toMatchObject({ enabled: false, ds: ['12345 13 2 abcd'] });
+    expect(result.keys[0]).toMatchObject({ id: 1, keytype: 'ksk', active: true });
+    expect(JSON.stringify(result)).not.toContain('SECRET-PRIVATE-KEY');
+  });
+
+  it('manages DNSSEC state and keys only in control mode', async () => {
+    const svc = service();
+    await svc.setDnssec('node.h2onetwork.pro.', true);
+    expect(dns.setDnssec).toHaveBeenCalledWith('node.h2onetwork.pro.', true);
+    await svc.createDnssecKey('node.h2onetwork.pro.', { keytype: 'zsk' });
+    expect(dns.createCryptokey).toHaveBeenCalledWith('node.h2onetwork.pro.', { keytype: 'zsk' });
+    await svc.updateDnssecKey('node.h2onetwork.pro.', 1, { active: false });
+    await svc.deleteDnssecKey('node.h2onetwork.pro.', 1);
+    process.env.PANEL_MODE = 'tenant';
+    await expect(svc.dnssec('node.h2onetwork.pro.')).rejects.toThrow(ForbiddenException);
   });
 
   it('never returns the API key from settings', async () => {
