@@ -42,6 +42,13 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 Документация: `docs/routing.md`, обновлён `docs/api.md`.
 Тесты: 24 suites / 134 tests.
 
+Живая проверка на `msc.h2onetwork.pro` (v2.28.0): рецепты доступны через API,
+невалидный payload отклонён (`valid:false`), создан и включён профиль `test-routing`,
+конфиг применён (revision 18), агент `xray: running`, в конфиге подтверждены
+`dns.servers: [9.9.9.9, ...]`, outbound `xss-test-direct` и правила `10.0.0.0/8 → xss-test-direct`,
+`port 53 → direct`. Локальный `xray run -test` на выгруженном конфиге — OK,
+туннель через подписку вернул `origin: 213.171.30.186`. Профиль оставлен включённым.
+
 ## Current work (2026-11-25)
 
 v2.27.0 — автоматическая выдача доменов нодам и мастер создания ноды (issue **#176**).

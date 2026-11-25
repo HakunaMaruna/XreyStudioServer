@@ -27,7 +27,8 @@
 
 ## Валидация
 
-`POST /api/routing/validate` принимает `{ "payload": {...} }` и возвращает:
+`POST /api/routing/validate` принимает `{ "payload": {...} }`. HTTP-код успешного вызова — 201,
+результат проверки лежит в теле ответа (не в статусе):
 
 ```json
 { "valid": false, "errors": ["routingRules[0] has unknown outboundTag: nowhere"] }
