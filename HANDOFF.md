@@ -31,6 +31,16 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Plugin system and App Store (v2.39.0, 2026-11-25)
+
+ADR and spec: `docs/plugins/ADR.md`, `docs/plugins/PLUGIN_SPEC.md`, `docs/plugins/README.md`.
+Master is the policy source, tenant receives catalog through master proxy. Store is a separate
+container/DB with moderation statuses and revocation list. Plugin runtime is a limited worker
+process with permission-checked SDK; third-party packages require moderation and Ed25519 signature.
+UI: `/plugins` (installed/catalog/policy), store catalog and moderation pages.
+Snapshot before any plugin change; safe mode via `PLUGIN_SAFE_MODE=true`, kill switch via
+`PLUGINS_DISABLED=true`. CLI: `scripts/plugin-cli.mjs`. Down migration: `backend/prisma/plugin-down.sql`.
+
 ## Subscription page (v2.38.0, 2026-11-25)
 
 Публичная страница `/sub/[token]` переработана: mobile-first, светлая/тёмная тема с

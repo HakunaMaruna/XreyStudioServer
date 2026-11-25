@@ -38,6 +38,21 @@ services:
       retries: 5
     restart: unless-stopped
 
+  store-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-xss}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-xss}
+      POSTGRES_DB: ${STORE_DB:-xss_store}
+    volumes:
+      - store_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-xss}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     command: redis-server --appendonly yes
@@ -48,6 +63,23 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+
+  store:
+    build: ./backend
+    env_file: .env
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: postgres://${POSTGRES_USER:-xss}:${POSTGRES_PASSWORD:-xss}@store-db:5432/${STORE_DB:-xss_store}
+      STORE_PORT: "3012"
+      STORE_ADMIN_TOKEN: ${STORE_ADMIN_TOKEN:-}
+      STORE_CORS_ORIGIN: ${PANEL_URL:-*}
+    command: node dist/store-main.js
+    depends_on:
+      store-db:
+        condition: service_healthy
+    ports:
+      - "3012:3012"
     restart: unless-stopped
 
   backend:
@@ -66,6 +98,11 @@ services:
       NODE_DNS_ZONE: ${NODE_DNS_ZONE:-node.h2onetwork.pro}
       NODE_DNS_TTL: ${NODE_DNS_TTL:-60}
       PANEL_MASTER_KEY: ${PANEL_MASTER_KEY:-}
+      STORE_API_URL: ${STORE_API_URL:-http://store:3012}
+      STORE_API_TOKEN: ${STORE_ADMIN_TOKEN:-}
+      PLUGIN_STORE_PUBLIC_KEY: ${PLUGIN_STORE_PUBLIC_KEY:-}
+      PLUGIN_ALLOW_UNSIGNED: ${PLUGIN_ALLOW_UNSIGNED:-false}
+      PLUGIN_AUTO_SNAPSHOT: ${PLUGIN_AUTO_SNAPSHOT:-true}
     volumes:
       - ./backups:/app/backups
       - certbot_webroot:/var/www/certbot
@@ -153,6 +190,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  store_data:
   pdns_data:
   pgdata:
   redisdata:

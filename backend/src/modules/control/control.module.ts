@@ -6,9 +6,10 @@ import { PowerDnsService } from './powerdns.service';
 import { DnsSettingsService } from './dns-settings.service';
 import { DnsAdminService } from './dns-admin.service';
 import { DnsController } from './dns.controller';
+import { PluginsModule } from '../plugins/plugins.module';
 
 @Module({
-  imports: [ApiTokensModule],
+  imports: [ApiTokensModule, PluginsModule],
   controllers: [ControlController, DnsController],
   providers: [ControlService, PowerDnsService, DnsSettingsService, DnsAdminService],
   exports: [ControlService, PowerDnsService, DnsSettingsService, DnsAdminService],

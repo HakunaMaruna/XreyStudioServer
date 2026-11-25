@@ -1,0 +1,46 @@
+{
+  "id": "com.example.audit-hook",
+  "name": "Audit Hook",
+  "version": "1.0.0",
+  "author": "Developer",
+  "description": "Logs a safe audit event after user updates (example with migration)",
+  "license": "MIT",
+  "minPanelVersion": "2.38.0",
+  "maxPanelVersion": null,
+  "dependencies": [],
+  "permissions": [
+    "users:read",
+    "plugins:api"
+  ],
+  "entrypoints": {
+    "backend": "backend/index.js",
+    "frontend": null,
+    "migrations": "migrations"
+  },
+  "hooks": [
+    "onInstall",
+    "onEnable",
+    "onDisable",
+    "onUninstall",
+    "afterUserUpdate",
+    "health"
+  ],
+  "settingsSchema": {
+    "type": "object",
+    "properties": {
+      "channel": {
+        "type": "string",
+        "title": "Log channel"
+      }
+    }
+  },
+  "healthcheck": "health",
+  "i18n": {
+    "ru": {
+      "title": "Audit Hook"
+    },
+    "en": {
+      "title": "Audit Hook"
+    }
+  }
+}
