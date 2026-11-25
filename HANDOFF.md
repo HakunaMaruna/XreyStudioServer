@@ -31,6 +31,22 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Node editing and metrics (v2.29.0, 2026-11-25)
+
+- Кнопка редактирования ноды открывает окно с параметрами мастера: имя, адрес/SSH-хост,
+  локация (249 стран с флагами; флаг также показывается в списке нод, приоритет — geocheck),
+  режим SSH-авторизации, пользователь/порт, IPv4/IPv6, пользовательский домен.
+  Секреты (пароль/ключ/passphrase) не возвращаются API; пустое поле = оставить старое,
+  новое значение шифруется AES-256-GCM. `GET/PATCH /api/wizard/nodes/:nodeId`,
+  tenant-изоляция для OPERATOR (`wizard.service.ts`).
+- Кнопка метрик открывает окно: состояние Xray, скорость сети (upload/download Mbps из
+  метрик агента) и ping (HTTP-RTT до агента). `GET /api/nodes/:id/health` расширен
+  полями `xray`, `network`, `ping`; агент пишет `xrayStatus` в `NodeMetric`.
+- Живая проверка: PATCH смены имени/локации → 200 и сохранение; health вернул
+  ping 12 ms, speed ~0.002/0.006 Mbps, `xray` из БД был `unknown` (старые метрики до
+  деплоя), но агент в live-состоянии сообщает `xray: running` и `/metrics` с валидным
+  `X-Agent-Secret` тоже `running`. Тесты: 24 suites / 137 tests.
+
 ## Nodes UI (v2.28.1, 2026-11-25)
 
 На странице `/nodes` удалены кнопки «Установка по SSH» и «Добавить ноду» вместе с их модалками;
