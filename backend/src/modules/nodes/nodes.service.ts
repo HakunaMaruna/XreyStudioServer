@@ -85,6 +85,7 @@ export class NodesService {
     if (dto.address !== undefined) data.address = dto.address;
     if (dto.port !== undefined) data.port = dto.port;
     if (dto.agentUrl !== undefined) data.agentUrl = dto.agentUrl;
+    if (dto.location !== undefined) data.location = dto.location;
     if (dto.organizationId !== undefined) {
       if (actor.role !== Role.ADMIN && dto.organizationId !== actor.organizationId) {
         throw new ForbiddenException('Cannot move a node to another organization');
@@ -147,6 +148,7 @@ export class NodesService {
         trafficUp: BigInt(Math.round(dto.trafficUp || 0)),
         trafficDown: BigInt(Math.round(dto.trafficDown || 0)),
         connections: dto.connections || 0,
+        xrayStatus: dto.xray || null,
       },
     });
     await this.prisma.node.update({
@@ -183,12 +185,25 @@ export class NodesService {
     const node = actor ? await this.findOne(id, actor) : await this.prisma.node.findUnique({ where: { id } });
     if (!node) throw new NotFoundException('Node not found');
     const last = (node as any).metrics?.[0] || null;
+    // Агент отправляет метрики каждые 15 с, trafficUp/down — байты за интервал.
+    const intervalSeconds = Number(process.env.NODE_METRIC_INTERVAL_SECONDS || 15);
+    const uploadBps = last ? Math.round(Number(last.trafficUp) / intervalSeconds) : 0;
+    const downloadBps = last ? Math.round(Number(last.trafficDown) / intervalSeconds) : 0;
+    const ping = await this.agentClient.ping(node as any);
     return {
       nodeId: id,
       status: node.status,
       online: node.lastSeenAt ? Date.now() - node.lastSeenAt.getTime() < 60_000 : false,
       lastSeenAt: node.lastSeenAt,
       lastError: node.lastError,
+      xray: last?.xrayStatus || 'unknown',
+      network: {
+        uploadBps,
+        downloadBps,
+        uploadMbps: Number((uploadBps * 8 / 1_000_000).toFixed(3)),
+        downloadMbps: Number((downloadBps * 8 / 1_000_000).toFixed(3)),
+      },
+      ping,
       latestMetric: last,
     };
   }

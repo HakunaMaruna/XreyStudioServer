@@ -25,6 +25,10 @@ describe('WizardService', () => {
       wizardCredential: { create: jest.fn(async () => ({})), findMany: jest.fn(async () => []), deleteMany: jest.fn(async () => ({})), findUnique: jest.fn(async () => null) },
       inbound: { create: jest.fn(async ({ data }: any) => ({ id: 'inbound-1', ...data })) },
       nodeDomain: { findFirst: jest.fn(async () => null) },
+      node: {
+        findUnique: jest.fn(async () => ({ id: 'node-1', name: 'msk-01', address: '203.0.113.10', organizationId: 'org-1', location: null })),
+        update: jest.fn(async ({ data }: any) => data),
+      },
     };
     control = {
       allocate: jest.fn(async () => ({ id: 'domain-1', label: 'abc123', fqdn: 'abc123.node.h2onetwork.pro' })),
@@ -76,6 +80,38 @@ describe('WizardService', () => {
     await expect(service().create(baseDto as any, user)).rejects.toThrow('Node installation failed');
     expect(control.release).toHaveBeenCalled();
     expect(prisma.inbound.create).not.toHaveBeenCalled();
+  });
+
+  it('returns editable node parameters without secrets', async () => {
+    prisma.wizardCredential.findUnique.mockResolvedValueOnce({
+      authMode: 'key', sshHost: '203.0.113.10', sshUser: 'root', sshPort: 22,
+      location: 'RU', password: 'v1:enc', privateKey: null, passphrase: null,
+      userDomain: null, createdAt: new Date(),
+    });
+    const params = await service().getNodeParams('node-1', user);
+    expect(params).toMatchObject({ name: 'msk-01', authMode: 'key', sshUser: 'root', location: 'RU', hasPassword: true });
+    expect(JSON.stringify(params)).not.toContain('v1:enc');
+  });
+
+  it('updates node fields and rotates secrets in encrypted form', async () => {
+    prisma.wizardCredential.upsert = jest.fn(async ({ create }: any) => create);
+    prisma.wizardCredential.findUnique.mockResolvedValueOnce(null);
+    const result = await service().updateNodeParams('node-1', {
+      name: 'msk-renamed', location: 'DE', sshUser: 'deploy', sshPort: 2222, password: 'new-secret',
+    } as any, user);
+    expect(prisma.node.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ name: 'msk-renamed', location: 'DE' }),
+    }));
+    const upsert = prisma.wizardCredential.upsert.mock.calls[0][0];
+    expect(upsert.create.password).toMatch(/^v1:/);
+    expect(upsert.create.password).not.toContain('new-secret');
+    expect(upsert.create).toMatchObject({ sshUser: 'deploy', sshPort: 2222, location: 'DE' });
+    expect(result.name).toBe('msk-01');
+  });
+
+  it('blocks editing a node from another organization', async () => {
+    prisma.node.findUnique.mockResolvedValueOnce({ id: 'node-1', organizationId: 'org-2' });
+    await expect(service().getNodeParams('node-1', { ...user, role: 'OPERATOR', organizationId: 'org-1' })).rejects.toThrow('another organization');
   });
 
   it('never returns stored secrets when listing credentials', async () => {

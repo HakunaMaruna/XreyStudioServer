@@ -149,6 +149,7 @@ export class NodeProvisionService {
         port: 443,
         agentUrl: `http://${dto.host}:9090`,
         tokenHash,
+        location: dto.location || null,
         organizationId: actor.organizationId || null,
       },
     });

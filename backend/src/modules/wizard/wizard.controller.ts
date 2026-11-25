@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Role } from '@prisma/client';
 import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { CreateNodeWizardDto } from './dto/wizard.dto';
+import { UpdateWizardNodeDto } from './dto/update-wizard-node.dto';
 import { WizardService } from './wizard.service';
 
 @Controller('wizard')
@@ -16,6 +17,22 @@ export class WizardController {
   @Roles(Role.ADMIN, Role.OPERATOR)
   create(@Body() dto: CreateNodeWizardDto, @CurrentUser() user: AuthUser) {
     return this.service.create(dto, user);
+  }
+
+  @Get('nodes/:nodeId')
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  nodeParams(@Param('nodeId') nodeId: string, @CurrentUser() user: AuthUser) {
+    return this.service.getNodeParams(nodeId, user);
+  }
+
+  @Patch('nodes/:nodeId')
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  updateNodeParams(
+    @Param('nodeId') nodeId: string,
+    @Body() dto: UpdateWizardNodeDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.service.updateNodeParams(nodeId, dto, user);
   }
 
   @Get('credentials')
