@@ -92,6 +92,13 @@ export class NodesController {
     return created;
   }
 
+  @Get('pings')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  pings(@CurrentUser() user: AuthUser) {
+    return this.service.pings(user);
+  }
+
   @Get(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN, Role.OPERATOR)

@@ -36,6 +36,9 @@ All admin endpoints require `Authorization: Bearer <accessToken>` and, where not
 
 - `GET /nodes`, `POST /nodes`, `GET /nodes/stats`
 - `GET /nodes/:id`, `PATCH /nodes/:id`, `DELETE /nodes/:id`
+- `GET /nodes/pings` (JWT, `ADMIN`/`OPERATOR`) — latency in ms per visible node,
+  `{ [nodeId]: number | null }` (`null` when unreachable), tenant-scoped; powers the
+  colour-coded ping block on node cards.
 - `GET /nodes/:id/health`, `POST /nodes/:id/restart`
 - `POST /nodes/:id/apply` — generate a new revision and apply it, or apply `{ revisionId }`
 - `GET /nodes/:id/revisions` — last 50 config revisions

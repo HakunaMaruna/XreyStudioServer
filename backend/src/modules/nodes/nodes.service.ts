@@ -49,6 +49,18 @@ export class NodesService {
     }));
   }
 
+  async pings(actor: AuthUser) {
+    const nodes = await this.prisma.node.findMany({
+      where: this.tenantWhere(actor),
+      select: { id: true, address: true, agentUrl: true },
+    });
+    const entries = await Promise.all(nodes.map(async (node) => {
+      const result = await this.agentClient.ping(node as any);
+      return [node.id, result.reachable ? result.latencyMs : null] as const;
+    }));
+    return Object.fromEntries(entries);
+  }
+
   async findOne(id: string, actor: AuthUser) {
     const node = await this.prisma.node.findFirst({
       where: { id, ...this.tenantWhere(actor) },

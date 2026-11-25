@@ -58,6 +58,7 @@ type NodeHealth = {
 export default function NodesPage() {
   const { t, lang } = useLang();
   const [nodes, setNodes] = useState<NodeRow[]>([]);
+  const [pings, setPings] = useState<Record<string, number | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [revisionsNode, setRevisionsNode] = useState<NodeRow | null>(null);
@@ -94,8 +95,12 @@ export default function NodesPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const data = await api.get('/api/nodes');
+      const [data, latency] = await Promise.all([
+        api.get('/api/nodes'),
+        api.get('/api/nodes/pings').catch(() => ({})),
+      ]);
       setNodes(Array.isArray(data) ? data : data.data || []);
+      setPings(latency && typeof latency === 'object' ? latency as Record<string, number | null> : {});
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -407,6 +412,43 @@ export default function NodesPage() {
                     )}
                   </div>
                 </div>
+
+                {(() => {
+                  const latency = pings[node.id];
+                  const level = latency == null ? 'idle' : latency <= 100 ? 'good' : latency <= 300 ? 'fair' : 'poor';
+                  const palette = {
+                    idle: { text: 'text-subtle', bg: 'bg-surface-2', border: 'border-line', bar: 'bg-subtle' },
+                    good: { text: 'text-success', bg: 'bg-success/10', border: 'border-success/25', bar: 'bg-success' },
+                    fair: { text: 'text-warning', bg: 'bg-warning/10', border: 'border-warning/25', bar: 'bg-warning' },
+                    poor: { text: 'text-danger', bg: 'bg-danger/10', border: 'border-danger/25', bar: 'bg-danger' },
+                  }[level];
+                  const quality = level === 'good' ? (lang === 'ru' ? 'Отлично' : 'Excellent')
+                    : level === 'fair' ? (lang === 'ru' ? 'Нормально' : 'Fair')
+                    : level === 'poor' ? (lang === 'ru' ? 'Плохо' : 'Poor')
+                    : (lang === 'ru' ? 'Нет данных' : 'No data');
+                  return (
+                    <div className={`mt-3 rounded-xl border px-3 py-2.5 ${palette.bg} ${palette.border}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-subtle">
+                          <Icon name="activity" size={13} /> {t.ping}
+                        </span>
+                        <span className={`text-base font-bold tabular-nums ${palette.text}`}>
+                          {latency == null ? '—' : latency} {latency != null && 'ms'}
+                        </span>
+                      </div>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-2">
+                        <div
+                          className={`h-full rounded-full transition-all ${palette.bar}`}
+                          style={{ width: `${latency == null ? 0 : Math.min(100, Math.max(3, latency / 5))}%` }}
+                        />
+                      </div>
+                      <div className="mt-1 flex justify-between text-[10px] text-subtle">
+                        <span>{quality}</span>
+                        <span>0 · 100 · 300 ms</span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <div>

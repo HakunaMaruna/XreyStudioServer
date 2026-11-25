@@ -972,3 +972,7 @@ CI verification for e54a395: smoke, docker, backend, frontend, both image builds
 `e2e-postgres` fails in `test/rollout-api.e2e-pg-spec.ts` with
 `this.agentClient.ping is not a function` — pre-existing issue #188, unrelated to
 selfSNI/decoy changes.
+
+Node-card ping display: `GET /api/nodes/pings` returns tenant-scoped latency per node
+(`null` when unreachable). Cards show ping above RAM: green <= 100 ms, yellow 101-300 ms,
+red > 300 ms, grey when no data; the bar and quality label match the colour.
