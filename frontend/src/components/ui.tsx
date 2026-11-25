@@ -6,6 +6,7 @@ import {
   useEffect,
   useId,
   useRef,
+  useState,
   type ButtonHTMLAttributes,
   type ReactElement,
   type ReactNode,
@@ -440,4 +441,23 @@ export function formatBytes(value: number | string | null | undefined) {
     unit++;
   }
   return `${bytes >= 10 || unit === 0 ? Math.round(bytes) : bytes.toFixed(1)} ${units[unit]}`;
+}
+
+
+export function HelpButton({ title, children }: { title: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <IconButton icon="help" label={title} onClick={() => setOpen(true)} />
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={title}
+        subtitle="XreyStudioServer"
+        icon={<Icon name="help" size={16} />}
+      >
+        <div className="space-y-3 text-sm leading-relaxed text-muted">{children}</div>
+      </Modal>
+    </>
+  );
 }

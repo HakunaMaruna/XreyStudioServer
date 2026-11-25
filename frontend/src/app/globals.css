@@ -396,3 +396,14 @@ button:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .cheb-radar span, .cheb-radar i, .cheb-radar::after { animation: none; }
 }
+
+/* Node card: wider, thicker and with inline metrics. */
+.node-card {
+  border-width: 1.5px;
+  box-shadow: 0 10px 30px -18px color-mix(in srgb, var(--brand) 55%, transparent);
+  transition: border-color .15s ease, transform .15s ease;
+}
+.node-card:hover {
+  border-color: color-mix(in srgb, var(--brand) 45%, transparent);
+  transform: translateY(-1px);
+}

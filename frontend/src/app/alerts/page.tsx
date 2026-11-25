@@ -5,7 +5,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
 import { Icon, type IconName } from '../../components/icons';
-import { Badge, Button, Card, Field, PageHeader, SectionTitle, Segmented, cn } from '../../components/ui';
+import { Badge, Button, Card, Field, HelpButton, PageHeader, SectionTitle, Segmented, cn } from '../../components/ui';
 
 type AlertRow = {
   id: string; status: string; title: string; message: string | null;
@@ -54,7 +54,7 @@ const channelIcons: Record<keyof Channels, IconName> = {
 };
 
 export default function AlertsPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [channels, setChannels] = useState<Channels | null>(null);
   const [loading, setLoading] = useState(true);
@@ -190,6 +190,7 @@ export default function AlertsPage() {
         icon="bell"
         actions={
           <>
+            <HelpButton title={t.help}><p>{lang === 'ru' ? 'В Настройках реквизиты каналов шифруются и не показываются; пустое поле сохраняет прежнее значение. Матрица событий определяет, куда уходит уведомление. Тихие часы и cooldown могут задержать отправку.' : 'In Settings, channel credentials are encrypted and never shown; an empty field keeps the current value. The event matrix decides where a notification goes. Quiet hours and cooldown can delay delivery.'}</p></HelpButton>
             <Segmented
               value={tab}
               onChange={setTab}

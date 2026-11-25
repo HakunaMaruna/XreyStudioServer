@@ -6,7 +6,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
-import { Badge, Button, Card, Field, PageHeader, Segmented, formatBytes } from '../../components/ui';
+import { Badge, Button, Card, Field, HelpButton, PageHeader, Segmented, formatBytes } from '../../components/ui';
 
 type OrgRow = {
   id: string;
@@ -53,7 +53,7 @@ const chartTooltip = {
 };
 
 export default function ReportsPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [tab, setTab] = useState<Tab>('traffic');
   const [trafficDays, setTrafficDays] = useState(30);
   const [traffic, setTraffic] = useState<TrafficReport | null>(null);
@@ -176,6 +176,7 @@ export default function ReportsPage() {
         icon="gauge"
         actions={
           <>
+            <HelpButton title={t.help}><p>{lang === 'ru' ? 'Динамика трафика показывает суточные объёмы и сравнение с прошлым периодом. CSV экспортируется с теми же фильтрами, что и экран. Отчёты доступны только администратору.' : 'Traffic dynamics shows daily volumes and a previous-period comparison. CSV uses the same filters as the screen. Reports are admin-only.'}</p></HelpButton>
             <Segmented
               value={tab}
               onChange={setTab}

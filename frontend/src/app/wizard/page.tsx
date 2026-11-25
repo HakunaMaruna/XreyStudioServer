@@ -4,7 +4,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { COUNTRIES } from '../../lib/countries';
 import { useLang } from '../../lib/i18n';
 import { Icon } from '../../components/icons';
-import { Button, Card, CodeBlock, Field, PageHeader, SectionTitle } from '../../components/ui';
+import { Button, Card, CodeBlock, Field, HelpButton, PageHeader, SectionTitle } from '../../components/ui';
 
 type AuthMode = 'password' | 'password_key' | 'key';
 type WizardResult = {
@@ -129,7 +129,8 @@ export default function WizardPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title={t.wizard} subtitle={t.wizardSubtitle} icon="plus" eyebrow="AUTOMATION" />
+      <PageHeader title={t.wizard} subtitle={t.wizardSubtitle} icon="plus" eyebrow="AUTOMATION"
+        actions={<HelpButton title={t.help}><p>{lang === 'ru' ? 'Мастер запрашивает домен у CONTROL, устанавливает агента по SSH и создаёт первое VLESS TLS подключение. Пароль и ключ шифруются; пустые поля в редактировании означают «оставить как было».' : 'The wizard asks CONTROL for a domain, installs the agent over SSH and creates the first VLESS TLS inbound. Passwords and keys are encrypted; empty fields in editing mean “keep current”.'}</p></HelpButton>} />
 
       <div className="flex flex-wrap gap-2">
         {[t.wizardStep1, t.wizardStep2, t.wizardStep3].map((label, index) => (

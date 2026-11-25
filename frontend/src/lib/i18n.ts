@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 
 const dict = {
   ru: {
+    help: 'Справка',
     dashboard: 'Дашборд',
     users: 'Пользователи',
     nodes: 'Ноды',
@@ -516,6 +517,7 @@ const dict = {
     wizardRetryCert: 'Повторить выпуск сертификата',
   },
   en: {
+    help: 'Help',
     dashboard: 'Dashboard',
     users: 'Users',
     nodes: 'Nodes',

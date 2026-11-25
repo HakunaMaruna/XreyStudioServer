@@ -7,12 +7,20 @@ import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
 import {
-  Badge, Button, Card, Field, IconButton, Modal, PageHeader,
-  SectionTitle, StatusBadge, formatBytes,
+  Badge, Button, Card, Field, HelpButton, IconButton, Modal, PageHeader,
+  ProgressBar, SectionTitle, StatusBadge, formatBytes,
 } from '../../components/ui';
 
 type NodeGeo = { countryCode: string | null; city: string | null; ip: string | null; asn: string | null; checkedAt: string };
-type NodeRow = { id: string; name: string; address: string; port: number; status: string; location?: string | null; geo?: NodeGeo | null };
+type NodeMetricRow = {
+  cpu: number; ram: number; disk: number;
+  trafficUp: string; trafficDown: string; connections: number; createdAt: string;
+  xrayStatus?: string | null;
+};
+type NodeRow = {
+  id: string; name: string; address: string; port: number; status: string;
+  location?: string | null; geo?: NodeGeo | null; metrics?: NodeMetricRow[];
+};
 type RevisionRow = { id: string; version: number; applied: boolean; createdAt: string };
 type LogEntry = { timestamp: string; level: string; message: string };
 type NodeLogs = { nodeId: string; logs: LogEntry[] };
@@ -240,24 +248,66 @@ export default function NodesPage() {
       {
         accessorKey: 'name',
         header: t.name,
-        cell: ({ row }) => (
-          <div className="flex items-center gap-3">
-            <div className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface-2 text-brand">
-              <Icon name="server" size={15} />
+        size: 420,
+        cell: ({ row }) => {
+          const metric = row.original.metrics?.[0];
+          const interval = 15;
+          const upMbps = metric ? Number((Number(metric.trafficUp) * 8 / interval / 1_000_000).toFixed(3)) : 0;
+          const downMbps = metric ? Number((Number(metric.trafficDown) * 8 / interval / 1_000_000).toFixed(3)) : 0;
+          return (
+            <div className="flex min-w-[420px] flex-wrap items-stretch gap-3 py-2">
+              <div className="node-card flex min-w-[280px] flex-1 items-center gap-3 rounded-2xl border border-line-2 bg-surface-2/70 px-3 py-2.5">
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-brand/30 bg-brand/10 text-brand">
+                  <Icon name="server" size={22} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    {flagFor(row.original.geo?.countryCode || row.original.location) && (
+                      <span title={row.original.geo?.countryCode || row.original.location || ''}>
+                        {flagFor(row.original.geo?.countryCode || row.original.location)}
+                      </span>
+                    )}
+                    <p className="truncate font-semibold text-fg">{row.original.name}</p>
+                    <StatusBadge status={row.original.status} />
+                  </div>
+                  <p className="mono text-[10px] text-subtle">{t.idLabel} {row.original.id.slice(0, 8)} · {row.original.address}:{row.original.port}</p>
+                  {metric ? (
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <div>
+                        <div className="mb-1 flex justify-between text-[10px] text-subtle"><span>CPU</span><span className="tabular-nums text-fg">{Number(metric.cpu).toFixed(0)}%</span></div>
+                        <ProgressBar value={Number(metric.cpu)} tone={Number(metric.cpu) > 85 ? 'danger' : Number(metric.cpu) > 65 ? 'warning' : 'success'} />
+                      </div>
+                      <div>
+                        <div className="mb-1 flex justify-between text-[10px] text-subtle"><span>RAM</span><span className="tabular-nums text-fg">{Number(metric.ram).toFixed(0)}%</span></div>
+                        <ProgressBar value={Number(metric.ram)} tone={Number(metric.ram) > 85 ? 'danger' : Number(metric.ram) > 65 ? 'warning' : 'cyan'} />
+                      </div>
+                      <div className="col-span-2 flex items-center gap-3 text-[10px] text-subtle">
+                        <span className="flex items-center gap-1"><Icon name="upload" size={13} className="text-brand" /> ↑ {upMbps} Mbps</span>
+                        <span className="flex items-center gap-1"><Icon name="download" size={13} className="text-cyan" /> ↓ {downMbps} Mbps</span>
+                        <span className="flex items-center gap-1"><Icon name="activity" size={13} className="text-success" /> {metric.connections} {t.connections.toLowerCase()}</span>
+                      </div>
+                    </div>
+                  ) : <p className="mt-1 text-[10px] text-subtle">{t.noNodeMetrics}</p>}
+                </div>
+              </div>
+              <div className="flex min-w-[240px] flex-col justify-center gap-1.5">
+                <div className="flex flex-wrap gap-1">
+                  <IconButton icon="gauge" label={t.metrics} tone="brand" onClick={() => openMetrics(row.original)} />
+                  <IconButton icon="activity" label={t.health} onClick={() => openHealth(row.original)} />
+                  <IconButton icon="shield" label={t.cheburcheckCheck} tone="brand" onClick={() => runCheburcheck(row.original)} />
+                  <IconButton icon="edit" label={t.edit} onClick={() => openEdit(row.original)} />
+                  <IconButton icon="play" label={t.apply} tone="brand" onClick={() => apply(row.original.id)} />
+                  <IconButton icon="refresh" label={t.restart} onClick={() => restart(row.original.id)} />
+                  <IconButton icon="history" label={t.revisions} onClick={() => openRevisions(row.original)} />
+                  <IconButton icon="terminal" label={t.logs} onClick={() => openLogs(row.original)} />
+                </div>
+                <div className="flex flex-wrap gap-1 text-[9px] text-subtle">
+                  <span>{t.metrics}</span><span>·</span><span>{t.health}</span><span>·</span><span>Cheburcheck</span><span>·</span><span>{t.edit}</span>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="font-medium text-fg">
-                {flagFor(row.original.geo?.countryCode || row.original.location) && (
-                  <span className="mr-1.5" title={row.original.geo?.countryCode || row.original.location || ''}>
-                    {flagFor(row.original.geo?.countryCode || row.original.location)}
-                  </span>
-                )}
-                {row.original.name}
-              </p>
-              <p className="text-[10px] text-subtle">{t.idLabel} {row.original.id.slice(0, 8)}</p>
-            </div>
-          </div>
-        ),
+          );
+        },
       },
       {
         id: 'address',
@@ -286,23 +336,6 @@ export default function NodesPage() {
           );
         },
       },
-      {
-        id: 'actions',
-        header: t.actions,
-        enableSorting: false,
-        cell: ({ row }) => (
-          <div className="flex items-center gap-1">
-            <IconButton icon="shield" label={t.cheburcheckCheck} tone="brand" onClick={() => runCheburcheck(row.original)} />
-            <IconButton icon="gauge" label={t.metrics} tone="brand" onClick={() => openMetrics(row.original)} />
-            <IconButton icon="activity" label={t.health} onClick={() => openHealth(row.original)} />
-            <IconButton icon="edit" label={t.edit} onClick={() => openEdit(row.original)} />
-            <IconButton icon="terminal" label={t.logs} onClick={() => openLogs(row.original)} />
-            <IconButton icon="play" label={t.apply} tone="brand" onClick={() => apply(row.original.id)} />
-            <IconButton icon="refresh" label={t.restart} onClick={() => restart(row.original.id)} />
-            <IconButton icon="history" label={t.revisions} onClick={() => openRevisions(row.original)} />
-          </div>
-        ),
-      },
     ],
     [t],
   );
@@ -317,9 +350,15 @@ export default function NodesPage() {
         subtitle={t.nodesSubtitle}
         icon="server"
         actions={
-          <Button icon="plus" variant="primary" onClick={() => { window.location.href = '/wizard'; }}>
-            {t.wizard}
-          </Button>
+          <>
+            <HelpButton title={t.help}>
+              <p>{lang === 'ru' ? 'Здесь собраны ноды и их состояние. Карточка ноды показывает CPU, RAM, скорость сети и число подключений — данные приходят от агента каждые 15 секунд.' : 'Nodes and their status live here. The node card shows CPU, RAM, network speed and connections — the agent reports every 15 seconds.'}</p>
+              <p>{lang === 'ru' ? 'Кнопки рядом: метрики и Ping, история конфигов, редактирование параметров мастера, проверка Cheburcheck, применение конфига, перезапуск и логи.' : 'Buttons next to the card: metrics and ping, config history, wizard parameters, Cheburcheck check, apply config, restart and logs.'}</p>
+            </HelpButton>
+            <Button icon="plus" variant="primary" onClick={() => { window.location.href = '/wizard'; }}>
+              {t.wizard}
+            </Button>
+          </>
         }
       />
 
