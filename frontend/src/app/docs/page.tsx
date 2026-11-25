@@ -5,9 +5,9 @@ import { DOC_SECTIONS } from '../../lib/docs-content';
 import { siteUrl } from '../../lib/seo';
 
 export const metadata: Metadata = {
-  title: 'Documentation: installation, nodes, subscriptions and backups',
+  title: 'Documentation: installation, nodes, subscriptions, backups and terminal CLI',
   description:
-    'Step-by-step XreyStudio Server documentation: Docker installation, node onboarding, HWID device limits, subscription formats, encrypted backups, health checks and recovery tools.',
+    'Step-by-step XreyStudio Server documentation: Docker installation, node onboarding, HWID device limits, subscription formats, encrypted backups, the xss terminal menu, health checks and recovery tools.',
   alternates: { canonical: '/docs' },
   openGraph: {
     title: 'XreyStudio Server documentation',
@@ -22,6 +22,7 @@ export const metadata: Metadata = {
     'node onboarding',
     'subscription formats',
     'encrypted backups',
+    'xss terminal menu',
   ],
 };
 
@@ -75,7 +76,9 @@ export default function PublicDocsPage() {
             id={section.id}
             className="scroll-mt-6 rounded-2xl border border-line bg-surface-1 p-5 sm:p-7"
           >
-            <h2 className="mb-4 text-xl font-semibold text-fg">{section.title}</h2>
+            {!section.markdown.trimStart().startsWith('# ') && (
+              <h2 className="mb-4 text-xl font-semibold text-fg">{section.title}</h2>
+            )}
             <div className="doc-content">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{section.markdown}</ReactMarkdown>
             </div>

@@ -18,7 +18,11 @@ Environment variables in `.env`:
 - `BACKUP_DIR` — output directory (default `backups/` inside the project).
 - `BACKUP_KEEP` — number of recent archives to keep (default `7`).
 
-With Docker Compose, the equivalent Makefile target is `make backup`.
+With Docker Compose, the equivalent Makefile target is `make backup`. On panel hosts
+`xss start` opens an interactive menu with the same snapshots and their events; see
+[Terminal CLI](cli.md). `xss backup` encrypts through the backend when
+`BACKUP_ENCRYPTION_KEY` is set; `scripts/backup.sh` and `make backup` still write
+plaintext `.sql.gz` files.
 
 Restore:
 
@@ -28,7 +32,9 @@ make restore FILE=backups/db-YYYYMMDD-HHMMSS.sql.gz
 ./scripts/restore.sh backups/db-YYYYMMDD-HHMMSS.sql.gz
 ```
 
-The restore overwrites the current database; take a fresh backup first.
+The restore overwrites the current database; take a fresh backup first. The terminal
+command `xss restore` is safer: it imports into a temporary database first, creates a
+`pre-restore` snapshot and swaps the databases only after a successful import.
 
 ## Web UI / API
 
@@ -97,13 +103,15 @@ modified or truncated file is rejected before any SQL is executed.
 1. Set `BACKUP_ENCRYPTION_KEY` (and optionally `S3_BUCKET`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`,
    `S3_SECRET_ACCESS_KEY`). Never commit these values.
 2. Restart the backend so it picks up the new environment, then create a snapshot from the
-   **Backups** screen or with `make backup`.
+   **Backups** screen or with `xss backup` (the CLI encrypts through the backend). Do not use
+   `make backup` or `scripts/backup.sh` when the key is set; they write plaintext `.sql.gz`.
 3. Confirm the file name ends in `.sql.gz.enc`. If a bucket is configured, confirm the object is
    present there and that no plaintext `.sql.gz` was uploaded — the backend refuses an
    unencrypted backup while S3 is enabled.
-4. To restore, use `POST /api/backups/:name/restore` with `{ "confirm": true }` or `scripts/restore.sh`.
-   Legacy plaintext `.sql.gz` backups remain readable for migration, but new plaintext backups are
-   only allowed when no bucket is configured.
+4. To restore, use `POST /api/backups/:name/restore` with `{ "confirm": true }` or `xss restore`
+   (it handles `.sql.gz.enc`). `scripts/restore.sh` only supports plaintext `.sql.gz`. Legacy
+   plaintext backups remain readable for migration, but new plaintext backups are only allowed
+   when no bucket is configured.
 5. Verify the restore on a staging host with [runbooks/backup-restore-drill.md](runbooks/backup-restore-drill.md).
    Practise a key-rotation drill too: decrypt with the old key, re-encrypt with the new one, and
    confirm the GCM tag validates.

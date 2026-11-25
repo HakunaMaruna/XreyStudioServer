@@ -6,6 +6,7 @@ import { createWriteStream } from 'fs';
 import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { backupEncryptionKey, decryptFile, encryptFile } from './backup-crypto';
 import { s3Enabled, uploadToS3 } from './backup-s3';
+import { APP_VERSION } from '../../version';
 
 const NAME_PATTERN = /^db-\d{8}-\d{6}\.sql\.gz(\.enc)?$/;
 
@@ -63,19 +64,54 @@ export class BackupsService {
     });
   }
 
+  // Событие снимка (manual/scheduled/pre-update/...) храним рядом с файлом:
+  // так его видят и панель, и терминальное меню `xss`.
+  private async readMeta(file: string): Promise<{ event?: string }> {
+    try {
+      const raw = await fs.readFile(`${file}.meta`, 'utf8');
+      const event = raw.split('\n').find((line) => line.startsWith('event='));
+      return event ? { event: event.slice('event='.length).trim() } : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private async writeMeta(file: string, event: string, note?: string) {
+    const lines = [
+      `event=${event.replace(/[^a-z0-9-]/gi, '') || 'manual'}`,
+      `created_at=${new Date().toISOString()}`,
+      `version=${APP_VERSION}`,
+    ];
+    if (note) lines.push(`note=${note.replace(/[\r\n]+/g, ' ').slice(0, 500)}`);
+    await fs.writeFile(`${file}.meta`, `${lines.join('\n')}\n`, { mode: 0o600 });
+  }
+
+  private async removeFile(dir: string, name: string) {
+    await fs.unlink(path.join(dir, name)).catch(() => undefined);
+    await fs.unlink(path.join(dir, `${name}.meta`)).catch(() => undefined);
+  }
+
   async list() {
     const dir = this.dir();
     await fs.mkdir(dir, { recursive: true });
     const names = (await fs.readdir(dir)).filter((name) => NAME_PATTERN.test(name));
     const files = await Promise.all(names.map(async (name) => {
-      const stat = await fs.stat(path.join(dir, name));
-      return { name, size: stat.size, createdAt: stat.mtime.toISOString(), encrypted: name.endsWith('.enc') };
+      const file = path.join(dir, name);
+      const stat = await fs.stat(file);
+      const meta = await this.readMeta(file);
+      return {
+        name,
+        size: stat.size,
+        createdAt: stat.mtime.toISOString(),
+        encrypted: name.endsWith('.enc'),
+        event: meta.event || 'unknown',
+      };
     }));
     files.sort((a, b) => b.name.localeCompare(a.name));
     return { data: files, total: files.length };
   }
 
-  async create() {
+  async create(event = 'manual', note?: string) {
     const key = backupEncryptionKey();
     if (s3Enabled() && !key) {
       throw new ServiceUnavailableException('BACKUP_ENCRYPTION_KEY is required for S3 backups');
@@ -118,10 +154,13 @@ export class BackupsService {
       finalFile = path.join(dir, name);
       await encryptFile(plainFile, finalFile, key).catch(async (error) => {
         await fs.unlink(finalFile).catch(() => undefined);
+        await fs.unlink(plainFile).catch(() => undefined);
         throw error;
       });
       await fs.unlink(plainFile).catch(() => undefined);
     }
+
+    await this.writeMeta(finalFile, event, note).catch(() => undefined);
 
     try {
       await uploadToS3(finalFile, name);
@@ -135,9 +174,9 @@ export class BackupsService {
     const keep = Math.max(1, Number(process.env.BACKUP_KEEP ?? 7) || 7);
     const { data } = await this.list();
     for (const old of data.slice(keep)) {
-      await fs.unlink(path.join(dir, old.name)).catch(() => undefined);
+      await this.removeFile(dir, old.name);
     }
-    return { name, size: (await fs.stat(finalFile)).size, encrypted: Boolean(key) };
+    return { name, size: (await fs.stat(finalFile)).size, encrypted: Boolean(key), event };
   }
 
   async prune(retention: number) {
@@ -145,7 +184,7 @@ export class BackupsService {
     const { data } = await this.list();
     const removed: string[] = [];
     for (const old of data.slice(keep)) {
-      await fs.unlink(path.join(this.dir(), old.name)).catch(() => undefined);
+      await this.removeFile(this.dir(), old.name);
       removed.push(old.name);
     }
     return { removed };
@@ -166,7 +205,9 @@ export class BackupsService {
   }
 
   async remove(name: string) {
-    await fs.unlink(this.validate(name));
+    const file = this.validate(name);
+    await fs.unlink(file);
+    await fs.unlink(`${file}.meta`).catch(() => undefined);
     return { removed: name };
   }
 

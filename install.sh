@@ -351,6 +351,8 @@ else
   say "  ${C_GREEN}✓ $(t repo_present)${C_RESET}"
 fi
 cd "$DIR"
+DIR="$(pwd)"
+run_sh "printf '%s\\n' '$MODE' > .xss-mode"
 
 if [ ! -f .env ]; then
   say "${C_BLUE}▸ $(t generating_env)${C_RESET}"
@@ -417,6 +419,19 @@ case "$MODE" in
   control) run $SUDO docker compose -f docker-compose.control.yml up -d ;;
   *) say "Unknown mode: $MODE" >&2; exit 1 ;;
 esac
+
+# Терминальное меню доступно на хостах с панелью. На ноде и subscription
+# backend/postgres нет, поэтому команда xss там не нужна.
+if [ "$MODE" != "node" ] && [ "$MODE" != "subscription" ] && [ -f "$DIR/scripts/xss" ]; then
+  XSS_BIN="${XSS_BIN:-/usr/local/bin/xss}"
+  if [ -d "$(dirname "$XSS_BIN")" ]; then
+    if run $SUDO ln -sfn "$DIR/scripts/xss" "$XSS_BIN"; then
+      say "  ${C_GREEN}✓${C_RESET} CLI: ${C_BOLD}xss start${C_RESET}"
+    else
+      say "  ${C_YELLOW}!${C_RESET} не удалось создать $XSS_BIN; запустите: sudo ln -sfn $DIR/scripts/xss $XSS_BIN"
+    fi
+  fi
+fi
 
 line
 say "${C_GREEN}${C_BOLD}$(t complete)${C_RESET}"

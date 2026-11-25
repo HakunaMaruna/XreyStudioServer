@@ -35,7 +35,7 @@ management, encrypted backups, Prometheus metrics.
 - Per-user device limit (HWID): bind devices by subscription token, revoke from the Users page,
   and reject unregistered devices once the cap is reached.
 - Multi-tenant organizations and white-label branding.
-- Audit log, backups and restore.
+- Audit log, backups and restore, plus the `xss` interactive terminal menu.
 - Payments, plans, trials, referrals and resellers (extensible).
 - Notifications via Telegram, generic webhook, SMTP email and Signal (`signal-cli-rest-api`).
 - AdminLTE-based control panel UI by default (v2.23.2): sidebar, cards and tables, light/dark themes,
@@ -331,6 +331,38 @@ make restore FILE=backups/db-20260101-120000.sql.gz
 
 Backups are gzip-compressed PostgreSQL dumps stored in `backups/`; `BACKUP_DIR` sets the directory and `BACKUP_KEEP` controls retention (default 7). Admins can also create, download, delete and restore snapshots from the **Backups** page (`/backups`); restore requires an explicit confirmation. The backend image includes `postgresql-client` and Compose mounts `./backups` into the container, so CLI and UI share the same files. See `docs/backup.md` for the UI workflow, a cron example and off-site copying.
 
+### Terminal menu (`xss`)
+
+On panel hosts (`panel`, `all-in-one`, `control`) the installer links `/usr/local/bin/xss`
+to `scripts/xss`. Run:
+
+```bash
+xss start
+```
+
+The menu shows recent snapshots with UTC time, event, size and file, and provides snapshot
+creation, restore, update, reinstall, status, logs and service controls. It uses plain ANSI
+colours and does not require `whiptail`, `dialog` or `gum`.
+
+```bash
+xss snapshots          # date, time (UTC), event, size
+xss backup             # encrypted when BACKUP_ENCRYPTION_KEY is set
+xss restore [NAME]     # pre-restore snapshot, temp DB and safe swap
+xss status
+xss logs backend
+```
+
+Restore creates a `pre-restore` snapshot, imports into a temporary database and swaps the
+databases only after a successful import. If the panel fails to start, the old database is kept
+as `xss_prev_*` and its name is printed.
+
+With `BACKUP_ENCRYPTION_KEY` set, `xss` encrypts through the backend and requires the default
+`./backups` mount and the `backend` service. If encryption cannot run, it fails instead of
+leaving an unencrypted snapshot. `make backup` and `scripts/backup.sh` remain plaintext.
+
+See [Terminal CLI](docs/cli.md) for every command, snapshot events, troubleshooting and manual
+symlink installation.
+
 ## Protocol adapters
 
 Xray-core handles VLESS, VMess, Trojan and Shadowsocks. Hysteria2, TUIC and WireGuard are
@@ -370,6 +402,7 @@ The full set of guides lives in [`docs/`](docs/):
 - [Node onboarding](docs/node-onboarding.md) — connect an agent and verify traffic.
 - [Subscriptions and test connection](docs/test-connection.md) — formats, HWID limits and client setup.
 - [Backup and restore](docs/backup.md) — AES-256-GCM encryption and S3/R2.
+- [Terminal CLI](docs/cli.md) — `xss start`, snapshots with events, restore and reinstall.
 - [Updates](docs/updates.md) — release checks, the updater sidecar and agent updates.
 - [Operations processes](docs/processes.md) — end-to-end flows with diagrams.
 - [Operator UI guide](docs/user-guide.md) — screenshots of login, decoy mode and public docs.

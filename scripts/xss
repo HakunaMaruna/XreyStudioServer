@@ -1,0 +1,748 @@
+#!/usr/bin/env bash
+# Терминальное меню панели XSS. Запуск: xss start
+set -euo pipefail
+
+SCRIPT_SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SCRIPT_SOURCE" ]; do
+  link_target="$(readlink "$SCRIPT_SOURCE")"
+  case "$link_target" in
+    /*) SCRIPT_SOURCE="$link_target" ;;
+    *) SCRIPT_SOURCE="$(cd "$(dirname "$SCRIPT_SOURCE")" && pwd)/$link_target" ;;
+  esac
+done
+ROOT="$(cd "$(dirname "$SCRIPT_SOURCE")/.." && pwd)"
+cd "$ROOT"
+
+if [ -f "$ROOT/.env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . "$ROOT/.env"
+  set +a
+fi
+
+BACKUP_DIR="${BACKUP_DIR:-backups}"
+POSTGRES_USER="${POSTGRES_USER:-xss}"
+POSTGRES_DB="${POSTGRES_DB:-xss}"
+BACKUP_KEEP="${BACKUP_KEEP:-7}"
+XSS_MODE="$(cat "$ROOT/.xss-mode" 2>/dev/null || true)"
+
+# Временный plaintext-дамп при шифровании не должен пережить аварийный выход.
+XSS_TEMP_FILE=""
+cleanup_temp() {
+  if [ -n "${XSS_TEMP_FILE:-}" ]; then rm -f "$XSS_TEMP_FILE"; fi
+}
+trap cleanup_temp EXIT
+
+COMPOSE_ARGS=()
+if [ -n "${XSS_COMPOSE_FILE:-}" ]; then
+  COMPOSE_ARGS=(-f "$XSS_COMPOSE_FILE")
+elif [ "$XSS_MODE" = "control" ]; then
+  COMPOSE_ARGS=(-f docker-compose.control.yml)
+elif [ -f docker-compose.control.yml ] && [ -z "$(docker compose -f docker-compose.yml ps -q 2>/dev/null || true)" ] \
+  && [ -n "$(docker compose -f docker-compose.control.yml ps -q 2>/dev/null || true)" ]; then
+  COMPOSE_ARGS=(-f docker-compose.control.yml)
+fi
+
+if [ -t 1 ]; then
+  C_RESET=$'\033[0m'
+  C_BOLD=$'\033[1m'
+  C_DIM=$'\033[2m'
+  C_GREEN=$'\033[32m'
+  C_YELLOW=$'\033[33m'
+  C_RED=$'\033[31m'
+  C_CYAN=$'\033[36m'
+else
+  C_RESET='' C_BOLD='' C_DIM='' C_GREEN='' C_YELLOW='' C_RED='' C_CYAN=''
+fi
+
+say() { printf '%s\n' "$*"; }
+ok() { printf '%s[ok]%s %s\n' "$C_GREEN" "$C_RESET" "$*"; }
+warn() { printf '%s[!]%s %s\n' "$C_YELLOW" "$C_RESET" "$*" >&2; }
+die() { printf '%s[x]%s %s\n' "$C_RED" "$C_RESET" "$*" >&2; exit 1; }
+
+compose() { docker compose "${COMPOSE_ARGS[@]}" "$@"; }
+
+require_docker() {
+  command -v docker >/dev/null 2>&1 || die "docker не найден в PATH"
+  docker compose version >/dev/null 2>&1 || die "docker compose недоступен"
+}
+
+require_tty() {
+  [ -t 0 ] || die "для интерактивного меню нужен терминал (запустите команду в терминале)"
+}
+
+pause() {
+  if [ -t 0 ]; then
+    printf '%sНажмите Enter, чтобы продолжить...%s' "$C_DIM" "$C_RESET"
+    read -r _ || true
+  fi
+}
+
+confirm() {
+  local prompt="$1" answer
+  printf '%s [y/N]: ' "$prompt"
+  read -r answer || return 1
+  case "$answer" in y|Y|yes|YES|да|Да) return 0 ;; *) return 1 ;; esac
+}
+
+service_exists() {
+  compose config --services 2>/dev/null | grep -Fx "$1" >/dev/null
+}
+
+app_version() {
+  sed -n "s/^export const APP_VERSION = '\([^']*\)';.*/\1/p" backend/src/version.ts 2>/dev/null
+}
+
+ensure_postgres() {
+  require_docker
+  if [ -z "$(compose ps -q postgres 2>/dev/null)" ]; then
+    warn "контейнер postgres не запущен; сначала запустите панель: xss up"
+    return 1
+  fi
+}
+
+backup_dir_is_default() {
+  local host_dir expected_dir
+  host_dir="$(cd "$BACKUP_DIR" 2>/dev/null && pwd -P)" || return 1
+  expected_dir="$(cd "$ROOT/backups" 2>/dev/null && pwd -P)" || return 1
+  [ "$host_dir" = "$expected_dir" ]
+}
+
+valid_snapshot_name() {
+  [[ "$1" =~ ^db-[0-9]{8}-[0-9]{6}\.sql\.gz(\.enc)?$ ]]
+}
+
+snapshot_list() {
+  [ -d "$BACKUP_DIR" ] || return 0
+  find "$BACKUP_DIR" -maxdepth 1 -type f \
+    \( -name 'db-*.sql.gz' -o -name 'db-*.sql.gz.enc' \) -printf '%f\n' 2>/dev/null | sort -r
+}
+
+meta_get() {
+  local file="$1" key="$2" meta="$1.meta"
+  [ -f "$meta" ] || return 0
+  grep -m1 "^${key}=" "$meta" 2>/dev/null | cut -d= -f2- || true
+}
+
+write_meta() {
+  local file="$1" event="$2" note="${3:-}" clean_event clean_note
+  clean_event="$(printf '%s' "$event" | tr -cd 'a-zA-Z0-9-')"
+  [ -n "$clean_event" ] || clean_event="manual"
+  clean_note="$(printf '%s' "$note" | tr '\r\n' '  ' | cut -c1-500)"
+  {
+    printf 'event=%s\n' "$clean_event"
+    printf 'created_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf 'version=%s\n' "$(app_version)"
+    if [ -n "$clean_note" ]; then printf 'note=%s\n' "$clean_note"; fi
+  } > "$file.meta"
+  chmod 600 "$file.meta" 2>/dev/null || true
+}
+
+event_label() {
+  case "$1" in
+    manual) printf 'вручную' ;;
+    scheduled) printf 'по расписанию' ;;
+    pre-update) printf 'перед обновлением' ;;
+    pre-restore) printf 'перед восстановлением' ;;
+    pre-reinstall) printf 'перед переустановкой' ;;
+    panel) printf 'панель' ;;
+    unknown|'') printf 'неизвестно' ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
+snapshot_time() {
+  local base stamp
+  base="$(basename "$1")"
+  stamp="${base#db-}"
+  stamp="${stamp%%.sql.gz*}"
+  if [[ "$stamp" =~ ^([0-9]{4})([0-9]{2})([0-9]{2})-([0-9]{2})([0-9]{2})([0-9]{2})$ ]]; then
+    printf '%s-%s-%s %s:%s:%s' \
+      "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" \
+      "${BASH_REMATCH[4]}" "${BASH_REMATCH[5]}" "${BASH_REMATCH[6]}"
+  else
+    date -r "$1" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || printf '?'
+  fi
+}
+
+snapshot_size() {
+  local bytes
+  bytes="$(stat -c %s "$1" 2>/dev/null || printf '0')"
+  numfmt --to=iec --suffix=B "$bytes" 2>/dev/null || printf '%sB' "$bytes"
+}
+
+SNAP_NAMES=()
+SNAP_EVENTS=()
+
+load_snapshots() {
+  SNAP_NAMES=()
+  SNAP_EVENTS=()
+  local name event
+  while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    event="$(meta_get "$BACKUP_DIR/$name" event)"
+    [ -n "$event" ] || event="unknown"
+    SNAP_NAMES+=("$name")
+    SNAP_EVENTS+=("$event")
+  done < <(snapshot_list)
+}
+
+list_snapshots_table() {
+  local limit="${1:-0}" i=0 enc
+  load_snapshots
+  if [ "${#SNAP_NAMES[@]}" -eq 0 ]; then
+    say "${C_DIM}Снимков пока нет. Создайте первый: xss backup${C_RESET}"
+    return 0
+  fi
+  printf '%s%-3s %-19s  %s  %s  %s%s\n' "$C_BOLD" "#" "Дата/время (UTC)" "Событие" "Размер" "Файл" "$C_RESET"
+  local name
+  for name in "${SNAP_NAMES[@]}"; do
+    i=$((i + 1))
+    [ "$limit" -gt 0 ] && [ "$i" -gt "$limit" ] && break
+    enc=""
+    [[ "$name" == *.enc ]] && enc="${C_YELLOW} [шифр]${C_RESET}"
+    printf '%-3s %-19s  %s  %s  %s%s\n' \
+      "$i" "$(snapshot_time "$BACKUP_DIR/$name")" "$(event_label "${SNAP_EVENTS[$((i - 1))]}")" \
+      "$(snapshot_size "$BACKUP_DIR/$name")" "$name" "$enc"
+  done
+  if [ "$limit" -gt 0 ] && [ "${#SNAP_NAMES[@]}" -gt "$limit" ]; then
+    say "${C_DIM}... ещё $(( ${#SNAP_NAMES[@]} - limit )); полный список: xss snapshots${C_RESET}"
+  fi
+}
+
+prune_snapshots() {
+  local keep="$1" names=() i
+  [[ "$keep" =~ ^[0-9]+$ ]] || keep=7
+  [ "$keep" -ge 1 ] || keep=1
+  mapfile -t names < <(snapshot_list)
+  for ((i = keep; i < ${#names[@]}; i++)); do
+    rm -f "$BACKUP_DIR/${names[$i]}" "$BACKUP_DIR/${names[$i]}.meta"
+    say "${C_DIM}Удалён старый снимок: ${names[$i]}${C_RESET}"
+  done
+}
+
+create_snapshot() {
+  local event="${1:-manual}" note="${2:-}" keep="${3:-$BACKUP_KEEP}" stamp base name path tmp=""
+  local encrypted=0
+  require_docker
+  ensure_postgres || return 1
+  mkdir -p "$BACKUP_DIR"
+
+  if [ -n "${BACKUP_ENCRYPTION_KEY:-}" ]; then
+    encrypted=1
+    if ! backup_dir_is_default; then
+      warn "BACKUP_ENCRYPTION_KEY задан, но BACKUP_DIR=$BACKUP_DIR не смонтирован в backend как /app/backups"
+      warn "зашифрованные снимки создаются только при BACKUP_DIR=backups"
+      return 1
+    fi
+    if ! service_exists backend; then
+      warn "BACKUP_ENCRYPTION_KEY задан, но сервис backend не найден; снимок не создан"
+      return 1
+    fi
+    if [ ! -r "$ROOT/scripts/xss-crypt.js" ]; then
+      warn "не найден $ROOT/scripts/xss-crypt.js; снимок не создан"
+      return 1
+    fi
+  fi
+
+  while :; do
+    stamp="$(date -u +%Y%m%d-%H%M%S)"
+    base="db-$stamp.sql.gz"
+    name="$base"
+    [ "$encrypted" -eq 1 ] && name="$base.enc"
+    path="$BACKUP_DIR/$name"
+    [ ! -e "$path" ] && [ ! -e "$path.meta" ] && break
+    sleep 1
+  done
+
+  if [ "$encrypted" -eq 0 ]; then
+    tmp="$path"
+  else
+    tmp="$(mktemp "$BACKUP_DIR/.xss-encrypt.XXXXXX")" || {
+      warn "не удалось создать временный файл для шифрования"
+      return 1
+    }
+    XSS_TEMP_FILE="$tmp"
+  fi
+
+  say "Создаю снимок ${C_CYAN}$name${C_RESET} ($(event_label "$event"))..."
+  if ! compose exec -T postgres pg_dump -U "$POSTGRES_USER" --no-owner --no-privileges "$POSTGRES_DB" | gzip -c > "$tmp"; then
+    rm -f "$tmp"
+    XSS_TEMP_FILE=""
+    warn "pg_dump завершился с ошибкой; снимок не создан"
+    return 1
+  fi
+  if ! gzip -t "$tmp" 2>/dev/null; then
+    rm -f "$tmp"
+    XSS_TEMP_FILE=""
+    warn "снимок повреждён (gzip -t); файл удалён"
+    return 1
+  fi
+  chmod 600 "$tmp" 2>/dev/null || true
+
+  if [ "$encrypted" -eq 1 ]; then
+    if ! backup_crypt encrypt "$tmp" "$path" || [ ! -s "$path" ]; then
+      rm -f "$tmp" "$path"
+      XSS_TEMP_FILE=""
+      warn "не удалось зашифровать снимок через backend; файл удалён"
+      return 1
+    fi
+    if ! rm -f "$tmp"; then
+      rm -f "$path"
+      warn "не удалось удалить временный незашифрованный файл $tmp; снимок не создан"
+      return 1
+    fi
+    XSS_TEMP_FILE=""
+    chmod 600 "$path" 2>/dev/null || true
+  fi
+
+  if ! write_meta "$path" "$event" "$note"; then
+    warn "не удалось записать событие снимка в $path.meta"
+  fi
+  prune_snapshots "$keep"
+  ok "Снимок создан: $path"
+  printf '%s\n' "$name"
+}
+
+cmd_backup() {
+  local event=manual note=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --event) [ "$#" -ge 2 ] || die "после --event нужно значение"; event="$2"; shift 2 ;;
+      --note) [ "$#" -ge 2 ] || die "после --note нужно значение"; note="$2"; shift 2 ;;
+      -h|--help) say "Использование: xss backup [--event manual|pre-update|...] [--note ТЕКСТ]"; return 0 ;;
+      *) die "неизвестный аргумент: $1" ;;
+    esac
+  done
+  create_snapshot "$event" "$note" || exit 1
+}
+
+backup_crypt() {
+  local mode="$1" src="$2" dst="${3:-}" crypt_js script src_in dst_in
+  backup_dir_is_default || {
+    warn "шифрование и дешифрование снимков доступны только из ./backups (BACKUP_DIR=$BACKUP_DIR)"
+    return 1
+  }
+  service_exists backend || {
+    warn "для работы с зашифрованными снимками нужен сервис backend в compose-файле"
+    return 1
+  }
+  crypt_js="$ROOT/scripts/xss-crypt.js"
+  [ -r "$crypt_js" ] || {
+    warn "не найден $crypt_js"
+    return 1
+  }
+  script="$(cat "$crypt_js")"
+
+  src_in="/app/backups/$(basename "$src")"
+  dst_in=""
+  [ -n "$dst" ] && dst_in="/app/backups/$(basename "$dst")"
+  local -a args=(node -e "$script" "$mode" "$src_in")
+  [ -n "$dst_in" ] && args+=("$dst_in")
+  local -a run_args=(exec -T)
+  [ -z "$(compose ps -q backend 2>/dev/null)" ] && run_args=(run --rm --no-deps -T)
+  if [ "$mode" = "encrypt" ]; then
+    compose "${run_args[@]}" -e "BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY:-}" backend "${args[@]}" >/dev/null
+  else
+    compose "${run_args[@]}" -e "BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY:-}" backend "${args[@]}"
+  fi
+}
+
+app_services() {
+  if [ "$XSS_MODE" = "panel" ]; then printf 'backend'; else printf 'backend frontend'; fi
+}
+
+stop_app() {
+  local services=() svc
+  for svc in $(app_services); do
+    service_exists "$svc" && services+=("$svc")
+  done
+  [ "${#services[@]}" -eq 0 ] && return 0
+  compose stop "${services[@]}" >/dev/null
+}
+
+start_app() {
+  local services=() svc
+  for svc in $(app_services); do
+    service_exists "$svc" && services+=("$svc")
+  done
+  [ "${#services[@]}" -eq 0 ] && return 0
+  compose up -d "${services[@]}" >/dev/null
+}
+
+restore_snapshot() {
+  local name="$1" assume_yes="${2:-0}" path tmpdir source tmpdb olddb schema_count stamp
+  valid_snapshot_name "$name" || die "неверное имя снимка: $name"
+  path="$BACKUP_DIR/$name"
+  [ -f "$path" ] || die "снимок не найден: $path"
+  [[ "$POSTGRES_DB" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || die "POSTGRES_DB должен содержать только буквы, цифры и _"
+
+  if [ "$assume_yes" != "1" ]; then
+    say ""
+    say "Снимок: ${C_BOLD}$name${C_RESET} ($(event_label "$(meta_get "$path" event)"))"
+    warn "Текущая база данных будет заменена. Перед заменой будет создан страховочный снимок."
+    printf 'Введите %syes%s для подтверждения: ' "$C_BOLD" "$C_RESET"
+    local answer
+    read -r answer || return 1
+    [ "$answer" = "yes" ] || { say "Восстановление отменено."; return 0; }
+  fi
+
+  ensure_postgres || return 1
+
+  tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/xss-restore.XXXXXX")"
+  source="$path"
+  if [[ "$name" == *.enc ]]; then
+    source="$tmpdir/restore.sql.gz"
+    say "Расшифровываю снимок..."
+    if ! backup_crypt decrypt "$path" > "$source"; then
+      rm -rf "$tmpdir"
+      warn "не удалось расшифровать снимок; рабочая БД не изменена"
+      return 1
+    fi
+  fi
+  if ! gzip -t "$source" 2>/dev/null; then
+    rm -rf "$tmpdir"
+    warn "снимок повреждён (gzip -t); рабочая БД не изменена"
+    return 1
+  fi
+
+  # Не даём ротации удалить сам восстанавливаемый снимок, если он старый.
+  if ! create_snapshot pre-restore "перед восстановлением $name" 999999 >/dev/null; then
+    rm -rf "$tmpdir"
+    warn "не удалось создать страховочный снимок; восстановление остановлено"
+    return 1
+  fi
+
+  stamp="$(date -u +%Y%m%d%H%M%S)_$$"
+  tmpdb="xss_restore_$stamp"
+  olddb="xss_prev_$stamp"
+  say "Создаю временную БД $tmpdb и импортирую снимок..."
+  if ! compose exec -T postgres psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
+    -c "CREATE DATABASE \"$tmpdb\"" >/dev/null; then
+    rm -rf "$tmpdir"
+    warn "не удалось создать временную БД; рабочая БД не изменена"
+    return 1
+  fi
+  # Свежая БД уже содержит public. Если дамп тоже создаёт его, убираем
+  # предустановленную схему, иначе psql упадёт на "already exists".
+  schema_count="$(gzip -dc "$source" | grep -c '^CREATE SCHEMA public' || true)"
+  if [ "${schema_count:-0}" -gt 0 ]; then
+    compose exec -T postgres psql -U "$POSTGRES_USER" -d "$tmpdb" -v ON_ERROR_STOP=1 \
+      -c 'DROP SCHEMA public CASCADE' >/dev/null || true
+  fi
+  if ! gunzip -c "$source" | compose exec -T postgres psql -U "$POSTGRES_USER" -d "$tmpdb" -v ON_ERROR_STOP=1; then
+    compose exec -T postgres psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
+      -c "DROP DATABASE IF EXISTS \"$tmpdb\"" >/dev/null 2>&1 || true
+    rm -rf "$tmpdir"
+    warn "импорт завершился ошибкой; рабочая БД не изменена"
+    return 1
+  fi
+
+  say "Останавливаю панель и переключаю базу данных..."
+  if ! stop_app; then
+    rm -rf "$tmpdir"
+    warn "не удалось остановить backend/frontend; рабочая БД не изменена"
+    return 1
+  fi
+  compose exec -T postgres psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
+    -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$POSTGRES_DB' AND pid <> pg_backend_pid();" >/dev/null || true
+
+  if ! compose exec -T postgres psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
+    -c "ALTER DATABASE \"$POSTGRES_DB\" RENAME TO \"$olddb\"" >/dev/null; then
+    start_app || true
+    rm -rf "$tmpdir"
+    warn "не удалось переименовать рабочую БД; панель запущена со старой БД"
+    return 1
+  fi
+  if ! compose exec -T postgres psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
+    -c "ALTER DATABASE \"$tmpdb\" RENAME TO \"$POSTGRES_DB\"" >/dev/null; then
+    compose exec -T postgres psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
+      -c "ALTER DATABASE \"$olddb\" RENAME TO \"$POSTGRES_DB\"" >/dev/null 2>&1 || true
+    start_app || true
+    compose exec -T postgres psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
+      -c "DROP DATABASE IF EXISTS \"$tmpdb\"" >/dev/null 2>&1 || true
+    rm -rf "$tmpdir"
+    warn "не удалось переключить БД; выполнена попытка вернуть старую"
+    return 1
+  fi
+
+  if ! start_app; then
+    rm -rf "$tmpdir"
+    warn "БД восстановлена, но панель не запустилась. Старая БД сохранена как $olddb"
+    return 1
+  fi
+  compose exec -T postgres psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
+    -c "DROP DATABASE IF EXISTS \"$olddb\"" >/dev/null 2>&1 || warn "старая БД осталась как $olddb"
+  rm -rf "$tmpdir"
+  ok "Система восстановлена из снимка $name"
+}
+
+cmd_restore() {
+  local name="" assume_yes=0
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --yes|-y) assume_yes=1; shift ;;
+      -h|--help) say "Использование: xss restore [ИМЯ_СНИМКА] [--yes]"; return 0 ;;
+      -*) die "неизвестный аргумент: $1" ;;
+      *) [ -z "$name" ] || die "укажите только один снимок"; name="$1"; shift ;;
+    esac
+  done
+  if [ -z "$name" ]; then
+    require_tty
+    load_snapshots
+    [ "${#SNAP_NAMES[@]}" -gt 0 ] || die "снимков нет; создайте: xss backup"
+    list_snapshots_table
+    local number
+    printf 'Номер снимка: '
+    read -r number || return 1
+    [[ "$number" =~ ^[0-9]+$ ]] || die "нужен номер из списка"
+    [ "$number" -ge 1 ] && [ "$number" -le "${#SNAP_NAMES[@]}" ] || die "нет снимка с номером $number"
+    name="${SNAP_NAMES[$((number - 1))]}"
+  fi
+  restore_snapshot "$name" "$assume_yes"
+}
+
+cmd_status() {
+  require_docker
+  say "${C_BOLD}XSS Panel${C_RESET} $(app_version)"
+  say "Каталог: $ROOT"
+  say "Снимков: $(snapshot_list | wc -l)"
+  say ""
+  compose ps
+}
+
+cmd_update() {
+  require_docker
+  if [ ! -d .git ]; then
+    warn "это не git-репозиторий"
+    return 1
+  fi
+  if [ -n "$(git status --porcelain)" ]; then
+    warn "в рабочем дереве есть незакоммиченные изменения; обновление остановлено"
+    return 1
+  fi
+  if ! create_snapshot pre-update "перед обновлением панели" >/dev/null; then
+    confirm "Не удалось создать снимок. Продолжить обновление?" || return 1
+  fi
+  local branch
+  branch="$(git symbolic-ref -q --short HEAD || git for-each-ref --count=1 --format='%(refname:short)' refs/heads)"
+  if [ -z "$branch" ]; then
+    warn "не удалось определить git-ветку"
+    return 1
+  fi
+  say "Обновляю ветку $branch..."
+  if ! git checkout -q "$branch" || ! git pull --ff-only; then
+    warn "не удалось обновить git-ветку"
+    return 1
+  fi
+  say "Пересобираю и запускаю контейнеры..."
+  if ! compose build || ! compose up -d; then
+    warn "не удалось пересобрать или запустить контейнеры"
+    return 1
+  fi
+  ok "Обновление завершено"
+}
+
+cmd_reinstall() {
+  require_docker
+  warn "Будут пересобраны и пересозданы контейнеры. Данные БД и .env сохранятся."
+  confirm "Пересобрать панель?" || { say "Отменено."; return 0; }
+  if ! create_snapshot pre-reinstall "перед пересборкой панели" >/dev/null; then
+    confirm "Не удалось создать снимок. Продолжить пересборку?" || return 1
+  fi
+  say "Собираю образы..."
+  if ! compose build; then
+    warn "сборка завершилась ошибкой; работающие контейнеры не тронуты"
+    return 1
+  fi
+  say "Пересоздаю контейнеры..."
+  if ! compose up -d --force-recreate; then
+    warn "не удалось пересоздать контейнеры"
+    return 1
+  fi
+  ok "Пересборка завершена"
+}
+
+cmd_restart() {
+  require_docker
+  compose restart
+  ok "Сервисы перезапущены"
+}
+
+cmd_up() {
+  require_docker
+  compose up -d
+  ok "Сервисы запущены"
+}
+
+cmd_stop() {
+  require_docker
+  compose stop
+  ok "Сервисы остановлены"
+}
+
+cmd_logs() {
+  require_docker
+  if [ "$#" -gt 0 ]; then
+    compose logs --tail=200 -f "$1"
+  else
+    compose logs --tail=200 -f
+  fi
+}
+
+logs_menu() {
+  local service
+  require_docker
+  say "Сервисы:"
+  compose config --services 2>/dev/null | sed 's/^/  - /'
+  printf 'Сервис (Enter — все, b — назад): '
+  read -r service || return 0
+  case "$service" in b|B) return 0 ;; esac
+  if [ -n "$service" ]; then
+    compose logs --tail=200 -f "$service" || true
+  else
+    compose logs --tail=200 -f || true
+  fi
+}
+
+snapshots_menu() {
+  local choice number name
+  while :; do
+    clear 2>/dev/null || true
+    say "${C_BOLD}Снимки и восстановление${C_RESET}"
+    say ""
+    list_snapshots_table
+    say ""
+    say "  ${C_CYAN}r N${C_RESET} — восстановить снимок N"
+    say "  ${C_CYAN}n${C_RESET}   — создать снимок вручную"
+    say "  ${C_CYAN}d N${C_RESET} — удалить снимок N"
+    say "  ${C_CYAN}b${C_RESET}   — назад"
+    printf '> '
+    read -r choice || return 0
+    case "$choice" in
+      b|B|q|Q) return 0 ;;
+      n|N)
+        create_snapshot manual "создан из терминального меню" >/dev/null || true
+        pause
+        ;;
+      r|R|d|D)
+        printf 'Номер снимка: '
+        read -r number || return 0
+        [[ "$number" =~ ^[0-9]+$ ]] || { warn "нужен номер"; pause; continue; }
+        load_snapshots
+        [ "$number" -ge 1 ] && [ "$number" -le "${#SNAP_NAMES[@]}" ] || { warn "нет снимка с номером $number"; pause; continue; }
+        name="${SNAP_NAMES[$((number - 1))]}"
+        if [ "$choice" = "d" ] || [ "$choice" = "D" ]; then
+          if confirm "Удалить снимок $name?"; then
+            rm -f "$BACKUP_DIR/$name" "$BACKUP_DIR/$name.meta"
+            ok "Снимок удалён"
+          fi
+          pause
+        else
+          restore_snapshot "$name" 0 || true
+          pause
+        fi
+        ;;
+      *) ;;
+    esac
+  done
+}
+
+main_menu() {
+  local choice
+  require_tty
+  require_docker
+  while :; do
+    clear 2>/dev/null || true
+    say "${C_BOLD}${C_CYAN}XSS Panel${C_RESET} ${C_DIM}$(app_version)${C_RESET}"
+    say "${C_DIM}$ROOT${C_RESET}"
+    say ""
+    say "${C_BOLD}Последние снимки:${C_RESET}"
+    list_snapshots_table 5
+    say ""
+    say "  ${C_CYAN}1${C_RESET}) Снимки и восстановление"
+    say "  ${C_CYAN}2${C_RESET}) Создать снимок"
+    say "  ${C_CYAN}3${C_RESET}) Обновить панель"
+    say "  ${C_CYAN}4${C_RESET}) Пересобрать / переустановить"
+    say "  ${C_CYAN}5${C_RESET}) Состояние сервисов"
+    say "  ${C_CYAN}6${C_RESET}) Перезапустить сервисы"
+    say "  ${C_CYAN}7${C_RESET}) Логи"
+    say "  ${C_CYAN}8${C_RESET}) Остановить / запустить"
+    say "  ${C_CYAN}9${C_RESET}) Справка"
+    say "  ${C_CYAN}0${C_RESET}) Выход"
+    printf '> '
+    read -r choice || return 0
+    case "$choice" in
+      1) snapshots_menu ;;
+      2) create_snapshot manual "создан из терминального меню" >/dev/null || true; pause ;;
+      3) cmd_update || true; pause ;;
+      4) cmd_reinstall || true; pause ;;
+      5) cmd_status || true; pause ;;
+      6) cmd_restart || true; pause ;;
+      7) logs_menu ;;
+      8)
+        say "  1) Остановить сервисы"
+        say "  2) Запустить сервисы"
+        say "  b) Назад"
+        printf '> '
+        read -r action || true
+        case "$action" in
+          1) cmd_stop || true ;;
+          2) cmd_up || true ;;
+        esac
+        pause
+        ;;
+      9) usage; pause ;;
+      0|q|Q) return 0 ;;
+      *) ;;
+    esac
+  done
+}
+
+usage() {
+  cat <<'EOF'
+XSS Panel — терминальное управление
+
+Использование:
+  xss start                 интерактивное меню
+  xss status                состояние контейнеров и версия
+  xss snapshots             список снимков (дата, время, событие)
+  xss backup                создать снимок вручную
+  xss restore [СНИМОК]      восстановить систему из снимка
+  xss update                обновить панель из git и пересобрать
+  xss reinstall             пересобрать и пересоздать контейнеры
+  xss restart               перезапустить сервисы
+  xss up                    запустить сервисы
+  xss stop                  остановить сервисы
+  xss logs [СЕРВИС]         смотреть логи
+  xss version               версия панели
+  xss help                  эта справка
+
+События снимков: manual, scheduled, pre-update, pre-restore, pre-reinstall.
+При заданном BACKUP_ENCRYPTION_KEY снимки создаются зашифрованными через
+backend (.sql.gz.enc); без ключа — обычными .sql.gz.
+Восстановление заменяет рабочую БД; перед заменой автоматически создаётся
+страховочный снимок pre-restore. Данные в docker-томах не удаляются.
+EOF
+}
+
+case "${1:-start}" in
+  start|menu) main_menu ;;
+  status) cmd_status ;;
+  snapshots|list) list_snapshots_table ;;
+  backup) shift; cmd_backup "$@" ;;
+  restore) shift; cmd_restore "$@" ;;
+  update) cmd_update ;;
+  reinstall) cmd_reinstall ;;
+  restart) cmd_restart ;;
+  up) cmd_up ;;
+  stop) cmd_stop ;;
+  logs) shift; cmd_logs "$@" ;;
+  version|-v|--version) say "$(app_version)" ;;
+  help|-h|--help) usage ;;
+  *)
+    warn "неизвестная команда: $1"
+    usage >&2
+    exit 1
+    ;;
+esac

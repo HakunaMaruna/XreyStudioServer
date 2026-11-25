@@ -78,7 +78,7 @@ export class BackupSchedulerService implements OnModuleInit, OnModuleDestroy {
     try {
       const settings = await this.ensureSettings();
       if (settings.enabled) {
-        await this.backups.create();
+        await this.backups.create('scheduled');
         await this.backups.prune(settings.retention);
         this.logger.log(`Scheduled backup completed (retention=${settings.retention})`);
       }

@@ -27,6 +27,9 @@ secrets, checks DNS for the domain and starts the selected services. Non-interac
 
 Options: `--mode`, `--domain`, `--lang en|ru`, `--yes`, `--dry-run`, `--help`.
 Then open `https://<domain>/login`. Keep the printed admin credentials in a safe place.
+On panel hosts the installer also links the terminal menu as `xss`; run `xss start` over SSH
+or a local console to list snapshots, restore one, update or rebuild the panel. See
+[Terminal CLI](cli.md).
 
 ## Upgrades
 Pull the new version, rebuild and restart with `make update` (or `docker compose up -d --build`).
@@ -48,7 +51,7 @@ The Admin-only **Backups** page (`/backups`) can create, list, download and dele
 snapshots and restore one with explicit confirmation. The backend image installs
 `postgresql-client`; Docker Compose mounts `./backups` to `/app/backups` in the backend so the UI
 and the CLI share the same snapshots. The CLI still works: `make backup` and
-`make restore FILE=...`.
+`make restore FILE=...`; `xss start` opens the same snapshots in a terminal menu.
 
 ## Reporting and CSV export
 The **Traffic** page (`/traffic`) shows a daily chart for the last 1-90 days with an optional user
