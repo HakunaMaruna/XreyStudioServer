@@ -22,8 +22,12 @@ export default function TelemetryConsent() {
 
   useEffect(() => {
     if (!isLoggedIn()) return;
-    api.get<Status>('/api/telemetry/status')
-      .then((value) => { if (!value.accepted) setStatus(value); })
+    api.get<{ role: string }>('/api/auth/me')
+      .then((me) => {
+        if (me.role !== 'ADMIN' && me.role !== 'OPERATOR') return;
+        return api.get<Status>('/api/telemetry/status')
+          .then((value) => { if (!value.accepted) setStatus(value); });
+      })
       .catch(() => undefined);
   }, []);
 
