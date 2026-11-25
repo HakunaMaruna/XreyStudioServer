@@ -72,6 +72,18 @@ input. The bot's `/login bind` flow links the same field after validating the id
    host console. The GCM tag is verified before any SQL is applied.
 5. Follow [runbooks/backup-restore-drill.md](runbooks/backup-restore-drill.md) for a quarterly drill.
 
+## Settings hub
+
+Open **Settings** for a single view of panel configuration. Administrators see notification
+policy and active channels, the backup schedule and retention, integration status and quick
+links to advanced editors (Alerts, Routing, Subscription templates, API tokens, Backups,
+Doctor, and DNS in CONTROL mode). Changing a policy or schedule there calls the same API as the dedicated page, so the
+values stay in sync. Secret values are never shown — only whether a channel is configured.
+
+Local appearance options (language, theme, compact mode) and panel behaviour toggles are saved
+in the browser and apply to the current device. See [settings-hub.md](settings-hub.md) for the
+full mapping of settings to endpoints and the rationale.
+
 ## Troubleshooting quick reference
 
 - **Node offline** → verify the token, panel URL and firewall; see
