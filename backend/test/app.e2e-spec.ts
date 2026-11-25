@@ -96,6 +96,15 @@ describe('XSS API (e2e)', () => {
     notificationRoute: {
       findMany: jest.fn().mockResolvedValue([]),
     },
+    notificationCredential: {
+      findUnique: jest.fn().mockResolvedValue(null),
+      upsert: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn(),
+    },
+    notificationPolicy: {
+      findUnique: jest.fn().mockResolvedValue(null),
+      upsert: jest.fn().mockResolvedValue({}),
+    },
     alertHistory: {
       create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'alert-1', ...data })),
       findMany: jest.fn().mockResolvedValue([
