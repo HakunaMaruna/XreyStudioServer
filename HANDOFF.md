@@ -41,6 +41,12 @@ uptime, управление зонами и записями через HTTP AP
 или микросервиса: единый JWT/RBAC и сохранение выдачи доменов через `/api/control/domains`.
 Документация `docs/powerdns.md`, `docs/api.md`. Тесты 29 suites / 156 tests.
 
+Живая проверка: v2.33.0, `PANEL_MODE=control` из compose, `/api/dns/status` →
+mode control, available true, PowerDNS 4.4.1, 1 зона, 2 запроса, uptime 47565,
+метрики `pdns_auth_*`; `/api/dns/settings` отдаёт зону/TTL/NS/bind IP и флаг ключа,
+но не сам ключ; PATCH TTL 90 → 60 применён; зона `node.h2onetwork.pro.` помечена
+managed, 3 rrset'а. Пункт меню DNS добавляется на клиенте после проверки режима.
+
 ## Nodes grid (v2.32.3, 2026-11-25)
 
 Таблица нод заменена сеткой карточек: по две карточки в ряд (`md:grid-cols-2`), поиск,
