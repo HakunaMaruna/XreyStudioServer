@@ -55,7 +55,8 @@ export class ApiTokensController {
 
   @Get()
   list(@CurrentUser() user: AuthUser) {
-    return this.tokens.list(user.role === Role.ADMIN ? null : (user.organizationId ?? null));
+    if (user.role !== Role.ADMIN && !user.organizationId) return [];
+    return this.tokens.list(user.role === Role.ADMIN ? null : user.organizationId);
   }
 
   @Delete(':id')

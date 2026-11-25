@@ -41,14 +41,28 @@ export type UpdateStatus = {
 };
 
 const CACHE_TTL_SECONDS = Number(process.env.UPDATE_CHECK_TTL_SECONDS || 900);
-const REQUEST_TIMEOUT_MS = Number(process.env.UPDATE_CHECK_TIMEOUT_MS || 5000);
+const RAW_TIMEOUT = Number(process.env.UPDATE_CHECK_TIMEOUT_MS);
+const REQUEST_TIMEOUT_MS = Number.isFinite(RAW_TIMEOUT) && RAW_TIMEOUT >= 1000 ? RAW_TIMEOUT : 5000;
 const NOTES_LIMIT = 4000;
 const MANUAL_COMMAND_DEFAULT = 'make update';
 const DEFAULT_REPO = 'HakunaMaruna/XreyStudioServer';
 
 export function normalizeVersion(value: string | null | undefined): string | null {
   const trimmed = String(value || '').trim().replace(/^v/i, '');
-  return /^\d+\.\d+\.\d+/.test(trimmed) ? trimmed : null;
+  return /^\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.]+)?$/.test(trimmed) ? trimmed : null;
+}
+
+/** Only http(s) links are safe to render in the admin UI. */
+export function safeHttpUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!/^https?:\/\//i.test(trimmed)) return null;
+  try {
+    const url = new URL(trimmed);
+    return url.hostname ? trimmed : null;
+  } catch {
+    return null;
+  }
 }
 
 function parseVersionParts(value: string): { release: number[]; pre: string[] } {
@@ -107,7 +121,7 @@ export function parseGithubRelease(body: any): ReleaseInfo | null {
   const notes = typeof body.body === 'string' ? body.body.slice(0, NOTES_LIMIT) : null;
   return {
     version,
-    url: typeof body.html_url === 'string' ? body.html_url : null,
+    url: safeHttpUrl(body.html_url),
     notes,
     publishedAt: typeof body.published_at === 'string' ? body.published_at : null,
   };
@@ -174,9 +188,14 @@ export class UpdatesService {
   }
 
   private updater(): { url: string; token: string } | null {
-    const url = (process.env.UPDATER_URL || '').replace(/\/$/, '');
+    const raw = process.env.UPDATER_URL || '';
     const token = process.env.UPDATER_TOKEN || '';
-    return url && token ? { url, token } : null;
+    const url = safeHttpUrl(raw)?.replace(/\/$/, '') || '';
+    if (!url) {
+      if (raw) this.logger.warn('UPDATER_URL is not a valid http(s) URL; auto updates disabled');
+      return null;
+    }
+    return token ? { url, token } : null;
   }
 
   private async request(url: string, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
@@ -193,14 +212,17 @@ export class UpdatesService {
     release: ReleaseInfo | null;
     source: 'github' | 'custom';
   }> {
-    const custom = process.env.UPDATE_CHECK_URL;
-    if (custom) {
-      const response = await this.request(custom, { headers: { Accept: 'application/json' } });
+    const customUrl = safeHttpUrl(process.env.UPDATE_CHECK_URL);
+    if (process.env.UPDATE_CHECK_URL && !customUrl) {
+      throw new Error('UPDATE_CHECK_URL must be a valid http(s) URL');
+    }
+    if (customUrl) {
+      const response = await this.request(customUrl, { headers: { Accept: 'application/json' } });
       if (!response.ok) throw new Error(`update endpoint responded ${response.status}`);
       const body = await response.json();
       const release = parseGithubRelease({
         tag_name: body.version || body.tag_name,
-        html_url: body.url || body.html_url,
+        html_url: safeHttpUrl(body.url || body.html_url),
         body: body.notes || body.body,
         published_at: body.publishedAt || body.published_at,
       });
@@ -209,7 +231,11 @@ export class UpdatesService {
     }
 
     const repo = process.env.UPDATE_REPO || DEFAULT_REPO;
-    const base = process.env.UPDATE_CHECK_BASE_URL || 'https://api.github.com';
+    if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)) {
+      throw new Error('UPDATE_REPO must be in owner/repo format');
+    }
+    const base = safeHttpUrl(process.env.UPDATE_CHECK_BASE_URL || 'https://api.github.com');
+    if (!base) throw new Error('UPDATE_CHECK_BASE_URL must be a valid http(s) URL');
     const path = channel === 'dev'
       ? `/repos/${repo}/releases?per_page=10`
       : `/repos/${repo}/releases/latest`;
@@ -218,17 +244,17 @@ export class UpdatesService {
       'User-Agent': `xrey-studio/${APP_VERSION}`,
     };
     if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
-    const response = await this.request(`${base}${path}`, { headers });
+    const response = await this.request(`${base.replace(/\/$/, '')}${path}`, { headers });
     if (!response.ok) throw new Error(`GitHub responded ${response.status}`);
     const body = await response.json();
     if (channel === 'dev') {
       const list = Array.isArray(body) ? body : [];
-      for (const item of list) {
-        if (item?.draft) continue;
-        const release = parseGithubRelease(item);
-        if (release) return { release, source: 'github' };
-      }
-      return { release: null, source: 'github' };
+      const releases = list
+        .filter((item) => item && !item.draft)
+        .map((item) => parseGithubRelease(item))
+        .filter((release): release is ReleaseInfo => Boolean(release))
+        .sort((a, b) => compareVersions(b.version, a.version));
+      return { release: releases[0] || null, source: 'github' };
     }
     return { release: parseGithubRelease(body), source: 'github' };
   }
@@ -244,12 +270,13 @@ export class UpdatesService {
       // Keep the last successful answer; a transient network failure must not hide the update.
       const message = String(error?.message || 'update check failed').slice(0, 300);
       this.logger.warn(`Update check failed: ${message}`);
+      const previous = this.cache?.channel === channel ? this.cache : null;
       this.cache = {
-        at: Date.now(),
+        at: previous?.at ?? Date.now(),
         channel,
-        release: this.cache?.release ?? null,
+        release: previous?.release ?? null,
         error: message,
-        source: this.cache?.source ?? 'github',
+        source: previous?.source ?? 'github',
       };
     }
     return this.cache;
@@ -351,6 +378,7 @@ export class UpdatesService {
       );
     }
     const version = normalizeVersion(targetVersion);
+    if (targetVersion && !version) throw new BadRequestException('Invalid target version');
     let response: Response;
     try {
       response = await this.request(`${updater.url}/apply`, {

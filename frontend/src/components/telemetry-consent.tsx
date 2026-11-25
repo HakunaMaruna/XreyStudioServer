@@ -7,6 +7,7 @@ import { Icon } from './icons';
 
 type Status = {
   accepted: boolean;
+  declined: boolean;
   enabled: boolean;
   installId: string;
   licenseUrl: string;
@@ -26,7 +27,7 @@ export default function TelemetryConsent() {
       .then((me) => {
         if (me.role !== 'ADMIN' && me.role !== 'OPERATOR') return;
         return api.get<Status>('/api/telemetry/status')
-          .then((value) => { if (!value.accepted) setStatus(value); });
+          .then((value) => { if (!value.accepted && !value.declined) setStatus(value); });
       })
       .catch(() => undefined);
   }, []);
@@ -34,7 +35,9 @@ export default function TelemetryConsent() {
   const decide = async (allow: boolean) => {
     setBusy(true); setError('');
     try {
-      await api.post('/api/telemetry/consent', { accepted: true, enabled: allow && enabled });
+      await api.post('/api/telemetry/consent', allow
+        ? { accepted: true, enabled }
+        : { accepted: false, enabled: false, declined: true });
       setStatus(null);
     } catch (e: any) {
       setError(e.message);

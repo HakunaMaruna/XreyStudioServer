@@ -353,6 +353,11 @@ fi
 cd "$DIR"
 DIR="$(pwd)"
 run_sh "printf '%s\\n' '$MODE' > .xss-mode"
+# Existing installations upgraded in place must also get an updater token.
+if ! grep -q '^UPDATER_TOKEN=' .env 2>/dev/null; then
+  UPDATER="$(openssl rand -hex 24)"
+  run_sh "printf 'UPDATER_TOKEN=%s\\n' '$UPDATER' >> .env"
+fi
 
 if [ ! -f .env ]; then
   say "${C_BLUE}▸ $(t generating_env)${C_RESET}"

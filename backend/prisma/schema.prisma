@@ -258,6 +258,7 @@ model TelemetrySetting {
   id                String    @id @default("default")
   installId         String    @unique
   accepted          Boolean   @default(false)
+  declined          Boolean   @default(false)
   enabled           Boolean   @default(false)
   licenseAcceptedAt DateTime?
   lastSentAt        DateTime?

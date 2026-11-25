@@ -122,8 +122,22 @@ make update      # вернуться на ветку, git pull, build, up -d
   дашборда/настроек и по кнопке, результат кэшируется на `UPDATE_CHECK_TTL_SECONDS`.
 - Updater обновляет только backend, frontend и agent. Изменения в `docker-compose.yml`
   (новые сервисы, тома) применяйте вручную через `make update`.
-- В режиме `control` (`docker-compose.control.yml`) сервиса `updater` нет — обновляйте вручную.
+- В режиме `control` (`docker-compose.control.yml`) сервиса `updater` нет — обновляйте вручную;
+  перед `POST /api/updates/apply` автоматически создаётся снапшот (`autoBeforeUpdates`).
 - Откат панели — `git checkout <предыдущий тег> && docker compose build && docker compose up -d`
   на сервере (без `git pull`: он вернул бы ветку на последнюю версию) или
   `POST /api/updates/apply` с `{"targetVersion": "<тег>"}`.
-- `make update` всегда возвращает репозиторий на ветку и тянет её последнюю версию.
+- `make update` обновляет нужный compose-стек: `docker-compose.control.yml` в CONTROL-режиме
+  (по `PANEL_MODE=control` в `.env`), иначе `docker-compose.yml`. Он всегда возвращает
+  репозиторий на ветку и тянет её последнюю версию.
+
+## Rollback
+
+The database part of the update system is limited to `Node.agentVersion` and
+`Node.agentUpdatedAt`. To remove it:
+
+```bash
+psql "$DATABASE_URL" -f backend/prisma/update-down.sql
+```
+
+The updater container, environment variables and API endpoints are code/config only.

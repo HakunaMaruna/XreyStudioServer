@@ -88,6 +88,11 @@ export class PluginCatalogService {
   }
 
   async downloadUrl(versionId: string) {
+    const plugin = await this.prisma.storeVersion.findUnique({ where: { id: versionId } }).catch(() => null);
+    if (plugin) {
+      const slug = await this.prisma.storePlugin.findUnique({ where: { id: plugin.pluginId } }).catch(() => null);
+      if (slug) await this.assertPolicyAllowed(slug.slug);
+    }
     const token = this.auth.mode() === 'control' ? this.auth.masterToken() : this.auth.tenantToken();
     const path = this.auth.mode() === 'control'
       ? `/api/store/versions/${encodeURIComponent(versionId)}/download`
@@ -122,6 +127,17 @@ export class PluginCatalogService {
     const rows: any[] = response?.revocations || response || [];
     if (rows.some((row) => row.pluginId === pluginId && (!row.version || row.version === version))) {
       throw new Error('Plugin is revoked by the store');
+    }
+  }
+
+  async assertPolicyAllowed(pluginId: string) {
+    const policy = await this.policy();
+    const blacklist = (policy.blacklist as string[]) || [];
+    const whitelist = (policy.whitelist as string[]) || [];
+    const mandatory = (policy.mandatory as string[]) || [];
+    if (blacklist.includes(pluginId)) throw new Error('Plugin is blacklisted by the master policy');
+    if (whitelist.length && !whitelist.includes(pluginId) && !mandatory.includes(pluginId)) {
+      throw new Error('Plugin is not in the master whitelist');
     }
   }
 

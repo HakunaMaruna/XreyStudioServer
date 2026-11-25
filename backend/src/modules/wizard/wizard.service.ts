@@ -102,17 +102,20 @@ export class WizardService {
   }
 
   async create(dto: CreateNodeWizardDto, user: AuthUser) {
-    const installId = dto.installId || randomUUID();
-    await this.prisma.nodeInstallJob.create({
-      data: {
-        installId,
-        status: 'running',
-        stage: 'start',
-        progress: 2,
-        userId: user.userId,
-        organizationId: user.organizationId || null,
-      },
-    }).catch(() => undefined);
+    let installId = dto.installId || randomUUID();
+    const jobData = () => ({
+      installId,
+      status: 'running',
+      stage: 'start',
+      progress: 2,
+      userId: user.userId,
+      organizationId: user.organizationId || null,
+    });
+    await this.prisma.nodeInstallJob.create({ data: jobData() }).catch(async () => {
+      // A client-supplied id may collide with an older job; never write into someone else's job.
+      installId = randomUUID();
+      await this.prisma.nodeInstallJob.create({ data: jobData() });
+    });
     const report = (stage: string, message: string, progress?: number, level?: string) =>
       this.report(installId, stage, message, progress, level);
     await report('start', 'Installation started', 2);
@@ -123,7 +126,7 @@ export class WizardService {
         where: { installId },
         data: { status: 'success', stage: 'done', progress: 100, nodeId: result.nodeId, error: null },
       }).catch(() => undefined);
-      return result;
+      return { ...result, installId };
     } catch (error: any) {
       await report('error', error?.message || 'Installation failed', undefined, 'error');
       await this.prisma.nodeInstallJob.update({
@@ -177,7 +180,7 @@ export class WizardService {
         {
           name: dto.nodeName || `${dto.location.toLowerCase()}-${domain.label.slice(0, 6)}`,
           host: dto.host,
-          port: dto.sshPort || 443,
+          port: dto.sshPort || 22,
           username: dto.sshUser || 'root',
           privateKey: dto.privateKey,
           passphrase: dto.passphrase,
@@ -361,6 +364,13 @@ export class WizardService {
       where: { id: domainId, tenantOrgId: this.context(user).organizationId },
     });
     if (!domain) throw new BadRequestException('Node domain not found');
+    const node = await this.prisma.node.findFirst({
+      where: {
+        id: domain.nodeId || '',
+        ...(user.role === Role.ADMIN ? {} : { organizationId: user.organizationId || null }),
+      },
+    });
+    if (!node) throw new BadRequestException('Node not found in this tenant');
     const credential = await this.prisma.wizardCredential.findUnique({ where: { nodeId: domain.nodeId || '' } });
     const extra = credential?.userDomain ? [credential.userDomain] : [];
     const certificate = await this.control.issueCertificate(domainId, this.context(user), extra);

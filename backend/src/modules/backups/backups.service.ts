@@ -55,7 +55,7 @@ export class BackupsService {
       child.on('error', reject);
       child.on('close', (code) => {
         if (code === 0) resolve();
-        else reject(new Error(stderr.trim() || `${command} exited with code ${code}`));
+        else reject(new Error(sanitizeDatabaseError(stderr.trim()) || `${command} exited with code ${code}`));
       });
       if (input) {
         child.stdin.on('error', () => undefined);
@@ -134,7 +134,7 @@ export class BackupsService {
       const settle = () => {
         if (exitCode === null || !finished) return;
         if (exitCode === 0) resolve();
-        else reject(new Error(stderr.trim() || `pg_dump exited with code ${exitCode}`));
+        else reject(new Error(sanitizeDatabaseError(stderr.trim()) || `pg_dump exited with code ${exitCode}`));
       };
       dump.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
       dump.on('error', (error) => { out.destroy(); reject(error); });

@@ -72,10 +72,11 @@ export default function WizardPage() {
     setBusy(true);
     setError('');
     const installId = crypto.randomUUID();
+    let activeInstallId = installId;
     setInstall({ status: 'running', stage: 'start', progress: 2, error: null,
       logs: [{ id: 'local', level: 'info', stage: 'start', message: t.wizardInstallStarting }] });
     setInstallOpen(true);
-    const poll = () => api.get(`/api/wizard/install/${installId}`).then(setInstall).catch(() => undefined);
+    const poll = () => api.get(`/api/wizard/install/${activeInstallId}`).then(setInstall).catch(() => undefined);
     pollRef.current = window.setInterval(poll, 1200);
     try {
       const body: Record<string, unknown> = {
@@ -99,6 +100,7 @@ export default function WizardPage() {
         if (form.passphrase) body.passphrase = form.passphrase;
       }
       const data = await api.post('/api/wizard/nodes', body);
+      if (data?.installId && data.installId !== activeInstallId) activeInstallId = data.installId;
       if (pollRef.current !== null) window.clearInterval(pollRef.current);
       pollRef.current = null;
       await poll();

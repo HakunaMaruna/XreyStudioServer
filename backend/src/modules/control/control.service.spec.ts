@@ -17,6 +17,11 @@ describe('ControlService', () => {
         update: jest.fn(async ({ data }: any) => ({ ...data })),
         findMany: jest.fn(async () => []),
       },
+      node: {
+        findFirst: jest.fn(async ({ where }: any) =>
+          where.organizationId === 'org-1' && where.id === 'node-1' ? { id: 'node-1' } : null,
+        ),
+      },
     };
     dns = {
       isConfigured: jest.fn(async () => true),
@@ -66,5 +71,6 @@ describe('ControlService', () => {
     const result = await service().bindNode('domain-1', 'node-1', ctx);
     expect(result).toMatchObject({ nodeId: 'node-1' });
     await expect(service().bindNode('domain-1', 'node-1', { ...ctx, organizationId: 'org-2' })).rejects.toThrow('not found');
+    await expect(service().bindNode('domain-1', 'node-2', ctx)).rejects.toThrow('Node not found');
   });
 });

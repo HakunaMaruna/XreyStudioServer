@@ -161,11 +161,14 @@ const server = http.createServer((req, res) => {
   }
   if (req.method === 'POST' && url.pathname === '/apply') {
     let body = '';
+    let oversized = false;
     req.on('data', (chunk) => {
+      if (oversized) return;
       body += chunk.toString();
-      if (body.length > 8192) req.destroy();
+      if (body.length > 8192) oversized = true;
     });
     req.on('end', () => {
+      if (oversized) return json(res, 413, { started: false, error: 'Request body too large' });
       if (running) return json(res, 409, { started: false, error: 'Update already running', ...status() });
       let targetVersion = null;
       try {

@@ -18,7 +18,7 @@ describe('TelemetryService', () => {
 
   beforeEach(() => {
     setting = {
-      id: 'default', installId: 'local-install', accepted: false, enabled: false,
+      id: 'default', installId: 'local-install', accepted: false, declined: false, enabled: false,
       lastSentAt: null, licenseAcceptedAt: null,
     };
     prisma = {
@@ -66,6 +66,19 @@ describe('TelemetryService', () => {
   it('drops events that are not on the allowlist', async () => {
     await service.ingest(payload({ events: [{ action: 'user.email.read', count: 5 }] }), {} as any);
     expect(prisma.telemetryLog.create).not.toHaveBeenCalled();
+  });
+
+  it('records a real decline without accepting the license', async () => {
+    await service.consent({ accepted: false, enabled: true, declined: true });
+    expect(setting).toMatchObject({ accepted: false, declined: true, enabled: false, licenseAcceptedAt: null });
+  });
+
+  it('rejects malformed events and does not persist the raw payload', async () => {
+    const ctx: any = { tokenId: 't1', role: 'ADMIN' };
+    await expect(service.ingest(payload({ events: 'bad' } as any), ctx)).rejects.toThrow('events must be an array');
+    await expect(service.ingest(payload({ events: [null] } as any), ctx)).resolves.toHaveProperty('received', true);
+    const stored = prisma.telemetrySnapshot.create.mock.calls[0][0].data.payload;
+    expect(stored.events).toEqual([]);
   });
 
   it('collects only aggregate counters', async () => {

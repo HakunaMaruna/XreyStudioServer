@@ -143,7 +143,11 @@ export default function PluginsPage() {
                   <Button size="sm" variant="subtle" icon="activity" onClick={() => action(row.pluginId, 'health')} loading={busy}>{t.pluginsHealth}</Button>
                   <Button size="sm" variant="subtle" icon="sliders" onClick={() => openSettings(row)}>{t.pluginsSettings}</Button>
                   <Button size="sm" variant="subtle" icon="file" onClick={() => openLogs(row.pluginId)}>{t.pluginsLogs}</Button>
-                  <Button size="sm" variant="danger" icon="trash" onClick={() => action(row.pluginId, 'uninstall', {})} loading={busy}>{t.pluginsUninstall}</Button>
+                  <Button size="sm" variant="danger" icon="trash" onClick={() => {
+                    setBusy(true); setError('');
+                    api.delete(`/api/plugins/${encodeURIComponent(row.pluginId)}`)
+                      .then(() => load()).catch((e: any) => setError(e.message)).finally(() => setBusy(false));
+                  }} loading={busy}>{t.pluginsUninstall}</Button>
                 </div>
               </Card>
             ))}

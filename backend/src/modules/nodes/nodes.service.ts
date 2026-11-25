@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { NodeStatus, Prisma, Role } from '@prisma/client';
-import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { APP_VERSION, isAgentOutdated } from '../../version';
@@ -130,7 +130,9 @@ export class NodesService {
 
   async verifyNodeToken(nodeId: string, token: string) {
     const node = await this.prisma.node.findUnique({ where: { id: nodeId } });
-    if (!node || node.tokenHash !== this.hashToken(token)) {
+    const expected = Buffer.from(node?.tokenHash || '');
+    const actual = Buffer.from(this.hashToken(token));
+    if (!node || expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
       throw new ForbiddenException('Invalid node token');
     }
     return node;

@@ -5,6 +5,7 @@ import {
   isNewerVersion,
   normalizeVersion,
   parseGithubRelease,
+  safeHttpUrl,
   UpdatesService,
 } from './updates.service';
 
@@ -56,6 +57,7 @@ describe('version helpers', () => {
     expect(normalizeVersion('2.32.0')).toBe('2.32.0');
     expect(normalizeVersion('nightly')).toBeNull();
     expect(normalizeVersion(null)).toBeNull();
+    expect(normalizeVersion('2.99.0)')).toBeNull();
   });
 
   it('compares numeric segments, not strings', () => {
@@ -75,6 +77,13 @@ describe('version helpers', () => {
     expect(isNewerVersion('2.32.0', '2.32.0')).toBe(false);
     expect(isNewerVersion('2.31.9', '2.32.0')).toBe(false);
     expect(isNewerVersion('', '2.32.0')).toBe(false);
+  });
+
+  it('drops unsafe release URLs', () => {
+    expect(safeHttpUrl('https://example.com/release')).toBe('https://example.com/release');
+    expect(safeHttpUrl('javascript:alert(1)')).toBeNull();
+    expect(safeHttpUrl('data:text/html,x')).toBeNull();
+    expect(parseGithubRelease({ tag_name: 'v2.40.0', html_url: 'javascript:alert(1)' })?.url).toBeNull();
   });
 
   it('parses a GitHub release payload', () => {

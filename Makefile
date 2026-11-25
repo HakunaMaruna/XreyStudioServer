@@ -19,10 +19,12 @@ monitoring:
 k8s-monitoring:
 	node k8s/generate-monitoring.mjs
 
+COMPOSE_CMD := $(shell if grep -q '^PANEL_MODE=control' .env 2>/dev/null; then echo 'docker compose -f docker-compose.control.yml'; else echo 'docker compose'; fi)
+
 update:
 	@test -z "$$(git status --porcelain)" || { echo "refusing update: working tree has uncommitted changes" >&2; exit 1; }
 	branch=$$(git symbolic-ref -q --short HEAD || git for-each-ref --format='%(refname:short)' refs/heads | head -n 1); \
-	git checkout -q "$${branch:-main}" && git pull --ff-only && docker compose build && docker compose up -d
+	git checkout -q "$${branch:-main}" && git pull --ff-only && $(COMPOSE_CMD) build && $(COMPOSE_CMD) up -d
 
 backup:
 	bash scripts/backup.sh

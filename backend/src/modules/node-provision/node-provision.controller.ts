@@ -18,14 +18,14 @@ export class NodeProvisionController {
 
   @Post()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.OPERATOR)
   provision(@Body() dto: ProvisionNodeDto, @CurrentUser() user: AuthUser) {
     return this.service.provision(dto, user);
   }
 
   @Post(':nodeId/update')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.OPERATOR)
   async updateAgent(
     @Param('nodeId') nodeId: string,
     @Body() dto: UpdateNodeAgentDto,

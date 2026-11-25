@@ -31,6 +31,31 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Code review / security fixes (v2.41.0, 2026-11-26)
+
+Проведена ревизия тремя параллельными проверками. Исправлено:
+- SSRF в AgentClient: приватные/IPv4-mapped адреса, query/fragment в agentUrl, DNS-rebinding
+  (пинг адреса через lookup), валидация CreateNodeDto.address/agentUrl.
+- Snapshot restore больше не снимает блокировку `busy` при внутреннем pre-restore снимке.
+- Телеметрия: строгая проверка ingest-тела, отказ «decline» больше не принимает лицензию
+  (`TelemetrySetting.declined`), в БД пишется только whitelist полей.
+- Мастер: OPERATOR может создавать ноду, порт SSH единообразно 22, безопасная обработка
+  коллизии `installId`, живой polling использует серверный id.
+- Плагины: повторная проверка отзыва и master-политики при enable/call/install/download,
+  исправлена нормализация PEM, SSRF-фильтр с DNS и IPv4-mapped, rollback SQL при неудачной
+  установке, проверка совместимости версий панели, UI uninstall через DELETE.
+- Обновления: безопасные URL релизов (XSS), валидация UPDATER_URL/UPDATE_REPO,
+  channel-scoped cache, выбор максимальной semver в dev-канале, строгий normalizeVersion,
+  413 вместо обрыва соединения, `make update` понимает CONTROL compose, токен updater
+  создаётся и для существующих `.env`, control-панель не опрашивает несуществующий updater.
+- Ядро: изоляция api-токенов для OPERATOR без организации, проверка tenant-владения ноды
+  при bind, безопасная компиляция ACME shell-хуков, timingSafeEqual для токена ноды,
+  санитизация stderr pg_dump/psql, скрытие вывода updateAgent.
+
+Осталось как осознанные ограничения: docker.sock в updater даёт host-root (только profile
+`updater`), settings плагина передаются в env воркера, автоматический rollback при провале
+обновления плагина всё ещё делается вручную из snapshot.
+
 ## Snapshot auto-before-update fix (v2.40.9, 2026-11-26)
 
 Политика `autoBeforeUpdates` была реализована, но ни один рабочий эндпоинт её не

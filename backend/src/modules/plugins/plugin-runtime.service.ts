@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import { isIP } from 'net';
+import { promises as dns } from 'dns';
 import * as path from 'path';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PluginStorageService } from './plugin-storage.service';
@@ -18,18 +19,34 @@ export class PluginRuntimeService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  private allowedUrl(raw: string) {
+  private isBlockedAddress(host: string) {
+    const h = host.toLowerCase().replace(/^\[|\]$/g, '');
+    const mapped = h.startsWith('::ffff:') ? h.slice(7) : '';
+    const ipv4 = mapped || h;
+    if (h === 'localhost' || h === '0.0.0.0' || h === '::1' || h === 'metadata.google.internal') return true;
+    if (isIP(ipv4) === 4) {
+      const p = ipv4.split('.').map(Number);
+      if (p[0] === 127 || p[0] === 10 || (p[0] === 172 && p[1] >= 16 && p[1] <= 31) ||
+          (p[0] === 192 && p[1] === 168) || (p[0] === 169 && p[1] === 254) ||
+          (p[0] === 100 && p[1] >= 64 && p[1] <= 127)) return true;
+    }
+    return h.startsWith('fc') || h.startsWith('fd') || h.startsWith('fe80') || h.startsWith('::');
+  }
+
+  private async allowedUrl(raw: string) {
     let url: URL;
     try { url = new URL(raw); } catch { return false; }
     if (!['http:', 'https:'].includes(url.protocol)) return false;
     const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
-    if (host === 'localhost' || host === '0.0.0.0' || host === '::1' || host === 'metadata.google.internal') return false;
-    if (isIP(host) === 4) {
-      const p = host.split('.').map(Number);
-      if (p[0] === 127 || p[0] === 10 || (p[0] === 172 && p[1] >= 16 && p[1] <= 31) ||
-          (p[0] === 192 && p[1] === 168) || (p[0] === 169 && p[1] === 254)) return false;
+    if (this.isBlockedAddress(host)) return false;
+    if (isIP(host) === 0) {
+      try {
+        const addresses = await dns.lookup(host, { all: true });
+        if (!addresses.length || addresses.some((address) => this.isBlockedAddress(address.address))) return false;
+      } catch {
+        return false;
+      }
     }
-    if (host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80')) return false;
     return true;
   }
 
@@ -90,7 +107,7 @@ export class PluginRuntimeService {
           if (msg.type === 'storage.delete') await this.storage.delete(pluginId, msg.payload.key);
           if (msg.type === 'settings.get') value = await this.storage.settings(pluginId);
           if (msg.type === 'http.request') {
-            if (!this.allowedUrl(String(msg.payload.url || ''))) throw new Error('Network target is not allowed');
+            if (!await this.allowedUrl(String(msg.payload.url || ''))) throw new Error('Network target is not allowed');
             const response = await fetch(String(msg.payload.url), {
               method: String(msg.payload.method || 'GET'),
               headers: msg.payload.headers || {},

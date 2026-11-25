@@ -57,6 +57,17 @@ describe('AgentClientService base URL', () => {
     delete process.env.ALLOW_HTTP_AGENT_URLS;
   });
 
+  it('rejects derived private/http hosts, query strings and mapped IPv6', () => {
+    process.env.NODE_ENV = 'production';
+    delete process.env.AGENT_BASE_URL;
+    delete process.env.ALLOW_HTTP_AGENT_URLS;
+    delete process.env.ALLOW_PRIVATE_AGENT_URLS;
+    expect(() => base({ address: 'node.example.com' })).toThrow(/https/);
+    expect(() => base({ address: 'localhost', agentUrl: 'https://localhost:9090' })).toThrow();
+    expect(() => base({ address: 'node.example.com', agentUrl: 'https://node.example.com:9090?x=1' })).toThrow(/query/);
+    expect(() => base({ address: 'node.example.com', agentUrl: 'https://[::ffff:127.0.0.1]:9090' })).toThrow(/IPv6|Private|Link-local/);
+  });
+
   it('allows internal http and explicit opt-in for private agent URLs', () => {
     process.env.NODE_ENV = 'production';
     process.env.ALLOW_PRIVATE_AGENT_URLS = 'true';

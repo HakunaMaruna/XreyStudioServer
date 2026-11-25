@@ -12,6 +12,7 @@ export type AllocateDto = { ipv4: string; ipv6?: string; location?: string; node
 
 const IPV4 = /^(\d{1,3}\.){3}\d{1,3}$/;
 const IPV6 = /^[0-9a-fA-F:]+$/;
+const shellQuote = (value: string) => `'${String(value).replace(/'/g, `'\\''`)}'`;
 
 @Injectable()
 export class ControlService {
@@ -66,8 +67,13 @@ export class ControlService {
   }
 
   async bindNode(id: string, nodeId: string, ctx: ApiTokenContext) {
-    const domain = await this.prisma.nodeDomain.findFirst({ where: { id, tenantOrgId: this.tenantId(ctx) } });
+    const orgId = this.tenantId(ctx);
+    const domain = await this.prisma.nodeDomain.findFirst({ where: { id, tenantOrgId: orgId } });
     if (!domain) throw new NotFoundException('Node domain not found');
+    if (orgId) {
+      const node = await this.prisma.node.findFirst({ where: { id: nodeId, organizationId: orgId } });
+      if (!node) throw new NotFoundException('Node not found in this tenant');
+    }
     return this.prisma.nodeDomain.update({ where: { id }, data: { nodeId } });
   }
 

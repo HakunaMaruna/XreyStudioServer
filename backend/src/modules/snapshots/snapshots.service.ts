@@ -159,8 +159,15 @@ export class SnapshotsService {
 
   async get(id: string) {
     const record = await this.findRecord(id);
-    const manifest = await this.readManifest(record.directory);
-    const db = await fs.readFile(path.join(record.directory, 'db.sql.gz'));
+    const directory = await this.assertInsideRoot(record.directory);
+    const manifest = await this.readManifest(directory).catch((error: any) => {
+      if (error?.code === 'ENOENT') throw new NotFoundException('Snapshot files are missing');
+      throw error;
+    });
+    const db = await fs.readFile(path.join(directory, 'db.sql.gz')).catch((error: any) => {
+      if (error?.code === 'ENOENT') throw new NotFoundException('Snapshot database file is missing');
+      throw error;
+    });
     const checksum = sha256(db);
     return {
       ...this.serialize(record),
@@ -216,8 +223,8 @@ export class SnapshotsService {
     });
   }
 
-  private async createInternal(input: SnapshotInput) {
-    this.busy = true;
+  private async createInternal(input: SnapshotInput, manageBusy = true) {
+    if (manageBusy) this.busy = true;
     const id = randomUUID();
     const directory = path.join(this.root(), id);
     let recordId: string | null = null;
@@ -302,7 +309,7 @@ export class SnapshotsService {
       await fs.rm(directory, { recursive: true, force: true }).catch(() => undefined);
       throw new ServiceUnavailableException(`Snapshot failed: ${message}`);
     } finally {
-      this.busy = false;
+      if (manageBusy) this.busy = false;
     }
   }
 
@@ -399,7 +406,7 @@ export class SnapshotsService {
         scope: SnapshotScope.FULL,
         actorId,
         label: `Pre-restore ${record.id.slice(0, 8)}`,
-      });
+      }, false);
       await this.prisma.systemSnapshot.update({
         where: { id: record.id },
         data: { status: SnapshotStatus.RESTORING, restoreError: null },

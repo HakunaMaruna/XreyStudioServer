@@ -4,6 +4,7 @@ import * as http from 'http';
 import * as https from 'https';
 import { URL } from 'url';
 import { isIP } from 'net';
+import { promises as dns } from 'dns';
 
 function isPrivateHost(host: string) {
   if (host === 'localhost' || host === '0.0.0.0' || host === '::' || host === '::1') return true;
@@ -21,6 +22,9 @@ function isPrivateHost(host: string) {
 // Links local/metadata address never valid for an agent, even in private mode.
 function isForbiddenHost(host: string) {
   const h = host.toLowerCase().replace(/^\[|\]$/g, '');
+  // IPv4-mapped IPv6 bypasses naive isIP(v6) checks.
+  const mapped = h.startsWith('::ffff:') ? h.slice(7) : '';
+  if (mapped && isIP(mapped) === 4 && isPrivateHost(mapped)) return true;
   if (h === '0.0.0.0' || h === '::' || h === 'metadata.google.internal') return true;
   if (isIP(h) === 4) {
     const p = h.split('.').map(Number);
@@ -47,9 +51,13 @@ export class AgentClientService {
     if (url.protocol !== 'http:' && url.protocol !== 'https:') {
       throw new BadRequestException('Agent URL must use http or https');
     }
+    if (url.search || url.hash) {
+      throw new BadRequestException('Agent URL must not contain a query string or fragment');
+    }
+    const fromAddress = !explicit && !process.env.AGENT_BASE_URL;
     if (
       process.env.NODE_ENV === 'production' &&
-      explicit &&
+      (explicit || fromAddress) &&
       url.protocol !== 'https:' &&
       process.env.ALLOW_HTTP_AGENT_URLS !== 'true' &&
       process.env.ALLOW_PRIVATE_AGENT_URLS !== 'true'
@@ -64,18 +72,46 @@ export class AgentClientService {
     if (isIP(hostOnly) === 6 && !(allowPrivate && hostOnly === '::1')) {
       throw new BadRequestException('IPv6 agent URLs are not allowed');
     }
-    if (!allowPrivate && process.env.ALLOW_PRIVATE_AGENT_URLS !== 'true' && isPrivateHost(url.hostname)) {
+    const hostname = url.hostname.replace(/^\[|\]$/g, '');
+    const mapped = hostname.toLowerCase().startsWith('::ffff:') ? hostname.slice(7) : '';
+    if (!allowPrivate && process.env.ALLOW_PRIVATE_AGENT_URLS !== 'true'
+        && (isPrivateHost(url.hostname) || (mapped && isPrivateHost(mapped)))) {
       throw new BadRequestException('Private agent URLs are not allowed');
     }
-    return raw.replace(/\/$/, '');
+    // Drop any query/fragment; callers append their own paths safely.
+    return `${url.protocol}//${url.host}`.replace(/\/$/, '');
   }
 
-  private request(url: string, payload: any, timeoutMs = 5000, method = 'POST'): Promise<any> {
-    return new Promise((resolve, reject) => {
+  private request(url: string, payload: any, timeoutMs = 5000, method = 'POST', allowPrivate = false): Promise<any> {
+    return new Promise(async (resolve, reject) => {
       const target = new URL(url);
       const body = method === 'GET' ? '' : JSON.stringify(payload || {});
       const isHttps = target.protocol === 'https:';
+      // Pin the connection to an address we validated: prevents DNS rebinding between base() and connect().
+      let lookup: https.RequestOptions['lookup'] | undefined;
+      const host = target.hostname.replace(/^\[|\]$/g, '');
+      if (isIP(host) === 0) {
+        try {
+          const addresses = await dns.lookup(host, { all: true });
+          if (!addresses.length) throw new Error('no DNS records');
+          const privateAllowed = allowPrivate || process.env.ALLOW_PRIVATE_AGENT_URLS === 'true';
+          for (const address of addresses) {
+            const value = address.family === 6 && address.address.toLowerCase().startsWith('::ffff:')
+              ? address.address.slice(7)
+              : address.address;
+            if (isForbiddenHost(value) || (!privateAllowed && isPrivateHost(value))) {
+              throw new Error(`resolved address ${address.address} is not allowed`);
+            }
+          }
+          const chosen = addresses[0];
+          lookup = (_hostname, _options, callback) => callback(null, chosen.address, chosen.family);
+        } catch (error: any) {
+          reject(new BadRequestException(`Unsafe agent host: ${error.message}`));
+          return;
+        }
+      }
       const options: https.RequestOptions = {
+        lookup,
         method,
         hostname: target.hostname,
         port: target.port || (isHttps ? 443 : 80),
@@ -129,14 +165,14 @@ export class AgentClientService {
 
   async restart(node: { address: string; agentUrl?: string | null }) {
     const base = this.base(node, true);
-    return this.request(`${base.replace(/\/$/, '')}/restart-xray`, {});
+    return this.request(`${base.replace(/\/$/, '')}/restart-xray`, {}, 5000, 'POST', true);
   }
 
   async installCertificate(
     node: { address: string; agentUrl?: string | null },
     payload: { certificate: string; privateKey: string; ca?: string; hostname: string },
   ) {
-    return this.request(`${this.base(node, true)}/certificate`, { payload }, 15000);
+    return this.request(`${this.base(node, true)}/certificate`, { payload }, 15000, 'POST', true);
   }
 
   // Быстрый HTTP-RTT до агента: используется как «пинг» в карточке метрик ноды.
@@ -144,7 +180,7 @@ export class AgentClientService {
     const started = Date.now();
     try {
       const base = this.base(node, true);
-      await this.request(`${base.replace(/\/$/, '')}/health`, undefined, 3000, 'GET');
+      await this.request(`${base.replace(/\/$/, '')}/health`, undefined, 3000, 'GET', true);
       return { reachable: true, latencyMs: Date.now() - started };
     } catch (error: any) {
       return { reachable: false, latencyMs: null, error: error.message };

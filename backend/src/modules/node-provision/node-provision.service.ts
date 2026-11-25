@@ -227,7 +227,7 @@ export class NodeProvisionService {
 
   async provision(dto: ProvisionNodeDto, actor: AuthUser, progress?: ProvisionProgress) {
     this.enabled();
-    if (actor.role !== Role.ADMIN) throw new ForbiddenException('Admin role required');
+    if (actor.role !== Role.ADMIN && actor.role !== Role.OPERATOR) throw new ForbiddenException('Admin or operator role required');
 
     const agentToken = randomBytes(32).toString('hex');
     const tokenHash = createHash('sha256').update(agentToken).digest('hex');
@@ -315,7 +315,7 @@ export class NodeProvisionService {
   // (его создаёт provision) и пересобирает только контейнер агента.
   async updateAgent(nodeId: string, dto: UpdateNodeAgentDto, actor: AuthUser) {
     this.enabled();
-    if (actor.role !== Role.ADMIN) throw new ForbiddenException('Admin role required');
+    if (actor.role !== Role.ADMIN && actor.role !== Role.OPERATOR) throw new ForbiddenException('Admin or operator role required');
 
     const node = await this.prisma.node.findUnique({ where: { id: nodeId }, select: { id: true, name: true } });
     if (!node) throw new BadRequestException('Node not found');

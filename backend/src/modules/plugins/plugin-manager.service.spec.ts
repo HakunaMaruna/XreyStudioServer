@@ -54,7 +54,7 @@ describe('PluginManagerService', () => {
     snapshots = { create: jest.fn(async () => ({})) };
     audit = { log: jest.fn(async () => ({})) };
     notifications = { broadcast: jest.fn(async () => ({})) };
-    catalog = { assertNotRevoked: jest.fn(async () => undefined) };
+    catalog = { assertNotRevoked: jest.fn(async () => undefined), assertPolicyAllowed: jest.fn(async () => undefined) };
   });
 
   const service = () => new PluginManagerService(prisma, storage, runtime, snapshots, audit, notifications, catalog);

@@ -92,6 +92,7 @@ export class PluginManagerService implements OnModuleInit {
     const value = validatePackage(pkg);
     verifyPackageSignature(value, process.env.PLUGIN_STORE_PUBLIC_KEY, this.allowUnsigned());
     await this.catalog.assertNotRevoked(value.manifest.id, value.manifest.version).catch((error) => { throw new ForbiddenException(error.message); });
+    await this.catalog.assertPolicyAllowed(value.manifest.id).catch((error) => { throw new ForbiddenException(error.message); });
     const existing = await this.prisma.plugin.findUnique({ where: { pluginId: value.manifest.id } });
     if (existing) throw new BadRequestException('Plugin is already installed; use update');
     await this.snapshot(`install ${value.manifest.id}`, actor?.userId);
@@ -112,6 +113,8 @@ export class PluginManagerService implements OnModuleInit {
       await this.auditAction('plugin.install', value.manifest.id, actor);
       return row;
     } catch (error: any) {
+      // Best-effort rollback of any SQL the plugin already applied.
+      await this.runMigrations(value.manifest.id, 'down').catch(() => undefined);
       await this.storage.removeArtifacts(value.manifest.id);
       await this.prisma.plugin.deleteMany({ where: { pluginId: value.manifest.id } });
       throw error;
@@ -121,6 +124,8 @@ export class PluginManagerService implements OnModuleInit {
   async enable(pluginId: string, actor?: AuthUser) {
     if (process.env.PLUGINS_DISABLED === 'true') throw new ForbiddenException('Plugins are disabled');
     const row = await this.find(pluginId);
+    await this.catalog.assertNotRevoked(pluginId, row.version).catch((error) => { throw new ForbiddenException(error.message); });
+    await this.catalog.assertPolicyAllowed(pluginId).catch((error) => { throw new ForbiddenException(error.message); });
     await this.snapshot(`enable ${pluginId}`, actor?.userId);
     await this.prisma.plugin.update({ where: { pluginId }, data: { status: PluginStatus.ENABLED, enabledAt: new Date(), lastError: null } });
     try {
@@ -211,6 +216,7 @@ export class PluginManagerService implements OnModuleInit {
 
   async call(pluginId: string, action: string, payload: unknown, actor?: AuthUser) {
     const row = await this.find(pluginId);
+    await this.catalog.assertNotRevoked(pluginId, row.version).catch((error) => { throw new ForbiddenException(error.message); });
     if (row.status !== PluginStatus.ENABLED) throw new ForbiddenException('Plugin is not enabled');
     const permissions = (row.manifest as any)?.permissions || [];
     if (!permissions.includes('plugins:api')) throw new ForbiddenException('Plugin has no plugins:api permission');

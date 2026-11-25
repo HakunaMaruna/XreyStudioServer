@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { createHash, verify as ed25519Verify } from 'crypto';
+import { APP_VERSION } from '../../version';
 
 export type PluginManifest = {
   id: string; name: string; version: string; author: string; description: string;
@@ -53,8 +54,8 @@ export function verifyPackageSignature(value: PluginPackage, publicKeyPem: strin
   }
   if (value.signature.algorithm !== 'Ed25519') throw new BadRequestException('Unsupported signature algorithm');
   if (!publicKeyPem) throw new BadRequestException('Store public key is not configured');
-  // .env often stores PEM with literal "\n" sequences.
-  const pem = publicKeyPem.includes('\n') ? publicKeyPem : publicKeyPem.replace(/\\n/g, '\n');
+  // .env often stores PEM with literal "\n" sequences, sometimes mixed with real newlines.
+  const pem = publicKeyPem.replace(/\\n/g, '\n').trim();
   let valid = false;
   try {
     valid = ed25519Verify(
@@ -70,6 +71,15 @@ export function verifyPackageSignature(value: PluginPackage, publicKeyPem: strin
   return true;
 }
 
+function compareVersions(a: string, b: string): number {
+  const left = String(a).split('.').map((part) => Number(part) || 0);
+  const right = String(b).split('.').map((part) => Number(part) || 0);
+  for (let i = 0; i < Math.max(left.length, right.length); i += 1) {
+    if ((left[i] || 0) !== (right[i] || 0)) return (left[i] || 0) > (right[i] || 0) ? 1 : -1;
+  }
+  return 0;
+}
+
 export function validatePackage(input: unknown): PluginPackage {
   if (!input || typeof input !== 'object') throw new BadRequestException('Invalid plugin package');
   const value = input as PluginPackage;
@@ -81,6 +91,16 @@ export function validatePackage(input: unknown): PluginPackage {
   if (!m.name || !m.author || !m.description) throw new BadRequestException('Manifest name/author/description are required');
   if (!Array.isArray(m.permissions) || m.permissions.some((p) => !PLUGIN_PERMISSIONS.includes(p))) {
     throw new BadRequestException('Unknown plugin permission');
+  }
+  if (m.dependencies !== undefined && (!Array.isArray(m.dependencies) || m.dependencies.some((d) => typeof d !== 'string'))) {
+    throw new BadRequestException('Invalid plugin dependencies');
+  }
+  if (m.license !== undefined && typeof m.license !== 'string') throw new BadRequestException('Invalid plugin license');
+  if (m.minPanelVersion && compareVersions(m.minPanelVersion, APP_VERSION) > 0) {
+    throw new BadRequestException(`Plugin requires panel ${m.minPanelVersion} or newer`);
+  }
+  if (m.maxPanelVersion && compareVersions(m.maxPanelVersion, APP_VERSION) < 0) {
+    throw new BadRequestException(`Plugin requires panel ${m.maxPanelVersion} or older`);
   }
   if (!value.files || typeof value.files !== 'object' || Array.isArray(value.files)) {
     throw new BadRequestException('Package files are required');

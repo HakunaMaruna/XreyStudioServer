@@ -56,6 +56,7 @@ export class TelemetryService implements OnModuleInit, OnModuleDestroy {
     const row = await this.setting();
     return {
       accepted: row.accepted,
+      declined: row.declined,
       enabled: row.enabled,
       installId: row.installId,
       licenseUrl: this.licenseUrl,
@@ -65,15 +66,18 @@ export class TelemetryService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async consent(body: { accepted: boolean; enabled: boolean }) {
-    if (!body || typeof body.accepted !== 'boolean') throw new BadRequestException('accepted is required');
-    const row = await this.setting();
+  async consent(body: { accepted?: boolean; enabled?: boolean; declined?: boolean }) {
+    if (!body || typeof body !== 'object') throw new BadRequestException('consent body is required');
+    const declined = body.declined === true;
+    if (!declined && typeof body.accepted !== 'boolean') throw new BadRequestException('accepted is required');
+    await this.setting();
     const updated = await this.prisma.telemetrySetting.update({
       where: { id: 'default' },
       data: {
-        accepted: body.accepted,
-        enabled: body.accepted ? Boolean(body.enabled) : false,
-        licenseAcceptedAt: body.accepted ? new Date() : null,
+        accepted: declined ? false : Boolean(body.accepted),
+        declined,
+        enabled: !declined && body.accepted ? Boolean(body.enabled) : false,
+        licenseAcceptedAt: !declined && body.accepted ? new Date() : null,
       },
     });
     if (updated.enabled) await this.send().catch((error) => this.logger.warn(`Telemetry send failed: ${error.message}`));
@@ -138,23 +142,44 @@ export class TelemetryService implements OnModuleInit, OnModuleDestroy {
   }
 
   async ingest(payload: TelemetryPayload, ctx: ApiTokenContext) {
-    if (!payload?.installId || typeof payload.installId !== 'string') throw new BadRequestException('installId is required');
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      throw new BadRequestException('Invalid telemetry payload');
+    }
+    if (!payload.installId || typeof payload.installId !== 'string') throw new BadRequestException('installId is required');
     if (payload.installId.length > 128 || !/^[A-Za-z0-9-]+$/.test(payload.installId)) throw new BadRequestException('Invalid installId');
     const mode = payload.mode === 'control' ? 'control' : 'tenant';
-    const counts = payload.counts || {};
+    const counts = (payload.counts && typeof payload.counts === 'object' && !Array.isArray(payload.counts))
+      ? payload.counts as Record<string, unknown> : {};
     if (Object.keys(counts).length > 64 || Object.values(counts).some((value) => !Number.isFinite(Number(value)) || Number(value) < 0)) {
       throw new BadRequestException('Invalid counts');
+    }
+    if (payload.events !== undefined && !Array.isArray(payload.events)) {
+      throw new BadRequestException('events must be an array');
     }
     const installation = await this.prisma.telemetryInstallation.upsert({
       where: { installId: payload.installId },
       create: { installId: payload.installId, mode, version: String(payload.version || '').slice(0, 40), lastSeen: new Date() },
       update: { mode, version: String(payload.version || '').slice(0, 40), lastSeen: new Date() },
     });
+    const safeCounts = Object.fromEntries(Object.entries(counts).map(([key, value]) => [key.slice(0, 64), Number(value)]));
+    const safeEvents = (payload.events || []).slice(0, 32).map((event: any) => ({
+      action: typeof event?.action === 'string' ? event.action : '',
+      count: Number(event?.count),
+    })).filter((event: any) => EVENT_ALLOWLIST.includes(event.action) && Number.isFinite(event.count) && event.count >= 0);
     await this.prisma.telemetrySnapshot.create({
-      data: { installationId: installation.id, payload: payload as any },
+      data: {
+        installationId: installation.id,
+        payload: {
+          installId: payload.installId,
+          version: String(payload.version || '').slice(0, 40),
+          mode,
+          capturedAt: typeof payload.capturedAt === 'string' ? payload.capturedAt.slice(0, 40) : null,
+          counts: safeCounts,
+          events: safeEvents,
+        } as any,
+      },
     });
-    const events = (payload.events || []).slice(0, 32).filter((event) => EVENT_ALLOWLIST.includes(event.action));
-    for (const event of events) {
+    for (const event of safeEvents) {
       await this.prisma.telemetryLog.create({
         data: {
           installationId: installation.id,

@@ -4,7 +4,7 @@ export class CreateNodeDto {
   @IsString()
   name: string;
 
-  @IsString()
+  @Matches(/^(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\d{1,3}(?:\.\d{1,3}){3})$/, { message: 'invalid node address' })
   address: string;
 
   @IsOptional()
@@ -12,7 +12,8 @@ export class CreateNodeDto {
   port?: number;
 
   @IsOptional()
-  @IsString()
+  @Matches(/^https?:\/\//i, { message: 'agentUrl must use http or https' })
+  @MaxLength(512)
   agentUrl?: string;
 
   @IsOptional()
