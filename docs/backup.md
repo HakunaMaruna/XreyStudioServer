@@ -79,7 +79,7 @@ request instead of uploading plaintext. Credentials are never stored in the data
 logged. If the upload fails, the encrypted local backup is retained and the error is
 returned to the caller.
 
-## Encrypted backups and S3/R2 (v2.23.4+)
+## Encrypted backups and S3/R2 (v2.24.0+)
 
 Backups can be encrypted at rest with AES-256-GCM before they leave the host. Generate the key
 once and store it in a password manager:
