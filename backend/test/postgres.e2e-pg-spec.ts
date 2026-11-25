@@ -111,7 +111,7 @@ describe('XSS API (e2e, real PostgreSQL)', () => {
     const rule = await auth(
       request(app.getHttpServer())
         .post('/api/rules')
-        .send({ name: 'direct', type: 'field', payload: { outboundTag: 'direct' } }),
+        .send({ name: 'direct', type: 'field', payload: { type: 'field', outboundTag: 'direct', domain: 'example.com' } }),
     ).expect(201);
     expect(rule.body).toMatchObject({ name: 'direct', enabled: true });
     expect(await prisma.rule.count()).toBe(1);
