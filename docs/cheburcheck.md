@@ -14,13 +14,28 @@
 4. При вердикте блокировки отправляется уведомление `CHEBURCHECK_BLOCKED`
    (интегрировано с настройками оповещений v2.31.0).
 
-## Токен
+## Как получить токен и где указать
 
-API-токен задаётся в **Оповещения → Настройки → Cheburcheck API token** или через
-`PATCH /api/notifications/settings { "credentials": { "CHEBURCHECK_API_TOKEN": "..." } }`.
-Он хранится зашифрованно (AES-256-GCM, `PANEL_MASTER_KEY`), в API и логах не отображается.
-Токен уходит только в заголовке `Authorization: Bearer` на `/probe/<id>` — никогда в URL
-или публичный frontend-бандл.
+1. Откройте документацию Cheburcheck: <https://cheburcheck.ru/kb/api>.
+2. Подайте заявку на токен публичных сканеров: <https://forms.gle/LSPcAV5n3CrdQLMP6>
+   (токены выдаёт администратор сервиса; при злоупотреблении их можно отозвать).
+3. В панели: **Оповещения → Настройки → Каналы уведомлений**:
+   - `Cheburcheck API token` — вставьте полученный токен;
+   - `Cheburcheck API URL` — необязательно; пусто означает `https://cheburcheck.ru/api/v1`.
+     Укажите свой адрес, если используете собственный/ self-hosted экземпляр API.
+
+То же через API:
+
+```bash
+curl -X PATCH https://<панель>/api/notifications/settings \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"credentials":{"CHEBURCHECK_API_TOKEN":"<ваш токен>","CHEBURCHECK_BASE_URL":"https://cheburcheck.ru/api/v1"},"policy":{}}'
+```
+
+Токен и URL хранятся зашифрованно (AES-256-GCM, `PANEL_MASTER_KEY`), в API и логах
+не отображаются; пустое поле означает «оставить текущее значение». Токен уходит только
+в заголовке `Authorization: Bearer` на `/probe/<id>` — никогда в URL или публичный бандл.
+Свой API URL проверяется: в production только HTTPS, приватные и metadata-адреса запрещены.
 
 `GET /api/cheburcheck/status` показывает доступность сервиса, число записей/адресов в
 списках и баланс `credits` (если токен задан). Публичные сканеры работают и при нулевом

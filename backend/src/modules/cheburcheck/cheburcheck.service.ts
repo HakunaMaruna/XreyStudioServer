@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { NotificationEvent, Role } from '@prisma/client';
+import { isIP } from 'net';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationSettingsService } from '../notifications/notification-settings.service';
@@ -38,7 +39,6 @@ const VERDICT_PRIORITY = ['tspu_block', 'dns_spoofing', 'cdn_block', 'sni_block'
 @Injectable()
 export class CheburcheckService {
   private readonly logger = new Logger(CheburcheckService.name);
-  private readonly base = (process.env.CHEBURCHECK_BASE_URL || 'https://cheburcheck.ru/api/v1').replace(/\/$/, '');
   private readonly probeTimeoutMs = Number(process.env.CHEBURCHECK_PROBE_TIMEOUT_MS || 45_000);
 
   constructor(
@@ -46,6 +46,38 @@ export class CheburcheckService {
     private readonly settings: NotificationSettingsService,
     private readonly notifications: NotificationsService,
   ) {}
+
+  // Admin may point the panel to a self-hosted Cheburcheck API. SSRF-safe: HTTPS only
+  // in production and no private/metadata destinations.
+  private async base() {
+    const raw = (await this.settings.value('CHEBURCHECK_BASE_URL'))
+      || process.env.CHEBURCHECK_BASE_URL
+      || 'https://cheburcheck.ru/api/v1';
+    let url: URL;
+    try { url = new URL(raw); } catch { throw new BadRequestException('Invalid Cheburcheck API URL'); }
+    if (url.protocol !== 'https:' && process.env.NODE_ENV === 'production') {
+      throw new BadRequestException('Cheburcheck API URL must use https in production');
+    }
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      throw new BadRequestException('Cheburcheck API URL must use http or https');
+    }
+    const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    const parts = host.split('.').map(Number);
+    const forbidden = host === 'localhost' || host === '0.0.0.0' || host === '::' || host === '::1'
+      || host === 'metadata.google.internal'
+      || (isIP(host) === 4 && (
+        parts[0] === 10 || parts[0] === 127 ||
+        (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+        (parts[0] === 192 && parts[1] === 168) ||
+        (parts[0] === 169 && parts[1] === 254) ||
+        (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127)
+      ))
+      || host.startsWith('fe80') || host.startsWith('fc') || host.startsWith('fd');
+    if (forbidden && process.env.NODE_ENV === 'production') {
+      throw new BadRequestException('Private Cheburcheck API addresses are not allowed');
+    }
+    return raw.replace(/\/$/, '');
+  }
 
   private async targetFor(input: { nodeId?: string; target?: string }, user: AuthUser) {
     if (input.nodeId) {
@@ -68,7 +100,7 @@ export class CheburcheckService {
   }
 
   private async fetchCheck(target: string): Promise<CheckResponse> {
-    const response = await fetch(`${this.base}/check?target=${encodeURIComponent(target)}`, {
+    const response = await fetch(`${await this.base()}/check?target=${encodeURIComponent(target)}`, {
       headers: { 'User-Agent': 'XreyStudioServer/cheburcheck' },
       signal: AbortSignal.timeout(15_000),
     });
@@ -86,7 +118,7 @@ export class CheburcheckService {
     let started: Record<string, any> | undefined;
     let done: Record<string, any> | undefined;
     try {
-      const response = await fetch(`${this.base}/probe/${encodeURIComponent(id)}`, {
+      const response = await fetch(`${await this.base()}/probe/${encodeURIComponent(id)}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'User-Agent': 'XreyStudioServer/cheburcheck',
@@ -224,12 +256,12 @@ export class CheburcheckService {
 
   async status() {
     try {
-      const response = await fetch(`${this.base}/status`, { signal: AbortSignal.timeout(10_000) });
+      const response = await fetch(`${await this.base()}/status`, { signal: AbortSignal.timeout(10_000) });
       const status = await response.json();
       const token = await this.settings.value('CHEBURCHECK_API_TOKEN');
       let credits: number | null = null;
       if (token) {
-        const res = await fetch(`${this.base}/credits`, {
+        const res = await fetch(`${await this.base()}/credits`, {
           headers: { Authorization: `Bearer ${token}` },
           signal: AbortSignal.timeout(10_000),
         });
