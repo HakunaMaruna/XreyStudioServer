@@ -1,10 +1,8 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import type { ColumnDef } from '@tanstack/react-table';
 import { api, isLoggedIn } from '../../lib/api';
 import { COUNTRIES } from '../../lib/countries';
 import { useLang } from '../../lib/i18n';
-import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
 import {
   Badge, Button, Card, Field, HelpButton, IconButton, Modal, PageHeader,
@@ -66,6 +64,7 @@ export default function NodesPage() {
   const [checkData, setCheckData] = useState<any>(null);
   const [checkBusy, setCheckBusy] = useState(false);
   const [checkStep, setCheckStep] = useState(0);
+  const [search, setSearch] = useState('');
 
   const countryNames = useMemo(
     () => new Intl.DisplayNames([lang === 'ru' ? 'ru' : 'en'], { type: 'region' }),
@@ -243,102 +242,12 @@ export default function NodesPage() {
     }
   };
 
-  const columns = useMemo<ColumnDef<NodeRow>[]>(
-    () => [
-      {
-        accessorKey: 'name',
-        header: t.name,
-        size: 420,
-        cell: ({ row }) => {
-          const metric = row.original.metrics?.[0];
-          const interval = 15;
-          const upMbps = metric ? Number((Number(metric.trafficUp) * 8 / interval / 1_000_000).toFixed(3)) : 0;
-          const downMbps = metric ? Number((Number(metric.trafficDown) * 8 / interval / 1_000_000).toFixed(3)) : 0;
-          return (
-            <div className="flex min-w-[420px] flex-wrap items-stretch gap-3 py-2">
-              <div className="node-card flex min-w-[280px] flex-1 items-center gap-3 rounded-2xl border border-line-2 bg-surface-2/70 px-3 py-2.5">
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-brand/30 bg-brand/10 text-brand">
-                  <Icon name="server" size={22} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    {flagFor(row.original.geo?.countryCode || row.original.location) && (
-                      <span title={row.original.geo?.countryCode || row.original.location || ''}>
-                        {flagFor(row.original.geo?.countryCode || row.original.location)}
-                      </span>
-                    )}
-                    <p className="truncate font-semibold text-fg">{row.original.name}</p>
-                    <StatusBadge status={row.original.status} />
-                  </div>
-                  <p className="mono text-[10px] text-subtle">{t.idLabel} {row.original.id.slice(0, 8)} · {row.original.address}:{row.original.port}</p>
-                  {metric ? (
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <div>
-                        <div className="mb-1 flex justify-between text-[10px] text-subtle"><span>CPU</span><span className="tabular-nums text-fg">{Number(metric.cpu).toFixed(0)}%</span></div>
-                        <ProgressBar value={Number(metric.cpu)} tone={Number(metric.cpu) > 85 ? 'danger' : Number(metric.cpu) > 65 ? 'warning' : 'success'} />
-                      </div>
-                      <div>
-                        <div className="mb-1 flex justify-between text-[10px] text-subtle"><span>RAM</span><span className="tabular-nums text-fg">{Number(metric.ram).toFixed(0)}%</span></div>
-                        <ProgressBar value={Number(metric.ram)} tone={Number(metric.ram) > 85 ? 'danger' : Number(metric.ram) > 65 ? 'warning' : 'cyan'} />
-                      </div>
-                      <div className="col-span-2 flex items-center gap-3 text-[10px] text-subtle">
-                        <span className="flex items-center gap-1"><Icon name="upload" size={13} className="text-brand" /> ↑ {upMbps} Mbps</span>
-                        <span className="flex items-center gap-1"><Icon name="download" size={13} className="text-cyan" /> ↓ {downMbps} Mbps</span>
-                        <span className="flex items-center gap-1"><Icon name="activity" size={13} className="text-success" /> {metric.connections} {t.connections.toLowerCase()}</span>
-                      </div>
-                    </div>
-                  ) : <p className="mt-1 text-[10px] text-subtle">{t.noNodeMetrics}</p>}
-                </div>
-              </div>
-              <div className="flex min-w-[240px] flex-col justify-center gap-1.5">
-                <div className="flex flex-wrap gap-1">
-                  <IconButton icon="gauge" label={t.metrics} tone="brand" onClick={() => openMetrics(row.original)} />
-                  <IconButton icon="activity" label={t.health} onClick={() => openHealth(row.original)} />
-                  <IconButton icon="shield" label={t.cheburcheckCheck} tone="brand" onClick={() => runCheburcheck(row.original)} />
-                  <IconButton icon="edit" label={t.edit} onClick={() => openEdit(row.original)} />
-                  <IconButton icon="play" label={t.apply} tone="brand" onClick={() => apply(row.original.id)} />
-                  <IconButton icon="refresh" label={t.restart} onClick={() => restart(row.original.id)} />
-                  <IconButton icon="history" label={t.revisions} onClick={() => openRevisions(row.original)} />
-                  <IconButton icon="terminal" label={t.logs} onClick={() => openLogs(row.original)} />
-                </div>
-                <div className="flex flex-wrap gap-1 text-[9px] text-subtle">
-                  <span>{t.metrics}</span><span>·</span><span>{t.health}</span><span>·</span><span>Cheburcheck</span><span>·</span><span>{t.edit}</span>
-                </div>
-              </div>
-            </div>
-          );
-        },
-      },
-      {
-        id: 'address',
-        header: t.address,
-        accessorFn: (row) => `${row.address}:${row.port}`,
-        cell: ({ row }) => <span className="mono text-xs text-muted">{row.original.address}:{row.original.port}</span>,
-      },
-      {
-        accessorKey: 'status',
-        header: t.status,
-        cell: ({ row }) => <StatusBadge status={row.original.status} />,
-      },
-      {
-        id: 'geo',
-        header: 'Geo',
-        enableSorting: false,
-        cell: ({ row }) => {
-          const geo = row.original.geo;
-          if (!geo?.countryCode) return <span className="text-xs text-subtle">—</span>;
-          return (
-            <div className="text-xs text-fg">
-              <Badge tone="neutral">{geo.countryCode}</Badge>
-              {geo.city && <span className="ml-1.5 text-muted">{geo.city}</span>}
-              <p className="mono text-[10px] text-subtle">{geo.ip || geo.asn || ''}</p>
-            </div>
-          );
-        },
-      },
-    ],
-    [t],
-  );
+  const filteredNodes = nodes.filter((node) => {
+    const query = search.trim().toLowerCase();
+    if (!query) return true;
+    return [node.name, node.address, node.id, node.location, node.geo?.countryCode, node.geo?.city]
+      .some((value) => String(value || '').toLowerCase().includes(query));
+  });
 
   const online = nodes.filter((node) => node.status === 'ONLINE').length;
 
@@ -369,21 +278,102 @@ export default function NodesPage() {
       )}
 
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-        <Card className="flex items-center gap-3 p-4">
-          <div className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-surface-2 text-muted"><Icon name="server" size={17} /></div>
-          <div><p className="text-[10px] uppercase tracking-wider text-subtle">{t.totalNodesLabel}</p><p className="text-lg font-semibold text-fg tabular-nums">{nodes.length}</p></div>
+        <Card className="flex items-center gap-2.5 p-3">
+          <div className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface-2 text-muted"><Icon name="server" size={17} /></div>
+          <div><p className="text-[10px] uppercase tracking-wider text-subtle">{t.totalNodesLabel}</p><p className="text-base font-semibold text-fg tabular-nums">{nodes.length}</p></div>
         </Card>
-        <Card className="flex items-center gap-3 p-4">
-          <div className="grid h-9 w-9 place-items-center rounded-lg border border-success/25 bg-success/10 text-success"><Icon name="activity" size={17} /></div>
-          <div><p className="text-[10px] uppercase tracking-wider text-subtle">{t.online}</p><p className="text-lg font-semibold text-fg tabular-nums">{online}</p></div>
+        <Card className="flex items-center gap-2.5 p-3">
+          <div className="grid h-8 w-8 place-items-center rounded-lg border border-success/25 bg-success/10 text-success"><Icon name="activity" size={17} /></div>
+          <div><p className="text-[10px] uppercase tracking-wider text-subtle">{t.online}</p><p className="text-base font-semibold text-fg tabular-nums">{online}</p></div>
         </Card>
-        <Card className="flex items-center gap-3 p-4">
-          <div className="grid h-9 w-9 place-items-center rounded-lg border border-warning/25 bg-warning/10 text-warning"><Icon name="pulse" size={17} /></div>
-          <div><p className="text-[10px] uppercase tracking-wider text-subtle">{t.availability}</p><p className="text-lg font-semibold text-fg tabular-nums">{nodes.length ? Math.round((online / nodes.length) * 100) : 0}%</p></div>
+        <Card className="flex items-center gap-2.5 p-3">
+          <div className="grid h-8 w-8 place-items-center rounded-lg border border-warning/25 bg-warning/10 text-warning"><Icon name="pulse" size={17} /></div>
+          <div><p className="text-[10px] uppercase tracking-wider text-subtle">{t.availability}</p><p className="text-base font-semibold text-fg tabular-nums">{nodes.length ? Math.round((online / nodes.length) * 100) : 0}%</p></div>
         </Card>
       </div>
 
-      <DataTable data={nodes} columns={columns} loading={loading} getRowId={(row) => row.id} />
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="relative max-w-xs flex-1">
+          <Icon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
+          <input
+            aria-label={t.search}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t.search}
+            className="field pl-9"
+          />
+        </div>
+        <Badge tone="neutral">{filteredNodes.length} / {nodes.length}</Badge>
+      </div>
+
+      {loading ? (
+        <Card className="py-16 text-center text-xs text-muted">{t.loading}</Card>
+      ) : filteredNodes.length === 0 ? (
+        <Card className="py-16 text-center text-xs text-subtle">{t.noData}</Card>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2">
+          {filteredNodes.map((node) => {
+            const metric = node.metrics?.[0];
+            const upMbps = metric ? Number((Number(metric.trafficUp) * 8 / 15 / 1_000_000).toFixed(3)) : 0;
+            const downMbps = metric ? Number((Number(metric.trafficDown) * 8 / 15 / 1_000_000).toFixed(3)) : 0;
+            const flag = flagFor(node.geo?.countryCode || node.location);
+            return (
+              <Card key={node.id} className="node-card p-3 sm:p-4">
+                <div className="flex items-start gap-3">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-brand/30 bg-brand/10 text-brand">
+                    <Icon name="server" size={22} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {flag && <span title={node.geo?.countryCode || node.location || ''}>{flag}</span>}
+                      <p className="truncate font-semibold text-fg">{node.name}</p>
+                      <StatusBadge status={node.status} />
+                      {node.geo?.countryCode && <Badge tone="neutral">{node.geo.countryCode}</Badge>}
+                    </div>
+                    <p className="mono mt-0.5 truncate text-[10px] text-subtle">
+                      {node.address}:{node.port} · {t.idLabel} {node.id.slice(0, 8)}
+                    </p>
+                    {(node.geo?.city || node.geo?.ip || node.geo?.asn) && (
+                      <p className="mt-0.5 truncate text-[10px] text-muted">
+                        {[node.geo?.city, node.geo?.ip, node.geo?.asn].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="mb-1 flex justify-between text-[10px] text-subtle"><span>CPU</span><span className="tabular-nums text-fg">{metric ? Number(metric.cpu).toFixed(0) : '—'}%</span></div>
+                    <ProgressBar value={metric ? Number(metric.cpu) : 0} tone={metric && Number(metric.cpu) > 85 ? 'danger' : metric && Number(metric.cpu) > 65 ? 'warning' : 'success'} />
+                  </div>
+                  <div>
+                    <div className="mb-1 flex justify-between text-[10px] text-subtle"><span>RAM</span><span className="tabular-nums text-fg">{metric ? Number(metric.ram).toFixed(0) : '—'}%</span></div>
+                    <ProgressBar value={metric ? Number(metric.ram) : 0} tone={metric && Number(metric.ram) > 85 ? 'danger' : metric && Number(metric.ram) > 65 ? 'warning' : 'cyan'} />
+                  </div>
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-subtle">
+                  <span className="flex items-center gap-1"><Icon name="upload" size={13} className="text-brand" /> ↑ {upMbps} Mbps</span>
+                  <span className="flex items-center gap-1"><Icon name="download" size={13} className="text-cyan" /> ↓ {downMbps} Mbps</span>
+                  <span className="flex items-center gap-1"><Icon name="activity" size={13} className="text-success" /> {metric?.connections ?? 0} {t.connections.toLowerCase()}</span>
+                  {metric?.xrayStatus && <Badge tone={metric.xrayStatus === 'running' ? 'success' : 'danger'}>Xray {metric.xrayStatus}</Badge>}
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-1 border-t border-line pt-3">
+                  <IconButton icon="gauge" label={t.metrics} tone="brand" onClick={() => openMetrics(node)} />
+                  <IconButton icon="activity" label={t.health} onClick={() => openHealth(node)} />
+                  <IconButton icon="shield" label={t.cheburcheckCheck} tone="brand" onClick={() => runCheburcheck(node)} />
+                  <IconButton icon="edit" label={t.edit} onClick={() => openEdit(node)} />
+                  <IconButton icon="play" label={t.apply} tone="brand" onClick={() => apply(node.id)} />
+                  <IconButton icon="refresh" label={t.restart} onClick={() => restart(node.id)} />
+                  <IconButton icon="history" label={t.revisions} onClick={() => openRevisions(node)} />
+                  <IconButton icon="terminal" label={t.logs} onClick={() => openLogs(node)} />
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       <Modal open={Boolean(revisionsNode)} onClose={() => setRevisionsNode(null)} title={`${t.revisions} — ${revisionsNode?.name || ''}`} subtitle="Version history and deployment control" size="lg">
         <SectionTitle title={t.configHistory} action={<Button size="sm" icon="play" onClick={() => applyRevision('')} loading={revisionsLoading}>{t.applyLatest}</Button>} />
