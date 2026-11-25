@@ -5,7 +5,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
-import { Badge, Button, Field, IconButton, Modal, PageHeader, Toggle } from '../../components/ui';
+import { Badge, Button, Field, HelpButton, IconButton, Modal, PageHeader, Toggle } from '../../components/ui';
 
 type Recipe = { id: string; title: string; description: string; port: number; sni?: string; path?: string; transport: string; security: string; dns: string };
 type HostRow = { id: string; address: string; port: number; sni?: string | null; path?: string | null; recipe?: string | null; note?: string | null; enabled: boolean };
@@ -14,7 +14,7 @@ type HostForm = { address: string; port: number; sni: string; path: string; reci
 const emptyForm: HostForm = { address: '', port: 443, sni: '', path: '', recipe: '', note: '', enabled: true };
 
 export default function HostsPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [hosts, setHosts] = useState<HostRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -160,7 +160,7 @@ export default function HostsPage() {
         title={t.hosts}
         subtitle={t.hostsSubtitle}
         icon="globe"
-        actions={<Button icon="plus" variant="primary" onClick={() => { setEditing(null); setForm(emptyForm); setOpen(true); }}>{t.newHost}</Button>}
+        actions={<><HelpButton title={t.help}><p>{lang === 'ru' ? 'Рецепты хостов создают готовые значения address/port/SNI/path. Кнопка «Применить к подключению» подставляет их в inbound — проверьте порт и домен перед сохранением.' : 'Host recipes fill address/port/SNI/path. Apply to inbound copies them into an inbound — check the port and domain before saving.'}</p></HelpButton><Button icon="plus" variant="primary" onClick={() => { setEditing(null); setForm(emptyForm); setOpen(true); }}>{t.newHost}</Button></>}
       />
 
       {error && (

@@ -5,7 +5,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
-import { Badge, Button, Card, Field, IconButton, Modal, PageHeader, Toggle } from '../../components/ui';
+import { Badge, Button, Card, Field, HelpButton, IconButton, Modal, PageHeader, Toggle } from '../../components/ui';
 
 type Recipe = {
   id: string;
@@ -27,7 +27,7 @@ type Profile = {
 const emptyForm = { name: '', description: '', payloadText: '{}', recipe: '', enabled: false };
 
 export default function RoutingPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [rows, setRows] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -163,7 +163,7 @@ export default function RoutingPage() {
   return (
     <>
       <PageHeader eyebrow={t.infrastructure} title={t.routing} subtitle={t.routingSubtitle} icon="route"
-        actions={<Button icon="plus" variant="primary" onClick={startCreate}>{t.create}</Button>} />
+        actions={<><HelpButton title={t.help}><p>{lang === 'ru' ? 'Рецепты заполняют форму проверенными наборами правил. Включённые профили добавляются в dns.servers, outbounds и routing.rules генерируемого конфига Xray. Кнопка «Проверить» не сохраняет профиль, а показывает ошибки валидации.' : 'Recipes fill the form with verified presets. Enabled profiles are merged into dns.servers, outbounds and routing.rules of the generated Xray config. Validate shows errors without saving.'}</p></HelpButton><Button icon="plus" variant="primary" onClick={startCreate}>{t.create}</Button></>} />
       {error && <div className="mb-5 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">{error}</div>}
       {notice && <div className="mb-5 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-xs text-success">{notice}</div>}
       <DataTable data={rows} columns={columns} loading={loading} getRowId={(row) => row.id} />

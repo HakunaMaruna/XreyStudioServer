@@ -9,7 +9,7 @@ export type IconName =
   | 'network' | 'arrowUpRight' | 'zap' | 'shield' | 'database' | 'terminal'
   | 'code' | 'filter' | 'info' | 'alert' | 'clock' | 'link' | 'download' | 'upload'
   | 'power' | 'lock' | 'eye' | 'sparkles' | 'gauge' | 'list' | 'box' | 'pulse'
-  | 'checkCircle' | 'xCircle' | 'file' | 'sliders' | 'command' | 'fingerprint';
+  | 'checkCircle' | 'xCircle' | 'file' | 'sliders' | 'command' | 'fingerprint' | 'help';
 
 const paths: Record<IconName, ReactNode> = {
   grid: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>,
@@ -70,6 +70,7 @@ const paths: Record<IconName, ReactNode> = {
   sliders: <><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" /></>,
   command: <path d="M18 9a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12Z" />,
   fingerprint: <><path d="M12 11v5M8 11a4 4 0 0 1 8 0M5 11a7 7 0 0 1 14 0M12 4a8 8 0 0 0-8 8M12 4a8 8 0 0 1 8 8M8 20c1.2-1 2.5-1.5 4-1.5s2.8.5 4 1.5" /></>,
+  help: <><circle cx="12" cy="12" r="9" /><path d="M9.6 9a2.6 2.6 0 1 1 3.4 2.5c-.7.3-1 .8-1 1.5v.3" /><path d="M12 17h.01" /></>,
 };
 
 type IconProps = SVGProps<SVGSVGElement> & {

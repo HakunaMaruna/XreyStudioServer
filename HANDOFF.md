@@ -31,6 +31,16 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Nodes UI v2 + help (v2.32.2, 2026-11-25)
+
+Карточка ноды в таблице стала шире (min-w 280, общая ячейка 420) и «толще»
+(`.node-card`: border 1.5px + мягкая тень): внутри имя, флаг, статус, ID/адрес, полосы
+CPU/RAM и скорость сети ↑/↓ + connections из метрик агента (интервал 15 с). Кнопки
+(метрики, health, cheburcheck, редактирование, apply, restart, revisions, logs) перенесены
+рядом с карточкой, отдельная колонка действий удалена.
+Добавлен переиспользуемый `HelpButton` (иконка «?» в новом `help` icon set) с модальным окном
+на страницах: Nodes, Routing, Hosts, Rules, Reports, Alerts, Wizard.
+
 ## Cheburcheck (v2.32.0, 2026-11-25)
 
 Кнопка «Проверить в Cheburcheck» на ноде: модальное окно с анимированным радаром и шагами,

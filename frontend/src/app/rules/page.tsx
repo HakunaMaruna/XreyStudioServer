@@ -5,7 +5,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
-import { Badge, Button, CodeBlock, Field, IconButton, Modal, PageHeader, Toggle } from '../../components/ui';
+import { Badge, Button, CodeBlock, Field, HelpButton, IconButton, Modal, PageHeader, Toggle } from '../../components/ui';
 
 type Recipe = { id: string; title: string; description: string; type: string; payload: Record<string, unknown> };
 type RuleRow = { id: string; name: string; type: string; payload: Record<string, unknown>; recipe?: string | null; note?: string | null; enabled: boolean };
@@ -14,7 +14,7 @@ type RuleForm = { name: string; type: string; payloadText: string; recipe: strin
 const emptyForm: RuleForm = { name: '', type: 'field', payloadText: '{}', recipe: '', note: '', enabled: true };
 
 export default function RulesPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [rules, setRules] = useState<RuleRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -145,7 +145,7 @@ export default function RulesPage() {
         title={t.rules}
         subtitle={t.rulesSubtitle}
         icon="route"
-        actions={<Button icon="plus" variant="primary" onClick={() => { setEditing(null); setForm(emptyForm); setOpen(true); }}>{t.newRule}</Button>}
+        actions={<><HelpButton title={t.help}><p>{lang === 'ru' ? 'Правило решает, куда уйдёт соединение: direct мимо туннеля или blocked в blackhole. geosite/geoip-коды требуют geodata на ноде. Перед сохранением нажмите «Проверить».' : 'A rule decides where a connection goes: direct bypasses the tunnel, blocked drops it. geosite/geoip codes need geodata on the node. Validate before saving.'}</p></HelpButton><Button icon="plus" variant="primary" onClick={() => { setEditing(null); setForm(emptyForm); setOpen(true); }}>{t.newRule}</Button></>}
       />
 
       {error && (
