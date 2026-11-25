@@ -31,6 +31,14 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## DNS profiles (v2.35.0, 2026-11-25)
+
+Новый раздел `/dns-profiles`: визуальный редактор Xray `dns` — hosts, серверы
+(UDP/DoH/DoT/DoQ/local modes) с domains/expectedIPs/skipFallback, глобальные опции.
+Три рецепта, валидация до сохранения, tenant-изоляция; включённые профили объединяются
+по приоритету в генераторе конфига. `fakedns` намеренно не поддерживается.
+Документация `docs/dns-profiles.md`, `docs/api.md`.
+
 ## Load balancers (v2.34.0, 2026-11-25)
 
 Новый раздел `/balancers`: форма создания балансировщика (стратегия random/roundRobin/

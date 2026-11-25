@@ -41,6 +41,7 @@ import { ControlModule } from './modules/control/control.module';
 import { WizardModule } from './modules/wizard/wizard.module';
 import { CheburcheckModule } from './modules/cheburcheck/cheburcheck.module';
 import { BalancersModule } from './modules/balancers/balancers.module';
+import { DnsProfilesModule } from './modules/dns-profiles/dns-profiles.module';
 import { TelegramBotModule } from './modules/telegram-bot/telegram-bot.module';
 import { SnapshotsModule } from './modules/snapshots/snapshots.module';
 
@@ -93,6 +94,7 @@ import { SnapshotsModule } from './modules/snapshots/snapshots.module';
     WizardModule,
     CheburcheckModule,
     BalancersModule,
+    DnsProfilesModule,
     TelegramBotModule,
     SnapshotsModule,
   ],
