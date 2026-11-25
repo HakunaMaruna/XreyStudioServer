@@ -6,6 +6,7 @@ describe('ConfigGeneratorService external protocols', () => {
     user: { findMany: jest.fn() },
     rule: { findMany: jest.fn() },
     routingProfile: { findMany: jest.fn() },
+    reverseTunnel: { findMany: jest.fn(async () => []) },
   };
   let service: ConfigGeneratorService;
 

@@ -166,6 +166,81 @@ export class ConfigGeneratorService {
       },
     });
 
+    const reverseTunnels = await this.prisma.reverseTunnel.findMany({
+      where: {
+        enabled: true,
+        OR: [{ nodeId }, { portalInbound: { nodeId } }],
+      },
+      include: { portalInbound: true },
+    });
+
+    const reverseClientsByInbound = new Map<string, Record<string, unknown>[]>();
+    const reverseInbounds: Record<string, unknown>[] = [];
+    const reverseOutbounds: Record<string, unknown>[] = [];
+    const reverseRules: Record<string, unknown>[] = [];
+
+    for (const tunnel of reverseTunnels) {
+      const short = tunnel.id.slice(0, 8);
+      if (tunnel.nodeId === nodeId) {
+        const inbound = tunnel.portalInbound;
+        const settings = (inbound.settings || {}) as any;
+        const streamSettings: Record<string, unknown> = { network: inbound.transport || 'tcp' };
+        if (inbound.security === 'reality') {
+          streamSettings.security = 'reality';
+          streamSettings.realitySettings = {
+            show: false,
+            dest: settings.realityDest || 'www.microsoft.com:443',
+            serverNames: settings.realityServerNames || ['www.microsoft.com'],
+            publicKey: settings.realityPublicKey || '',
+            shortIds: settings.realityShortIds || [''],
+            spiderX: '/',
+          };
+        } else if (inbound.security === 'tls') {
+          streamSettings.security = 'tls';
+          streamSettings.tlsSettings = { serverName: inbound.sni || settings.publicHost || '', alpn: ['h2', 'http/1.1'] };
+        }
+        reverseOutbounds.push({
+          tag: `rev-${short}-bridge`,
+          protocol: 'vless',
+          settings: {
+            address: settings.publicHost || inbound.sni || '',
+            port: inbound.port,
+            id: tunnel.bridgeUuid,
+            encryption: 'none',
+            flow: settings.flow || 'xtls-rprx-vision',
+            reverse: { tag: `rev-${short}-in` },
+          },
+          streamSettings,
+        });
+        reverseOutbounds.push({
+          tag: `rev-${short}-direct`,
+          protocol: 'freedom',
+          settings: {
+            redirect: `${tunnel.internalAddress}:${tunnel.internalPort}`,
+            finalRules: [{
+              action: 'allow', network: 'tcp,udp',
+              ip: [tunnel.internalAddress], port: String(tunnel.internalPort),
+            }],
+          },
+        });
+        reverseRules.push({ type: 'field', inboundTag: [`rev-${short}-in`], outboundTag: `rev-${short}-direct` });
+        continue;
+      }
+      if (tunnel.portalInbound?.nodeId === nodeId) {
+        const clients = reverseClientsByInbound.get(tunnel.portalInboundId) || [];
+        clients.push({ id: tunnel.bridgeUuid, flow: ((tunnel.portalInbound.settings as any)?.flow) || 'xtls-rprx-vision', reverse: { tag: `rev-${short}-out` } });
+        reverseClientsByInbound.set(tunnel.portalInboundId, clients);
+        reverseInbounds.push({
+          tag: `rev-${short}-portal`,
+          listen: '0.0.0.0',
+          port: tunnel.publicPort,
+          protocol: 'dokodemo-door',
+          settings: { address: tunnel.reverseDomain, port: tunnel.internalPort, network: 'tcp,udp' },
+        });
+        reverseRules.push({ type: 'field', inboundTag: [`rev-${short}-portal`], outboundTag: `rev-${short}-out` });
+      }
+    }
+
     const externalInbounds = node.inbounds.filter((i) => EXTERNAL_PROTOCOLS.includes(i.protocol));
     const xrayInbounds = node.inbounds.filter((i) => !EXTERNAL_PROTOCOLS.includes(i.protocol));
 
@@ -205,7 +280,7 @@ export class ConfigGeneratorService {
       const clients = active.map((u) => this.clientFor(u, inbound));
       const inboundSettings: any = {
         ...settings,
-        clients,
+        clients: [...clients, ...(reverseClientsByInbound.get(inbound.id) || [])],
       };
       if (inbound.protocol === 'vless') inboundSettings.decryption = 'none';
       if (inbound.expiresAt && new Date(inbound.expiresAt).getTime() < Date.now()) inboundSettings.clients = [];
@@ -268,17 +343,19 @@ export class ConfigGeneratorService {
       dns: Array.isArray(dnsConfig.servers) && dnsConfig.servers.length
         ? { ...dnsConfig, servers: [...(dnsConfig.servers as unknown[]), ...profileDns.filter((entry) => !((dnsConfig.servers as unknown[]).includes(entry)))] }
         : { servers: [...new Set([...profileDns, '1.1.1.1', '8.8.8.8', 'localhost'])], queryStrategy: 'UseIP' },
-      inbounds,
+      inbounds: [...inbounds, ...reverseInbounds],
       outbounds: [
         { tag: 'direct', protocol: 'freedom' },
         { tag: 'blocked', protocol: 'blackhole' },
         ...profileOutbounds,
         ...balancerConfig.outbounds,
+        ...reverseOutbounds,
       ],
       routing: {
         domainStrategy: 'IPIfNonMatch',
         balancers: balancerConfig.balancers.length ? balancerConfig.balancers : undefined,
         rules: [
+          ...reverseRules,
           ...balancerConfig.rules,
           ...rules.map((r) => r.payload),
           ...profileRules,

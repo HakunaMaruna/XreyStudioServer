@@ -62,6 +62,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       { href: '/geodata', label: t.geodata, icon: 'globe' },
           { href: '/balancers', label: t.balancers, icon: 'zap' },
           { href: '/dns-profiles', label: t.dnsProfiles, icon: 'globe' },
+          { href: '/reverse', label: t.reverse, icon: 'network' },
           ...(controlMode ? [{ href: '/dns', label: t.dnsSection, icon: 'network' as IconName }] : []),
         ],
       },

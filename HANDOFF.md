@@ -31,6 +31,14 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## NAT relay (v2.37.0, 2026-11-25)
+
+Сценарий 1 из вердикта: VLESS reverse-туннель для ноды за NAT. Раздел `/reverse`:
+целевая нода, VLESS inbound на публичной ноде-портале, публичный порт, внутренний адрес/порт.
+Генератор добавляет на ноду reverse-bridge outbound + freedom с finalRules, на портал —
+дополнительного VLESS-клиента с отдельным UUID и dokodemo-door inbound. Обычные подписки
+не затрагиваются. Документация `docs/reverse.md`, `docs/api.md`. Тесты 34 suites / 175 tests.
+
 ## Burst Observatory (v2.36.0, 2026-11-25)
 
 В балансировщике добавлен выбор `observatoryMode`: `observatory` или `burstObservatory`
