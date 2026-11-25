@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: agent
-          image: xss-agent:2.39.5
+          image: xss-agent:2.39.6
           ports:
             - containerPort: 9090
           env:

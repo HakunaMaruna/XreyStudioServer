@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EnvAuthProvider } from './auth-provider';
 
@@ -97,7 +97,7 @@ export class PluginCatalogService {
       headers: token ? (this.auth.mode() === 'control' ? { 'X-Store-Token': token } : { 'X-API-Token': token }) : {},
       signal: AbortSignal.timeout(15_000),
     });
-    if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+    if (!response.ok) throw new ForbiddenException(`Download failed: ${response.status}`);
     return response.json();
   }
 

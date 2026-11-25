@@ -1,6 +1,6 @@
 {
   "name": "xss-agent",
-  "version": "2.39.5",
+  "version": "2.39.6",
   "private": true,
   "scripts": {
     "start": "node src/index.js",
