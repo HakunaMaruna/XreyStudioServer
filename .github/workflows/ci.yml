@@ -26,6 +26,9 @@ jobs:
       - run: cd frontend && npm run build
   e2e-postgres:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     services:
       postgres:
         image: postgres:16-alpine
@@ -58,6 +61,19 @@ jobs:
         with:
           name: e2e-pg-log
           path: backend/e2e-pg.log
+      - name: Report e2e postgres failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('backend/e2e-pg.log', 'utf8').slice(0, 60000);
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'CI e2e-postgres failure diagnostic',
+              body: '```\n' + body + '\n```',
+            });
 
   docker:
     runs-on: ubuntu-latest
