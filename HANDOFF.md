@@ -31,6 +31,12 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Deferred plugin follow-ups (2026-11-26)
+
+Список работ по плагинам, которые не вошли в MVP: контейнер/WASM-изоляция для сторонних
+плагинов, реальный рендер UI-слотов, trial-period auto-rollback, real store AuthProvider,
+платные плагины, проактивная рассылка отзывов. Дубликат в issue (создаётся отдельно).
+
 ## Plugin system and App Store (v2.39.0, 2026-11-25)
 
 ADR and spec: `docs/plugins/ADR.md`, `docs/plugins/PLUGIN_SPEC.md`, `docs/plugins/README.md`.
@@ -45,7 +51,7 @@ Snapshot before any plugin change; safe mode via `PLUGIN_SAFE_MODE=true`, kill s
 неавторизованная публикация → 401. Подписанный `hello-widget` опубликован в store, виден
 через master `/api/plugins/catalog`, скачан и установлен; `enable` → `ENABLED`, `health` → healthy.
 Неподписанный пакет отклонён. `audit-hook` с миграцией установлен (таблица создана) и удалён
-(таблица удалена). Демо `hello-widget` оставлен включённым; React-виджет на дашборде пока не рендерится — слоты возвращают данные бэкенда.
+(таблица удалена). Демо `hello-widget` оставлен включённым; React-виджет на дашборде пока не рендерится — слоты возвращают данные бэкенда. Отзыв плагина теперь проверяется и на сервере: прямой download в store → 403, через master → 403 (v2.39.6).
 
 ## Subscription page (v2.38.0, 2026-11-25)
 
