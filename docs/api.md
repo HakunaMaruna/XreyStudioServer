@@ -172,8 +172,13 @@ All report endpoints require an `ADMIN` JWT.
 
 ## Routing profiles
 
-- `GET /routing` — list routing/geodata profiles
+- `GET /routing` — list routing profiles (tenant-scoped)
 - `POST /routing`, `PATCH /routing/:id`, `DELETE /routing/:id` — manage profiles (JSON payload)
+- `GET /routing/recipes/list` — curated presets (DNS, geo-direct, ads/torrent blocking, test outbound)
+- `POST /routing/validate` — validate `{ payload }` before saving
+
+Payload accepts `routingRules[]`, `dnsServers[]` and `outbounds[]`. Enabled profiles are merged
+into the generated Xray config; see `docs/routing.md`.
 
 ## Panel settings
 
