@@ -223,7 +223,11 @@ export default function NodesPage() {
             </div>
             <div>
               <p className="font-medium text-fg">
-                {flagFor(row.original.location) && <span className="mr-1.5" title={row.original.location || ''}>{flagFor(row.original.location)}</span>}
+                {flagFor(row.original.geo?.countryCode || row.original.location) && (
+                  <span className="mr-1.5" title={row.original.geo?.countryCode || row.original.location || ''}>
+                    {flagFor(row.original.geo?.countryCode || row.original.location)}
+                  </span>
+                )}
                 {row.original.name}
               </p>
               <p className="text-[10px] text-subtle">{t.idLabel} {row.original.id.slice(0, 8)}</p>
