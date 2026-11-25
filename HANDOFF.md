@@ -728,3 +728,21 @@ Local PG e2e remains skipped (pg_dump 16 cannot dump PGlite 19). CI is the autho
   Running the whole PG e2e suite locally is not authoritative: 15 pre-existing suites fail in
   this PGlite snapshot with `relation "AlertHistory" does not exist` during their own raw
   TRUNCATE reset; CI with real PostgreSQL remains the source of truth. code_review: 0 findings.
+
+## Settings hub and CI repair (2026-11-25, main 912fdba)
+
+- Reworked `/settings` into a unified hub: notification policy/quiet hours/severity/escalation
+  and backup schedule/retention now call the same APIs as the Alerts and Backups pages; channel
+  status cards show only configured/not configured (no secrets) and link to `/alerts` for
+  credentials. Added quick links to routing, templates, tokens, backups, doctor and DNS
+  (DNS link only when `GET /api/dns/status` reports `mode: control`).
+- Local appearance/behaviour toggles remain in browser localStorage. RU/EN i18n keys added;
+  docs: new `docs/settings-hub.md` and an update to `docs/user-guide.md`.
+- Follow-up commits from other work added DNS and DNSSEC sections; the CI backend lint job
+  failed on two pre-existing spec issues (`no-var-requires` in `dns-admin.service.spec.ts`,
+  unused `appendFileSync` in `backup-crypto.spec.ts`). Fixed both after rebasing onto current
+  `main` (17ccd72).
+- Validation: frontend tsc rc=0, eslint rc=0 (warnings only), `next build --webpack` rc=0;
+  backend lint rc=0 and focused Jest suites 8/8 passed; `git diff --check` clean; code_review
+  0 findings. GitHub CI on 912fdba: backend, frontend, docker, e2e-postgres, images and smoke
+  all success.
