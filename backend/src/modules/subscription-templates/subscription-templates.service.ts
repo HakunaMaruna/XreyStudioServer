@@ -10,6 +10,7 @@ type TemplateData = {
   accent?: string;
   instructions?: unknown;
   footer?: string;
+  pageSettings?: unknown;
   enabled?: boolean;
   organizationId?: string | null;
 };
@@ -62,6 +63,7 @@ export class SubscriptionTemplatesService {
         accent: data.accent || '#8474ff',
         instructions: data.instructions as any,
         footer: data.footer,
+        pageSettings: data.pageSettings as any,
         enabled: data.enabled ?? true,
         // Шаблон без явной организации — общий дефолт панели (создаёт ADMIN).
         organizationId:
@@ -87,6 +89,7 @@ export class SubscriptionTemplatesService {
         ...(data.accent !== undefined ? { accent: data.accent } : {}),
         ...(data.instructions !== undefined ? { instructions: data.instructions as any } : {}),
         ...(data.footer !== undefined ? { footer: data.footer } : {}),
+        ...(data.pageSettings !== undefined ? { pageSettings: data.pageSettings as any } : {}),
         ...(data.enabled !== undefined ? { enabled: data.enabled } : {}),
         ...(data.organizationId !== undefined
           ? { organizationId: data.organizationId === '' ? null : data.organizationId }

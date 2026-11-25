@@ -84,6 +84,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           { href: '/plans', label: t.plans, icon: 'list' },
           { href: '/traffic', label: t.traffic, icon: 'activity' },
           { href: '/subscription-templates', label: t.subscriptionTemplates, icon: 'file' },
+          { href: '/subscription-page', label: t.subAdmin, icon: 'eye' },
         ],
       },
       {

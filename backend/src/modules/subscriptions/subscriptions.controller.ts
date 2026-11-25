@@ -23,6 +23,11 @@ export class SubscriptionsController {
     return res.type(type).send(body);
   }
 
+  @Get('preview')
+  async preview(@Res() res: any) {
+    return this.send(res, 'application/json', await this.service.preview());
+  }
+
   @Get(':token/raw')
   async raw(@Param('token') token: string, @Query('hwid') hwid: string | undefined, @Res() res: any) {
     await this.checkDevice(token, hwid);

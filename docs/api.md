@@ -175,6 +175,15 @@ All report endpoints require an `ADMIN` JWT.
 - `GET/POST /reverse`, `PATCH/DELETE /reverse/:id` — VLESS reverse tunnels for nodes behind NAT.
   See `docs/reverse.md`.
 
+## Subscription page
+
+- `GET/PATCH /subscription-page/settings` — branding, colors, blocks, support, CSS.
+- `GET/POST /subscription-page/apps`, `PATCH/DELETE /subscription-page/apps/:id` — VPN apps catalog.
+- `GET /subscriptions/preview` — demo data for the in-panel preview.
+- JSON subscription (`GET /subscriptions/:token?format=json`) now includes `page.settings` and `page.apps`.
+
+See `docs/subscription-page.md`.
+
 ## DNS profiles
 
 - `GET/POST /dns-profiles`, `GET/PATCH/DELETE /dns-profiles/:id` — Xray DNS profiles.
