@@ -112,7 +112,7 @@ export default function DataTable<T>({
 
       <div className="panel overflow-hidden p-0">
         <p className="border-b border-line px-4 py-2 text-[11px] text-subtle md:hidden">{t.scrollHint}</p>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overscroll-x-contain" tabIndex={0} role="region" aria-label="table">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line bg-surface-2/70">
@@ -180,7 +180,7 @@ export default function DataTable<T>({
           <button
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
-            className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand/40 hover:text-fg disabled:opacity-30"
+            className="ui-touch-target grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand/40 hover:text-fg disabled:opacity-30"
             aria-label={t.previous}
           >
             <Icon name="chevronLeft" size={15} />
@@ -191,7 +191,7 @@ export default function DataTable<T>({
           <button
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
-            className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand/40 hover:text-fg disabled:opacity-30"
+            className="ui-touch-target grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand/40 hover:text-fg disabled:opacity-30"
             aria-label={t.next}
           >
             <Icon name="chevronRight" size={15} />

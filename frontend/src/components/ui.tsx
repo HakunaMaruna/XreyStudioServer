@@ -1,4 +1,5 @@
 'use client';
+import { createPortal } from 'react-dom';
 import {
   Children,
   cloneElement,
@@ -106,7 +107,7 @@ export function Button({
   return (
     <button
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-xl border font-medium transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50',
+        'ui-touch-target inline-flex items-center justify-center gap-2 rounded-xl border font-medium transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50',
         size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm',
         buttonVariants[variant],
         className,
@@ -133,7 +134,7 @@ export function IconButton({
       title={label}
       aria-label={label}
       className={cn(
-        'grid h-8 w-8 place-items-center rounded-lg border border-transparent transition-colors',
+        'ui-touch-target grid h-8 w-8 place-items-center rounded-lg border border-transparent transition-colors',
         tone === 'danger'
           ? 'text-danger hover:border-danger/25 hover:bg-danger/10'
           : tone === 'brand'
@@ -372,11 +373,17 @@ export function Modal({
     };
   }, [open]);
 
-  if (!open) return null;
+  useEffect(() => {
+    if (!open) return;
+    document.body.classList.add('ui-scroll-locked');
+    return () => document.body.classList.remove('ui-scroll-locked');
+  }, [open]);
+
+  if (!open || typeof document === 'undefined') return null;
   const widths = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl', xl: 'max-w-5xl' };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+  return createPortal(
+    <div className="ui-sheet fixed inset-0 z-modal flex items-center justify-center p-4">
       <div className="animate-fade-in absolute inset-0 bg-app/80 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div
         ref={dialogRef}
@@ -384,7 +391,7 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={cn('panel animate-modal-in relative flex max-h-[88vh] w-full flex-col overflow-hidden p-0', widths[size])}
+        className={cn('panel ui-dialog animate-modal-in relative flex max-h-[88dvh] w-full flex-col overflow-hidden p-0', widths[size])}
       >
         <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
           <div className="flex items-start gap-3">
@@ -396,10 +403,11 @@ export function Modal({
           </div>
           <IconButton icon="close" label="Close" onClick={onClose} />
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">{children}</div>
-        {footer && <div className="flex items-center justify-end gap-2 border-t border-line px-5 py-4">{footer}</div>}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">{children}</div>
+        {footer && <div className="ui-safe-bottom flex items-center justify-end gap-2 border-t border-line px-5 py-4">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
