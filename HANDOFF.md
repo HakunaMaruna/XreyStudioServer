@@ -31,6 +31,14 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Root cause of ACME failure (2026-11-26)
+
+Делегирование `node.h2onetwork.pro` у регистратора уже было корректным (ns1/ns2 →
+213.171.30.186). Проблема была в `PDNS_BIND_IP=127.0.0.1`: PowerDNS слушал только
+localhost, поэтому Lets Encrypt не мог прочитать TXT `_acme-challenge.*`. Выставлено
+`PDNS_BIND_IP=213.171.30.186`, 53/tcp+udp открыт на публичном IP; повторный retry
+выпустил сертификат для `61ffb425b3fb.node.h2onetwork.pro` успешно.
+
 ## Certificate and agent URL fixes (v2.40.6, 2026-11-26)
 
 - Ошибка 500 при выпуске сертификата заменена на 503 с подробностью ACME и подсказкой
