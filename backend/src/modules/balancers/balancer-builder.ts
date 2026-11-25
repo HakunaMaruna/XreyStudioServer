@@ -57,7 +57,7 @@ export function buildBalancers(list: BalancerInput[]): BuiltBalancers {
       .sort((a, b) => (a.createdAt?.getTime() || 0) - (b.createdAt?.getTime() || 0));
 
     members.forEach((member, index) => {
-      let parsed: Record<string, any> = {};
+      let parsed: Record<string, any>;
       try {
         parsed = JSON.parse(decryptSecret(member.config));
       } catch {
