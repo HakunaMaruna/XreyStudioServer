@@ -39,6 +39,11 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
   зашифрованные реквизиты, SIGNAL, quiet hours, cooldown, порог важности, тест канала,
   журнал отправок, SSRF-защита webhook). Per-admin Telegram chat, эскалация и шаблоны —
   остались на следующий этап.
+
+Живая проверка (v2.31.0): `/api/notifications/settings` вернул 13 ключей и политику без секретов;
+PATCH cooldown 5 → сохранён и возвращён 0 после восстановления; маршрут `NODE_OFFLINE × SIGNAL`
+принят и отключён обратно; тест не настроенного telegram вернул `reason`; при сохранении
+`WEBHOOK_SECRET` в БД лежит `v1:`-шифртекст, в ответе API секрета нет, после очистки записей 0.
 - Плагины/магазин/облако остаются отложенными до основного функционала (см. раздел выше).
 
 ## Traffic dynamics report (v2.30.0, 2026-11-25)
