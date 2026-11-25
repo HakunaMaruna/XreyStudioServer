@@ -262,4 +262,75 @@ describe('XSS API (e2e, PostgreSQL: v2.7 config profiles)', () => {
     expect(detachedConfig.routing.rules).not.toContainEqual(PAYLOAD.routingRules[0]);
     expect(detachedConfig.dns.servers).not.toContain('9.9.9.9');
   });
+
+  it('isolates config profiles and node bindings by organization', async () => {
+    const orgA = await prisma.organization.create({ data: { name: 'Profiles iso A', slug: 'profiles-iso-a' } });
+    const orgB = await prisma.organization.create({ data: { name: 'Profiles iso B', slug: 'profiles-iso-b' } });
+    await createUser('profile-iso-operator@example.com', orgA.id);
+    await prisma.user.update({ where: { email: 'profile-iso-operator@example.com' }, data: { role: 'OPERATOR' } });
+    const operator = await login('profile-iso-operator@example.com');
+    const userA = await createUser('profile-iso-user-a@example.com', orgA.id);
+    const nodeA = await createNode('profile-iso-node-a', orgA.id);
+    const nodeB = await createNode('profile-iso-node-b', orgB.id);
+
+    const own = await auth(
+      request(app.getHttpServer()).post('/api/config-profiles').send({ name: 'profile-iso-own', payload: PAYLOAD }),
+      operator,
+    ).expect(201);
+    expect(own.body.organizationId).toBe(orgA.id);
+
+    const foreign = await auth(
+      request(app.getHttpServer())
+        .post('/api/config-profiles')
+        .send({ name: 'profile-iso-foreign', payload: PAYLOAD, organizationId: orgB.id }),
+    ).expect(201);
+
+    await auth(
+      request(app.getHttpServer())
+        .post('/api/config-profiles')
+        .send({ name: 'profile-iso-forged', payload: {}, organizationId: orgB.id }),
+      operator,
+    ).expect(403);
+    await auth(
+      request(app.getHttpServer())
+        .post('/api/config-profiles')
+        .send({ name: 'profile-iso-node-b', payload: {}, nodeId: nodeB.id }),
+      operator,
+    ).expect(400);
+    await auth(
+      request(app.getHttpServer()).patch(`/api/config-profiles/${own.body.id}`).send({ nodeId: nodeB.id }),
+      operator,
+    ).expect(400);
+
+    const listed = await auth(request(app.getHttpServer()).get('/api/config-profiles'), operator).expect(200);
+    const visible = listed.body.map((profile: { id: string }) => profile.id);
+    expect(visible).toContain(own.body.id);
+    expect(visible).not.toContain(foreign.body.id);
+
+    const foreignRead = await auth(
+      request(app.getHttpServer()).get(`/api/config-profiles/${foreign.body.id}`),
+      operator,
+    ).expect(200);
+    expect(foreignRead.body?.id).toBeUndefined();
+    await auth(
+      request(app.getHttpServer()).patch(`/api/config-profiles/${foreign.body.id}`).send({ enabled: false }),
+      operator,
+    ).expect(404);
+    await auth(request(app.getHttpServer()).delete(`/api/config-profiles/${foreign.body.id}`), operator).expect(404);
+    expect(await prisma.configProfile.count({ where: { id: foreign.body.id } })).toBe(1);
+
+    await auth(
+      request(app.getHttpServer()).patch(`/api/config-profiles/${own.body.id}`).send({ nodeId: nodeA.id }),
+      operator,
+    ).expect(200);
+    await auth(
+      request(app.getHttpServer())
+        .patch(`/api/users/${userA.id}`)
+        .send({ configProfileId: foreign.body.id }),
+      operator,
+    ).expect(403);
+
+    const adminList = await auth(request(app.getHttpServer()).get('/api/config-profiles')).expect(200);
+    expect(adminList.body.map((profile: { id: string }) => profile.id)).toContain(foreign.body.id);
+  });
 });

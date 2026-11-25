@@ -17,6 +17,9 @@ model Organization {
   updatedAt          DateTime            @updatedAt
   users              User[]
   nodes              Node[]
+  squads             Squad[]
+  configProfiles     ConfigProfile[]
+  subscriptionTemplates SubscriptionTemplate[]
   rules              Rule[]
   apiTokens          ApiToken[]
   notificationRoutes NotificationRoute[]
@@ -297,19 +300,22 @@ model UserTraffic {
 }
 
 model SubscriptionTemplate {
-  id           String   @id @default(uuid())
-  name         String
-  title        String
-  description  String?
-  accent       String   @default("#8474ff")
-  instructions Json?
-  footer       String?
-  enabled      Boolean  @default(true)
-  users        User[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String        @id @default(uuid())
+  name           String
+  title          String
+  description    String?
+  accent         String        @default("#8474ff")
+  instructions   Json?
+  footer         String?
+  enabled        Boolean       @default(true)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  users          User[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@index([enabled])
+  @@index([organizationId])
 }
 
 model NodeGeo {
@@ -357,33 +363,39 @@ model Device {
 }
 
 model Squad {
-  id           String    @id @default(uuid())
-  name         String
-  description  String?
-  trafficLimit BigInt    @default(0)
-  expiresAt    DateTime?
-  enabled      Boolean   @default(true)
-  users        User[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id             String        @id @default(uuid())
+  name           String
+  description    String?
+  trafficLimit   BigInt        @default(0)
+  expiresAt      DateTime?
+  enabled        Boolean       @default(true)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  users          User[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@index([enabled])
+  @@index([organizationId])
 }
 
 model ConfigProfile {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  payload     Json
-  enabled     Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  users       User[]
-  nodeId      String?
-  node        Node?    @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+  id             String        @id @default(uuid())
+  name           String
+  description    String?
+  payload        Json
+  enabled        Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  users          User[]
+  nodeId         String?
+  node           Node?         @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   @@index([enabled])
   @@index([nodeId])
+  @@index([organizationId])
 }
 
 model RoutingProfile {

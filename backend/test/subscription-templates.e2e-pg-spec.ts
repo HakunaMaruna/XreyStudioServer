@@ -53,9 +53,11 @@ describe('XSS API (e2e, PostgreSQL: v2.11 subscription templates)', () => {
     return response.body.accessToken as string;
   };
 
-  const createUser = async (email: string) => {
+  const createUser = async (email: string, organizationId?: string) => {
     const response = await auth(
-      request(app.getHttpServer()).post('/api/users').send({ email, password }),
+      request(app.getHttpServer())
+        .post('/api/users')
+        .send({ email, password, ...(organizationId ? { organizationId } : {}) }),
     ).expect(201);
     return response.body as { id: string; email: string; subscriptionToken: string };
   };
@@ -213,5 +215,61 @@ describe('XSS API (e2e, PostgreSQL: v2.11 subscription templates)', () => {
     ).expect(201);
     expect(byOperator.body.name).toBe('operator-template');
     expect((await auth(request(app.getHttpServer()).get('/api/subscription-templates'), operator).expect(200)).body).toHaveLength(2);
+  });
+
+  it('isolates subscription templates by organization', async () => {
+    const orgA = await prisma.organization.create({ data: { name: 'Templates iso A', slug: 'templates-iso-a' } });
+    const orgB = await prisma.organization.create({ data: { name: 'Templates iso B', slug: 'templates-iso-b' } });
+    await createUser('template-iso-operator@example.com', orgA.id);
+    await prisma.user.update({ where: { email: 'template-iso-operator@example.com' }, data: { role: 'OPERATOR' } });
+    const operator = await login('template-iso-operator@example.com');
+    const userA = await createUser('template-iso-user-a@example.com', orgA.id);
+
+    const own = await auth(
+      request(app.getHttpServer())
+        .post('/api/subscription-templates')
+        .send({ name: 'template-iso-own', title: 'Own', instructions: INSTRUCTIONS }),
+      operator,
+    ).expect(201);
+    expect(own.body.organizationId).toBe(orgA.id);
+
+    const foreign = await auth(
+      request(app.getHttpServer())
+        .post('/api/subscription-templates')
+        .send({ name: 'template-iso-foreign', title: 'Foreign', organizationId: orgB.id }),
+    ).expect(201);
+
+    await auth(
+      request(app.getHttpServer())
+        .post('/api/subscription-templates')
+        .send({ name: 'template-iso-forged', title: 'Forged', organizationId: orgB.id }),
+      operator,
+    ).expect(403);
+
+    const listed = await auth(request(app.getHttpServer()).get('/api/subscription-templates'), operator).expect(200);
+    const visible = listed.body.map((template: { id: string }) => template.id);
+    expect(visible).toContain(own.body.id);
+    expect(visible).not.toContain(foreign.body.id);
+
+    await auth(request(app.getHttpServer()).get(`/api/subscription-templates/${foreign.body.id}`), operator).expect(404);
+    await auth(
+      request(app.getHttpServer()).patch(`/api/subscription-templates/${foreign.body.id}`).send({ enabled: false }),
+      operator,
+    ).expect(404);
+    await auth(
+      request(app.getHttpServer()).delete(`/api/subscription-templates/${foreign.body.id}`),
+      operator,
+    ).expect(404);
+    expect(await prisma.subscriptionTemplate.count({ where: { id: foreign.body.id } })).toBe(1);
+
+    await auth(
+      request(app.getHttpServer())
+        .patch(`/api/users/${userA.id}`)
+        .send({ subscriptionTemplateId: foreign.body.id }),
+      operator,
+    ).expect(403);
+
+    const adminList = await auth(request(app.getHttpServer()).get('/api/subscription-templates')).expect(200);
+    expect(adminList.body.map((template: { id: string }) => template.id)).toContain(foreign.body.id);
   });
 });

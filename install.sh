@@ -229,6 +229,29 @@ run_sh() {
   if [ "$DRY_RUN" -eq 1 ]; then say "  ${C_YELLOW}[dry-run]${C_RESET} sh -c $1"; else sh -c "$1"; fi
 }
 
+# Агент получает только собственный env-файл: секреты панели (JWT_SECRET,
+# POSTGRES_PASSWORD, STRIPE_*, MCP_*) в него не попадают. Список — белый.
+AGENT_ENV_KEYS="PANEL_URL AGENT_TOKEN AGENT_SECRET NODE_ID NODE_ADDRESS PORT
+XRAY_MANAGED XRAY_CONFIG_PATH XRAY_BIN XRAY_SERVICE XRAY_STATS_ENABLED
+XRAY_API_HOST XRAY_API_PORT TRAFFIC_REPORT_INTERVAL BACKUP_DIR GEOCHECK_URL
+GEOCHECK_INTERVAL SINGBOX_CONFIG_PATH SINGBOX_BIN SINGBOX_SERVICE XRAY_LOG_PATH
+SINGBOX_LOG_PATH AGENT_TLS_DIR AGENT_TLS_CERT AGENT_TLS_KEY AGENT_TLS_CA
+NODE_DOMAIN_SUFFIX LE_EMAIL ACME_WEBROOT CERTS_DIR"
+
+write_agent_env() {
+  local target=".agent.env" key line
+  if [ "$DRY_RUN" -eq 1 ]; then
+    say "  ${C_YELLOW}[dry-run]${C_RESET} write $target"
+    return 0
+  fi
+  ( umask 077; : > "$target" )
+  for key in $AGENT_ENV_KEYS; do
+    line="$(grep -m1 "^${key}=" .env 2>/dev/null || true)"
+    if [ -n "$line" ]; then printf '%s\n' "$line" >> "$target"; fi
+  done
+  chmod 600 "$target"
+}
+
 # ---------- language selection ----------
 if [ -z "$LANG_CODE" ] && [ -t 0 ]; then
   banner
@@ -360,6 +383,9 @@ else
   ADMIN_PASSWORD="$(grep '^ADMIN_PASSWORD=' .env | cut -d= -f2 || true)"
   ADMIN_EMAIL="$(grep '^ADMIN_EMAIL=' .env | cut -d= -f2 || true)"
 fi
+
+# docker-compose.yml монтирует агенту только .agent.env, а не весь .env.
+write_agent_env
 
 if [ "$DOMAIN" != "localhost" ]; then
   say "${C_BLUE}▸ $(t checking_dns)${C_RESET}"

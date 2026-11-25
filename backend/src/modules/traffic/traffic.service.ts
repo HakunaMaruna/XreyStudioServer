@@ -20,19 +20,20 @@ export class TrafficService {
     let expired = 0;
 
     for (const entry of dto.entries || []) {
+      // Ровно один идентификатор: иначе запись без идентификатора совпала бы
+      // с произвольным пользователем организации (и накрутила бы ему трафик).
+      const identifiers = [entry.subscriptionToken, entry.userId, entry.email].filter(Boolean);
+      if (identifiers.length !== 1) {
+        skipped += 1;
+        continue;
+      }
       const where: Prisma.UserWhereInput = entry.subscriptionToken
         ? { subscriptionToken: entry.subscriptionToken }
         : entry.userId
           ? { id: entry.userId }
-          : entry.email
-            ? { email: entry.email.toLowerCase() }
-            : {};
+          : { email: entry.email!.toLowerCase() };
       // Агент может репортить трафик только пользователей своей организации.
       where.organizationId = node.organizationId || null;
-      if (!Object.keys(where).length) {
-        skipped += 1;
-        continue;
-      }
       const user = await this.prisma.user.findFirst({ where });
       if (!user) {
         skipped += 1;

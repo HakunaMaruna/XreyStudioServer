@@ -21,6 +21,11 @@ export class CreateConfigProfileDto {
   @IsOptional()
   @Matches(/^[A-Za-z0-9_-]{1,64}$/)
   nodeId?: string;
+
+  // Задаёт только ADMIN; OPERATOR всегда получает свою организацию.
+  @IsOptional()
+  @IsString()
+  organizationId?: string | null;
 }
 
 export class UpdateConfigProfileDto {
@@ -44,4 +49,8 @@ export class UpdateConfigProfileDto {
   @IsOptional()
   @Matches(/^[A-Za-z0-9_-]{1,64}$/)
   nodeId?: string;
+
+  @IsOptional()
+  @IsString()
+  organizationId?: string | null;
 }

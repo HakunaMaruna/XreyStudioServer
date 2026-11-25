@@ -1,4 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma, Role } from '@prisma/client';
+import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { normalizeHwid } from '../../common/hwid';
 
@@ -6,18 +8,31 @@ import { normalizeHwid } from '../../common/hwid';
 export class DevicesService {
   constructor(private prisma: PrismaService) {}
 
-  async list(userId?: string) {
+  // Устройство принадлежит пользователю, арендатор берётся из его организации.
+  private tenantWhere(actor?: AuthUser): Prisma.DeviceWhereInput {
+    if (!actor || actor.role === Role.ADMIN) return {};
+    return { user: { organizationId: actor.organizationId || '__none__' } };
+  }
+
+  private userScope(actor?: AuthUser): Prisma.UserWhereInput {
+    if (!actor || actor.role === Role.ADMIN) return {};
+    return { organizationId: actor.organizationId || '__none__' };
+  }
+
+  async list(userId: string | undefined, actor?: AuthUser) {
     return this.prisma.device.findMany({
-      where: userId ? { userId } : {},
+      where: { ...this.tenantWhere(actor), ...(userId ? { userId } : {}) },
       include: { user: { select: { id: true, email: true } } },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async add(userId: string, rawHwid: string, name?: string) {
+  async add(userId: string, rawHwid: string, name?: string, actor?: AuthUser) {
     const hwid = normalizeHwid(rawHwid);
     if (!hwid) throw new BadRequestException('hwid is required');
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, ...this.userScope(actor) },
+    });
     if (!user) throw new NotFoundException('User not found');
     const existing = await this.prisma.device.findUnique({ where: { hwid } });
     if (existing && existing.userId !== userId) throw new ForbiddenException('Device belongs to another user');
@@ -38,14 +53,14 @@ export class DevicesService {
     const user = await this.prisma.user.findUnique({ where: { subscriptionToken: token } });
     if (!user) throw new NotFoundException('Subscription not found');
     if (user.status !== 'ACTIVE') throw new ForbiddenException('User is not active');
+    // Токен подписки уже доказывает владение пользователем — тенант не нужен.
     const device = await this.add(user.id, hwid, name);
     return { bound: true, hwid: device.hwid, deviceLimit: user.deviceLimit };
   }
 
-  async remove(id: string, userId?: string) {
-    const device = await this.prisma.device.findUnique({ where: { id } });
+  async remove(id: string, actor?: AuthUser) {
+    const device = await this.prisma.device.findFirst({ where: { id, ...this.tenantWhere(actor) } });
     if (!device) throw new NotFoundException('Device not found');
-    if (userId && device.userId !== userId) throw new ForbiddenException('Device belongs to another user');
     await this.prisma.device.delete({ where: { id } });
     return { success: true };
   }

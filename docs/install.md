@@ -30,6 +30,9 @@ Then open `https://<domain>/login`. Keep the printed admin credentials in a safe
 
 ## Upgrades
 Pull the new version, rebuild and restart with `make update` (or `docker compose up -d --build`).
+The agent container now reads only `.agent.env` (agent-only keys, no panel secrets);
+after upgrading a deployment created by an older version run `./install.sh` once — it
+writes `.agent.env` from the existing `.env` without changing any secrets or data.
 The database schema is applied automatically: the Kubernetes init container runs
 `npx prisma db push --skip-generate`; for a manual deployment run
 `cd backend && npx prisma db push` once before starting the new API. This creates the
@@ -163,8 +166,9 @@ and the same `AGENT_SECRET`. If `journalctl` is unavailable in a container, set
 Успешный логин выставляет httpOnly-cookie `xss_ui_access` — она используется middleware только
 для выбора маршрута и **не заменяет JWT**; все `/api`-запросы остаются под JWT-защитой.
 После выхода cookie удаляется. subscription-ссылки `/sub/*` и API продолжают работать без изменений.
-Неверно заданный `PANEL_ENTRY_PATH` не создаёт вход (fail closed). Переменные пробрасываются
-в frontend через `docker-compose.yml`; backend читает `PANEL_DECOY` из env_file `.env`.
+Неверно заданный `PANEL_ENTRY_PATH` не создаёт вход (fail closed). Во frontend попадает только
+явный список публичных переменных из `docker-compose.yml` (полный `.env` в контейнер не
+монтируется); backend читает `PANEL_DECOY` из своего `env_file`.
 
 ## Signed updates (Ed25519)
 

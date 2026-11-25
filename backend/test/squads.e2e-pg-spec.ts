@@ -218,4 +218,64 @@ describe('XSS API (e2e, PostgreSQL: v2.8 squads)', () => {
       (u: { id: string }) => u.id,
     )).toEqual([userA.id]);
   });
+
+  it('keeps squads and squad membership inside the operator organization', async () => {
+    const orgA = await prisma.organization.create({ data: { name: 'Squads iso A', slug: 'squads-iso-a' } });
+    const orgB = await prisma.organization.create({ data: { name: 'Squads iso B', slug: 'squads-iso-b' } });
+    await createUser('squads-iso-operator@example.com', orgA.id);
+    await prisma.user.update({ where: { email: 'squads-iso-operator@example.com' }, data: { role: 'OPERATOR' } });
+    const operator = await login('squads-iso-operator@example.com');
+    const userA = await createUser('squads-iso-user-a@example.com', orgA.id);
+    const userB = await createUser('squads-iso-user-b@example.com', orgB.id);
+    const globalSquad = await createSquad('squad-iso-global');
+    const foreignSquad = await createSquad('squad-iso-foreign', { organizationId: orgB.id });
+
+    const ownSquad = await auth(
+      request(app.getHttpServer()).post('/api/squads').send({ name: 'squad-iso-own' }),
+      operator,
+    ).expect(201);
+    expect(ownSquad.body.organizationId).toBe(orgA.id);
+
+    await auth(
+      request(app.getHttpServer())
+        .post('/api/squads')
+        .send({ name: 'squad-iso-forged', organizationId: orgB.id }),
+      operator,
+    ).expect(403);
+
+    const listed = await auth(request(app.getHttpServer()).get('/api/squads'), operator).expect(200);
+    const visible = listed.body.map((squad: { id: string }) => squad.id);
+    expect(visible).toEqual(expect.arrayContaining([ownSquad.body.id, globalSquad.id]));
+    expect(visible).not.toContain(foreignSquad.id);
+
+    await auth(request(app.getHttpServer()).get(`/api/squads/${foreignSquad.id}`), operator).expect(404);
+    await auth(
+      request(app.getHttpServer()).patch(`/api/squads/${foreignSquad.id}`).send({ enabled: false }),
+      operator,
+    ).expect(404);
+    await auth(request(app.getHttpServer()).delete(`/api/squads/${foreignSquad.id}`), operator).expect(404);
+    expect(await prisma.squad.count({ where: { id: foreignSquad.id } })).toBe(1);
+
+    // Глобальный сквад виден всем, но менять его может только ADMIN.
+    await auth(request(app.getHttpServer()).get(`/api/squads/${globalSquad.id}`), operator).expect(200);
+    await auth(
+      request(app.getHttpServer()).patch(`/api/squads/${globalSquad.id}`).send({ enabled: false }),
+      operator,
+    ).expect(404);
+
+    const members = await auth(
+      request(app.getHttpServer())
+        .patch(`/api/squads/${ownSquad.body.id}/members`)
+        .send({ userIds: [userA.id, userB.id] }),
+      operator,
+    ).expect(200);
+    expect(members.body.users.map((user: { id: string }) => user.id)).toEqual([userA.id]);
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: userB.id } })).squadId).toBeNull();
+
+    await auth(
+      request(app.getHttpServer()).patch(`/api/users/${userA.id}`).send({ squadId: foreignSquad.id }),
+      operator,
+    ).expect(403);
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: userA.id } })).squadId).toBe(ownSquad.body.id);
+  });
 });

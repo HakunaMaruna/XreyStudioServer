@@ -144,6 +144,30 @@ export class UsersService implements OnModuleInit {
     });
   }
 
+  // Оператор не должен привязывать пользователя к чужому скваду/профилю/шаблону.
+  private async assertTenantResource(
+    kind: 'configProfile' | 'subscriptionTemplate' | 'squad',
+    id: string,
+    actor: AuthUser,
+  ) {
+    if (actor.role === Role.ADMIN) return;
+    const organizationId = actor.organizationId || null;
+    if (kind === 'squad') {
+      // Глобальные сквады (organizationId = null) назначает администратор.
+      const squad = await this.prisma.squad.findFirst({
+        where: { id, OR: [{ organizationId }, { organizationId: null }] },
+      });
+      if (!squad) throw new ForbiddenException('Squad belongs to another organization');
+      return;
+    }
+    const where = { id, OR: [{ organizationId }, { organizationId: null }] };
+    const found =
+      kind === 'configProfile'
+        ? await this.prisma.configProfile.findFirst({ where })
+        : await this.prisma.subscriptionTemplate.findFirst({ where });
+    if (!found) throw new ForbiddenException('Resource belongs to another organization');
+  }
+
   async update(id: string, dto: UpdateUserDto, actor: AuthUser) {
     const target = await this.findOne(id, actor);
     if (dto.role === Role.ADMIN && actor.role !== Role.ADMIN) {
@@ -170,16 +194,21 @@ export class UsersService implements OnModuleInit {
         : { disconnect: true };
     }
     if (dto.configProfileId !== undefined) {
+      if (dto.configProfileId) await this.assertTenantResource('configProfile', dto.configProfileId, actor);
       data.configProfile = dto.configProfileId
         ? { connect: { id: dto.configProfileId } }
         : { disconnect: true };
     }
     if (dto.subscriptionTemplateId !== undefined) {
+      if (dto.subscriptionTemplateId) {
+        await this.assertTenantResource('subscriptionTemplate', dto.subscriptionTemplateId, actor);
+      }
       data.subscriptionTemplate = dto.subscriptionTemplateId
         ? { connect: { id: dto.subscriptionTemplateId } }
         : { disconnect: true };
     }
     if (dto.squadId !== undefined) {
+      if (dto.squadId) await this.assertTenantResource('squad', dto.squadId, actor);
       data.squad = dto.squadId
         ? { connect: { id: dto.squadId } }
         : { disconnect: true };
