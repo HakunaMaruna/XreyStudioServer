@@ -28,7 +28,7 @@ export default function SquadsPage() {
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [members, setMembers] = useState<string[]>([]);
-  const [allUsers, setAllUsers] = useState<{ id: string; email: string }[]>([]);
+  const [allUsers, setAllUsers] = useState<{ id: string; email: string; telegramId?: string | null }[]>([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -152,14 +152,27 @@ export default function SquadsPage() {
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-subtle">{t.users}</p>
             <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-line bg-surface-2/40 p-2">
               {allUsers.map((u) => (
-                <label key={u.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-xs text-muted hover:bg-surface-3">
-                  <input
-                    type="checkbox"
-                    checked={members.includes(u.id)}
-                    onChange={(e) => setMembers(e.target.checked ? [...members, u.id] : members.filter((id) => id !== u.id))}
-                  />
-                  {u.email}
-                </label>
+                <div key={u.id} className="flex items-center gap-2 rounded px-2 py-1 text-xs text-muted hover:bg-surface-3">
+                  <label className="flex flex-1 cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={members.includes(u.id)}
+                      onChange={(e) => setMembers(e.target.checked ? [...members, u.id] : members.filter((id) => id !== u.id))}
+                    />
+                    {u.email}
+                  </label>
+                  {u.telegramId && (
+                    <a
+                      href={`https://t.me/${encodeURIComponent(u.telegramId)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${t.openTelegram}: ${u.email}`}
+                      className="text-brand hover:underline"
+                    >
+                      <Icon name="external" size={12} />
+                    </a>
+                  )}
+                </div>
               ))}
             </div>
           </div>

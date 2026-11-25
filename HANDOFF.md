@@ -660,3 +660,23 @@ Local PG e2e remains skipped (pg_dump 16 cannot dump PGlite 19). CI is the autho
   reverted. Final GitHub CI on `9719eac`: CI, Images and Live API smoke all green; local
   backend typecheck/lint/unit (24 suites / 137 tests)/e2e (2 suites / 11 tests) and frontend
   tsc/lint/build (webpack) all rc=0, code_review 0 findings.
+
+
+## Bulk inbound users and Telegram id (2026-11-25)
+
+- Added `POST /api/inbounds/:inboundId/users/bulk` with `mode: add|remove` and
+  `scope: selected|all|squad`. Targets are resolved and tenant-filtered on the server;
+  selected ids are validated as UUIDs (max 5000), `squadId` must belong to the caller's
+  organization, and the inbound is checked through the existing `findOne` access rules.
+  Writes use `createMany(skipDuplicates)` / `deleteMany` and are audit-logged.
+- Added optional unique numeric `User.telegramId`, exposed in user DTOs and UI. Telegram links
+  are rendered only from validated digits with `target="_blank" rel="noopener noreferrer"`.
+- UI: row selection + bulk toolbar/modal on `/users`, Telegram link on the user card and in the
+  group member list; RU/EN i18n keys added. Docs updated in `docs/api.md` and `docs/user-guide.md`.
+- Validation in the working clone: backend typecheck/lint/build rc=0 and unit tests 25 suites /
+  140 tests passed; new PG e2e suite 3/3 passed against PGlite on 127.0.0.1:5434 with
+  `?pgbouncer=true`; frontend tsc/lint rc=0 and production build (webpack) rc=0. The stock
+  Turbopack build still fails locally on Node 20.15 (`magic-string` ESM), as before.
+  Running the whole PG e2e suite locally is not authoritative: 15 pre-existing suites fail in
+  this PGlite snapshot with `relation "AlertHistory" does not exist` during their own raw
+  TRUNCATE reset; CI with real PostgreSQL remains the source of truth. code_review: 0 findings.

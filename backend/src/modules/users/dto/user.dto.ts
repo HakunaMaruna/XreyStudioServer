@@ -9,10 +9,15 @@ import {
   Max,
   IsDateString,
   IsIn,
+  Matches,
 } from 'class-validator';
 import { Role, UserStatus } from '@prisma/client';
 
 export class CreateUserDto {
+  @IsOptional()
+  @Matches(/^[0-9]{5,12}$/, { message: 'telegramId must contain 5-12 digits' })
+  telegramId?: string;
+
   @IsEmail()
   email: string;
 
@@ -49,6 +54,10 @@ export class CreateUserDto {
 }
 
 export class UpdateUserDto {
+  @IsOptional()
+  @Matches(/^[0-9]{5,12}$/, { message: 'telegramId must contain 5-12 digits' })
+  telegramId?: string;
+
   @IsOptional()
   @IsEmail()
   email?: string;

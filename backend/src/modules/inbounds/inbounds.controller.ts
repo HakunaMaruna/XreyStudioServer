@@ -16,7 +16,7 @@ import { AuthUser, CurrentUser } from '../../common/decorators/current-user.deco
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { AuditService } from '../audit/audit.service';
-import { CreateInboundDto, UpdateInboundDto } from './dto/inbound.dto';
+import { BulkInboundUsersDto, CreateInboundDto, UpdateInboundDto } from './dto/inbound.dto';
 import { InboundsService } from './inbounds.service';
 
 @Controller('inbounds')
@@ -43,6 +43,25 @@ export class InboundsController {
   @Get(':id')
   get(@Param('id') id: string, @CurrentUser() user?: AuthUser) {
     return this.service.findOne(id, user);
+  }
+
+  @Post(':id/users/bulk')
+  async bulkUsers(
+    @Param('id') id: string,
+    @Body() body: BulkInboundUsersDto,
+    @CurrentUser() user: AuthUser,
+    @Req() req: any,
+  ) {
+    const result = await this.service.bulkUsers(id, body, user);
+    await this.audit.log({
+      userId: user.userId,
+      action: `inbound.users.bulk.${body.mode}`,
+      entity: 'Inbound',
+      entityId: id,
+      ip: req.ip,
+      metadata: { scope: body.scope, squadId: body.squadId, ...result },
+    });
+    return result;
   }
 
   @Patch(':id')

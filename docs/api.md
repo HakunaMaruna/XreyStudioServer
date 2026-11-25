@@ -333,6 +333,29 @@ is linked). The signed token is short-lived and single-use.
   validated id to the authenticated session user. The user id comes from the session, never from
   the request body.
 
+## Bulk inbound membership
+
+`POST /api/inbounds/:inboundId/users/bulk` (ADMIN/OPERATOR) adds or removes users of one
+inbound in a single call. The request body is validated and all user ids are checked against
+the caller's tenant before any write; clients cannot target users outside their organization.
+
+```json
+{
+  "mode": "add",
+  "scope": "squad",
+  "userIds": ["...uuid..."],
+  "squadId": "...uuid..."
+}
+```
+
+- `mode`: `add` or `remove`.
+- `scope`: `selected` (requires `userIds`, up to 5000 UUIDs), `all` (computed server-side)
+  or `squad` (requires `squadId`). Send only the field required by the chosen scope.
+- Response: `{ "inboundId", "mode", "scope", "targetCount", "affected", "skipped" }`.
+  `add` uses `createMany({ skipDuplicates: true })`, so repeated calls are idempotent;
+  `skipped` reports clients that were already attached (or already absent on removal).
+  Every call writes an `inbound.users.bulk.<mode>` audit record.
+
 ## Rescue CLI
 
 For hosts where the HTTP API is unreachable, run on the database host:

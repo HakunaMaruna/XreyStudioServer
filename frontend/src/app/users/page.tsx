@@ -16,6 +16,7 @@ type UserRow = {
   role: string;
   status: string;
   trafficLimit: string | number;
+  telegramId?: string | null;
 };
 
 export default function UsersPage() {
@@ -33,9 +34,9 @@ export default function UsersPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState({ email: '', password: '', trafficLimit: 100 });
+  const [form, setForm] = useState({ email: '', password: '', trafficLimit: 100, telegramId: '' });
   const [editing, setEditing] = useState<UserRow | null>(null);
-  const [editForm, setEditForm] = useState({ role: 'USER', status: 'ACTIVE', trafficLimit: 100 });
+  const [editForm, setEditForm] = useState({ role: 'USER', status: 'ACTIVE', trafficLimit: 100, telegramId: '' });
   const [saving, setSaving] = useState(false);
   const [connection, setConnection] = useState<any | null>(null);
   const [inbounds, setInbounds] = useState<{ id: string; tag: string }[]>([]);
@@ -44,6 +45,12 @@ export default function UsersPage() {
   const [subTemplates, setSubTemplates] = useState<{ id: string; name: string }[]>([]);
   const [devices, setDevices] = useState<{ id: string; hwid: string; name: string | null; lastSeenAt: string | null }[]>([]);
   const [hwidInput, setHwidInput] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [squads, setSquads] = useState<{ id: string; name: string }[]>([]);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkForm, setBulkForm] = useState<{ mode: 'add' | 'remove'; scope: 'selected' | 'all' | 'squad'; inboundId: string; squadId: string }>({
+    mode: 'add', scope: 'selected', inboundId: '', squadId: '',
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -82,13 +89,29 @@ export default function UsersPage() {
     if (isLoggedIn()) load();
   }, [load]);
 
+  useEffect(() => {
+    if (!isLoggedIn()) return;
+    api
+      .get('/api/squads?limit=200')
+      .then((data: any) => {
+        const rows = Array.isArray(data) ? data : data.data || [];
+        setSquads(rows.map((s: any) => ({ id: s.id, name: s.name })));
+      })
+      .catch((e: any) => setError(e.message));
+  }, []);
+
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSaving(true);
     try {
-      await api.post('/api/users', { email: form.email, password: form.password, trafficLimit: form.trafficLimit * 1024 ** 3 });
-      setForm({ email: '', password: '', trafficLimit: 100 });
+      await api.post('/api/users', {
+        email: form.email,
+        password: form.password,
+        trafficLimit: form.trafficLimit * 1024 ** 3,
+        telegramId: form.telegramId || null,
+      });
+      setForm({ email: '', password: '', trafficLimit: 100, telegramId: '' });
       setCreateOpen(false);
       await load();
     } catch (e: any) {
@@ -110,6 +133,7 @@ export default function UsersPage() {
       role: user.role,
       status: user.status,
       trafficLimit: Math.round(Number(user.trafficLimit) / 1024 ** 3),
+      telegramId: user.telegramId || '',
     });
   };
 
@@ -122,6 +146,7 @@ export default function UsersPage() {
         role: editForm.role,
         status: editForm.status,
         trafficLimit: editForm.trafficLimit * 1024 ** 3,
+        telegramId: editForm.telegramId || null,
       });
       setEditing(null);
       await load();
@@ -151,6 +176,72 @@ export default function UsersPage() {
       setDevices(deviceRows);
     } catch (e: any) {
       setError(e.message);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const openBulk = async (scope: 'selected' | 'all' | 'squad') => {
+    setError('');
+    if (scope === 'selected' && selectedIds.length === 0) {
+      setError(t.bulkNoSelection);
+      return;
+    }
+    let list = inbounds;
+    if (list.length === 0) {
+      try {
+        const data = await api.get('/api/inbounds');
+        const rows = Array.isArray(data) ? data : data.data || [];
+        list = rows.map((i: any) => ({ id: i.id, tag: i.tag }));
+        setInbounds(list);
+      } catch (e: any) {
+        setError(e.message);
+        return;
+      }
+    }
+    if (list.length === 0) {
+      setError(t.noConnections);
+      return;
+    }
+    setBulkForm({
+      mode: 'add',
+      scope,
+      inboundId: list[0].id,
+      squadId: squads[0]?.id || '',
+    });
+    setBulkOpen(true);
+  };
+
+  const applyBulk = async () => {
+    if (!bulkForm.inboundId) return;
+    if (bulkForm.scope === 'squad' && !bulkForm.squadId) {
+      setError(t.bulkNoSquad);
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      const body: Record<string, unknown> = {
+        mode: bulkForm.mode,
+        scope: bulkForm.scope,
+      };
+      if (bulkForm.scope === 'selected') body.userIds = selectedIds;
+      if (bulkForm.scope === 'squad') body.squadId = bulkForm.squadId;
+      const result = await api.post(`/api/inbounds/${bulkForm.inboundId}/users/bulk`, body);
+      const inbound = inbounds.find((i) => i.id === bulkForm.inboundId);
+      const label = inbound ? inbound.tag : bulkForm.inboundId;
+      setNotice(
+        `${t.bulkApplied} ${label}: ${t.bulkAffected} ${result.affected ?? 0}, ${t.bulkSkipped} ${result.skipped ?? 0}`,
+      );
+      setBulkOpen(false);
+      setSelectedIds([]);
+      await load();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -187,6 +278,33 @@ export default function UsersPage() {
   const columns = useMemo<ColumnDef<UserRow>[]>(
     () => [
       {
+        id: 'select',
+        header: () => (
+          <input
+            type="checkbox"
+            aria-label={t.bulkSelectAll}
+            checked={users.length > 0 && users.every((u) => selectedIds.includes(u.id))}
+            onChange={(e) => setSelectedIds(e.target.checked ? users.map((u) => u.id) : [])}
+          />
+        ),
+        cell: ({ row }) => (
+          <input
+            type="checkbox"
+            aria-label={`${t.bulkSelect} ${row.original.email}`}
+            checked={selectedIds.includes(row.original.id)}
+            onChange={() =>
+              setSelectedIds((prev) =>
+                prev.includes(row.original.id)
+                  ? prev.filter((x) => x !== row.original.id)
+                  : [...prev, row.original.id],
+              )
+            }
+          />
+        ),
+        enableSorting: false,
+        size: 40,
+      },
+      {
         accessorKey: 'email',
         header: t.email,
         cell: ({ row }) => (
@@ -198,6 +316,23 @@ export default function UsersPage() {
             </div>
           </div>
         ),
+      },
+      {
+        accessorKey: 'telegramId',
+        header: t.telegramId,
+        cell: ({ row }) =>
+          row.original.telegramId ? (
+            <a
+              href={`https://t.me/${encodeURIComponent(row.original.telegramId)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-brand hover:underline"
+            >
+              <Icon name="external" size={12} /> @{row.original.telegramId}
+            </a>
+          ) : (
+            <span className="text-xs text-muted">—</span>
+          ),
       },
       {
         accessorKey: 'role',
@@ -272,6 +407,31 @@ export default function UsersPage() {
         </div>
       </Card>
 
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted">
+          {t.bulkSelected}: {selectedIds.length}
+        </span>
+        <Button size="sm" icon="plus" onClick={() => openBulk('selected')}>
+          {t.bulkAddSelected}
+        </Button>
+        <Button
+          size="sm"
+          variant="danger"
+          icon="close"
+          onClick={() => {
+            void openBulk('selected').then(() => setBulkForm((f) => ({ ...f, mode: 'remove' })));
+          }}
+        >
+          {t.bulkRemoveSelected}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => openBulk('all')}>
+          {t.bulkAddAll}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => openBulk('squad')}>
+          {t.bulkBySquad}
+        </Button>
+      </div>
+
       <DataTable
         data={users}
         columns={columns}
@@ -290,12 +450,82 @@ export default function UsersPage() {
         }}
       />
 
+      <Modal
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        title={t.bulkOperations}
+        subtitle={t.bulkSubtitle}
+        icon={<Icon name="link" size={16} />}
+        footer={
+          <>
+            <Button onClick={() => setBulkOpen(false)}>{t.cancel}</Button>
+            <Button variant="primary" icon="check" loading={saving} onClick={applyBulk}>
+              {t.apply}
+            </Button>
+          </>
+        }
+      >
+        <div className="grid gap-3">
+          <Field label={t.bulkConnection}>
+            <select
+              className="field-input"
+              value={bulkForm.inboundId}
+              onChange={(e) => setBulkForm({ ...bulkForm, inboundId: e.target.value })}
+            >
+              {inbounds.map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.tag}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t.bulkMode}>
+            <select
+              className="field-input"
+              value={bulkForm.mode}
+              onChange={(e) => setBulkForm({ ...bulkForm, mode: e.target.value as 'add' | 'remove' })}
+            >
+              <option value="add">{t.bulkModeAdd}</option>
+              <option value="remove">{t.bulkModeRemove}</option>
+            </select>
+          </Field>
+          <Field label={t.bulkScope}>
+            <select
+              className="field-input"
+              value={bulkForm.scope}
+              onChange={(e) => setBulkForm({ ...bulkForm, scope: e.target.value as 'selected' | 'all' | 'squad' })}
+            >
+              <option value="selected">{t.bulkScopeSelected} ({selectedIds.length})</option>
+              <option value="all">{t.bulkScopeAll}</option>
+              <option value="squad">{t.bulkScopeSquad}</option>
+            </select>
+          </Field>
+          {bulkForm.scope === 'squad' && (
+            <Field label={t.bulkSquad}>
+              <select
+                className="field-input"
+                value={bulkForm.squadId}
+                onChange={(e) => setBulkForm({ ...bulkForm, squadId: e.target.value })}
+              >
+                <option value="">—</option>
+                {squads.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
+        </div>
+      </Modal>
+
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t.newUser} subtitle={t.createAccount} icon={<Icon name="users" size={16} />}
         footer={<><Button onClick={() => setCreateOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="plus" onClick={create} loading={saving}>{t.create}</Button></>}>
         <form onSubmit={create} className="space-y-4">
           <Field label={t.email}><input type="email" placeholder="user@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="field" required /></Field>
           <Field label={t.password} hint={t.atLeast6Chars}><input type="password" minLength={6} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="field" required /></Field>
           <Field label={t.trafficLimit} hint={t.valueInGB}><input type="number" min={1} value={form.trafficLimit} onChange={(e) => setForm({ ...form, trafficLimit: Number(e.target.value) })} className="field" /></Field>
+          <Field label={t.telegramId} hint={t.telegramIdHint}><input inputMode="numeric" pattern="[0-9]{5,12}" value={form.telegramId} onChange={(e) => setForm({ ...form, telegramId: e.target.value })} className="field" /></Field>
         </form>
       </Modal>
 
@@ -315,6 +545,15 @@ export default function UsersPage() {
           <Field label={t.trafficLimit} hint={t.valueInGB}>
             <input type="number" min={0} value={editForm.trafficLimit} onChange={(e) => setEditForm({ ...editForm, trafficLimit: Number(e.target.value) })} className="field" />
           </Field>
+          <Field label={t.telegramId} hint={t.telegramIdHint}>
+            <input
+              inputMode="numeric"
+              pattern="[0-9]{5,12}"
+              value={editForm.telegramId}
+              onChange={(e) => setEditForm({ ...editForm, telegramId: e.target.value })}
+              className="field"
+            />
+          </Field>
         </form>
       </Modal>
 
@@ -322,6 +561,16 @@ export default function UsersPage() {
         {connection && (
           <div className="space-y-5">
             {notice && <div className="rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
+            {connection.telegramId && (
+              <a
+                href={`https://t.me/${encodeURIComponent(connection.telegramId)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-lg border border-brand/30 bg-brand/10 px-3 py-2 text-xs text-brand hover:bg-brand/20"
+              >
+                <Icon name="external" size={13} /> {t.openTelegram}: @{connection.telegramId}
+              </a>
+            )}
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-subtle">{t.subscriptionLink}</p>
               <div className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 p-3">

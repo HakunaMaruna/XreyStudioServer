@@ -38,6 +38,7 @@ model User {
   devices                Device[]
   expiresAt              DateTime?
   subscriptionToken      String                @unique @default(uuid())
+  telegramId             String?               @unique @map("telegram_id")
   configProfileId        String?
   configProfile          ConfigProfile?        @relation(fields: [configProfileId], references: [id], onDelete: SetNull)
   subscriptionTemplateId String?

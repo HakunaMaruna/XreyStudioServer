@@ -1,4 +1,4 @@
-import { ArrayMaxSize, IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsObject, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsObject, IsOptional, IsString, IsUUID, Max, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export const RESET_SCHEDULES = ['never', 'hourly', 'daily', 'weekly', 'monthly'] as const;
@@ -196,4 +196,23 @@ export class UpdateInboundDto {
   @IsOptional()
   @IsBoolean()
   enabled?: boolean;
+}
+
+
+export class BulkInboundUsersDto {
+  @IsIn(['add', 'remove'])
+  mode: 'add' | 'remove';
+
+  @IsIn(['selected', 'all', 'squad'])
+  scope: 'selected' | 'all' | 'squad';
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5000)
+  @IsUUID('4', { each: true })
+  userIds?: string[];
+
+  @IsOptional()
+  @IsUUID('4')
+  squadId?: string;
 }

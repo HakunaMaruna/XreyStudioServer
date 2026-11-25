@@ -58,6 +58,7 @@ export class UsersService implements OnModuleInit {
           trafficUsed: true,
           expiresAt: true,
           subscriptionToken: true,
+          telegramId: true,
           organizationId: true,
           createdAt: true,
         },
@@ -95,6 +96,7 @@ export class UsersService implements OnModuleInit {
         trafficUsed: true,
         expiresAt: true,
         subscriptionToken: true,
+        telegramId: true,
         organizationId: true,
         configProfileId: true,
         squadId: true,
@@ -124,6 +126,7 @@ export class UsersService implements OnModuleInit {
         passwordHash: await this.passwords.hash(dto.password),
         role: dto.role || Role.USER,
         status: dto.status || UserStatus.ACTIVE,
+        telegramId: dto.telegramId || null,
         trafficLimit: BigInt(dto.trafficLimit || 0),
         deviceLimit: dto.deviceLimit ?? 0,
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
@@ -135,6 +138,7 @@ export class UsersService implements OnModuleInit {
         role: true,
         status: true,
         subscriptionToken: true,
+        telegramId: true,
         trafficLimit: true,
         trafficUsed: true,
         deviceLimit: true,
@@ -183,6 +187,7 @@ export class UsersService implements OnModuleInit {
     if (dto.password) data.passwordHash = await this.passwords.hash(dto.password);
     if (dto.role) data.role = dto.role;
     if (dto.status) data.status = dto.status;
+    if (dto.telegramId !== undefined) data.telegramId = dto.telegramId || null;
     if (dto.trafficLimit !== undefined) data.trafficLimit = BigInt(dto.trafficLimit);
     if (dto.deviceLimit !== undefined) data.deviceLimit = dto.deviceLimit;
     if (dto.expiresAt !== undefined) data.expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : null;

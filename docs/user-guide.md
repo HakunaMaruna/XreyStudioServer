@@ -48,6 +48,20 @@ see only public product information and never a session-specific subscription li
    bind attempts receive 429.
 4. To free a slot, open the user's **Devices** list and delete the stale device.
 
+## Bulk user membership and Telegram id
+
+1. Open **Users** and tick the users you want to manage. The toolbar shows how many are selected.
+2. Choose **Add selected** or **Remove selected** and pick a connection. To apply to everyone,
+   choose **Add all** — the server computes the target list, so no huge id array is sent.
+   **By group** applies the operation to every member of a user group.
+3. The result reports how many clients were affected and how many were already in the requested
+   state. Repeating an add is safe: existing memberships are skipped.
+
+The **Telegram ID** field on create/edit accepts a numeric id (5–12 digits). On the user card
+and in the group member list an external-link button opens `https://t.me/<id>` in a new tab.
+Use this only for ids you trust; the link is built from validated digits and never from arbitrary
+input. The bot's `/login bind` flow links the same field after validating the id with Telegram.
+
 ## Creating an encrypted backup
 
 1. Set `BACKUP_ENCRYPTION_KEY` in `.env` before enabling a bucket. Without it, S3 uploads are

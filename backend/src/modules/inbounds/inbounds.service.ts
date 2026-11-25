@@ -1,8 +1,8 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, Role } from '@prisma/client';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateInboundDto, UpdateInboundDto } from './dto/inbound.dto';
+import { BulkInboundUsersDto, CreateInboundDto, UpdateInboundDto } from './dto/inbound.dto';
 
 @Injectable()
 export class InboundsService {
@@ -113,6 +113,45 @@ export class InboundsService {
         ...(dto.enabled !== undefined ? { enabled: dto.enabled } : {}),
       },
     });
+  }
+
+
+  async bulkUsers(inboundId: string, dto: BulkInboundUsersDto, user?: AuthUser) {
+    const inbound = await this.findOne(inboundId, user);
+    if (dto.scope === 'selected' && (!dto.userIds?.length || dto.userIds.length > 5000)) {
+      throw new BadRequestException('Provide between 1 and 5000 userIds for selected scope');
+    }
+    if (dto.scope === 'squad' && !dto.squadId) {
+      throw new BadRequestException('squadId is required for squad scope');
+    }
+    const org = user?.role === Role.ADMIN ? null : user?.organizationId ?? null;
+    const tenant = org ? { OR: [{ organizationId: org }, { organizationId: null }] } : {};
+    if (dto.scope === 'squad') {
+      const squad = await this.prisma.squad.findFirst({ where: { id: dto.squadId!, ...tenant }, select: { id: true } });
+      if (!squad) throw new BadRequestException('Squad not found in this organization');
+    }
+    const where: Prisma.UserWhereInput = {
+      ...tenant,
+      ...(dto.scope === 'selected' ? { id: { in: dto.userIds! } } : {}),
+      ...(dto.scope === 'squad' ? { squadId: dto.squadId! } : {}),
+    };
+    const found = await this.prisma.user.findMany({ where, select: { id: true } });
+    if (dto.scope === 'selected' && found.length !== new Set(dto.userIds!).size) {
+      throw new BadRequestException('Some users were not found in this organization');
+    }
+    const ids = found.map((row) => row.id);
+    if (!ids.length) {
+      return { inboundId, mode: dto.mode, scope: dto.scope, targetCount: 0, affected: 0, skipped: 0 };
+    }
+    if (dto.mode === 'add') {
+      const result = await this.prisma.inboundClient.createMany({
+        data: ids.map((userId) => ({ inboundId, userId })),
+        skipDuplicates: true,
+      });
+      return { inboundId, mode: dto.mode, scope: dto.scope, targetCount: ids.length, affected: result.count, skipped: ids.length - result.count };
+    }
+    const result = await this.prisma.inboundClient.deleteMany({ where: { inboundId, userId: { in: ids } } });
+    return { inboundId, mode: dto.mode, scope: dto.scope, targetCount: ids.length, affected: result.count, skipped: ids.length - result.count };
   }
 
   async remove(id: string, user?: AuthUser) {
