@@ -42,6 +42,7 @@ import { WizardModule } from './modules/wizard/wizard.module';
 import { CheburcheckModule } from './modules/cheburcheck/cheburcheck.module';
 import { BalancersModule } from './modules/balancers/balancers.module';
 import { DnsProfilesModule } from './modules/dns-profiles/dns-profiles.module';
+import { ReverseModule } from './modules/reverse/reverse.module';
 import { TelegramBotModule } from './modules/telegram-bot/telegram-bot.module';
 import { SnapshotsModule } from './modules/snapshots/snapshots.module';
 
@@ -95,6 +96,7 @@ import { SnapshotsModule } from './modules/snapshots/snapshots.module';
     CheburcheckModule,
     BalancersModule,
     DnsProfilesModule,
+    ReverseModule,
     TelegramBotModule,
     SnapshotsModule,
   ],

@@ -170,6 +170,11 @@ All report endpoints require an `ADMIN` JWT.
 - Payload accepts `routingRules[]`, `dnsServers[]` and `outbounds[]`, merged into generated Xray config.
 - `PATCH /users/:id` with `configProfileId` attaches a profile to a user.
 
+## Reverse (NAT relay)
+
+- `GET/POST /reverse`, `PATCH/DELETE /reverse/:id` — VLESS reverse tunnels for nodes behind NAT.
+  See `docs/reverse.md`.
+
 ## DNS profiles
 
 - `GET/POST /dns-profiles`, `GET/PATCH/DELETE /dns-profiles/:id` — Xray DNS profiles.

@@ -26,6 +26,7 @@ model Organization {
   routingProfiles    RoutingProfile[]
   dnsProfiles        DnsProfile[]
   balancers          Balancer[]
+  reverseTunnels     ReverseTunnel[]
 }
 
 model User {
@@ -113,6 +114,7 @@ model Node {
   organization         Organization?    @relation(fields: [organizationId], references: [id])
   configProfiles       ConfigProfile[]
   cheburchecks         CheburcheckResult[]
+  reverseTunnels       ReverseTunnel[]
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
 
@@ -172,6 +174,7 @@ model Inbound {
   fallbacks  InboundFallback[] @relation("InboundFallbacks")
   fallbackOf InboundFallback[] @relation("FallbackChildren")
   clients    InboundClient[]
+  reverseTunnels ReverseTunnel[]
 
   @@index([nodeId])
   @@index([userId])
@@ -588,6 +591,28 @@ model DnsProfile {
   updatedAt      DateTime      @updatedAt
 
   @@index([organizationId, enabled])
+}
+
+// VLESS reverse: нода за NAT пробивает туннель к публичной ноде-порталу.
+model ReverseTunnel {
+  id             String        @id @default(uuid())
+  name           String
+  enabled        Boolean       @default(false)
+  nodeId         String
+  node           Node          @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  portalInboundId String
+  portalInbound  Inbound       @relation(fields: [portalInboundId], references: [id], onDelete: Cascade)
+  publicPort     Int
+  internalAddress String       @default("127.0.0.1")
+  internalPort   Int
+  bridgeUuid     String        @default(uuid())
+  reverseDomain  String        @unique
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([nodeId, enabled])
 }
 
 model Balancer {
