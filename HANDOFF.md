@@ -31,10 +31,11 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
-## Snapshot auto-before-update fix (v2.40.8, 2026-11-26)
+## Snapshot auto-before-update fix (v2.40.9, 2026-11-26)
 
 Политика `autoBeforeUpdates` была реализована, но ни один рабочий эндпоинт её не
-использовал. Добавлен `@SnapshotBefore('update')` на `POST /api/nodes/:id/apply` и
+использовал. Добавлен `@SnapshotBefore('update')` на `POST /api/updates/apply` (реальное обновление
+панели из нового update-модуля), `POST /api/nodes/:id/apply` и
 `POST /api/nodes/:id/rollback/:revisionId`; это также покрывает `scripts/rollout.sh`.
 
 ## Wizard domain choice (v2.40.7, 2026-11-26)

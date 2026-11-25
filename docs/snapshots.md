@@ -47,10 +47,11 @@ The policy has four fields:
 | `retention` | maximum number of snapshots to keep |
 | `cooldownMinutes` | minimum interval between automatic snapshots |
 
-`autoBeforeUpdates` is wired to node configuration changes: `POST /api/nodes/:id/apply` and
-`POST /api/nodes/:id/rollback/:revisionId` are marked with `@SnapshotBefore('update', ...)`,
-so an update-type snapshot is taken first (subject to policy and cooldown). This also covers
-`scripts/rollout.sh`, which calls the same apply endpoint.
+`autoBeforeUpdates` is wired to real update paths: `POST /api/updates/apply` (panel update),
+`POST /api/nodes/:id/apply` and `POST /api/nodes/:id/rollback/:revisionId` (node configuration)
+are marked with `@SnapshotBefore('update', ...)`, so an update-type snapshot is taken first
+(subject to policy and cooldown). This also covers `scripts/rollout.sh`, which calls the same
+node apply endpoint.
 
 Automatic snapshots are created by the backend; the CLI only reads and updates the policy via
 `GET/PATCH /api/snapshots/policy`. Retention and cooldown apply to automatic captures — manual

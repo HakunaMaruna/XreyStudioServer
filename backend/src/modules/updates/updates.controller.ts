@@ -4,6 +4,7 @@ import { Role } from '@prisma/client';
 import { AuthUser, CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { SnapshotBefore } from '../snapshots/snapshot-before.decorator';
 import { AuditService } from '../audit/audit.service';
 import { ApplyUpdateDto } from './dto/apply-update.dto';
 import { VerifyUpdateDto } from './dto/verify-update.dto';
@@ -30,6 +31,7 @@ export class UpdatesController {
   }
 
   @Post('apply')
+  @SnapshotBefore('update', 'Panel update apply')
   @Roles(Role.ADMIN)
   async apply(@Body() dto: ApplyUpdateDto, @CurrentUser() user: AuthUser, @Req() req: any) {
     const result = await this.service.apply(dto?.targetVersion);
