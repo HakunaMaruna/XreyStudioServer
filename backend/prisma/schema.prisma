@@ -24,6 +24,7 @@ model Organization {
   apiTokens          ApiToken[]
   notificationRoutes NotificationRoute[]
   routingProfiles    RoutingProfile[]
+  balancers          Balancer[]
 }
 
 model User {
@@ -570,6 +571,37 @@ model NotificationPolicy {
 }
 
 // CONTROL-режим: настройки PowerDNS, редактируемые в UI. Секреты шифруются.
+model Balancer {
+  id               String           @id @default(uuid())
+  name             String
+  strategy         String           @default("roundRobin")
+  enabled          Boolean          @default(false)
+  fallbackTag      String           @default("direct")
+  probeUrl         String           @default("https://www.google.com/generate_204")
+  probeIntervalSec Int              @default(30)
+  rule             Json?
+  organizationId   String?
+  organization     Organization?    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members          BalancerMember[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([organizationId, enabled])
+}
+
+model BalancerMember {
+  id         String   @id @default(uuid())
+  balancerId String
+  balancer   Balancer @relation(fields: [balancerId], references: [id], onDelete: Cascade)
+  protocol   String
+  // Зашифрованный JSON настроек outbound (PANEL_MASTER_KEY).
+  config     String
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([balancerId, enabled])
+}
+
 model DnsSetting {
   key       String   @id
   value     String

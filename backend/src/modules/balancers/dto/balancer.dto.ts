@@ -1,0 +1,51 @@
+import {
+  ArrayMaxSize, IsArray, IsBoolean, IsIn, IsInt, IsObject, IsOptional,
+  IsString, Matches, Max, MaxLength, Min,
+} from 'class-validator';
+
+export class BalancerMemberDto {
+  @IsOptional() @IsString() id?: string;
+
+  @IsIn(['vless', 'vmess', 'trojan', 'shadowsocks', 'freedom', 'socks', 'http'])
+  protocol: string;
+
+  @IsOptional() @IsString() @MaxLength(253) address?: string;
+  @IsOptional() @IsInt() @Min(1) @Max(65535) port?: number;
+  @IsOptional() @IsString() @MaxLength(128) uuid?: string;
+  @IsOptional() @IsString() @MaxLength(256) password?: string;
+  @IsOptional() @IsString() @MaxLength(64) method?: string;
+  @IsOptional() @IsIn(['none', 'tls', 'reality']) security?: string;
+  @IsOptional() @IsString() @MaxLength(64) transport?: string;
+  @IsOptional() @IsString() @MaxLength(253) sni?: string;
+  @IsOptional() @IsString() @MaxLength(512) path?: string;
+  @IsOptional() @IsBoolean() enabled?: boolean;
+}
+
+export class CreateBalancerDto {
+  @IsString() @MaxLength(120) name: string;
+  @IsOptional() @IsIn(['random', 'roundRobin', 'leastPing', 'leastLoad']) strategy?: string;
+  @IsOptional() @IsBoolean() enabled?: boolean;
+  @IsOptional() @IsString() @MaxLength(80) fallbackTag?: string;
+  @IsOptional() @IsString() @MaxLength(512) probeUrl?: string;
+  @IsOptional() @IsInt() @Min(10) @Max(3600) probeIntervalSec?: number;
+  @IsOptional() @IsObject() rule?: Record<string, unknown>;
+  @IsArray() @ArrayMaxSize(32) members: BalancerMemberDto[];
+  @IsOptional() @IsString() organizationId?: string | null;
+}
+
+export class UpdateBalancerDto {
+  @IsOptional() @IsString() @MaxLength(120) name?: string;
+  @IsOptional() @IsIn(['random', 'roundRobin', 'leastPing', 'leastLoad']) strategy?: string;
+  @IsOptional() @IsBoolean() enabled?: boolean;
+  @IsOptional() @IsString() @MaxLength(80) fallbackTag?: string;
+  @IsOptional() @IsString() @MaxLength(512) probeUrl?: string;
+  @IsOptional() @IsInt() @Min(10) @Max(3600) probeIntervalSec?: number;
+  @IsOptional() @IsObject() rule?: Record<string, unknown>;
+  @IsArray() @ArrayMaxSize(32) members?: BalancerMemberDto[];
+  @IsOptional() @IsString() organizationId?: string | null;
+}
+
+export class ValidateBalancerDto {
+  @IsObject()
+  balancer: Record<string, unknown>;
+}

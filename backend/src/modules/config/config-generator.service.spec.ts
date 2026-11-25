@@ -39,7 +39,7 @@ describe('ConfigGeneratorService external protocols', () => {
     ]);
     prisma.rule.findMany.mockResolvedValue([]);
     prisma.routingProfile.findMany.mockResolvedValue([]);
-    service = new ConfigGeneratorService(prisma, {} as any, { emit: jest.fn() } as any);
+    service = new ConfigGeneratorService(prisma, {} as any, { emit: jest.fn() } as any, { buildForConfig: jest.fn(async () => ({ outbounds: [], balancers: [], rules: [], observerSelectors: [] })) } as any);
   });
 
   it('splits Xray and external protocols into separate engine configs', async () => {
