@@ -594,7 +594,7 @@ unit 19 suites / 110 tests, `npm run test:e2e` 2 suites / 11 tests, nest build r
 `node dist/scripts/rescue-cli.js --help` rc=0, code_review zero findings.
 Local PG e2e remains skipped (pg_dump 16 cannot dump PGlite 19). CI is the authority.
 
-## Documentation, UI screenshots and SEO (4e91c38)
+## Documentation, UI screenshots and SEO (9719eac)
 
 - Added `docs/processes.md` (end-to-end Mermaid diagrams for install, node onboarding,
   subscription/HWID, backup/restore, health/doctor, Telegram/MCP) and `docs/user-guide.md`
@@ -610,3 +610,10 @@ Local PG e2e remains skipped (pg_dump 16 cannot dump PGlite 19). CI is the autho
 - Local validation: tsc rc=0, next build (webpack) rc=0, lint 0 errors, backend unit
   19 suites / 110 tests, code_review 0 findings. Turbopack build fails locally on Node 20.15
   (`magic-string` ESM); webpack build and CI are the authority.
+- Follow-up CI repairs on top of this work: removed unused assignments in `wizard.service.ts`
+  and its spec, updated the rule-creation e2e payload to the current validation contract,
+  and mocked `AgentClientService.ping` in the PostgreSQL rollout suite (its health endpoint
+  now calls ping). The temporary workflow diagnostics used to capture the remote failure were
+  reverted. Final GitHub CI on `9719eac`: CI, Images and Live API smoke all green; local
+  backend typecheck/lint/unit (24 suites / 137 tests)/e2e (2 suites / 11 tests) and frontend
+  tsc/lint/build (webpack) all rc=0, code_review 0 findings.
