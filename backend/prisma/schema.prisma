@@ -531,6 +531,7 @@ enum NotificationChannel {
   TELEGRAM
   WEBHOOK
   EMAIL
+  SIGNAL
 }
 
 model NotificationRoute {
@@ -545,4 +546,35 @@ model NotificationRoute {
 
   @@unique([event, channel, organizationId])
   @@index([organizationId, enabled])
+}
+
+// Реквизиты каналов: только шифртекст (PANEL_MASTER_KEY). Значения не возвращаются API.
+model NotificationCredential {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model NotificationPolicy {
+  id                 String   @id @default("default")
+  enabled            Boolean  @default(true)
+  quietHoursStart    String?
+  quietHoursEnd      String?
+  cooldownMinutes    Int      @default(0)
+  minSeverity        String   @default("warning")
+  escalationChannel  String?
+  updatedAt          DateTime @updatedAt
+}
+
+model NotificationDelivery {
+  id         String   @id @default(uuid())
+  event      String
+  channel    String
+  status     String
+  dedupeKey  String?
+  error      String?
+  createdAt  DateTime @default(now())
+
+  @@index([dedupeKey, createdAt])
+  @@index([createdAt])
 }

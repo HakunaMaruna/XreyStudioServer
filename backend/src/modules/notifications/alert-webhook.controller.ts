@@ -88,11 +88,15 @@ export class AlertWebhookController {
     );
     const organizationId = alerts.find((a) => a.labels?.organizationId)?.labels?.organizationId
       || null;
+    const severity = alerts.find((alert) => alert.labels?.severity)?.labels?.severity as string | undefined
+      || (body?.status === 'firing' ? 'warning' : 'info');
     const channels = await this.notifications.emit(event, {
       text,
       plainText: lines.length ? lines.join('\n') : `${body?.title || body?.message || 'XSS alert'}`,
       subject: body?.title || 'XSS alert',
       webhook: { event, status: body?.status, title: body?.title, alerts },
+      severity,
+      dedupeKey: `${event}:${body?.title || 'grafana'}`,
     }, organizationId);
     return { received: alerts.length, persisted: records.length, ...channels };
   }
