@@ -31,6 +31,15 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Subscription page (v2.38.0, 2026-11-25)
+
+Публичная страница `/sub/[token]` переработана: mobile-first, светлая/тёмная тема с
+автоопределением, RU/EN переключатель, карточка с обратным отсчётом и оставшимся трафиком,
+QR/копирование, приложения с определением ОС и deep links, состояния подписки.
+Добавлены `SubscriptionPageSettings`, `VpnApp`, админ-раздел `/subscription-page` с
+предпросмотром `/sub/preview`, санитайзер CSS и валидация deep link. Старые форматы
+подписки и HWID-binding не тронуты. Документация `docs/subscription-page.md`.
+
 ## NAT relay (v2.37.0, 2026-11-25)
 
 Сценарий 1 из вердикта: VLESS reverse-туннель для ноды за NAT. Раздел `/reverse`:

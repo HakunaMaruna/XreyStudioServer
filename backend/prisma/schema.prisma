@@ -27,6 +27,7 @@ model Organization {
   dnsProfiles        DnsProfile[]
   balancers          Balancer[]
   reverseTunnels     ReverseTunnel[]
+  vpnApps            VpnApp[]
 }
 
 model User {
@@ -317,6 +318,7 @@ model SubscriptionTemplate {
   accent         String        @default("#8474ff")
   instructions   Json?
   footer         String?
+  pageSettings   Json?
   enabled        Boolean       @default(true)
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
@@ -326,6 +328,32 @@ model SubscriptionTemplate {
 
   @@index([enabled])
   @@index([organizationId])
+}
+
+// Глобальные настройки публичной страницы подписки ( singleton id="default" ).
+model SubscriptionPageSettings {
+  id        String   @id @default("default")
+  settings  Json
+  updatedAt DateTime @updatedAt
+}
+
+// Приложения для публичной страницы подписки, редактируются из панели.
+model VpnApp {
+  id               String        @id @default(uuid())
+  name             String
+  platform         String
+  iconUrl          String?
+  downloadUrl      String?
+  deepLinkTemplate String?
+  instructions     Json?
+  sortOrder        Int           @default(0)
+  enabled          Boolean       @default(true)
+  organizationId   String?
+  organization     Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([enabled, sortOrder])
 }
 
 model NodeGeo {

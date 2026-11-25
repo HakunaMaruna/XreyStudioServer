@@ -1,9 +1,10 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SubscriptionPageService } from '../subscription-page/subscription-page.service';
 
 @Injectable()
 export class SubscriptionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private page: SubscriptionPageService) {}
 
   private encodeBase64(value: string) {
     return Buffer.from(value).toString('base64').replace(/=+$/, '');
@@ -171,6 +172,7 @@ export class SubscriptionsService {
             accent: user.subscriptionTemplate.accent,
             instructions: user.subscriptionTemplate.instructions,
             footer: user.subscriptionTemplate.footer,
+            pageSettings: user.subscriptionTemplate.pageSettings,
           }
         : null,
       nodes: Array.from(
@@ -204,8 +206,22 @@ export class SubscriptionsService {
 
   async json(token: string) {
     const data = await this.getStatus(token);
-    if (data.status !== 'active') return { ...data, links: [] };
-    return data;
+    const page = await this.page.publicPayload((data.template as any)?.pageSettings || null);
+    if (data.status !== 'active') return { ...data, links: [], page };
+    return { ...data, page };
+  }
+
+  async preview() {
+    const page = await this.page.publicPayload();
+    return {
+      status: 'active',
+      expiresAt: new Date(Date.now() + 14 * 86_400_000).toISOString(),
+      trafficUsed: 12 * 1024 ** 3,
+      trafficLimit: 50 * 1024 ** 3,
+      nodes: [{ id: 'preview', name: 'Demo node', address: 'demo.example.com' }],
+      links: [],
+      page,
+    };
   }
 
   private parseVmess(link: string): Record<string, any> {
