@@ -41,6 +41,13 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 «Check now / cheburcheck», код не копировался. Документация `docs/cheburcheck.md`.
 Тесты: 28 suites / 151 tests.
 
+Живая проверка: версия 2.32.0; токен сохранён через API, в БД только `v1:`-шифртекст;
+`/api/cheburcheck/status` → configured true, credits 0, сервис 1.6.3; реальная проверка ноды
+`213.171.30.186` → verdict `uncertain`, 18 сканеров, гео Cloud.ru/RU, без ошибок потока;
+результат сохранён, отчёт `/api/reports/cheburcheck.csv` содержит строку. Блокировки нет,
+поэтому уведомление не отправлялось (журнал доставок пуст) — это корректно. Публичные
+сканеры работают и при 0 кредитов; кредиты нужны только платным функциям Cheburcheck.
+
 ## Telegram-уведомления — остановились здесь (2026-11-25, issue #190)
 
 Код поддержки Telegram готов (v2.31.0). На боевой панели сохранён токен бота
