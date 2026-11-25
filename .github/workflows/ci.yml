@@ -48,7 +48,12 @@ jobs:
         with:
           node-version: 20
       - run: cd backend && npm ci
-      - run: cd backend && npm run test:e2e:pg
+      - name: e2e postgres (diagnostic output)
+        shell: bash
+        run: |
+          set -o pipefail
+          cd backend && npm run test:e2e:pg 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+
   docker:
     runs-on: ubuntu-latest
     steps:
