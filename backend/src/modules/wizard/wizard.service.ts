@@ -1,5 +1,5 @@
 import { resolveCname } from 'dns/promises';
-import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { encryptSecret } from '../../common/secret-crypto';
@@ -9,6 +9,7 @@ import { ConfigGeneratorService } from '../config/config-generator.service';
 import { ControlService } from '../control/control.service';
 import { NodeProvisionService } from '../node-provision/node-provision.service';
 import { CreateNodeWizardDto } from './dto/wizard.dto';
+import { UpdateWizardNodeDto } from './dto/update-wizard-node.dto';
 
 @Injectable()
 export class WizardService {
@@ -102,6 +103,7 @@ export class WizardService {
           passphrase: dto.passphrase,
           password: dto.password,
           hostKeyFingerprint: dto.hostKeyFingerprint,
+          location: dto.location,
           useSudo: Boolean(dto.sshUser && dto.sshUser !== 'root'),
         } as any,
         user,
@@ -116,6 +118,13 @@ export class WizardService {
       data: {
         nodeId: provisioned.nodeId,
         authMode: dto.authMode,
+        sshHost: dto.host,
+        sshUser: dto.sshUser || 'root',
+        sshPort: dto.sshPort || 22,
+        location: dto.location,
+        nodeName: dto.nodeName || null,
+        ipv4: dto.ipv4 || null,
+        ipv6: dto.ipv6 || null,
         password: dto.password ? encryptSecret(dto.password) : null,
         privateKey: dto.privateKey ? encryptSecret(dto.privateKey) : null,
         passphrase: dto.passphrase ? encryptSecret(dto.passphrase) : null,
@@ -168,6 +177,67 @@ export class WizardService {
         ? 'Apply the configuration on the node to activate VLESS TLS.'
         : 'Certificate pending DNS propagation — retry after the node is ONLINE.',
     };
+  }
+
+  private async assertNodeAccess(nodeId: string, user: AuthUser) {
+    const node = await this.prisma.node.findUnique({ where: { id: nodeId } });
+    if (!node) throw new NotFoundException('Node not found');
+    if (user.role !== Role.ADMIN && node.organizationId !== user.organizationId) {
+      throw new ForbiddenException('Node belongs to another organization');
+    }
+    return node;
+  }
+
+  // Параметры мастера, доступные для редактирования. Секреты никогда не возвращаются.
+  async getNodeParams(nodeId: string, user: AuthUser) {
+    const node = await this.assertNodeAccess(nodeId, user);
+    const credential = await this.prisma.wizardCredential.findUnique({ where: { nodeId } });
+    return {
+      id: node.id,
+      name: node.name,
+      address: node.address,
+      location: node.location || credential?.location || null,
+      authMode: credential?.authMode || 'key',
+      sshHost: credential?.sshHost || node.address,
+      sshUser: credential?.sshUser || 'root',
+      sshPort: credential?.sshPort || 22,
+      ipv4: credential?.ipv4 || null,
+      ipv6: credential?.ipv6 || null,
+      userDomain: credential?.userDomain || null,
+      hasPassword: Boolean(credential?.password),
+      hasPrivateKey: Boolean(credential?.privateKey),
+      hasPassphrase: Boolean(credential?.passphrase),
+      createdAt: credential?.createdAt || null,
+    };
+  }
+
+  async updateNodeParams(nodeId: string, dto: UpdateWizardNodeDto, user: AuthUser) {
+    await this.assertNodeAccess(nodeId, user);
+    const nodeData: Record<string, unknown> = {};
+    if (dto.name !== undefined) nodeData.name = dto.name;
+    if (dto.address !== undefined) nodeData.address = dto.address;
+    if (dto.location !== undefined) nodeData.location = dto.location;
+    if (Object.keys(nodeData).length) {
+      await this.prisma.node.update({ where: { id: nodeId }, data: nodeData as any });
+    }
+
+    const credentialData: Record<string, unknown> = {};
+    for (const key of ['authMode', 'sshUser', 'sshPort', 'location', 'ipv4', 'ipv6', 'userDomain'] as const) {
+      if (dto[key] !== undefined) credentialData[key] = dto[key];
+    }
+    if (dto.address !== undefined) credentialData.sshHost = dto.address;
+    if (dto.password) credentialData.password = encryptSecret(dto.password);
+    if (dto.privateKey) credentialData.privateKey = encryptSecret(dto.privateKey);
+    if (dto.passphrase) credentialData.passphrase = encryptSecret(dto.passphrase);
+
+    if (Object.keys(credentialData).length) {
+      await this.prisma.wizardCredential.upsert({
+        where: { nodeId },
+        create: { nodeId, authMode: 'key', ...credentialData } as any,
+        update: credentialData as any,
+      });
+    }
+    return this.getNodeParams(nodeId, user);
   }
 
   async listCredentials() {

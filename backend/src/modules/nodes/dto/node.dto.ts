@@ -1,4 +1,4 @@
-import { IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsNumber, IsOptional, IsString, Matches } from 'class-validator';
 
 export class CreateNodeDto {
   @IsString()
@@ -18,6 +18,10 @@ export class CreateNodeDto {
   @IsOptional()
   @IsString()
   organizationId?: string;
+
+  @IsOptional()
+  @Matches(/^[A-Z]{2}$/)
+  location?: string;
 }
 
 export class UpdateNodeDto {
@@ -40,6 +44,10 @@ export class UpdateNodeDto {
   @IsOptional()
   @IsString()
   organizationId?: string;
+
+  @IsOptional()
+  @Matches(/^[A-Z]{2}$/)
+  location?: string;
 }
 
 export class RegisterNodeDto {

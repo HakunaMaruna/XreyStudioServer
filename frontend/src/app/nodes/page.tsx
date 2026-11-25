@@ -2,16 +2,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { api, isLoggedIn } from '../../lib/api';
+import { COUNTRIES } from '../../lib/countries';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
 import {
-  Badge, Button, Card, IconButton, Modal, PageHeader,
+  Badge, Button, Card, Field, IconButton, Modal, PageHeader,
   SectionTitle, StatusBadge, formatBytes,
 } from '../../components/ui';
 
 type NodeGeo = { countryCode: string | null; city: string | null; ip: string | null; asn: string | null; checkedAt: string };
-type NodeRow = { id: string; name: string; address: string; port: number; status: string; geo?: NodeGeo | null };
+type NodeRow = { id: string; name: string; address: string; port: number; status: string; location?: string | null; geo?: NodeGeo | null };
 type RevisionRow = { id: string; version: number; applied: boolean; createdAt: string };
 type LogEntry = { timestamp: string; level: string; message: string };
 type NodeLogs = { nodeId: string; logs: LogEntry[] };
@@ -34,7 +35,7 @@ type NodeHealth = {
 };
 
 export default function NodesPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [nodes, setNodes] = useState<NodeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -47,6 +48,18 @@ export default function NodesPage() {
   const [logsNode, setLogsNode] = useState<NodeRow | null>(null);
   const [logsData, setLogsData] = useState<NodeLogs | null>(null);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [editNodeId, setEditNodeId] = useState<string | null>(null);
+  const [editData, setEditData] = useState<any>(null);
+  const [editBusy, setEditBusy] = useState(false);
+  const [metricsNode, setMetricsNode] = useState<NodeRow | null>(null);
+  const [metricsData, setMetricsData] = useState<any>(null);
+  const [metricsLoading, setMetricsLoading] = useState(false);
+
+  const countryNames = useMemo(
+    () => new Intl.DisplayNames([lang === 'ru' ? 'ru' : 'en'], { type: 'region' }),
+    [lang],
+  );
+  const flagFor = (code?: string | null) => COUNTRIES.find((c) => c.code === code)?.flag || '';
 
   const load = async () => {
     setLoading(true);
@@ -143,6 +156,61 @@ export default function NodesPage() {
     }
   };
 
+  const openEdit = async (node: NodeRow) => {
+    setEditNodeId(node.id);
+    setEditData(null);
+    setError('');
+    try {
+      const data = await api.get(`/api/wizard/nodes/${node.id}`);
+      setEditData({ ...data, name: data.name || node.name, address: data.address || node.address });
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editNodeId || !editData) return;
+    setEditBusy(true);
+    setError('');
+    try {
+      const body: Record<string, unknown> = {
+        name: editData.name,
+        address: editData.address,
+        location: editData.location || undefined,
+        sshUser: editData.sshUser,
+        sshPort: Number(editData.sshPort) || 22,
+        authMode: editData.authMode,
+        ipv4: editData.ipv4 || undefined,
+        ipv6: editData.ipv6 || undefined,
+        userDomain: editData.userDomain || undefined,
+      };
+      if (editData.password) body.password = editData.password;
+      if (editData.privateKey) body.privateKey = editData.privateKey;
+      if (editData.passphrase) body.passphrase = editData.passphrase;
+      await api.patch(`/api/wizard/nodes/${editNodeId}`, body);
+      setEditNodeId(null);
+      await load();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
+  const openMetrics = async (node: NodeRow) => {
+    setMetricsNode(node);
+    setMetricsData(null);
+    setMetricsLoading(true);
+    try {
+      setMetricsData(await api.get(`/api/nodes/${node.id}/health`));
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setMetricsLoading(false);
+    }
+  };
+
   const columns = useMemo<ColumnDef<NodeRow>[]>(
     () => [
       {
@@ -154,7 +222,10 @@ export default function NodesPage() {
               <Icon name="server" size={15} />
             </div>
             <div>
-              <p className="font-medium text-fg">{row.original.name}</p>
+              <p className="font-medium text-fg">
+                {flagFor(row.original.location) && <span className="mr-1.5" title={row.original.location || ''}>{flagFor(row.original.location)}</span>}
+                {row.original.name}
+              </p>
               <p className="text-[10px] text-subtle">{t.idLabel} {row.original.id.slice(0, 8)}</p>
             </div>
           </div>
@@ -193,7 +264,9 @@ export default function NodesPage() {
         enableSorting: false,
         cell: ({ row }) => (
           <div className="flex items-center gap-1">
+            <IconButton icon="gauge" label={t.metrics} tone="brand" onClick={() => openMetrics(row.original)} />
             <IconButton icon="activity" label={t.health} onClick={() => openHealth(row.original)} />
+            <IconButton icon="edit" label={t.edit} onClick={() => openEdit(row.original)} />
             <IconButton icon="terminal" label={t.logs} onClick={() => openLogs(row.original)} />
             <IconButton icon="play" label={t.apply} tone="brand" onClick={() => apply(row.original.id)} />
             <IconButton icon="refresh" label={t.restart} onClick={() => restart(row.original.id)} />
@@ -347,6 +420,120 @@ export default function NodesPage() {
           </div>
         ) : (
           <div className="py-12 text-center text-xs text-subtle">{t.noLogs}</div>
+        )}
+      </Modal>
+
+
+      <Modal
+        open={Boolean(editNodeId)}
+        onClose={() => { setEditNodeId(null); setEditData(null); }}
+        title={t.editNode}
+        subtitle={editData?.name || undefined}
+        icon={<Icon name="edit" size={16} />}
+        size="lg"
+        footer={<>
+          <Button onClick={() => { setEditNodeId(null); setEditData(null); }}>{t.cancel}</Button>
+          <Button variant="primary" icon="check" form="edit-node-form" loading={editBusy}>{t.save}</Button>
+        </>}
+      >
+        {editData ? (
+          <form id="edit-node-form" onSubmit={saveEdit} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={t.name}>
+                <input className="field" value={editData.name || ''} onChange={(e) => setEditData({ ...editData, name: e.target.value })} required />
+              </Field>
+              <Field label={t.wizardHost}>
+                <input className="field" value={editData.address || ''} onChange={(e) => setEditData({ ...editData, address: e.target.value })} required />
+              </Field>
+              <Field label={t.wizardLocation}>
+                <select className="field" value={editData.location || ''} onChange={(e) => setEditData({ ...editData, location: e.target.value || null })}>
+                  <option value="">—</option>
+                  {COUNTRIES.map((country) => (
+                    <option key={country.code} value={country.code}>
+                      {country.flag} {countryNames.of(country.code)} ({country.code})
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label={t.wizardAuthMode}>
+                <select className="field" value={editData.authMode || 'key'} onChange={(e) => setEditData({ ...editData, authMode: e.target.value })}>
+                  <option value="key">{t.wizardKey}</option>
+                  <option value="password">{t.wizardPassword}</option>
+                  <option value="password_key">{t.wizardPassword} + {t.wizardKey}</option>
+                </select>
+              </Field>
+              <Field label={t.wizardUser}>
+                <input className="field" value={editData.sshUser || ''} onChange={(e) => setEditData({ ...editData, sshUser: e.target.value })} />
+              </Field>
+              <Field label={t.wizardPort}>
+                <input className="field" type="number" min={1} max={65535} value={editData.sshPort ?? 22} onChange={(e) => setEditData({ ...editData, sshPort: e.target.value })} />
+              </Field>
+              <Field label={t.wizardIpv4}>
+                <input className="field" value={editData.ipv4 || ''} onChange={(e) => setEditData({ ...editData, ipv4: e.target.value })} />
+              </Field>
+              <Field label={t.wizardIpv6}>
+                <input className="field" value={editData.ipv6 || ''} onChange={(e) => setEditData({ ...editData, ipv6: e.target.value })} />
+              </Field>
+              <Field label={t.wizardUserDomain}>
+                <input className="field" value={editData.userDomain || ''} onChange={(e) => setEditData({ ...editData, userDomain: e.target.value })} />
+              </Field>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label={t.wizardPassword} hint={t.keepSecret}>
+                <input className="field" type="password" autoComplete="new-password" value={editData.password || ''} onChange={(e) => setEditData({ ...editData, password: e.target.value })} />
+              </Field>
+              <Field label={t.wizardKey} hint={t.keepSecret}>
+                <textarea className="field mono min-h-20 text-[11px]" value={editData.privateKey || ''} onChange={(e) => setEditData({ ...editData, privateKey: e.target.value })} />
+              </Field>
+              <Field label={t.wizardPassphrase} hint={t.keepSecret}>
+                <input className="field" type="password" autoComplete="off" value={editData.passphrase || ''} onChange={(e) => setEditData({ ...editData, passphrase: e.target.value })} />
+              </Field>
+            </div>
+          </form>
+        ) : (
+          <div className="py-10 text-center text-xs text-subtle"><Icon name="refresh" size={15} className="mx-auto animate-spin text-brand" /></div>
+        )}
+      </Modal>
+
+      <Modal
+        open={Boolean(metricsNode)}
+        onClose={() => { setMetricsNode(null); setMetricsData(null); }}
+        title={t.metrics}
+        subtitle={metricsNode?.name}
+        icon={<Icon name="gauge" size={16} />}
+      >
+        {metricsLoading ? (
+          <div className="flex items-center justify-center gap-2 py-12 text-xs text-muted">
+            <Icon name="refresh" size={15} className="animate-spin text-brand" />{t.loading}
+          </div>
+        ) : metricsData ? (
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge status={metricsData.status} />
+              <Badge tone={metricsData.xray === 'running' ? 'success' : 'danger'} dot>
+                {t.xrayStatus}: {metricsData.xray}
+              </Badge>
+              <Badge tone={metricsData.ping?.reachable ? 'success' : 'danger'} dot>
+                {t.ping}: {metricsData.ping?.reachable ? `${metricsData.ping.latencyMs} ms` : t.unreachable}
+              </Badge>
+            </div>
+            <div>
+              <p className="mb-2 text-[10px] uppercase tracking-wider text-subtle">{t.networkSpeed}</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[
+                  { label: t.upload, value: `${metricsData.network?.uploadMbps ?? 0} Mbps` },
+                  { label: t.download, value: `${metricsData.network?.downloadMbps ?? 0} Mbps` },
+                ].map((item) => (
+                  <div key={item.label} className="rounded-xl border border-line bg-surface-2/50 p-3">
+                    <p className="text-[11px] text-subtle">{item.label}</p>
+                    <p className="mt-1 text-sm font-semibold text-fg tabular-nums">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="py-12 text-center text-xs text-subtle">{t.noData}</div>
         )}
       </Modal>
 

@@ -138,6 +138,18 @@ export class AgentClientService {
     return this.request(`${this.base(node, true)}/certificate`, { payload }, 15000);
   }
 
+  // Быстрый HTTP-RTT до агента: используется как «пинг» в карточке метрик ноды.
+  async ping(node: { address: string; agentUrl?: string | null }) {
+    const started = Date.now();
+    try {
+      const base = this.base(node, true);
+      await this.request(`${base.replace(/\/$/, '')}/health`, undefined, 3000, 'GET');
+      return { reachable: true, latencyMs: Date.now() - started };
+    } catch (error: any) {
+      return { reachable: false, latencyMs: null, error: error.message };
+    }
+  }
+
   async getLogs(
     node: { address: string; agentUrl?: string | null },
     service: 'xray' | 'singbox',

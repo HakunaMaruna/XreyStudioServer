@@ -47,6 +47,10 @@ export class ProvisionNodeDto {
   hostKeyFingerprint: string;
 
   @IsOptional()
+  @Matches(/^[A-Z]{2}$/)
+  location?: string;
+
+  @IsOptional()
   @Matches(/^https:\/\/[A-Za-z0-9.-]+(?::\d{2,5})?(?:\/[A-Za-z0-9._~/-]*)?$/)
   @MaxLength(500)
   panelUrl?: string;

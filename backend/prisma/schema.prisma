@@ -94,6 +94,7 @@ model Node {
   lastSeenAt           DateTime?
   lastError            String?
   xrayVersion          String?
+  location             String?
   certificateHost      String?
   certificateIssuedAt  DateTime?
   certificateExpiresAt DateTime?
@@ -129,6 +130,7 @@ model NodeMetric {
   trafficUp   BigInt   @default(0)
   trafficDown BigInt   @default(0)
   connections Int      @default(0)
+  xrayStatus  String?
   createdAt   DateTime @default(now())
 
   @@index([nodeId, createdAt])
@@ -470,6 +472,13 @@ model WizardCredential {
   id         String   @id @default(uuid())
   nodeId     String   @unique
   authMode   String
+  sshHost    String?
+  sshUser    String?
+  sshPort    Int?
+  location   String?
+  nodeName   String?
+  ipv4       String?
+  ipv6       String?
   password   String?
   privateKey String?
   passphrase String?
