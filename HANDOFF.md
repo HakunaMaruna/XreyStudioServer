@@ -53,6 +53,11 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 <https://cheburcheck.ru/kb/api> и форму заявки <https://forms.gle/LSPcAV5n3CrdQLMP6>.
 Свой API URL проверяется на SSRF (только HTTPS в проде, нельзя приватные адреса).
 
+Живая проверка v2.32.1: configured-ключей 15, токен сохранён, URL по умолчанию пуст;
+явно заданный `https://cheburcheck.ru/api/v1` прошёл, `/status` вернул 1.6.3;
+`https://127.0.0.1/api/v1` сохранён, но `/status` дал 400 (защита сработала), после чего
+настройка очищена. Ссылки на документацию и форму заявки присутствуют в UI-бандле.
+
 ## Telegram-уведомления — остановились здесь (2026-11-25, issue #190)
 
 Код поддержки Telegram готов (v2.31.0). На боевой панели сохранён токен бота
