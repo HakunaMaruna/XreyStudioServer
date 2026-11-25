@@ -61,8 +61,11 @@ PATCH  /api/dns/zone/:zone/dnssec/keys/:id     { active?, published? }
 DELETE /api/dns/zone/:zone/dnssec/keys/:id
 ```
 
-При включении зона переводится в `dnssec: true` и `api_rectify: true`. Ключи KSK/ZSK
-создаются отдельно; приватный материал **никогда не возвращается** в API панели —
+Для gsqlite3-бэкенда в контейнере включено `--gsqlite3-dnssec=yes` и алгоритмы
+ECDSAP256SHA256 по умолчанию; PowerDNS 4.x требует `rrsets: []` в PATCH зоны даже
+при изменении только флага `dnssec`. При включении зона переводится в
+`dnssec: true` и `api_rectify: true`. Ключи KSK/ZSK создаются отдельно (PowerDNS может
+вернуть `csk` для одного ключа); приватный материал **никогда не возвращается** в API панели —
 только тип, алгоритм, битность, флаги active/published, DNSKEY и DS/CDS.
 DS-записи нужно вручную добавить в родительскую зону у регистратора — до этого зона
 работает, но не валидируется. При отключении DNSSEC ключи остаются в PowerDNS и могут

@@ -51,9 +51,13 @@ DNSSEC (v2.33.1): вкладка DNSSEC — включение/выключен�
 KSK/ZSK/CSK, активация/публикация и удаление ключей, вывод DS-записей для регистратора.
 Приватный ключ не возвращается. Тесты 29 suites / 158 tests.
 
-Фикс v2.33.2: PowerDNS 4.4.1 требует `rrsets: []` в PATCH зоны даже при изменении
-только `dnssec` — без этого API отдавал 422. Включение DNSSEC и создание ключа
-проверены на временной зоне `dnssec-test.h2onetwork.pro.`, зона удалена после теста.
+Фиксы v2.33.2–v2.33.5: PowerDNS 4.4.1 требует `rrsets: []` в PATCH зоны даже при
+изменении только `dnssec` (без этого 422), а daemon-wide DNSSEC для gsqlite3 задаётся
+`--gsqlite3-dnssec=yes` (не `--dnssec`, не `dnssec=` в pdns.conf — оба давали
+«unknown parameter»). Живой тест на v2.33.5: временная зона
+`dnssec-test.h2onetwork.pro.` создана, DNSSEC включён (HTTP 200), ключ создан
+(HTTP 201, ECDSAP256SHA256 256 bit, 3 DS-записи, `privatekey` в ответе отсутствует);
+ключ и зона удалены после проверки. Рабочая зона `node.h2onetwork.pro.` не менялась.
 
 ## Nodes grid (v2.32.3, 2026-11-25)
 
