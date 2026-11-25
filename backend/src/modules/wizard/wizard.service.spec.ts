@@ -52,6 +52,15 @@ describe('WizardService', () => {
     expect(control.allocate).not.toHaveBeenCalled();
   });
 
+  it('requires a fingerprint for key auth but not for password-only auth', async () => {
+    const { hostKeyFingerprint: _ignored, ...withoutFingerprint } = baseDto;
+    await expect(service().create(withoutFingerprint as any, user)).rejects.toThrow('fingerprint is required');
+    await expect(service().create({
+      ...withoutFingerprint, authMode: 'password', password: 'pw',
+    } as any, user)).resolves.toMatchObject({ nodeId: 'node-1' });
+    expect(provision.provision).toHaveBeenCalledWith(expect.objectContaining({ hostKeyFingerprint: undefined }), user);
+  });
+
   it('creates a node, VLESS TLS inbound and stores encrypted credentials', async () => {
     const result = await service().create({ ...baseDto, userDomain: 'vpn.example.com' } as any, user);
     expect(control.allocate).toHaveBeenCalled();

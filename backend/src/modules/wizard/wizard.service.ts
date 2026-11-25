@@ -76,6 +76,9 @@ export class WizardService {
     if (dto.authMode !== 'password' && !dto.privateKey) {
       throw new BadRequestException('Private key is required for this SSH auth mode');
     }
+    if (dto.authMode !== 'password' && !dto.hostKeyFingerprint) {
+      throw new BadRequestException('SSH host key fingerprint is required for key-based auth');
+    }
     if (user.role !== Role.ADMIN && user.role !== Role.OPERATOR) {
       throw new BadRequestException('Admin or operator role required');
     }

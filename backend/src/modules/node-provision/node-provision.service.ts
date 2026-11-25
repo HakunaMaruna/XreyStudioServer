@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
@@ -24,6 +25,8 @@ export function fingerprintMatches(key: Buffer, fingerprint: string): boolean {
 
 @Injectable()
 export class NodeProvisionService {
+  private readonly logger = new Logger(NodeProvisionService.name);
+
   constructor(private prisma: PrismaService) {}
 
   private enabled() {
@@ -37,9 +40,14 @@ export class NodeProvisionService {
       host: dto.host,
       port: dto.port,
       username: dto.username,
-      hostVerifier: (key) => fingerprintMatches(key as Buffer, dto.hostKeyFingerprint),
+      // Fingerprint pinning is enforced for key-based auth by the wizard. Password-only
+      // auth may omit it; in that case ssh2 falls back to its default TOFU behaviour.
+      hostVerifier: (key) => !dto.hostKeyFingerprint || fingerprintMatches(key as Buffer, dto.hostKeyFingerprint),
       readyTimeout: 15_000,
     };
+    if (!dto.hostKeyFingerprint) {
+      this.logger.warn(`SSH host key fingerprint not pinned for ${dto.host}@${dto.username}`);
+    }
     if (dto.privateKey) {
       config.privateKey = dto.privateKey;
       if (dto.passphrase) config.passphrase = dto.passphrase;

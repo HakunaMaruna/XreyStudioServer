@@ -41,7 +41,6 @@ export default function WizardPage() {
     privateKey: '',
     passphrase: '',
   });
-  const [countrySearch, setCountrySearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<WizardResult | null>(null);
@@ -51,15 +50,6 @@ export default function WizardPage() {
     () => new Intl.DisplayNames([lang === 'ru' ? 'ru' : 'en'], { type: 'region' }),
     [lang],
   );
-  const countries = useMemo(() => {
-    const query = countrySearch.trim().toLowerCase();
-    return COUNTRIES.filter(
-      (country) =>
-        !query ||
-        country.code.toLowerCase().includes(query) ||
-        String(names.of(country.code) || '').toLowerCase().includes(query),
-    );
-  }, [countrySearch, names]);
 
   useEffect(() => {
     if (!isLoggedIn()) window.location.href = '/login';
@@ -76,7 +66,6 @@ export default function WizardPage() {
         host: form.host,
         sshUser: form.sshUser,
         sshPort: Number(form.sshPort) || 22,
-        hostKeyFingerprint: form.hostKeyFingerprint,
         authMode,
         location: form.location,
         nodeName: form.nodeName || undefined,
@@ -85,6 +74,7 @@ export default function WizardPage() {
         userDomain: form.userDomain || undefined,
       };
       if (authMode !== 'key') body.password = form.password;
+      if (authMode !== 'password' && form.hostKeyFingerprint) body.hostKeyFingerprint = form.hostKeyFingerprint;
       if (authMode !== 'password') {
         body.privateKey = form.privateKey;
         if (form.passphrase) body.passphrase = form.passphrase;
@@ -159,7 +149,7 @@ export default function WizardPage() {
 
       {step === 0 && (
         <Card>
-          <SectionTitle title={t.wizardStep1} subtitle={t.wizardFingerprintHint} />
+          <SectionTitle title={t.wizardStep1} subtitle={authMode === 'password' ? undefined : t.wizardFingerprintHint} />
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t.wizardHost}>
               <input className={inputClass} value={form.host} onChange={(e) => update('host', e.target.value)} placeholder="node.example.com" />
@@ -170,9 +160,11 @@ export default function WizardPage() {
             <Field label={t.wizardPort}>
               <input className={inputClass} value={form.sshPort} onChange={(e) => update('sshPort', e.target.value)} />
             </Field>
-            <Field label={t.wizardFingerprint}>
-              <input className={inputClass} value={form.hostKeyFingerprint} onChange={(e) => update('hostKeyFingerprint', e.target.value)} placeholder="SHA256:..." />
-            </Field>
+            {authMode !== 'password' && (
+              <Field label={t.wizardFingerprint}>
+                <input className={inputClass} value={form.hostKeyFingerprint} onChange={(e) => update('hostKeyFingerprint', e.target.value)} placeholder="SHA256:..." />
+              </Field>
+            )}
           </div>
           <div className="mt-5">
             <span className="text-[11px] font-medium uppercase tracking-wider text-subtle">{t.wizardAuthMode}</span>
@@ -202,7 +194,7 @@ export default function WizardPage() {
             )}
           </div>
           <div className="mt-5 flex justify-end">
-            <Button variant="primary" icon="chevronRight" onClick={() => setStep(1)} disabled={!form.host || !form.hostKeyFingerprint}>
+            <Button variant="primary" icon="chevronRight" onClick={() => setStep(1)} disabled={!form.host || (authMode !== 'password' && !form.hostKeyFingerprint)}>
               {t.next}
             </Button>
           </div>
@@ -218,7 +210,7 @@ export default function WizardPage() {
             </Field>
             <Field label={t.wizardLocation}>
               <select className={inputClass} value={form.location} onChange={(e) => update('location', e.target.value)}>
-                {countries.map((country) => (
+                {COUNTRIES.map((country) => (
                   <option key={country.code} value={country.code}>
                     {country.flag} {names.of(country.code)} ({country.code})
                   </option>
@@ -234,15 +226,6 @@ export default function WizardPage() {
             <Field label={t.wizardUserDomain} hint={t.wizardUserDomainHint}>
               <input className={inputClass} value={form.userDomain} onChange={(e) => update('userDomain', e.target.value)} placeholder="vpn.example.com" />
             </Field>
-            <div>
-              <span className="text-[11px] font-medium uppercase tracking-wider text-subtle">{t.wizardLocation}</span>
-              <input
-                className={`${inputClass} mt-1.5`}
-                value={countrySearch}
-                onChange={(e) => setCountrySearch(e.target.value)}
-                placeholder={t.search}
-              />
-            </div>
           </div>
           <div className="mt-5 flex flex-wrap justify-between gap-2">
             <Button icon="chevronLeft" onClick={() => setStep(0)}>{t.previous}</Button>

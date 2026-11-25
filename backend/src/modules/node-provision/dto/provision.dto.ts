@@ -43,8 +43,9 @@ export class ProvisionNodeDto {
   @MaxLength(256)
   password?: string;
 
+  @IsOptional()
   @Matches(/^SHA256:[A-Za-z0-9+/]{43}=?$/)
-  hostKeyFingerprint: string;
+  hostKeyFingerprint?: string;
 
   @IsOptional()
   @Matches(/^[A-Z]{2}$/)
