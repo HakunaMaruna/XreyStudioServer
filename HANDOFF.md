@@ -31,6 +31,11 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Deferred telemetry follow-ups (2026-11-26)
+
+Позже: UI токенов ingest, retention/автоудаление старых отчётов, графики и алерты,
+расширенные логи по отдельному согласию с redaction, тонкая категоризация метрик.
+
 ## Installation statistics / telemetry (v2.40.0, 2026-11-26)
 
 Добровольная статистика установок. При первом входе показывается модальное окно со ссылкой
@@ -41,6 +46,11 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 Сводка: `/telemetry`, `GET /api/telemetry/installations`, `GET /api/telemetry/logs`.
 Настройки: `TELEMETRY_URL`, `TELEMETRY_TOKEN`, `TELEMETRY_INTERVAL_MS`.
 Обратная миграция: `backend/prisma/telemetry-down.sql`.
+
+Живая проверка v2.40.1: `/api/telemetry/status` и `preview` работают, ingest по токену со scope
+`TELEMETRY` принял тестовый отчёт, список установок и журнал событий отображаются, без токена
+→ 401, UI `/telemetry` → 200. Модальное окно согласия показывается только ADMIN/OPERATOR.
+Токен ingest создан через API (имя `telemetry-ingest`), в репозиторий не сохранён.
 
 ## Deferred plugin follow-ups (2026-11-26)
 
