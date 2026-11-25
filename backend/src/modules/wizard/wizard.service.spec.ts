@@ -22,6 +22,7 @@ describe('WizardService', () => {
   let configGenerator: any;
 
   beforeEach(() => {
+    jest.mocked(resolveCname).mockClear();
     prisma = {
       wizardCredential: { create: jest.fn(async () => ({})), findMany: jest.fn(async () => []), deleteMany: jest.fn(async () => ({})), findUnique: jest.fn(async () => null) },
       nodeInstallJob: {
@@ -102,6 +103,14 @@ describe('WizardService', () => {
     expect(control.issueCertificate).toHaveBeenCalledWith('domain-1', expect.anything(), ['vpn.example.com']);
     expect(result).toMatchObject({ nodeId: 'node-1', fqdn: 'abc123.node.h2onetwork.pro', revision: 3, certificateIssued: true });
     expect(result).not.toHaveProperty('agentToken');
+  });
+
+  it('skips custom-domain verification and certificate when not requested', async () => {
+    await expect(service().create({
+      ...baseDto, userDomain: 'vpn.example.com', issueCustomCert: false,
+    } as any, user)).resolves.toMatchObject({ nodeId: 'node-1' });
+    expect(resolveCname).not.toHaveBeenCalled();
+    expect(control.issueCertificate).toHaveBeenCalledWith('domain-1', expect.anything(), []);
   });
 
   it('releases the domain when the ACME CNAME is missing', async () => {

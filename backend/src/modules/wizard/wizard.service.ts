@@ -156,11 +156,14 @@ export class WizardService {
     await report('domain', 'Requesting a domain from CONTROL…', 8);
     const domain = await this.allocate(dto, user);
     await report('domain', `Domain allocated: ${domain.fqdn}`, 15);
+    const includeCustomCert = dto.issueCustomCert !== false;
     try {
-      if (dto.userDomain) {
+      if (dto.userDomain && includeCustomCert) {
         await report('domain', 'Verifying DNS CNAME for the user domain…', 20);
         await this.verifyUserDomain(dto.userDomain, domain.fqdn);
         await report('domain', 'DNS CNAME verified', 23);
+      } else if (dto.userDomain && !includeCustomCert) {
+        await report('domain', 'Custom domain kept without a certificate; using the allocated domain for TLS', 23, 'warn');
       }
     } catch (error) {
       await this.control.release(domain.id, this.context(user)).catch(() => undefined);
@@ -251,7 +254,7 @@ export class WizardService {
       certificate = await this.control.issueCertificate(
         domain.id,
         this.context(user),
-        dto.userDomain ? [dto.userDomain] : [],
+        dto.userDomain && includeCustomCert ? [dto.userDomain] : [],
       );
     } catch (error: any) {
       this.logger.warn(`Certificate issuance pending: ${error.message}`);

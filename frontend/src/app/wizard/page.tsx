@@ -4,7 +4,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { COUNTRIES } from '../../lib/countries';
 import { useLang } from '../../lib/i18n';
 import { Icon } from '../../components/icons';
-import { Button, Card, CodeBlock, Field, HelpButton, Modal, PageHeader, SectionTitle } from '../../components/ui';
+import { Button, Card, CodeBlock, Field, HelpButton, Modal, PageHeader, SectionTitle, Segmented, Toggle } from '../../components/ui';
 
 type AuthMode = 'password' | 'password_key' | 'key';
 type WizardResult = {
@@ -27,6 +27,8 @@ export default function WizardPage() {
   const { t, lang } = useLang();
   const [step, setStep] = useState(0);
   const [authMode, setAuthMode] = useState<AuthMode>('key');
+  const [domainMode, setDomainMode] = useState<'auto' | 'custom'>('auto');
+  const [issueCustomCert, setIssueCustomCert] = useState(true);
   const [form, setForm] = useState({
     host: '',
     sshUser: 'root',
@@ -63,6 +65,10 @@ export default function WizardPage() {
     setForm((current) => ({ ...current, [key]: value }));
 
   const submit = async () => {
+    if (domainMode === 'custom' && !form.userDomain.trim()) {
+      setError(t.wizardCustomDomainRequired);
+      return;
+    }
     setBusy(true);
     setError('');
     const installId = crypto.randomUUID();
@@ -81,7 +87,9 @@ export default function WizardPage() {
         nodeName: form.nodeName || undefined,
         ipv4: form.ipv4 || undefined,
         ipv6: form.ipv6 || undefined,
-        userDomain: form.userDomain || undefined,
+        ...(domainMode === 'custom'
+          ? { userDomain: form.userDomain, issueCustomCert }
+          : {}),
         installId,
       };
       if (authMode !== 'key') body.password = form.password;
@@ -240,9 +248,28 @@ export default function WizardPage() {
             <Field label={t.wizardIpv6}>
               <input className={inputClass} value={form.ipv6} onChange={(e) => update('ipv6', e.target.value)} />
             </Field>
-            <Field label={t.wizardUserDomain} hint={t.wizardUserDomainHint}>
-              <input className={inputClass} value={form.userDomain} onChange={(e) => update('userDomain', e.target.value)} placeholder="vpn.example.com" />
-            </Field>
+            <div className="sm:col-span-2">
+              <span className="text-[11px] font-medium uppercase tracking-wider text-subtle">{t.wizardDomainMode}</span>
+              <div className="mt-2">
+                <Segmented value={domainMode} onChange={setDomainMode} options={[
+                  { value: 'auto', label: t.wizardAutoDomain, icon: 'globe' },
+                  { value: 'custom', label: t.wizardCustomDomainMode, icon: 'link' },
+                ]} />
+              </div>
+              <p className="mt-2 text-xs text-muted">
+                {domainMode === 'auto' ? t.wizardAutoDomainHint : t.wizardCustomDomainHint}
+              </p>
+            </div>
+            {domainMode === 'custom' && (
+              <>
+                <Field label={t.wizardUserDomain} hint={t.wizardUserDomainHint}>
+                  <input className={inputClass} value={form.userDomain} onChange={(e) => update('userDomain', e.target.value)} placeholder="vpn.example.com" />
+                </Field>
+                <div className="flex items-center">
+                  <Toggle checked={issueCustomCert} onChange={setIssueCustomCert} label={t.wizardIssueCustomCert} />
+                </div>
+              </>
+            )}
           </div>
           <div className="mt-5 flex flex-wrap justify-between gap-2">
             <Button icon="chevronLeft" onClick={() => setStep(0)}>{t.previous}</Button>

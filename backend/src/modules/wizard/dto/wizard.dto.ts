@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -74,4 +75,9 @@ export class CreateNodeWizardDto {
   @IsOptional()
   @Matches(FQDN, { message: 'userDomain must be a valid FQDN' })
   userDomain?: string;
+
+  /** Include the custom domain in the TLS certificate. Defaults to true for compatibility. */
+  @IsOptional()
+  @IsBoolean()
+  issueCustomCert?: boolean;
 }
