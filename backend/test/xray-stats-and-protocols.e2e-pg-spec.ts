@@ -11,6 +11,7 @@ describe('ConfigGeneratorService: Xray stats, Reality and VMess (QA v2.15)', () 
     user: { findMany: jest.fn() },
     rule: { findMany: jest.fn() },
     configProfile: { findMany: jest.fn().mockResolvedValue([]) },
+    routingProfile: { findMany: jest.fn().mockResolvedValue([]) },
   };
   let service: ConfigGeneratorService;
   const savedStatsEnabled = process.env.XRAY_STATS_ENABLED;
@@ -77,6 +78,7 @@ describe('ConfigGeneratorService: Xray stats, Reality and VMess (QA v2.15)', () 
     delete process.env.XRAY_STATS_ENABLED;
     delete process.env.XRAY_API_PORT;
     (prisma.configProfile.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.routingProfile.findMany as jest.Mock).mockResolvedValue([]);
     prisma.node.findUnique.mockResolvedValue(realityNode());
     prisma.user.findMany.mockResolvedValue([]);
     prisma.rule.findMany.mockResolvedValue([]);

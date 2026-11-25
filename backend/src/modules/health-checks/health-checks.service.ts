@@ -63,8 +63,9 @@ export class HealthChecksService implements OnModuleInit, OnModuleDestroy {
       }
       for (const inbound of inbounds) {
         if (!inbound.node) continue;
-        const settings = (inbound.settings || {}) as any;
-        const host = settings.publicHost || inbound.node.address;
+        // Проверяем только адрес самой ноды: `settings.publicHost` задаётся
+        // тенантом и превращал фоновый пробер в SSRF/сканер портов.
+        const host = inbound.node.address;
         const result = await this.probe(host, inbound.port);
         const last = previous.get(inbound.id);
         previous.set(inbound.id, result.success);

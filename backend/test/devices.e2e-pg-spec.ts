@@ -51,11 +51,11 @@ describe('XSS API (e2e, PostgreSQL: v2.9 devices)', () => {
     return response.body.accessToken as string;
   };
 
-  const createUser = async (email: string) => {
+  const createUser = async (email: string, organizationId?: string) => {
     const response = await auth(
       request(app.getHttpServer())
         .post('/api/users')
-        .send({ email, password }),
+        .send({ email, password, ...(organizationId ? { organizationId } : {}) }),
     ).expect(201);
     return response.body as { id: string; email: string; subscriptionToken: string };
   };
@@ -180,5 +180,45 @@ describe('XSS API (e2e, PostgreSQL: v2.9 devices)', () => {
     await auth(request(app.getHttpServer()).get('/api/devices'), regularUser).expect(403);
     await auth(request(app.getHttpServer()).post('/api/devices').send({ userId: 'x', hwid: 'x' }), regularUser).expect(403);
     await auth(request(app.getHttpServer()).delete('/api/devices/x'), regularUser).expect(403);
+  });
+
+  it('scopes device management to the operator organization', async () => {
+    const orgA = await prisma.organization.create({ data: { name: 'Devices A', slug: 'devices-a' } });
+    const orgB = await prisma.organization.create({ data: { name: 'Devices B', slug: 'devices-b' } });
+    await createUser('devices-iso-operator@example.com', orgA.id);
+    await prisma.user.update({ where: { email: 'devices-iso-operator@example.com' }, data: { role: 'OPERATOR' } });
+    const operator = await login('devices-iso-operator@example.com');
+    const userA = await createUser('devices-iso-user-a@example.com', orgA.id);
+    const userB = await createUser('devices-iso-user-b@example.com', orgB.id);
+
+    const own = await auth(
+      request(app.getHttpServer()).post('/api/devices').send({ userId: userA.id, hwid: 'hwid-iso-a' }),
+      operator,
+    ).expect(201);
+    await auth(
+      request(app.getHttpServer()).post('/api/devices').send({ userId: userB.id, hwid: 'hwid-iso-b' }),
+      operator,
+    ).expect(404);
+
+    const foreign = await auth(
+      request(app.getHttpServer()).post('/api/devices').send({ userId: userB.id, hwid: 'hwid-iso-b' }),
+    ).expect(201);
+
+    const listed = await auth(request(app.getHttpServer()).get('/api/devices'), operator).expect(200);
+    expect(listed.body.map((device: { hwid: string }) => device.hwid)).toEqual(['hwid-iso-a']);
+    expect(
+      (
+        await auth(request(app.getHttpServer()).get('/api/devices').query({ userId: userB.id }), operator).expect(200)
+      ).body,
+    ).toEqual([]);
+
+    await auth(request(app.getHttpServer()).delete(`/api/devices/${foreign.body.id}`), operator).expect(404);
+    expect(await prisma.device.count({ where: { id: foreign.body.id } })).toBe(1);
+
+    await auth(request(app.getHttpServer()).delete(`/api/devices/${own.body.id}`), operator).expect(200);
+    expect(await prisma.device.count({ where: { id: own.body.id } })).toBe(0);
+
+    const adminList = await auth(request(app.getHttpServer()).get('/api/devices')).expect(200);
+    expect(adminList.body.map((device: { hwid: string }) => device.hwid)).toContain('hwid-iso-b');
   });
 });

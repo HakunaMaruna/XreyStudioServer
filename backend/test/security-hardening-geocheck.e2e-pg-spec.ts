@@ -203,6 +203,56 @@ describe('XSS security hardening and geocheck (e2e, real PostgreSQL)', () => {
     expect(Number(traffic[0].bytesDown)).toBe(200);
   });
 
+  it('records traffic only for entries with exactly one identifier', async () => {
+    const user = await prisma.user.create({
+      data: {
+        email: 'xor-user@example.com',
+        passwordHash: 'x',
+        organizationId: orgAId,
+        subscriptionToken: 'qa-xor',
+      },
+    });
+
+    const ambiguous = await nodeAuth(
+      request(app.getHttpServer())
+        .post(`/api/nodes/${nodeAId}/traffic`)
+        .send({
+          entries: [
+            { up: 10, down: 10 },
+            { email: '', up: 10, down: 10 },
+            { userId: user.id, email: 'xor-user@example.com', up: 10, down: 10 },
+            { subscriptionToken: 'qa-xor', userId: user.id, up: 10, down: 10 },
+            { subscriptionToken: 'qa-xor', userId: user.id, email: 'xor-user@example.com', up: 10, down: 10 },
+          ],
+        }),
+    ).expect(201);
+    expect(ambiguous.body).toMatchObject({ recorded: 0, skipped: 5 });
+    expect(await prisma.userTraffic.count({ where: { userId: user.id } })).toBe(0);
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).trafficUsed).toBe(0n);
+
+    const unique = await nodeAuth(
+      request(app.getHttpServer())
+        .post(`/api/nodes/${nodeAId}/traffic`)
+        .send({
+          entries: [
+            { subscriptionToken: 'qa-xor', up: 1, down: 1 },
+            { userId: user.id, up: 2, down: 2 },
+            { email: 'XOR-USER@example.com', up: 3, down: 3 },
+          ],
+        }),
+    ).expect(201);
+    expect(unique.body).toMatchObject({ recorded: 3, skipped: 0 });
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).trafficUsed).toBe(12n);
+    expect(await prisma.userTraffic.count({ where: { userId: user.id } })).toBe(3);
+
+    const unknown = await nodeAuth(
+      request(app.getHttpServer())
+        .post(`/api/nodes/${nodeAId}/traffic`)
+        .send({ entries: [{ subscriptionToken: 'qa-missing', up: 5, down: 5 }] }),
+    ).expect(201);
+    expect(unknown.body).toMatchObject({ recorded: 0, skipped: 1 });
+  });
+
   it('gates GET /api/metrics behind METRICS_TOKEN in production', async () => {
     const savedEnv = process.env.NODE_ENV;
     const savedToken = process.env.METRICS_TOKEN;

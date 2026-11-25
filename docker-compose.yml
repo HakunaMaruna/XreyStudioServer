@@ -53,12 +53,15 @@ services:
 
   frontend:
     build: ./frontend
-    env_file: .env
+    # Фронтенду не нужны секреты панели (JWT/DB/Stripe/MCP): только явный
+    # список публичных ключей. Полный .env в контейнер не монтируется.
     environment:
       NEXT_PUBLIC_API_URL: ${PANEL_URL:-http://localhost:3000}
       NEXT_PUBLIC_UI: ${NEXT_PUBLIC_UI:-adminlte}
+      NEXT_PUBLIC_ICON_SET: ${NEXT_PUBLIC_ICON_SET:-tabler}
       PANEL_DECOY: ${PANEL_DECOY:-false}
       PANEL_ENTRY_PATH: ${PANEL_ENTRY_PATH:-}
+      BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:-http://backend:3000}
     depends_on:
       - backend
     ports:
@@ -67,7 +70,9 @@ services:
 
   agent:
     build: ./agent
-    env_file: .env
+    # Агент не должен видеть секреты панели: только собственный env-файл,
+    # который install.sh собирает из белого списка ключей .env.
+    env_file: .agent.env
     environment:
       PANEL_URL: ${PANEL_URL:-http://backend:3000}
       XRAY_MANAGED: "true"
