@@ -56,14 +56,11 @@ export class WizardService {
   // Пользовательский домен вне нашей зоны: сертификат выпускаем с DNS-01,
   // для этого _acme-challenge пользователя должен быть CNAME на нашу зону.
   private async verifyUserDomain(domain: string, fqdn: string) {
-    let cnames: string[] = [];
-    try {
-      cnames = await resolveCname(`_acme-challenge.${domain}`);
-    } catch {
+    const cnames = await resolveCname(`_acme-challenge.${domain}`).catch(() => {
       throw new BadRequestException(
         `Add DNS record: _acme-challenge.${domain} CNAME _acme-challenge.${fqdn}`,
       );
-    }
+    });
     const expected = `_acme-challenge.${fqdn}`.toLowerCase().replace(/\.$/, '');
     if (!cnames.some((name) => name.toLowerCase().replace(/\.$/, '') === expected)) {
       throw new BadRequestException(

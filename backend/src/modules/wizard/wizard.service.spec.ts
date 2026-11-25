@@ -1,3 +1,4 @@
+import { resolveCname } from 'dns/promises';
 import { WizardService } from './wizard.service';
 
 jest.mock('dns/promises', () => ({
@@ -68,8 +69,7 @@ describe('WizardService', () => {
   });
 
   it('releases the domain when the ACME CNAME is missing', async () => {
-    const dns = require('dns/promises');
-    dns.resolveCname.mockRejectedValueOnce(new Error('ENODATA'));
+    jest.mocked(resolveCname).mockRejectedValueOnce(new Error('ENODATA'));
     await expect(service().create({ ...baseDto, userDomain: 'vpn.example.com' } as any, user)).rejects.toThrow('_acme-challenge.vpn.example.com');
     expect(control.release).toHaveBeenCalledWith('domain-1', expect.anything());
     expect(provision.provision).not.toHaveBeenCalled();

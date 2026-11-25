@@ -182,7 +182,11 @@ describe('XSS API (e2e)', () => {
     const res = await request(app.getHttpServer())
       .post('/api/rules')
       .set('Authorization', `Bearer ${token}`)
-      .send({ name: 'direct', type: 'field', payload: { outboundTag: 'direct' } })
+      .send({
+        name: 'direct',
+        type: 'field',
+        payload: { type: 'field', domain: ['example.com'], outboundTag: 'direct' },
+      })
       .expect(201);
     expect(res.body).toMatchObject({ id: 'rule-1', name: 'direct', enabled: true });
   });
