@@ -40,6 +40,12 @@ fallback, probe URL/interval) и предпросмотр сгенерирова
 и root `observatory`. Выбран вариант отдельного раздела вместо raw JSON в routing profiles
 или per-user балансировки (отложена). Документация `docs/balancers.md`, `docs/api.md`.
 
+Живая проверка v2.34.1: balancer создан через API (2 freedom-участника, правило
+`example.test`), preview вернул `routing.balancers`, selector `bal-<id>-out-`,
+observatory и rule с `balancerTag`; конфиг применён (revision 19/22), агент
+`xray: running`, локальный `xray run -test` на выгруженном конфиге — `Configuration OK`.
+Тестовый балансировщик удалён, конфиг применён повторно, балансировщиков осталось 0.
+
 ## DNS section (v2.33.0, 2026-11-25)
 
 CONTROL/TENANT выявлены через `PANEL_MODE` (control-compose выставляет `control`).
