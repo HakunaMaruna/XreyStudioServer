@@ -39,6 +39,13 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 дополнительного VLESS-клиента с отдельным UUID и dokodemo-door inbound. Обычные подписки
 не затрагиваются. Документация `docs/reverse.md`, `docs/api.md`. Тесты 34 suites / 175 tests.
 
+Живая проверка v2.37.1: создан временный узел `nat-dummy` и туннель к VLESS REALITY inbound
+`test-reality-2054`. Конфиг портала содержит `rev-<id>-portal` inbound и правило на
+`rev-<id>-out`; конфиг целевого узла — `rev-<id>-bridge`/`rev-<id>-direct` и правило
+`rev-<id>-in → direct`. Оба `xray run -test` — `Configuration OK`. Туннель и временный узел
+удалены, агент `xray: running`. Исправление v2.37.1: client-side REALITY (`password`,
+`serverName`, `shortId`, `fingerprint`) вместо server-side полей.
+
 ## Burst Observatory (v2.36.0, 2026-11-25)
 
 В балансировщике добавлен выбор `observatoryMode`: `observatory` или `burstObservatory`
