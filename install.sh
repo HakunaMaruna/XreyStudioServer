@@ -402,7 +402,9 @@ fi
 say "${C_BLUE}▸ $(t starting)${C_RESET}"
 case "$MODE" in
   panel) run $SUDO docker compose up -d postgres redis backend caddy ;;
-  node) run $SUDO docker compose up -d agent ;;
+  # Only the agent: the default compose file has agent -> backend dependency,
+  # which would build the whole panel on every node and can hang for minutes.
+  node) run $SUDO docker compose -f docker-compose.node.yml up -d --build agent ;;
   subscription) run $SUDO docker compose up -d frontend caddy ;;
   all-in-one) run $SUDO docker compose up -d ;;
   control) run $SUDO docker compose -f docker-compose.control.yml up -d ;;

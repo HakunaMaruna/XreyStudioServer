@@ -78,10 +78,22 @@ export class NodeProvisionService {
     return Number.isFinite(value) && value >= 30_000 ? value : DEFAULT_COMMAND_TIMEOUT_MS;
   }
 
-  private runRemoteCommand(conn: Client, command: string): Promise<ExecResult> {
+  /** Keeps secrets out of the live installation terminal. */
+  private sanitize(text: string) {
+    return text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+      .filter((line) => !/(token|password|secret|private.?key|AGENT_TOKEN)/i.test(line))
+      .join('\n');
+  }
+
+  private runRemoteCommand(
+    conn: Client,
+    command: string,
+    onOutput?: (text: string) => void,
+    label = 'remote command',
+  ): Promise<ExecResult> {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(
-        () => reject(new BadRequestException('Remote command timed out')),
+        () => reject(new BadRequestException(`Remote command timed out during ${label}`)),
         this.commandTimeout(),
       );
       conn.exec(command, { pty: false }, (err, stream) => {
@@ -91,14 +103,28 @@ export class NodeProvisionService {
           return;
         }
         let output = '';
-        stream.on('data', (data: Buffer) => {
-          output = (output + data.toString('utf8')).slice(0, MAX_OUTPUT);
-        });
-        stream.stderr.on('data', (data: Buffer) => {
-          output = (output + data.toString('utf8')).slice(0, MAX_OUTPUT);
-        });
+        let pending = '';
+        let lastEmit = 0;
+        const append = (data: Buffer) => {
+          const text = data.toString('utf8');
+          output = (output + text).slice(0, MAX_OUTPUT);
+          pending = (pending + text).slice(-4000);
+          const now = Date.now();
+          if (onOutput && now - lastEmit >= 1500 && pending.trim()) {
+            lastEmit = now;
+            const clean = this.sanitize(pending);
+            pending = '';
+            if (clean) onOutput(clean.slice(-1200));
+          }
+        };
+        stream.on('data', append);
+        stream.stderr.on('data', append);
         stream.on('close', (code: number) => {
           clearTimeout(timer);
+          if (onOutput && pending.trim()) {
+            const clean = this.sanitize(pending);
+            if (clean) onOutput(clean.slice(-1200));
+          }
           resolve({ code, output });
         });
       });
@@ -158,10 +184,7 @@ export class NodeProvisionService {
 
   /** Remote output can be big and may contain secrets; keep only a short sanitized excerpt. */
   private outputExcerpt(output: string) {
-    const lines = output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
-      .filter((line) => !/(token|password|secret|private.?key|AGENT_TOKEN)/i.test(line))
-      .slice(0, 12);
-    return lines.join('\n').slice(0, 2000);
+    return this.sanitize(output).split('\n').slice(0, 12).join('\n').slice(0, 2000);
   }
 
   async provision(dto: ProvisionNodeDto, actor: AuthUser, progress?: ProvisionProgress) {
@@ -197,7 +220,11 @@ export class NodeProvisionService {
         `${sudo}chmod 700 ${REMOTE_DIR}; ` +
         `if ! command -v docker >/dev/null 2>&1; then curl -fsSL https://get.docker.com | ${sudo}sh; fi`;
       await this.emit(progress, 'prepare', 'Preparing remote directory and Docker…');
-      const setupResult = await this.runRemoteCommand(conn, setup);
+      const setupResult = await this.runRemoteCommand(
+        conn, setup,
+        (text) => { void this.emit(progress, 'prepare', text, 'output'); },
+        'server preparation',
+      );
       const setupExcerpt = this.outputExcerpt(setupResult.output);
       if (setupExcerpt) await this.emit(progress, 'prepare', setupExcerpt, 'output');
       if (setupResult.code !== 0) {
@@ -215,6 +242,8 @@ export class NodeProvisionService {
       const install = await this.runRemoteCommand(
         conn,
         `cd ${REMOTE_DIR} && ${sudo}bash install.sh --mode node --yes`,
+        (text) => { void this.emit(progress, 'install', text, 'output'); },
+        'agent installation',
       );
       const installExcerpt = this.outputExcerpt(install.output);
       if (installExcerpt) await this.emit(progress, 'install', installExcerpt, 'output');

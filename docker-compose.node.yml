@@ -1,0 +1,17 @@
+version: "3.9"
+
+# Node-only stack used by install.sh --mode node and by the wizard's SSH provisioning.
+# It intentionally has no depends_on: backend — a node must not build or start the panel.
+services:
+  agent:
+    build: ./agent
+    # Only the agent's whitelisted env file is mounted (see install.sh write_agent_env).
+    env_file: .agent.env
+    environment:
+      PANEL_URL: ${PANEL_URL:-http://localhost:3000}
+      XRAY_MANAGED: "true"
+    ports:
+      - "2053:2053/tcp"
+      - "2053:2053/udp"
+      - "2054:2054/tcp"
+    restart: unless-stopped
