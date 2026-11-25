@@ -20,6 +20,8 @@ const BACKUP_DIR = process.env.BACKUP_DIR || path.join(path.dirname(CONFIG_PATH)
 const SINGBOX_CONFIG_PATH = process.env.SINGBOX_CONFIG_PATH || '/etc/sing-box/config.json';
 const SINGBOX_BIN = process.env.SINGBOX_BIN || 'sing-box';
 const SINGBOX_SERVICE = process.env.SINGBOX_SERVICE || 'sing-box';
+const NODE_STUB_PORT = Number(process.env.NODE_STUB_PORT || 18080);
+const NODE_STUB_ENABLED = process.env.NODE_STUB_ENABLED !== 'false';
 const XRAY_STATS_ENABLED = process.env.XRAY_STATS_ENABLED === 'true';
 const XRAY_API_HOST = process.env.XRAY_API_HOST || '127.0.0.1';
 const XRAY_API_PORT = Number(process.env.XRAY_API_PORT || 8080);
@@ -519,6 +521,23 @@ const server = tlsCert && tlsKey
   : app;
 
 server.listen(PORT, () => console.log(`XSS agent listening on ${PORT}`));
+
+// Loopback decoy site for Xray fallbacks. It is never exposed on a public
+// interface; only Xray's local fallback can reach it.
+if (NODE_STUB_ENABLED && Number.isInteger(NODE_STUB_PORT) && NODE_STUB_PORT > 0 && NODE_STUB_PORT < 65536) {
+  const stubPage = '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+    + '<meta name="viewport" content="width=device-width, initial-scale=1">'
+    + '<title>Welcome</title></head><body><h1>Welcome</h1>'
+    + '<p>This site is under construction.</p></body></html>';
+  http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(stubPage);
+  }).listen(NODE_STUB_PORT, '127.0.0.1', () => {
+    console.log(`decoy site listening on 127.0.0.1:${NODE_STUB_PORT}`);
+  }).on('error', (error) => {
+    console.error(`decoy site failed on 127.0.0.1:${NODE_STUB_PORT}: ${error.message}`);
+  });
+}
 
 // При перезапуске контейнера конфиг уже лежит на диске — поднимаем Xray сразу,
 // не дожидаясь следующего pullConfig (панель может быть временно недоступна).

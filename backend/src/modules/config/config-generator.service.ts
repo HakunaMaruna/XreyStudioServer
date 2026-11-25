@@ -68,7 +68,8 @@ export class ConfigGeneratorService {
       stream.tlsSettings = {
         serverName: inbound.sni || settings.serverName || settings.sni || '',
         certificates: settings.certificates || undefined,
-        alpn: settings.alpn || ['h2', 'http/1.1'],
+        // Xray fallbacks require ALPN http/1.1 on the inbound TLS settings.
+        alpn: settings.alpn || (settings.fallbackDest ? ['http/1.1'] : ['h2', 'http/1.1']),
       };
     }
     if (inbound.security === 'reality') {
@@ -296,16 +297,27 @@ export class ConfigGeneratorService {
         settings: inboundSettings,
         streamSettings: this.buildStream(inbound),
         sniffing: { enabled: true, destOverride: ['http', 'tls', 'quic'] },
-        ...((inbound.fallbacks || []).length
+        // Xray FallbackObject entries can point at a port or a tagged inbound.
+        // Wizard-created inbounds use a loopback decoy site (anti-DPI) by default.
+        ...((settings.fallbackDest || (inbound.fallbacks || []).length)
           ? {
-              allocate: { strategy: 'random' },
-              fallback: (inbound.fallbacks || []).map((f) => ({
-                tag: f.child?.tag,
-                path: f.path || undefined,
-                alpn: f.alpn || undefined,
-                dest: f.dest || undefined,
-                xver: f.xver || undefined,
-              })).filter((f) => f.tag),
+              fallback: [
+                ...(settings.fallbackDest
+                  ? [{
+                      dest: Number(settings.fallbackDest),
+                      alpn: settings.fallbackAlpn || 'http/1.1',
+                      path: settings.fallbackPath || undefined,
+                    }]
+                  : []),
+                ...(inbound.fallbacks || []).map((f) => ({
+                  tag: f.child?.tag,
+                  path: f.path || undefined,
+                  alpn: f.alpn || undefined,
+                  dest: f.dest || undefined,
+                  xver: f.xver || undefined,
+                })).filter((f) => f.tag),
+              ],
+              ...((inbound.fallbacks || []).length ? { allocate: { strategy: 'random' } } : {}),
             }
           : {}),
       };
@@ -377,17 +389,12 @@ export class ConfigGeneratorService {
     };
 
     if (balancerConfig.observerSelectors.length) {
-      const subjectSelector = [...new Set(balancerConfig.observerSelectors)];
-      if (balancerConfig.burst && balancerConfig.observatoryMode === 'burstObservatory') {
-        config.burstObservatory = { subjectSelector, pingConfig: balancerConfig.burst };
-      } else {
-        config.observatory = {
-          subjectSelector,
-          probeUrl: balancerConfig.probeUrl || 'https://www.google.com/generate_204',
-          probeInterval: `${balancerConfig.probeIntervalSec || 30}s`,
-          enableConcurrency: true,
-        };
-      }
+      config.observatory = {
+        subjectSelector: [...new Set(balancerConfig.observerSelectors)],
+        probeUrl: balancerConfig.probeUrl || 'https://www.google.com/generate_204',
+        probeInterval: `${balancerConfig.probeIntervalSec || 30}s`,
+        enableConcurrency: true,
+      };
     }
 
     // Optional loopback API for per-user traffic statistics read by the agent.

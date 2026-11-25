@@ -57,7 +57,16 @@ describe('WizardService', () => {
     expect(control.allocate).toHaveBeenCalled();
     expect(provision.provision).toHaveBeenCalledWith(expect.objectContaining({ host: '203.0.113.10', username: 'root' }), user);
     expect(prisma.inbound.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ protocol: 'vless', security: 'tls', sni: 'abc123.node.h2onetwork.pro' }),
+      data: expect.objectContaining({
+        protocol: 'vless',
+        security: 'tls',
+        sni: 'abc123.node.h2onetwork.pro',
+        settings: expect.objectContaining({
+          sni: 'abc123.node.h2onetwork.pro',
+          fallbackDest: expect.any(Number),
+          fallbackAlpn: 'http/1.1',
+        }),
+      }),
     }));
     const credential = prisma.wizardCredential.create.mock.calls[0][0].data;
     expect(credential.password).toBeNull();

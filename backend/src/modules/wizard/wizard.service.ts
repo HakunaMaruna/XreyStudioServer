@@ -140,7 +140,14 @@ export class WizardService {
         port,
         listen: '0.0.0.0',
         sni: domain.fqdn,
-        settings: { publicHost: domain.fqdn, sni: domain.fqdn },
+        settings: {
+          publicHost: domain.fqdn,
+          sni: domain.fqdn,
+          // selfSNI: the client repeats the node's own panel-issued domain in the TLS SNI.
+          // Probes without a valid VLESS first packet are routed to a loopback decoy site.
+          fallbackDest: Number(process.env.NODE_STUB_PORT || 18080),
+          fallbackAlpn: 'http/1.1',
+        },
         enabled: true,
       },
     });

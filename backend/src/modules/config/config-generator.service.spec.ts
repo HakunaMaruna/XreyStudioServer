@@ -129,4 +129,36 @@ describe('ConfigGeneratorService external protocols', () => {
       outboundTag: 'direct',
     });
   });
+
+  it('emits selfSNI serverName and a decoy fallback for wizard inbounds', async () => {
+    prisma.node.findUnique.mockResolvedValue({
+      id: 'n1',
+      inbounds: [{
+        id: 'i3',
+        tag: 'wizard-abc123',
+        protocol: 'vless',
+        transport: 'tcp',
+        security: 'tls',
+        sni: 'abc123.node.h2onetwork.pro',
+        port: 443,
+        listen: '0.0.0.0',
+        settings: {
+          publicHost: 'abc123.node.h2onetwork.pro',
+          sni: 'abc123.node.h2onetwork.pro',
+          fallbackDest: 18080,
+          fallbackAlpn: 'http/1.1',
+        },
+        userId: null,
+        enabled: true,
+      }],
+    });
+
+    const { config }: any = await service.generateConfig('n1');
+    const inbound = config.inbounds[0];
+    expect(inbound.streamSettings.security).toBe('tls');
+    expect(inbound.streamSettings.tlsSettings.serverName).toBe('abc123.node.h2onetwork.pro');
+    expect(inbound.streamSettings.tlsSettings.alpn).toEqual(['http/1.1']);
+    expect(inbound.fallback).toEqual([{ dest: 18080, alpn: 'http/1.1', path: undefined }]);
+    expect(service.validateConfig(config)).toBe(true);
+  });
 });

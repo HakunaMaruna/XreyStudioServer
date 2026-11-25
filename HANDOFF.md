@@ -818,3 +818,20 @@ Local PG e2e remains skipped (pg_dump 16 cannot dump PGlite 19). CI is the autho
   `next build --webpack` rc=0; shell syntax checked; code_review 0 findings.
 
 CI note for this change: backend lint failure introduced by the remote balancers commits was fixed in `ffac643`; `e2e-postgres` was already failing on parent commits `60abcd5`/`d893ede` before snapshots landed and could not be reproduced locally because proot PostgreSQL cannot allocate shared memory (`shmget` unavailable).
+
+## selfSNI and decoy site for node inbounds (2026-11-25)
+
+- Clarified terminology: official Xray has no separate `selfSNI` key. The panel uses
+  `tlsSettings.serverName = <node domain>` on the default wizard inbound (`vless+tcp+tls`),
+  so the client repeats the panel-issued node domain in TLS ClientHello.
+- The wizard now stores `settings.fallbackDest` / `fallbackAlpn` on that inbound; the config
+  generator emits a static Xray `fallback` to a loopback decoy web server and sets
+  `tlsSettings.alpn: ["http/1.1"]` (required by Xray fallbacks). Existing tagged
+  `fallbacks[]` are merged with static ones instead of being overwritten.
+- Agent serves a minimal neutral HTML page on `127.0.0.1:18080` by default
+  (`NODE_STUB_PORT`, `NODE_STUB_ENABLED=false` to disable); it is never bound to a public
+  interface.
+- Tests: `config-generator.service.spec.ts` verifies selfSNI + fallback emission;
+  `wizard.service.spec.ts` verifies the default inbound settings. Focused Jest 13/13 green.
+- Docs updated: `docs/node-onboarding.md` (new selfSNI section), `docs/hosts.md`,
+  `docs/api.md`.

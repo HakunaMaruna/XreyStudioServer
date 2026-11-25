@@ -255,7 +255,12 @@ into the generated Xray config; see `docs/routing.md`.
 The generator translates these fields into Xray `streamSettings`, client `flow` and inbound `listen`.
 
 `fallbacks[]` links child inbounds to a master VLESS/Trojan TCP+TLS inbound; each item accepts
-`childId`, `path`, `alpn`, `dest`, `xver`. `clients[]` sets per-user overrides: `userId`,
+`childId`, `path`, `alpn`, `dest`, `xver`. A static fallback can also be set directly in
+`settings`: `fallbackDest` (loopback port of the decoy site), `fallbackAlpn` (default
+`http/1.1`), `fallbackPath`. The node wizard sets these on the default `vless+tcp+tls`
+inbound so its `serverName` equals the panel-issued node domain (selfSNI) and probes fall
+back to a local decoy site served by the agent on `127.0.0.1` (`NODE_STUB_PORT`,
+default `18080`; disable with `NODE_STUB_ENABLED=false`). `clients[]` sets per-user overrides: `userId`,
 `trafficLimit` (bytes), `expiresAt`, `enabled`, `comment`, `sortIndex`. Disabled/expired/over-quota
 clients are excluded from the generated config.
 
