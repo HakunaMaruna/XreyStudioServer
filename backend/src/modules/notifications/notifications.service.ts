@@ -1,9 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { NotificationChannel, NotificationEvent, Prisma } from '@prisma/client';
+import { createHmac } from 'crypto';
+import { isIP } from 'net';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationRoutesService } from './notification-routes.service';
+import { NotificationSettingsService } from './notification-settings.service';
 
 export type ChannelResult = { sent: boolean; reason?: string; error?: string };
 
@@ -21,43 +24,77 @@ export type BroadcastOptions = {
   plainText?: string;
   subject?: string;
   webhook?: Record<string, unknown>;
+  severity?: string;
+  dedupeKey?: string;
 };
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
   private mailer?: Transporter;
+  private mailerHost?: string;
 
   constructor(
     private prisma: PrismaService,
     private routes: NotificationRoutesService,
+    private settings: NotificationSettingsService,
   ) {}
 
-  private get mailTransport(): Transporter {
-    if (!this.mailer) {
+  // Внутренние/metadata адреса запрещены для исходящего webhook в проде.
+  private assertWebhookUrl(raw: string) {
+    const url = new URL(raw);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      throw new Error('Webhook URL must use http or https');
+    }
+    if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') {
+      throw new Error('Webhook URL must use https in production');
+    }
+    const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    const parts = host.split('.').map(Number);
+    const privateHost =
+      host === 'localhost' || host === '0.0.0.0' || host === '::' || host === '::1' ||
+      host === 'metadata.google.internal' ||
+      (isIP(host) === 4 && (
+        parts[0] === 10 || parts[0] === 127 ||
+        (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+        (parts[0] === 192 && parts[1] === 168) ||
+        (parts[0] === 169 && parts[1] === 254) ||
+        (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127)
+      )) ||
+      host.startsWith('fe80') || host.startsWith('fc') || host.startsWith('fd');
+    if (privateHost && process.env.NODE_ENV === 'production') {
+      throw new Error('Private webhook addresses are not allowed');
+    }
+    return url;
+  }
+
+  private async mailTransport(): Promise<Transporter> {
+    const host = await this.settings.value('SMTP_HOST');
+    if (!this.mailer || this.mailerHost !== host) {
+      const user = await this.settings.value('SMTP_USER');
       this.mailer = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT || 587),
+        host,
+        port: Number(await this.settings.value('SMTP_PORT') || 587),
         secure: process.env.SMTP_SECURE === 'true',
-        auth: process.env.SMTP_USER
-          ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD || '' }
-          : undefined,
+        auth: user ? { user, pass: (await this.settings.value('SMTP_PASSWORD')) || '' } : undefined,
       });
+      this.mailerHost = host;
     }
     return this.mailer;
   }
 
   async sendTelegram(text: string): Promise<ChannelResult> {
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    const chatId = process.env.TELEGRAM_CHAT_ID;
+    const token = await this.settings.value('TELEGRAM_BOT_TOKEN');
+    const chatId = await this.settings.value('TELEGRAM_CHAT_ID');
     if (!token || !chatId) return { sent: false, reason: 'telegram not configured' };
     try {
       const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+        signal: AbortSignal.timeout(8000),
       });
-      return { sent: res.ok, ...(res.ok ? {} : { error: await res.text() }) };
+      return { sent: res.ok, ...(res.ok ? {} : { error: `Telegram HTTP ${res.status}` }) };
     } catch (e: any) {
       this.logger.warn(`Telegram failed: ${e.message}`);
       return { sent: false, error: e.message };
@@ -65,15 +102,17 @@ export class NotificationsService {
   }
 
   async sendWebhook(payload: Record<string, unknown>): Promise<ChannelResult> {
-    const url = process.env.WEBHOOK_URL;
+    const url = await this.settings.value('WEBHOOK_URL');
     if (!url) return { sent: false, reason: 'webhook not configured' };
     try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      return { sent: res.ok, ...(res.ok ? {} : { error: await res.text() }) };
+      this.assertWebhookUrl(url);
+      const body = JSON.stringify(payload);
+      const secret = await this.settings.value('WEBHOOK_SECRET');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (secret) headers['X-XSS-Signature'] = `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`;
+      const res = await fetch(url, { method: 'POST', headers, body, signal: AbortSignal.timeout(8000) });
+      // Тело ответа провайдера не возвращаем и не логируем — там могут быть секреты.
+      return { sent: res.ok, ...(res.ok ? {} : { error: `Webhook HTTP ${res.status}` }) };
     } catch (e: any) {
       this.logger.warn(`Webhook failed: ${e.message}`);
       return { sent: false, error: e.message };
@@ -81,11 +120,12 @@ export class NotificationsService {
   }
 
   async sendEmail(to: string | undefined, subject: string, text: string): Promise<ChannelResult> {
-    const host = process.env.SMTP_HOST;
-    const from = process.env.EMAIL_FROM || process.env.SMTP_USER;
+    const host = await this.settings.value('SMTP_HOST');
+    const from = (await this.settings.value('EMAIL_FROM')) || (await this.settings.value('SMTP_USER'));
     if (!to || !host || !from) return { sent: false, reason: 'smtp not configured' };
     try {
-      await this.mailTransport.sendMail({ from, to, subject, text });
+      const transport = await this.mailTransport();
+      await transport.sendMail({ from, to, subject, text });
       return { sent: true };
     } catch (e: any) {
       this.logger.warn(`Email failed: ${e.message}`);
@@ -94,32 +134,36 @@ export class NotificationsService {
   }
 
   async sendSignal(text: string): Promise<ChannelResult> {
-    const url = process.env.SIGNAL_API_URL;
-    const number = process.env.SIGNAL_PHONE_NUMBER;
-    const recipient = process.env.SIGNAL_RECIPIENT;
+    const url = await this.settings.value('SIGNAL_API_URL');
+    const number = await this.settings.value('SIGNAL_PHONE_NUMBER');
+    const recipient = await this.settings.value('SIGNAL_RECIPIENT');
     if (!url || !number || !recipient) return { sent: false, reason: 'signal not configured' };
     try {
       const res = await fetch(`${url.replace(/\/$/, '')}/v2/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text, number, recipients: [recipient] }),
+        signal: AbortSignal.timeout(8000),
       });
-      return { sent: res.ok, ...(res.ok ? {} : { error: await res.text() }) };
+      return { sent: res.ok, ...(res.ok ? {} : { error: `Signal HTTP ${res.status}` }) };
     } catch (e: any) {
       this.logger.warn(`Signal failed: ${e.message}`);
       return { sent: false, error: e.message };
     }
   }
 
-  async broadcast(options: BroadcastOptions): Promise<Record<string, ChannelResult>> {
+  async broadcast(options: BroadcastOptions, channel?: string): Promise<Record<string, ChannelResult>> {
     const plain = options.plainText || options.text.replace(/<[^>]*>/g, '');
-    const [telegram, signal, webhook, email] = await Promise.all([
-      this.sendTelegram(options.text),
-      this.sendSignal(plain),
-      this.sendWebhook(options.webhook || { event: 'notification', text: plain }),
-      this.sendEmail(process.env.ALERT_EMAIL_TO, options.subject || 'XSS notification', plain),
-    ]);
-    return { telegram, signal, webhook, email };
+    const emailTo = await this.settings.value('ALERT_EMAIL_TO');
+    const candidates: Record<string, () => Promise<ChannelResult>> = {
+      telegram: () => this.sendTelegram(options.text),
+      signal: () => this.sendSignal(plain),
+      webhook: () => this.sendWebhook(options.webhook || { event: 'notification', text: plain }),
+      email: () => this.sendEmail(emailTo, options.subject || 'XSS notification', plain),
+    };
+    const entries = channel && candidates[channel] ? [channel] : Object.keys(candidates);
+    const pairs = await Promise.all(entries.map(async (name) => [name, await candidates[name]()] as const));
+    return Object.fromEntries(pairs);
   }
 
   /**
@@ -132,30 +176,51 @@ export class NotificationsService {
     options: BroadcastOptions,
     organizationId?: string | null,
   ): Promise<Record<string, ChannelResult>> {
+    const policy = await this.settings.policy();
+    if (!policy.enabled) return { policy: { sent: false, reason: 'notifications disabled' } };
+    if (!this.settings.allowsSeverity(policy, options.severity)) {
+      return { policy: { sent: false, reason: `severity below ${policy.minSeverity}` } };
+    }
+    if (this.settings.isQuietHour(policy)) {
+      return { policy: { sent: false, reason: 'quiet hours' } };
+    }
+    if (await this.settings.withinCooldown(options.dedupeKey, policy.cooldownMinutes)) {
+      return { policy: { sent: false, reason: 'cooldown' } };
+    }
+
     const channels = await this.routes.enabledChannels(event, organizationId);
+    const emailTo = await this.settings.value('ALERT_EMAIL_TO');
+    const candidates: Record<string, () => Promise<ChannelResult>> = {
+      telegram: () => this.sendTelegram(options.text),
+      webhook: () => this.sendWebhook(options.webhook || { event, text: options.plainText || options.text }),
+      email: () => this.sendEmail(emailTo, options.subject || `XSS: ${event}`, options.plainText || options.text.replace(/<[^>]*>/g, '')),
+      signal: () => this.sendSignal(options.plainText || options.text.replace(/<[^>]*>/g, '')),
+    };
     const result: Record<string, ChannelResult> = {};
-    if (channels.includes(NotificationChannel.TELEGRAM)) {
-      result.telegram = await this.sendTelegram(options.text);
-    }
-    if (channels.includes(NotificationChannel.WEBHOOK)) {
-      result.webhook = await this.sendWebhook(options.webhook || { event, text: options.plainText || options.text });
-    }
-    if (channels.includes(NotificationChannel.EMAIL)) {
-      result.email = await this.sendEmail(
-        process.env.ALERT_EMAIL_TO,
-        options.subject || `XSS: ${event}`,
-        options.plainText || options.text.replace(/<[^>]*>/g, ''),
-      );
+    for (const channel of channels) {
+      const name = channel.toLowerCase();
+      const send = candidates[name];
+      if (!send) continue;
+      const outcome = await send();
+      result[name] = outcome;
+      await this.settings.recordDelivery({
+        event,
+        channel: name,
+        status: outcome.sent ? 'sent' : 'failed',
+        dedupeKey: options.dedupeKey,
+        error: outcome.error,
+      }).catch((error) => this.logger.warn(`Delivery log failed: ${error.message}`));
     }
     return result;
   }
 
-  channels() {
+  async channels() {
+    const configured = await this.settings.configured();
     return {
-      telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID),
-      webhook: Boolean(process.env.WEBHOOK_URL),
-      email: Boolean(process.env.SMTP_HOST && (process.env.EMAIL_FROM || process.env.SMTP_USER)),
-      signal: Boolean(process.env.SIGNAL_API_URL && process.env.SIGNAL_PHONE_NUMBER && process.env.SIGNAL_RECIPIENT),
+      telegram: configured.TELEGRAM_BOT_TOKEN && configured.TELEGRAM_CHAT_ID,
+      webhook: configured.WEBHOOK_URL,
+      email: configured.SMTP_HOST && (configured.EMAIL_FROM || configured.SMTP_USER),
+      signal: configured.SIGNAL_API_URL && configured.SIGNAL_PHONE_NUMBER && configured.SIGNAL_RECIPIENT,
     };
   }
 

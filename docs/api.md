@@ -170,6 +170,15 @@ All report endpoints require an `ADMIN` JWT.
 - Payload accepts `routingRules[]`, `dnsServers[]` and `outbounds[]`, merged into generated Xray config.
 - `PATCH /users/:id` with `configProfileId` attaches a profile to a user.
 
+## Notifications
+
+- `GET/PATCH /notifications/settings` — channel configuration (encrypted at rest, secrets
+  never returned) and delivery policy (quiet hours, cooldown, severity). ADMIN only.
+- `GET /notifications/deliveries` — recent delivery log.
+- `POST /notifications/test { channel?, text? }` — test a single channel or all.
+- `GET/POST /notification-routes` — event × channel routing (includes `SIGNAL`);
+  OPERATOR is scoped to their organization. See `docs/notifications.md`.
+
 ## Reports
 
 - `GET /reports/traffic/timeseries?days=30` or `?from&to` — daily traffic buckets,
