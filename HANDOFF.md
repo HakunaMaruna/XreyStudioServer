@@ -559,3 +559,20 @@ backend typecheck rc=0, lint rc=0 (141 pre-existing `no-explicit-any` warnings, 
 unit 19 suites / 110 tests, `npm run test:e2e` 2 suites / 11 tests, nest build rc=0,
 `node dist/scripts/rescue-cli.js --help` rc=0, code_review zero findings.
 Local PG e2e remains skipped (pg_dump 16 cannot dump PGlite 19). CI is the authority.
+
+## Documentation, UI screenshots and SEO (4e91c38)
+
+- Added `docs/processes.md` (end-to-end Mermaid diagrams for install, node onboarding,
+  subscription/HWID, backup/restore, health/doctor, Telegram/MCP) and `docs/user-guide.md`
+  with real headless-Chromium screenshots in `docs/screenshots/` (login, decoy, public docs).
+- Expanded `docs/install.md` (verification checklist, rollback) and `docs/backup.md`
+  (AES-256-GCM format, S3/R2 step-by-step, restore drill).
+- Added public SSR `/docs` with metadata, canonical URL, Open Graph/Twitter, JSON-LD, plus
+  `robots.ts` and `sitemap.ts`. Private routes (`/login`, `/sub/*`, `/api/*` and admin screens)
+  are `noindex` and disallowed. `NEXT_PUBLIC_SITE_URL` controls canonical/sitemap origin;
+  Host headers are not trusted. Whitelisted public routes bypass decoy/middleware redirects.
+- Updated README EN/RU with TOCs, doc links and keywords; added SEO sections to
+  `docs-content.ts`; theme init moved to static `/theme-init.js` (no inline-script injection).
+- Local validation: tsc rc=0, next build (webpack) rc=0, lint 0 errors, backend unit
+  19 suites / 110 tests, code_review 0 findings. Turbopack build fails locally on Node 20.15
+  (`magic-string` ESM); webpack build and CI are the authority.
