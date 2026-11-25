@@ -784,3 +784,5 @@ Local PG e2e remains skipped (pg_dump 16 cannot dump PGlite 19). CI is the autho
   `docs/user-guide.md`, restore drill) updated.
 - Validation: backend tsc/lint/build rc=0; focused Jest 5/5; frontend tsc/lint rc=0 and
   `next build --webpack` rc=0; shell syntax checked; code_review 0 findings.
+
+CI note for this change: backend lint failure introduced by the remote balancers commits was fixed in `ffac643`; `e2e-postgres` was already failing on parent commits `60abcd5`/`d893ede` before snapshots landed and could not be reproduced locally because proot PostgreSQL cannot allocate shared memory (`shmget` unavailable).
