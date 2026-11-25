@@ -19,8 +19,8 @@ describe('ControlService', () => {
       },
     };
     dns = {
-      isConfigured: true,
-      zoneName: 'node.h2onetwork.pro',
+      isConfigured: jest.fn(async () => true),
+      zoneName: jest.fn(async () => 'node.h2onetwork.pro'),
       setAddress: jest.fn(async () => undefined),
       remove: jest.fn(async () => undefined),
     };
@@ -47,7 +47,7 @@ describe('ControlService', () => {
 
   it('rejects invalid addresses and unconfigured DNS', async () => {
     await expect(service().allocate({ ipv4: 'not-an-ip' }, ctx)).rejects.toThrow('Invalid IPv4');
-    dns.isConfigured = false;
+    dns.isConfigured.mockResolvedValueOnce(false);
     await expect(service().allocate({ ipv4: '203.0.113.1' }, ctx)).rejects.toThrow('not configured');
     expect(prisma.nodeDomain.create).not.toHaveBeenCalled();
   });

@@ -360,6 +360,7 @@ if [ ! -f .env ]; then
     PDNS_KEY="$(openssl rand -hex 24)"; MASTER_KEY="$(openssl rand 32 | base64 -w0)"
     say "  ${C_DIM}PDNS_API_KEY=$PDNS_KEY${C_RESET}"
     say "  ${C_DIM}PANEL_MASTER_KEY=$MASTER_KEY${C_RESET}"
+    run_sh "printf 'PANEL_MODE=control\\n' >> .env"
   fi
   run_sh "sed -i 's|^JWT_SECRET=.*|JWT_SECRET=$JWT|' .env"
   run_sh "sed -i 's|^JWT_REFRESH_SECRET=.*|JWT_REFRESH_SECRET=$REFRESH|' .env"

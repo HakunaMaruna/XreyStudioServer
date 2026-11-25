@@ -170,6 +170,15 @@ All report endpoints require an `ADMIN` JWT.
 - Payload accepts `routingRules[]`, `dnsServers[]` and `outbounds[]`, merged into generated Xray config.
 - `PATCH /users/:id` with `configProfileId` attaches a profile to a user.
 
+## DNS (CONTROL mode only)
+
+- `GET /dns/status` — mode, availability, PowerDNS version, zone/queries/uptime/metrics.
+- `GET/POST /dns/zones`, `DELETE /dns/zones/:name` — zone management.
+- `GET/POST /dns/zone/:zone/records`, `DELETE /dns/zone/:zone/records` — record management.
+- `GET/PATCH /dns/settings` — API URL/key (encrypted), zone, TTL, NS, bind IP.
+
+ADMIN only; hidden in TENANT mode. See `docs/powerdns.md`.
+
 ## Cheburcheck
 
 - `POST /cheburcheck/check { nodeId?, target? }` — live block-list + SSE probe check.

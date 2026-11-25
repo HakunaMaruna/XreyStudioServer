@@ -569,6 +569,13 @@ model NotificationPolicy {
   updatedAt          DateTime @updatedAt
 }
 
+// CONTROL-режим: настройки PowerDNS, редактируемые в UI. Секреты шифруются.
+model DnsSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 model CheburcheckResult {
   id         String   @id @default(uuid())
   nodeId     String?
