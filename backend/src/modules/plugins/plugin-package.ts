@@ -53,12 +53,14 @@ export function verifyPackageSignature(value: PluginPackage, publicKeyPem: strin
   }
   if (value.signature.algorithm !== 'Ed25519') throw new BadRequestException('Unsupported signature algorithm');
   if (!publicKeyPem) throw new BadRequestException('Store public key is not configured');
+  // .env often stores PEM with literal "\n" sequences.
+  const pem = publicKeyPem.includes('\n') ? publicKeyPem : publicKeyPem.replace(/\\n/g, '\n');
   let valid = false;
   try {
     valid = ed25519Verify(
       null,
       canonicalPayload(value),
-      publicKeyPem,
+      pem,
       Buffer.from(value.signature.signature, 'base64'),
     );
   } catch {
