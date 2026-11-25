@@ -19,6 +19,11 @@ export class ControlController {
     return this.catalog.masterCatalog();
   }
 
+  @Get('plugins/revocations')
+  pluginRevocations() {
+    return this.catalog.revocations();
+  }
+
   @Get('plugins/download/:id')
   pluginDownload(@Param('id') id: string) {
     return this.catalog.downloadUrl(id);

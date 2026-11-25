@@ -101,6 +101,30 @@ export class PluginCatalogService {
     return response.json();
   }
 
+  async revocations() {
+    const path = this.auth.mode() === 'control'
+      ? '/api/store/revocations'
+      : '/api/control/plugins/revocations';
+    const base = this.auth.mode() === 'control'
+      ? (process.env.STORE_API_URL || '').replace(/\/$/, '')
+      : (process.env.CONTROL_API_URL || '').replace(/\/$/, '');
+    const token = this.auth.mode() === 'control' ? this.auth.masterToken() : this.auth.tenantToken();
+    const response = await fetch(`${base}${path}`, {
+      headers: token ? (this.auth.mode() === 'control' ? { 'X-Store-Token': token } : { 'X-API-Token': token }) : {},
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) throw new Error(`Revocation list unavailable: ${response.status}`);
+    return response.json();
+  }
+
+  async assertNotRevoked(pluginId: string, version?: string) {
+    const response: any = await this.revocations();
+    const rows: any[] = response?.revocations || response || [];
+    if (rows.some((row) => row.pluginId === pluginId && (!row.version || row.version === version))) {
+      throw new Error('Plugin is revoked by the store');
+    }
+  }
+
   async policy() {
     return this.prisma.pluginPolicy.upsert({ where: { id: 'default' }, create: {}, update: {} });
   }

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { StorePluginStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PluginPackage, sha256Package, validatePackage } from '../plugins/plugin-package';
@@ -86,6 +86,10 @@ export class StoreService {
   async download(versionId: string) {
     const version = await this.prisma.storeVersion.findUnique({ where: { id: versionId } });
     if (!version) throw new NotFoundException('Version not found');
+    const revoked = await this.prisma.storeRevocation.findFirst({
+      where: { pluginId: version.pluginId, OR: [{ version: null }, { version: version.version }] },
+    });
+    if (revoked) throw new ForbiddenException(`Plugin version is revoked: ${revoked.reason || 'no reason'}`);
     return version.payload;
   }
 

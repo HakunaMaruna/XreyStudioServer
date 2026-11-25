@@ -41,6 +41,12 @@ UI: `/plugins` (installed/catalog/policy), store catalog and moderation pages.
 Snapshot before any plugin change; safe mode via `PLUGIN_SAFE_MODE=true`, kill switch via
 `PLUGINS_DISABLED=true`. CLI: `scripts/plugin-cli.mjs`. Down migration: `backend/prisma/plugin-down.sql`.
 
+Живая проверка v2.39.3: store контейнер и store-db подняты, каталог/модерация отвечают,
+неавторизованная публикация → 401. Подписанный `hello-widget` опубликован в store, виден
+через master `/api/plugins/catalog`, скачан и установлен; `enable` → `ENABLED`, `health` → healthy.
+Неподписанный пакет отклонён. `audit-hook` с миграцией установлен (таблица создана) и удалён
+(таблица удалена). Демо `hello-widget` оставлен включённым; React-виджет на дашборде пока не рендерится — слоты возвращают данные бэкенда.
+
 ## Subscription page (v2.38.0, 2026-11-25)
 
 Публичная страница `/sub/[token]` переработана: mobile-first, светлая/тёмная тема с

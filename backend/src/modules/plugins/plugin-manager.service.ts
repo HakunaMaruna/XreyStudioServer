@@ -8,6 +8,7 @@ import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SnapshotsService } from '../snapshots/snapshots.service';
 import { PluginPackage, validatePackage, verifyPackageSignature } from './plugin-package';
+import { PluginCatalogService } from './plugin-catalog.service';
 import { PluginRuntimeService } from './plugin-runtime.service';
 import { PluginStorageService } from './plugin-storage.service';
 
@@ -26,6 +27,7 @@ export class PluginManagerService implements OnModuleInit {
     private readonly snapshots: SnapshotsService,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly catalog: PluginCatalogService,
   ) {}
 
   onModuleInit() {
@@ -89,6 +91,7 @@ export class PluginManagerService implements OnModuleInit {
   async install(pkg: PluginPackage, actor?: AuthUser) {
     const value = validatePackage(pkg);
     verifyPackageSignature(value, process.env.PLUGIN_STORE_PUBLIC_KEY, this.allowUnsigned());
+    await this.catalog.assertNotRevoked(value.manifest.id, value.manifest.version).catch((error) => { throw new ForbiddenException(error.message); });
     const existing = await this.prisma.plugin.findUnique({ where: { pluginId: value.manifest.id } });
     if (existing) throw new BadRequestException('Plugin is already installed; use update');
     await this.snapshot(`install ${value.manifest.id}`, actor?.userId);
@@ -153,6 +156,7 @@ export class PluginManagerService implements OnModuleInit {
     const value = validatePackage(pkg);
     if (value.manifest.id !== pluginId) throw new BadRequestException('Plugin id does not match');
     verifyPackageSignature(value, process.env.PLUGIN_STORE_PUBLIC_KEY, this.allowUnsigned());
+    await this.catalog.assertNotRevoked(pluginId, value.manifest.version).catch((error) => { throw new ForbiddenException(error.message); });
     const row = await this.find(pluginId);
     if (row.version === value.manifest.version) throw new BadRequestException('Plugin version is unchanged');
     await this.snapshot(`update ${pluginId}`, actor?.userId);
