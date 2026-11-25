@@ -31,6 +31,14 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Wizard install progress (v2.40.4, 2026-11-26)
+
+При создании ноды открывается модальное окно с прогресс-баром и мини-терминалом.
+Шаги и вывод удалённых команд пишутся в `NodeInstallJob`/`NodeInstallLog` и опрашиваются
+через `GET /api/wizard/install/:installId`. Таймаут удалённой команды увеличен с 180 с
+до 600 с (`NODE_PROVISION_COMMAND_TIMEOUT_MS`). Обратная миграция:
+`backend/prisma/node-install-down.sql`.
+
 ## Wizard SSH provisioning flag (v2.40.3, 2026-11-26)
 
 `SSH_PROVISION_ENABLED` по умолчанию включается в `docker-compose.control.yml`; на живой

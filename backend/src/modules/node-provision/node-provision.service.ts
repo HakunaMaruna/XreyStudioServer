@@ -14,10 +14,11 @@ import { ProvisionNodeDto } from './dto/provision.dto';
 
 const DEFAULT_REPO = 'https://github.com/HakunaMaruna/XreyStudioServer.git';
 const REMOTE_DIR = '/opt/xrey-agent';
-const COMMAND_TIMEOUT_MS = 180_000;
+const DEFAULT_COMMAND_TIMEOUT_MS = 600_000;
 const MAX_OUTPUT = 16_384;
 
 type ExecResult = { code: number; output: string };
+export type ProvisionProgress = (stage: string, message: string, level?: string) => Promise<void> | void;
 
 export function fingerprintMatches(key: Buffer, fingerprint: string): boolean {
   return `SHA256:${createHash('sha256').update(key).digest('base64')}` === fingerprint;
@@ -72,11 +73,16 @@ export class NodeProvisionService {
     });
   }
 
+  private commandTimeout() {
+    const value = Number(process.env.NODE_PROVISION_COMMAND_TIMEOUT_MS);
+    return Number.isFinite(value) && value >= 30_000 ? value : DEFAULT_COMMAND_TIMEOUT_MS;
+  }
+
   private runRemoteCommand(conn: Client, command: string): Promise<ExecResult> {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(
         () => reject(new BadRequestException('Remote command timed out')),
-        COMMAND_TIMEOUT_MS,
+        this.commandTimeout(),
       );
       conn.exec(command, { pty: false }, (err, stream) => {
         if (err) {
@@ -141,7 +147,24 @@ export class NodeProvisionService {
     if (move.code !== 0) throw new BadRequestException('Failed to install remote .env');
   }
 
-  async provision(dto: ProvisionNodeDto, actor: AuthUser) {
+  private async emit(progress: ProvisionProgress | undefined, stage: string, message: string, level = 'info') {
+    if (!progress) return;
+    try {
+      await progress(stage, message, level);
+    } catch {
+      // Progress reporting must never break provisioning itself.
+    }
+  }
+
+  /** Remote output can be big and may contain secrets; keep only a short sanitized excerpt. */
+  private outputExcerpt(output: string) {
+    const lines = output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+      .filter((line) => !/(token|password|secret|private.?key|AGENT_TOKEN)/i.test(line))
+      .slice(0, 12);
+    return lines.join('\n').slice(0, 2000);
+  }
+
+  async provision(dto: ProvisionNodeDto, actor: AuthUser, progress?: ProvisionProgress) {
     this.enabled();
     if (actor.role !== Role.ADMIN) throw new ForbiddenException('Admin role required');
 
@@ -162,7 +185,9 @@ export class NodeProvisionService {
       },
     });
 
+    await this.emit(progress, 'ssh', `Connecting to ${dto.host}:${dto.port} as ${dto.username}…`);
     const conn = await this.connect(dto);
+    await this.emit(progress, 'ssh', 'SSH connection established');
     try {
       const repo = process.env.NODE_PROVISION_REPO || DEFAULT_REPO;
       const sudo = this.sudoPrefix(dto);
@@ -171,22 +196,32 @@ export class NodeProvisionService {
         `if [ ! -d ${REMOTE_DIR}/.git ]; then ${sudo}git clone --depth 1 ${repo} ${REMOTE_DIR}; fi; ` +
         `${sudo}chmod 700 ${REMOTE_DIR}; ` +
         `if ! command -v docker >/dev/null 2>&1; then curl -fsSL https://get.docker.com | ${sudo}sh; fi`;
+      await this.emit(progress, 'prepare', 'Preparing remote directory and Docker…');
       const setupResult = await this.runRemoteCommand(conn, setup);
+      const setupExcerpt = this.outputExcerpt(setupResult.output);
+      if (setupExcerpt) await this.emit(progress, 'prepare', setupExcerpt, 'output');
       if (setupResult.code !== 0) {
         throw new BadRequestException('Failed to prepare remote directory or install Docker');
       }
+      await this.emit(progress, 'prepare', 'Remote directory and Docker ready');
 
       const envContent =
         `NODE_ID=${node.id}\nAGENT_TOKEN=${agentToken}\nPANEL_URL=${panelUrl}\nXRAY_MANAGED=true\n`;
+      await this.emit(progress, 'env', 'Writing agent configuration (.env)…');
       await this.writeEnv(conn, envContent, dto);
+      await this.emit(progress, 'env', 'Agent configuration written');
 
+      await this.emit(progress, 'install', 'Installing agent (install.sh --mode node)…');
       const install = await this.runRemoteCommand(
         conn,
         `cd ${REMOTE_DIR} && ${sudo}bash install.sh --mode node --yes`,
       );
+      const installExcerpt = this.outputExcerpt(install.output);
+      if (installExcerpt) await this.emit(progress, 'install', installExcerpt, 'output');
       if (install.code !== 0) {
         throw new BadRequestException('Remote agent installation failed');
       }
+      await this.emit(progress, 'install', 'Agent installed successfully');
     } catch (error) {
       await this.prisma.node.delete({ where: { id: node.id } }).catch(() => undefined);
       throw error;

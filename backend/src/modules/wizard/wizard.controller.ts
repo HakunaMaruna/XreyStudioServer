@@ -19,6 +19,12 @@ export class WizardController {
     return this.service.create(dto, user);
   }
 
+  @Get('install/:installId')
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  installation(@Param('installId') installId: string, @CurrentUser() user: AuthUser) {
+    return this.service.installation(installId, user);
+  }
+
   @Get('nodes/:nodeId')
   @Roles(Role.ADMIN, Role.OPERATOR)
   nodeParams(@Param('nodeId') nodeId: string, @CurrentUser() user: AuthUser) {

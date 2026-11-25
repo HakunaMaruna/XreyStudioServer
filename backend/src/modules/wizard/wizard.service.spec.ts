@@ -24,6 +24,12 @@ describe('WizardService', () => {
   beforeEach(() => {
     prisma = {
       wizardCredential: { create: jest.fn(async () => ({})), findMany: jest.fn(async () => []), deleteMany: jest.fn(async () => ({})), findUnique: jest.fn(async () => null) },
+      nodeInstallJob: {
+        create: jest.fn(async ({ data }: any) => ({ ...data })),
+        update: jest.fn(async ({ data }: any) => data),
+        findUnique: jest.fn(async ({ where }: any) => ({ installId: where.installId, status: 'success', stage: 'done', progress: 100, userId: 'u', logs: [] })),
+      },
+      nodeInstallLog: { create: jest.fn(async ({ data }: any) => data) },
       inbound: { create: jest.fn(async ({ data }: any) => ({ id: 'inbound-1', ...data })) },
       nodeDomain: { findFirst: jest.fn(async () => null) },
       node: {
@@ -58,13 +64,25 @@ describe('WizardService', () => {
     await expect(service().create({
       ...withoutFingerprint, authMode: 'password', password: 'pw',
     } as any, user)).resolves.toMatchObject({ nodeId: 'node-1' });
-    expect(provision.provision).toHaveBeenCalledWith(expect.objectContaining({ hostKeyFingerprint: undefined }), user);
+    expect(provision.provision).toHaveBeenCalledWith(expect.objectContaining({ hostKeyFingerprint: undefined }), user, expect.any(Function));
+  });
+
+  it('records installation progress and logs', async () => {
+    const result: any = await service().create({ ...baseDto, installId: 'install-1' } as any, user);
+    expect(prisma.nodeInstallJob.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ installId: 'install-1', status: 'running' }),
+    }));
+    expect(prisma.nodeInstallLog.create).toHaveBeenCalled();
+    expect(prisma.nodeInstallJob.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status: 'success', progress: 100, nodeId: result.nodeId }),
+    }));
+    expect(await service().installation('install-1', user)).toMatchObject({ progress: 100 });
   });
 
   it('creates a node, VLESS TLS inbound and stores encrypted credentials', async () => {
     const result = await service().create({ ...baseDto, userDomain: 'vpn.example.com' } as any, user);
     expect(control.allocate).toHaveBeenCalled();
-    expect(provision.provision).toHaveBeenCalledWith(expect.objectContaining({ host: '203.0.113.10', username: 'root' }), user);
+    expect(provision.provision).toHaveBeenCalledWith(expect.objectContaining({ host: '203.0.113.10', username: 'root' }), user, expect.any(Function));
     expect(prisma.inbound.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         protocol: 'vless',

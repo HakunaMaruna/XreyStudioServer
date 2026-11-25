@@ -12,6 +12,13 @@ import {
 const FQDN = /^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$/;
 
 export class CreateNodeWizardDto {
+  /** Client-generated id used to poll installation progress and logs. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  @Matches(/^[A-Za-z0-9-]+$/)
+  installId?: string;
+
   @Matches(/^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$/, { message: 'invalid host' })
   host: string;
 

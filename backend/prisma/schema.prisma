@@ -579,6 +579,34 @@ model WizardCredential {
   createdAt  DateTime @default(now())
 }
 
+model NodeInstallJob {
+  installId      String            @id
+  status         String            @default("running")
+  stage          String            @default("start")
+  progress       Int               @default(0)
+  nodeId         String?
+  error          String?
+  userId         String?
+  organizationId String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  logs           NodeInstallLog[]
+
+  @@index([userId, createdAt])
+}
+
+model NodeInstallLog {
+  id        String         @id @default(uuid())
+  installId String
+  job       NodeInstallJob @relation(fields: [installId], references: [installId], onDelete: Cascade)
+  level     String         @default("info")
+  stage     String
+  message   String
+  createdAt DateTime       @default(now())
+
+  @@index([installId, createdAt])
+}
+
 model ApiToken {
   id             String          @id @default(uuid())
   name           String

@@ -1,10 +1,10 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, isLoggedIn } from '../../lib/api';
 import { COUNTRIES } from '../../lib/countries';
 import { useLang } from '../../lib/i18n';
 import { Icon } from '../../components/icons';
-import { Button, Card, CodeBlock, Field, HelpButton, PageHeader, SectionTitle } from '../../components/ui';
+import { Button, Card, CodeBlock, Field, HelpButton, Modal, PageHeader, SectionTitle } from '../../components/ui';
 
 type AuthMode = 'password' | 'password_key' | 'key';
 type WizardResult = {
@@ -42,6 +42,9 @@ export default function WizardPage() {
     passphrase: '',
   });
   const [busy, setBusy] = useState(false);
+  const [installOpen, setInstallOpen] = useState(false);
+  const [install, setInstall] = useState<any>(null);
+  const pollRef = useRef<number | null>(null);
   const [error, setError] = useState('');
   const [result, setResult] = useState<WizardResult | null>(null);
   const [applied, setApplied] = useState(false);
@@ -53,6 +56,7 @@ export default function WizardPage() {
 
   useEffect(() => {
     if (!isLoggedIn()) window.location.href = '/login';
+    return () => { if (pollRef.current !== null) window.clearInterval(pollRef.current); };
   }, []);
 
   const update = (key: keyof typeof form, value: string) =>
@@ -61,6 +65,12 @@ export default function WizardPage() {
   const submit = async () => {
     setBusy(true);
     setError('');
+    const installId = crypto.randomUUID();
+    setInstall({ status: 'running', stage: 'start', progress: 2, error: null,
+      logs: [{ id: 'local', level: 'info', stage: 'start', message: t.wizardInstallStarting }] });
+    setInstallOpen(true);
+    const poll = () => api.get(`/api/wizard/install/${installId}`).then(setInstall).catch(() => undefined);
+    pollRef.current = window.setInterval(poll, 1200);
     try {
       const body: Record<string, unknown> = {
         host: form.host,
@@ -72,6 +82,7 @@ export default function WizardPage() {
         ipv4: form.ipv4 || undefined,
         ipv6: form.ipv6 || undefined,
         userDomain: form.userDomain || undefined,
+        installId,
       };
       if (authMode !== 'key') body.password = form.password;
       if (authMode !== 'password' && form.hostKeyFingerprint) body.hostKeyFingerprint = form.hostKeyFingerprint;
@@ -80,9 +91,15 @@ export default function WizardPage() {
         if (form.passphrase) body.passphrase = form.passphrase;
       }
       const data = await api.post('/api/wizard/nodes', body);
+      if (pollRef.current !== null) window.clearInterval(pollRef.current);
+      pollRef.current = null;
+      await poll();
       setResult(data);
       setStep(2);
     } catch (e: any) {
+      if (pollRef.current !== null) window.clearInterval(pollRef.current);
+      pollRef.current = null;
+      await poll();
       setError(e.message || 'Request failed');
     } finally {
       setBusy(false);
@@ -263,6 +280,38 @@ export default function WizardPage() {
           {error && <p className="mt-3 text-sm text-danger">{error}</p>}
         </Card>
       )}
+      <Modal
+        open={installOpen}
+        onClose={() => { if (install?.status !== 'running') setInstallOpen(false); }}
+        title={install?.status === 'failed' ? t.wizardInstallFailed
+          : install?.status === 'success' ? t.wizardInstallSuccess : t.wizardInstalling}
+        icon={<Icon name="terminal" size={16} />}
+        size="lg"
+        footer={<Button disabled={install?.status === 'running'} onClick={() => setInstallOpen(false)}>
+          {install?.status === 'running' ? '…' : install?.status === 'failed' ? t.wizardClose : t.wizardContinue}
+        </Button>}
+      >
+        <div className="mb-2 flex items-center justify-between text-xs text-muted">
+          <span>{install?.stage || 'start'}</span>
+          <span>{install?.progress || 0}%</span>
+        </div>
+        <div className="h-2 overflow-hidden rounded-full bg-surface-3">
+          <div className="h-full rounded-full bg-brand transition-all duration-500"
+            style={{ width: `${install?.progress || 0}%` }} />
+        </div>
+        <p className="mt-4 text-[11px] font-medium uppercase tracking-wider text-subtle">{t.wizardInstallTerminal}</p>
+        <div className="mono mt-2 max-h-72 space-y-1 overflow-auto rounded-xl border border-line bg-[#07090f] p-3 text-[11px] leading-relaxed">
+          {(install?.logs || []).map((entry: any) => (
+            <div key={entry.id} className={entry.level === 'error' ? 'text-danger'
+              : entry.level === 'warn' ? 'text-warning'
+                : entry.level === 'output' ? 'text-subtle' : 'text-success'}>
+              <span className="text-subtle">[{new Date(entry.createdAt || Date.now()).toLocaleTimeString()}]</span>{' '}
+              {entry.message}
+            </div>
+          ))}
+        </div>
+        {install?.error && <p className="mt-3 text-xs text-danger">{install.error}</p>}
+      </Modal>
     </div>
   );
 }

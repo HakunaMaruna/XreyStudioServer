@@ -1,4 +1,5 @@
 import { resolveCname } from 'dns/promises';
+import { randomUUID } from 'crypto';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
@@ -69,7 +70,76 @@ export class WizardService {
     }
   }
 
+  private async report(
+    installId: string,
+    stage: string,
+    message: string,
+    progress?: number,
+    level = 'info',
+  ) {
+    await this.prisma.nodeInstallLog.create({
+      data: { installId, stage, level, message: String(message).slice(0, 4000) },
+    }).catch(() => undefined);
+    if (progress !== undefined) {
+      await this.prisma.nodeInstallJob.update({
+        where: { installId },
+        data: { stage, progress },
+      }).catch(() => undefined);
+    }
+  }
+
+  /** Progress/status of one installation, polled by the wizard UI. */
+  async installation(installId: string, user: AuthUser) {
+    const job = await this.prisma.nodeInstallJob.findUnique({
+      where: { installId },
+      include: { logs: { orderBy: { createdAt: 'asc' } } },
+    });
+    if (!job) throw new NotFoundException('Installation not found');
+    if (user.role !== Role.ADMIN && user.role !== Role.OPERATOR && job.userId !== user.userId) {
+      throw new ForbiddenException('Installation belongs to another user');
+    }
+    return job;
+  }
+
   async create(dto: CreateNodeWizardDto, user: AuthUser) {
+    const installId = dto.installId || randomUUID();
+    await this.prisma.nodeInstallJob.create({
+      data: {
+        installId,
+        status: 'running',
+        stage: 'start',
+        progress: 2,
+        userId: user.userId,
+        organizationId: user.organizationId || null,
+      },
+    }).catch(() => undefined);
+    const report = (stage: string, message: string, progress?: number, level?: string) =>
+      this.report(installId, stage, message, progress, level);
+    await report('start', 'Installation started', 2);
+    try {
+      const result = await this.createInternal(dto, user, installId, report);
+      await report('done', 'Installation completed', 100);
+      await this.prisma.nodeInstallJob.update({
+        where: { installId },
+        data: { status: 'success', stage: 'done', progress: 100, nodeId: result.nodeId, error: null },
+      }).catch(() => undefined);
+      return result;
+    } catch (error: any) {
+      await report('error', error?.message || 'Installation failed', undefined, 'error');
+      await this.prisma.nodeInstallJob.update({
+        where: { installId },
+        data: { status: 'failed', error: String(error?.message || error).slice(0, 1000) },
+      }).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  private async createInternal(
+    dto: CreateNodeWizardDto,
+    user: AuthUser,
+    installId: string,
+    report: (stage: string, message: string, progress?: number, level?: string) => Promise<void>,
+  ) {
     if (dto.authMode !== 'key' && !dto.password) {
       throw new BadRequestException('Password is required for this SSH auth mode');
     }
@@ -83,15 +153,22 @@ export class WizardService {
       throw new BadRequestException('Admin or operator role required');
     }
 
+    await report('domain', 'Requesting a domain from CONTROL…', 8);
     const domain = await this.allocate(dto, user);
+    await report('domain', `Domain allocated: ${domain.fqdn}`, 15);
     try {
-      if (dto.userDomain) await this.verifyUserDomain(dto.userDomain, domain.fqdn);
+      if (dto.userDomain) {
+        await report('domain', 'Verifying DNS CNAME for the user domain…', 20);
+        await this.verifyUserDomain(dto.userDomain, domain.fqdn);
+        await report('domain', 'DNS CNAME verified', 23);
+      }
     } catch (error) {
       await this.control.release(domain.id, this.context(user)).catch(() => undefined);
       throw error;
     }
 
     let provisioned: any;
+    await report('ssh', 'Starting SSH provisioning…', 28);
     try {
       provisioned = await this.provision.provision(
         {
@@ -107,6 +184,10 @@ export class WizardService {
           useSudo: Boolean(dto.sshUser && dto.sshUser !== 'root'),
         } as any,
         user,
+        (stage: string, message: string, level = 'info') => {
+          const STAGE_PROGRESS: Record<string, number> = { ssh: 32, prepare: 42, env: 55, install: 65 };
+          return report(stage, message, level === 'output' ? undefined : STAGE_PROGRESS[stage], level);
+        },
       );
     } catch (error: any) {
       await this.control.release(domain.id, this.context(user)).catch(() => undefined);
@@ -116,6 +197,7 @@ export class WizardService {
       throw new ServiceUnavailableException(`Node installation failed: ${hint}`);
     }
 
+    await report('credentials', 'Storing encrypted SSH credentials', 75);
     // Секреты сохраняем только в зашифрованном виде; в ответ и логи не попадают.
     await this.prisma.wizardCredential.create({
       data: {
@@ -135,6 +217,7 @@ export class WizardService {
       },
     }).catch((error) => this.logger.warn(`Failed to store credentials: ${error.message}`));
 
+    await report('inbound', 'Creating VLESS TLS inbound', 82);
     const port = Number(process.env.WIZARD_INBOUND_PORT || 443);
     const inbound = await this.prisma.inbound.create({
       data: {
@@ -158,9 +241,11 @@ export class WizardService {
       },
     });
 
+    await report('bind', 'Binding node to domain and generating configuration', 90);
     await this.control.bindNode(domain.id, provisioned.nodeId, this.context(user)).catch(() => undefined);
     const revision = await this.configGenerator.createRevision(provisioned.nodeId);
 
+    await report('cert', 'Requesting TLS certificate…', 95);
     let certificate: any = null;
     try {
       certificate = await this.control.issueCertificate(
@@ -170,6 +255,7 @@ export class WizardService {
       );
     } catch (error: any) {
       this.logger.warn(`Certificate issuance pending: ${error.message}`);
+      await report('cert', `Certificate pending: ${error.message}`, 95, 'warn');
     }
 
     return {
