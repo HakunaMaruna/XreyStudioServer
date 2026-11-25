@@ -1,5 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
 import { DnsAdminService } from './dns-admin.service';
+import { DnsSettingsService } from './dns-settings.service';
 
 describe('DnsAdminService', () => {
   let prisma: any;
@@ -37,7 +38,6 @@ describe('DnsAdminService', () => {
       createZone: jest.fn(async (name: string) => ({ id: name })),
       deleteZone: jest.fn(async (name: string) => ({ deleted: name })),
     };
-    const { DnsSettingsService } = require('./dns-settings.service');
     settings = new DnsSettingsService(prisma);
   });
 
