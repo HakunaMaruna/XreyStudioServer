@@ -40,6 +40,13 @@ QR/копирование, приложения с определением ОС
 предпросмотром `/sub/preview`, санитайзер CSS и валидация deep link. Старые форматы
 подписки и HWID-binding не тронуты. Документация `docs/subscription-page.md`.
 
+Живая проверка v2.38.0: `/api/subscription-page/settings` и `/apps` работают, дефолтно
+засеяно 11 приложений (Happ, v2rayNG, Streisand, Hiddify, Clash Meta, FlClash, Clash Verge,
+sing-box, NekoBox, V2Box, Shadowrocket); невалидный accent → HTTP 400; `/api/subscriptions/preview`
+и реальный JSON-подписки возвращают `page.settings`/`page.apps`; `/sub/preview` и `/sub/<token>`
+отдают страницу с браузерным UA (curl без UA корректно редиректится на машинную подписку
+через middleware). Проверка на 390px выполнена по CSS-разметке (headless browser недоступен).
+
 ## NAT relay (v2.37.0, 2026-11-25)
 
 Сценарий 1 из вердикта: VLESS reverse-туннель для ноды за NAT. Раздел `/reverse`:
