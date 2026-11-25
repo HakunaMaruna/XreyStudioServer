@@ -170,6 +170,13 @@ All report endpoints require an `ADMIN` JWT.
 - Payload accepts `routingRules[]`, `dnsServers[]` and `outbounds[]`, merged into generated Xray config.
 - `PATCH /users/:id` with `configProfileId` attaches a profile to a user.
 
+## Reports
+
+- `GET /reports/traffic/timeseries?days=30` or `?from&to` — daily traffic buckets,
+  previous-period comparison, top users. `GET /reports/traffic/timeseries.csv` exports
+  the same filtered data. ADMIN only. See `docs/reports.md`.
+- `GET /reports/organizations?from&to`, `GET /reports/protocols` and their `.csv` variants.
+
 ## Routing profiles
 
 - `GET /routing` — list routing profiles (tenant-scoped)

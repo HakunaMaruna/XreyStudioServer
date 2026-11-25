@@ -12,6 +12,16 @@ import { ReportsService } from './reports.service';
 export class ReportsController {
   constructor(private readonly service: ReportsService) {}
 
+  @Get('traffic/timeseries')
+  traffic(@Query() query: { from?: string; to?: string; days?: string }) {
+    return this.service.trafficTimeseries(query);
+  }
+
+  @Get('traffic/timeseries.csv')
+  async trafficCsv(@Query() query: { from?: string; to?: string; days?: string }, @Res() res: any) {
+    sendCsv(res, 'traffic-timeseries.csv', await this.service.trafficTimeseriesCsv(query));
+  }
+
   @Get('organizations')
   organizations(@Query() query: { from?: string; to?: string }) {
     return this.service.organizations(query);

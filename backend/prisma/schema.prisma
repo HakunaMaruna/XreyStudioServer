@@ -295,6 +295,7 @@ model UserTraffic {
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+  @@index([createdAt])
   @@index([period])
 }
 
