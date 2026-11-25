@@ -86,8 +86,12 @@ export class StoreService {
   async download(versionId: string) {
     const version = await this.prisma.storeVersion.findUnique({ where: { id: versionId } });
     if (!version) throw new NotFoundException('Version not found');
+    const plugin = await this.prisma.storePlugin.findUnique({ where: { id: version.pluginId } });
     const revoked = await this.prisma.storeRevocation.findFirst({
-      where: { pluginId: version.pluginId, OR: [{ version: null }, { version: version.version }] },
+      where: {
+        pluginId: { in: [version.pluginId, plugin?.slug || ''] },
+        OR: [{ version: null }, { version: version.version }],
+      },
     });
     if (revoked) throw new ForbiddenException(`Plugin version is revoked: ${revoked.reason || 'no reason'}`);
     return version.payload;
