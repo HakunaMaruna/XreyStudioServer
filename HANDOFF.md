@@ -31,6 +31,15 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Load balancers (v2.34.0, 2026-11-25)
+
+Новый раздел `/balancers`: форма создания балансировщика (стратегия random/roundRobin/
+leastPing/leastLoad, участники с зашифрованными учётными данными, правило domain/ip/port/network,
+fallback, probe URL/interval) и предпросмотр сгенерированного Xray-фрагмента.
+Генератор добавляет outbound'ы `bal-<id>-out-<n>`, `routing.balancers`, rule с `balancerTag`
+и root `observatory`. Выбран вариант отдельного раздела вместо raw JSON в routing profiles
+или per-user балансировки (отложена). Документация `docs/balancers.md`, `docs/api.md`.
+
 ## DNS section (v2.33.0, 2026-11-25)
 
 CONTROL/TENANT выявлены через `PANEL_MODE` (control-compose выставляет `control`).

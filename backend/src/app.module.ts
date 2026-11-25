@@ -40,6 +40,7 @@ import { McpModule } from './modules/mcp/mcp.module';
 import { ControlModule } from './modules/control/control.module';
 import { WizardModule } from './modules/wizard/wizard.module';
 import { CheburcheckModule } from './modules/cheburcheck/cheburcheck.module';
+import { BalancersModule } from './modules/balancers/balancers.module';
 import { TelegramBotModule } from './modules/telegram-bot/telegram-bot.module';
 
 @Module({
@@ -90,6 +91,7 @@ import { TelegramBotModule } from './modules/telegram-bot/telegram-bot.module';
     ControlModule,
     WizardModule,
     CheburcheckModule,
+    BalancersModule,
     TelegramBotModule,
   ],
   providers: [

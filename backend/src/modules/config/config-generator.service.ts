@@ -3,6 +3,7 @@ import { NotificationEvent } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AgentClientService } from './agent-client.service';
+import { BalancersService } from '../balancers/balancers.service';
 
 const EXTERNAL_PROTOCOLS = ['hysteria2', 'tuic', 'wireguard'];
 
@@ -14,6 +15,7 @@ export class ConfigGeneratorService {
     private prisma: PrismaService,
     private agentClient: AgentClientService,
     private notifications: NotificationsService,
+    private balancers: BalancersService,
   ) {}
 
   private clientFor(user: { id: string; email: string; subscriptionToken: string }, inbound: any) {
@@ -254,6 +256,8 @@ export class ConfigGeneratorService {
       if (Array.isArray(payload.outbounds)) profileOutbounds.push(...payload.outbounds);
     }
 
+    const balancerConfig = await this.balancers.buildForConfig();
+
     const config: any = {
       log: { loglevel: 'warning' },
       dns: {
@@ -265,10 +269,13 @@ export class ConfigGeneratorService {
         { tag: 'direct', protocol: 'freedom' },
         { tag: 'blocked', protocol: 'blackhole' },
         ...profileOutbounds,
+        ...balancerConfig.outbounds,
       ],
       routing: {
         domainStrategy: 'IPIfNonMatch',
+        balancers: balancerConfig.balancers.length ? balancerConfig.balancers : undefined,
         rules: [
+          ...balancerConfig.rules,
           ...rules.map((r) => r.payload),
           ...profileRules,
           { type: 'field', network: 'tcp,udp', outboundTag: 'direct' },
@@ -287,6 +294,15 @@ export class ConfigGeneratorService {
         },
       },
     };
+
+    if (balancerConfig.observerSelectors.length) {
+      config.observatory = {
+        subjectSelector: [...new Set(balancerConfig.observerSelectors)],
+        probeUrl: balancerConfig.probeUrl || 'https://www.google.com/generate_204',
+        probeInterval: `${balancerConfig.probeIntervalSec || 30}s`,
+        enableConcurrency: true,
+      };
+    }
 
     // Optional loopback API for per-user traffic statistics read by the agent.
     if (process.env.XRAY_STATS_ENABLED === 'true') {
