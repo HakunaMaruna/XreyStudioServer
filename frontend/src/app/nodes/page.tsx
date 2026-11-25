@@ -6,7 +6,7 @@ import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
 import {
-  Badge, Button, Card, Field, IconButton, Modal, PageHeader,
+  Badge, Button, Card, IconButton, Modal, PageHeader,
   SectionTitle, StatusBadge, formatBytes,
 } from '../../components/ui';
 
@@ -37,8 +37,6 @@ export default function NodesPage() {
   const { t } = useLang();
   const [nodes, setNodes] = useState<NodeRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', address: '' });
   const [error, setError] = useState('');
   const [revisionsNode, setRevisionsNode] = useState<NodeRow | null>(null);
   const [revisions, setRevisions] = useState<RevisionRow[]>([]);
@@ -49,14 +47,6 @@ export default function NodesPage() {
   const [logsNode, setLogsNode] = useState<NodeRow | null>(null);
   const [logsData, setLogsData] = useState<NodeLogs | null>(null);
   const [logsLoading, setLogsLoading] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [provisionOpen, setProvisionOpen] = useState(false);
-  const [provisionForm, setProvisionForm] = useState({
-    name: '', host: '', port: '22', username: 'root',
-    privateKey: '', hostKeyFingerprint: '', panelUrl: '',
-  });
-  const [provisionToken, setProvisionToken] = useState('');
-  const [provisioning, setProvisioning] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -78,34 +68,14 @@ export default function NodesPage() {
     load();
   }, []);
 
-  const create = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setBusy(true);
-    try {
-      await api.post('/api/nodes', form);
-      setForm({ name: '', address: '' });
-      setCreateOpen(false);
-      await load();
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const apply = async (id: string) => {
-    setBusy(true);
     await api.post(`/api/nodes/${id}/apply`, {});
     await load();
-    setBusy(false);
   };
 
   const restart = async (id: string) => {
-    setBusy(true);
     await api.post(`/api/nodes/${id}/restart`, {});
     await load();
-    setBusy(false);
   };
 
   const openRevisions = async (node: NodeRow) => {
@@ -235,33 +205,6 @@ export default function NodesPage() {
     [t],
   );
 
-  const provision = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setProvisionToken('');
-    setProvisioning(true);
-    try {
-      const payload = {
-        name: provisionForm.name,
-        host: provisionForm.host,
-        port: Number(provisionForm.port),
-        username: provisionForm.username,
-        privateKey: provisionForm.privateKey,
-        hostKeyFingerprint: provisionForm.hostKeyFingerprint,
-        ...(provisionForm.panelUrl ? { panelUrl: provisionForm.panelUrl } : {}),
-      };
-      const result = await api.post<{ agentToken: string; message: string }>('/api/node-provision', payload);
-      setProvisionToken(result.agentToken || '');
-      setError(result.message || '');
-      setProvisionForm({ name: '', host: '', port: '22', username: 'root', privateKey: '', hostKeyFingerprint: '', panelUrl: '' });
-      load();
-    } catch (err: any) {
-      setError(err.message || 'Provisioning failed');
-    } finally {
-      setProvisioning(false);
-    }
-  };
-
   const online = nodes.filter((node) => node.status === 'ONLINE').length;
 
   return (
@@ -271,10 +214,11 @@ export default function NodesPage() {
         title={t.nodes}
         subtitle={t.nodesSubtitle}
         icon="server"
-        actions={<>
-          <Button icon="plus" onClick={() => setProvisionOpen(true)}>{t.sshProvision}</Button>
-          <Button icon="plus" variant="primary" onClick={() => setCreateOpen(true)}>{t.addNode}</Button>
-        </>}
+        actions={
+          <Button icon="plus" variant="primary" onClick={() => { window.location.href = '/wizard'; }}>
+            {t.wizard}
+          </Button>
+        }
       />
 
       {error && (
@@ -299,17 +243,6 @@ export default function NodesPage() {
       </div>
 
       <DataTable data={nodes} columns={columns} loading={loading} getRowId={(row) => row.id} />
-
-      <Modal open={createOpen} onClose={() => { setCreateOpen(false); setForm({ name: '', address: '' }); }} title={t.registerNode} subtitle={t.connectAgent} icon={<Icon name="server" size={16} />}
-        footer={<><Button onClick={() => setCreateOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="plus" onClick={create} loading={busy}>{t.create}</Button></>}>
-        <form onSubmit={create} className="space-y-4">
-          <Field label={t.name}><input placeholder="node-eu-01" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="field" required /></Field>
-          <Field label={t.address} hint="Hostname or IP of the agent"><input placeholder="10.0.0.5" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="field" required /></Field>
-          <div className="rounded-lg border border-info/20 bg-info/5 p-3 text-[11px] leading-relaxed text-muted">
-            {t.oneTimeTokenNote}
-          </div>
-        </form>
-      </Modal>
 
       <Modal open={Boolean(revisionsNode)} onClose={() => setRevisionsNode(null)} title={`${t.revisions} — ${revisionsNode?.name || ''}`} subtitle="Version history and deployment control" size="lg">
         <SectionTitle title={t.configHistory} action={<Button size="sm" icon="play" onClick={() => applyRevision('')} loading={revisionsLoading}>{t.applyLatest}</Button>} />
@@ -417,21 +350,6 @@ export default function NodesPage() {
         )}
       </Modal>
 
-      <Modal open={provisionOpen} onClose={() => { setProvisionOpen(false); setProvisionToken(''); }} title={t.sshProvision} subtitle={t.sshProvisionHint} icon={<Icon name="server" size={16} />}
-        footer={<><Button onClick={() => setProvisionOpen(false)}>{t.cancel}</Button><Button type="submit" form="provision-form" variant="primary" icon="check" loading={provisioning}>{t.sshProvision}</Button></>}>
-        <form id="provision-form" onSubmit={provision} className="space-y-4">
-          <Field label={t.name}><input className="field" value={provisionForm.name} onChange={(e) => setProvisionForm({ ...provisionForm, name: e.target.value })} required /></Field>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Field label={t.sshHost}><input className="field" value={provisionForm.host} onChange={(e) => setProvisionForm({ ...provisionForm, host: e.target.value })} required /></Field>
-            <Field label={t.sshPort}><input className="field" type="number" min={1} max={65535} value={provisionForm.port} onChange={(e) => setProvisionForm({ ...provisionForm, port: e.target.value })} required /></Field>
-            <Field label={t.sshUser}><input className="field" value={provisionForm.username} onChange={(e) => setProvisionForm({ ...provisionForm, username: e.target.value })} required /></Field>
-          </div>
-          <Field label={t.privateKey}><textarea className="field mono min-h-24" value={provisionForm.privateKey} onChange={(e) => setProvisionForm({ ...provisionForm, privateKey: e.target.value })} required /></Field>
-          <Field label={t.hostKeyFingerprint}><input className="field mono" placeholder="SHA256:..." value={provisionForm.hostKeyFingerprint} onChange={(e) => setProvisionForm({ ...provisionForm, hostKeyFingerprint: e.target.value })} required /></Field>
-          <Field label={t.panelUrl}><input className="field" placeholder="https://panel.example.com" value={provisionForm.panelUrl} onChange={(e) => setProvisionForm({ ...provisionForm, panelUrl: e.target.value })} /></Field>
-          {provisionToken && <div className="rounded-lg border border-success/25 bg-success/10 p-3 text-xs text-success"><b>{t.provisionToken}:</b> <code className="mono break-all">{provisionToken}</code></div>}
-        </form>
-      </Modal>
     </>
   );
 }
