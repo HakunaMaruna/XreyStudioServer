@@ -170,6 +170,12 @@ All report endpoints require an `ADMIN` JWT.
 - Payload accepts `routingRules[]`, `dnsServers[]` and `outbounds[]`, merged into generated Xray config.
 - `PATCH /users/:id` with `configProfileId` attaches a profile to a user.
 
+## DNS profiles
+
+- `GET/POST /dns-profiles`, `GET/PATCH/DELETE /dns-profiles/:id` — Xray DNS profiles.
+- `GET /dns-profiles/recipes/list`, `POST /dns-profiles/validate` — presets and validation.
+  See `docs/dns-profiles.md`.
+
 ## Load balancers
 
 - `GET/POST /balancers`, `GET/PATCH/DELETE /balancers/:id` — manage Xray balancers.

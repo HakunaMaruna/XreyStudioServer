@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AgentClientService } from './agent-client.service';
 import { BalancersService } from '../balancers/balancers.service';
+import { DnsProfilesService } from '../dns-profiles/dns-profiles.service';
 
 const EXTERNAL_PROTOCOLS = ['hysteria2', 'tuic', 'wireguard'];
 
@@ -16,6 +17,7 @@ export class ConfigGeneratorService {
     private agentClient: AgentClientService,
     private notifications: NotificationsService,
     private balancers: BalancersService,
+    private dnsProfiles: DnsProfilesService,
   ) {}
 
   private clientFor(user: { id: string; email: string; subscriptionToken: string }, inbound: any) {
@@ -256,14 +258,16 @@ export class ConfigGeneratorService {
       if (Array.isArray(payload.outbounds)) profileOutbounds.push(...payload.outbounds);
     }
 
-    const balancerConfig = await this.balancers.buildForConfig();
+    const [balancerConfig, dnsConfig] = await Promise.all([
+      this.balancers.buildForConfig(),
+      this.dnsProfiles.buildForConfig(),
+    ]);
 
     const config: any = {
       log: { loglevel: 'warning' },
-      dns: {
-        servers: [...new Set([...profileDns, '1.1.1.1', '8.8.8.8', 'localhost'])],
-        queryStrategy: 'UseIP',
-      },
+      dns: Array.isArray(dnsConfig.servers) && dnsConfig.servers.length
+        ? { ...dnsConfig, servers: [...(dnsConfig.servers as unknown[]), ...profileDns.filter((entry) => !((dnsConfig.servers as unknown[]).includes(entry)))] }
+        : { servers: [...new Set([...profileDns, '1.1.1.1', '8.8.8.8', 'localhost'])], queryStrategy: 'UseIP' },
       inbounds,
       outbounds: [
         { tag: 'direct', protocol: 'freedom' },
