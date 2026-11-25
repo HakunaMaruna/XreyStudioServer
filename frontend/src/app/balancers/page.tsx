@@ -31,6 +31,11 @@ type BalancerRow = {
   fallbackTag: string;
   probeUrl: string;
   probeIntervalSec: number;
+  observatoryMode: string;
+  burstDestination: string;
+  burstIntervalSec: number;
+  burstSampling: number;
+  burstTimeoutSec: number;
   rule: Record<string, unknown> | null;
   members: Array<{
     id: string;
@@ -47,6 +52,11 @@ type FormState = {
   fallbackTag: string;
   probeUrl: string;
   probeIntervalSec: string;
+  observatoryMode: string;
+  burstDestination: string;
+  burstIntervalSec: string;
+  burstSampling: string;
+  burstTimeoutSec: string;
   domains: string;
   ips: string;
   port: string;
@@ -65,6 +75,9 @@ const emptyMember = (): MemberForm => ({
 const emptyForm = (): FormState => ({
   name: '', strategy: 'roundRobin', enabled: false, fallbackTag: 'direct',
   probeUrl: 'https://www.google.com/generate_204', probeIntervalSec: '30',
+  observatoryMode: 'observatory',
+  burstDestination: 'https://connectivitycheck.gstatic.com/generate_204',
+  burstIntervalSec: '60', burstSampling: '10', burstTimeoutSec: '5',
   domains: '', ips: '', port: '', network: '', members: [emptyMember()],
 });
 
@@ -126,6 +139,11 @@ export default function BalancersPage() {
       fallbackTag: row.fallbackTag,
       probeUrl: row.probeUrl,
       probeIntervalSec: String(row.probeIntervalSec),
+      observatoryMode: row.observatoryMode || 'observatory',
+      burstDestination: row.burstDestination || 'https://connectivitycheck.gstatic.com/generate_204',
+      burstIntervalSec: String(row.burstIntervalSec || 60),
+      burstSampling: String(row.burstSampling || 10),
+      burstTimeoutSec: String(row.burstTimeoutSec || 5),
       domains: ((row.rule?.domain as string[]) || []).join(', '),
       ips: ((row.rule?.ip as string[]) || []).join(', '),
       port: String(row.rule?.port || ''),
@@ -142,6 +160,11 @@ export default function BalancersPage() {
     fallbackTag: form.fallbackTag,
     probeUrl: form.probeUrl,
     probeIntervalSec: Number(form.probeIntervalSec) || 30,
+    observatoryMode: form.observatoryMode,
+    burstDestination: form.burstDestination,
+    burstIntervalSec: Number(form.burstIntervalSec) || 60,
+    burstSampling: Number(form.burstSampling) || 10,
+    burstTimeoutSec: Number(form.burstTimeoutSec) || 5,
     rule: {
       ...(splitList(form.domains).length ? { domain: splitList(form.domains) } : {}),
       ...(splitList(form.ips).length ? { ip: splitList(form.ips) } : {}),
@@ -259,6 +282,8 @@ export default function BalancersPage() {
                 <span>{t.balancerMembers}: {row.members.length}</span>
                 <span>·</span>
                 <span>{t.balancerProbeInterval}: {row.probeIntervalSec}s</span>
+                <span>·</span>
+                <span>{row.observatoryMode === 'burstObservatory' ? 'burst' : 'observatory'}</span>
                 {row.rule && Object.keys(row.rule).length > 0 && <><span>·</span><span>{t.balancerRule}: {Object.keys(row.rule).join(', ')}</span></>}
               </div>
             </Card>
@@ -307,6 +332,20 @@ export default function BalancersPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t.balancerProbe}><input className="field" value={form.probeUrl} onChange={(e) => setForm({ ...form, probeUrl: e.target.value })} /></Field>
             <Field label={t.balancerProbeInterval}><input className="field" type="number" min={10} max={3600} value={form.probeIntervalSec} onChange={(e) => setForm({ ...form, probeIntervalSec: e.target.value })} /></Field>
+            <Field label={t.balancerObservatoryMode}>
+              <select className="field" value={form.observatoryMode} onChange={(e) => setForm({ ...form, observatoryMode: e.target.value })}>
+                <option value="observatory">observatory</option>
+                <option value="burstObservatory">burstObservatory</option>
+              </select>
+            </Field>
+            {form.observatoryMode === 'burstObservatory' && (
+              <>
+                <Field label={t.balancerBurstDestination}><input className="field" value={form.burstDestination} onChange={(e) => setForm({ ...form, burstDestination: e.target.value })} /></Field>
+                <Field label={t.balancerBurstInterval}><input className="field" type="number" min={10} max={3600} value={form.burstIntervalSec} onChange={(e) => setForm({ ...form, burstIntervalSec: e.target.value })} /></Field>
+                <Field label={t.balancerBurstSampling}><input className="field" type="number" min={1} max={50} value={form.burstSampling} onChange={(e) => setForm({ ...form, burstSampling: e.target.value })} /></Field>
+                <Field label={t.balancerBurstTimeout}><input className="field" type="number" min={1} max={60} value={form.burstTimeoutSec} onChange={(e) => setForm({ ...form, burstTimeoutSec: e.target.value })} /></Field>
+              </>
+            )}
             <Field label="Domains" hint={t.balancerRule}><input className="field" placeholder="example.com, geosite:google" value={form.domains} onChange={(e) => setForm({ ...form, domains: e.target.value })} /></Field>
             <Field label="IP / CIDR"><input className="field" placeholder="0.0.0.0/0" value={form.ips} onChange={(e) => setForm({ ...form, ips: e.target.value })} /></Field>
             <Field label={t.port}><input className="field" placeholder="443,1000-2000" value={form.port} onChange={(e) => setForm({ ...form, port: e.target.value })} /></Field>

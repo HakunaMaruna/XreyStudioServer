@@ -598,6 +598,11 @@ model Balancer {
   fallbackTag      String           @default("direct")
   probeUrl         String           @default("https://www.google.com/generate_204")
   probeIntervalSec Int              @default(30)
+  observatoryMode  String           @default("observatory")
+  burstDestination String           @default("https://connectivitycheck.gstatic.com/generate_204")
+  burstIntervalSec Int              @default(60)
+  burstSampling    Int              @default(10)
+  burstTimeoutSec  Int              @default(5)
   rule             Json?
   organizationId   String?
   organization     Organization?    @relation(fields: [organizationId], references: [id], onDelete: Cascade)

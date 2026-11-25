@@ -72,7 +72,11 @@ export class BalancersService {
     return { settings, ...(Object.keys(streamSettings).length ? { streamSettings } : {}) };
   }
 
-  private validate(dto: { strategy?: string; probeUrl?: string; rule?: unknown; members?: BalancerMemberDto[] }) {
+  private validate(dto: {
+    strategy?: string; probeUrl?: string; rule?: unknown; members?: BalancerMemberDto[];
+    observatoryMode?: string; burstDestination?: string; burstIntervalSec?: number;
+    burstSampling?: number; burstTimeoutSec?: number;
+  }) {
     if (dto.strategy && !BALANCER_STRATEGIES.includes(dto.strategy as any)) {
       throw new BadRequestException('Unknown balancing strategy');
     }
@@ -89,6 +93,23 @@ export class BalancersService {
       if (!MATCHERS.some((key) => rule[key] !== undefined)) {
         throw new BadRequestException('Rule needs at least one matcher');
       }
+    }
+    if (dto.observatoryMode && !['observatory', 'burstObservatory'].includes(dto.observatoryMode)) {
+      throw new BadRequestException('Unknown observatory mode');
+    }
+    if (dto.burstDestination) {
+      let url: URL;
+      try { url = new URL(dto.burstDestination); } catch { throw new BadRequestException('Invalid burst destination'); }
+      if (!['http:', 'https:'].includes(url.protocol)) throw new BadRequestException('Burst destination must use http or https');
+    }
+    if (dto.burstIntervalSec !== undefined && (dto.burstIntervalSec < 10 || dto.burstIntervalSec > 3600)) {
+      throw new BadRequestException('Burst interval must be between 10 and 3600 seconds');
+    }
+    if (dto.burstSampling !== undefined && (dto.burstSampling < 1 || dto.burstSampling > 50)) {
+      throw new BadRequestException('Burst sampling must be between 1 and 50');
+    }
+    if (dto.burstTimeoutSec !== undefined && (dto.burstTimeoutSec < 1 || dto.burstTimeoutSec > 60)) {
+      throw new BadRequestException('Burst timeout must be between 1 and 60 seconds');
     }
     if (dto.members !== undefined && dto.members.length < 1) {
       throw new BadRequestException('At least one member is required');
@@ -128,6 +149,11 @@ export class BalancersService {
         fallbackTag: dto.fallbackTag || 'direct',
         probeUrl: dto.probeUrl || 'https://www.google.com/generate_204',
         probeIntervalSec: dto.probeIntervalSec || 30,
+        observatoryMode: dto.observatoryMode || 'observatory',
+        burstDestination: dto.burstDestination || 'https://connectivitycheck.gstatic.com/generate_204',
+        burstIntervalSec: dto.burstIntervalSec || 60,
+        burstSampling: dto.burstSampling || 10,
+        burstTimeoutSec: dto.burstTimeoutSec || 5,
         rule: (dto.rule || null) as any,
         organizationId: dto.organizationId ?? actor.organizationId ?? null,
         members: {
@@ -154,6 +180,11 @@ export class BalancersService {
     if (dto.fallbackTag !== undefined) data.fallbackTag = dto.fallbackTag;
     if (dto.probeUrl !== undefined) data.probeUrl = dto.probeUrl;
     if (dto.probeIntervalSec !== undefined) data.probeIntervalSec = dto.probeIntervalSec;
+    if (dto.observatoryMode !== undefined) data.observatoryMode = dto.observatoryMode;
+    if (dto.burstDestination !== undefined) data.burstDestination = dto.burstDestination;
+    if (dto.burstIntervalSec !== undefined) data.burstIntervalSec = dto.burstIntervalSec;
+    if (dto.burstSampling !== undefined) data.burstSampling = dto.burstSampling;
+    if (dto.burstTimeoutSec !== undefined) data.burstTimeoutSec = dto.burstTimeoutSec;
     if (dto.rule !== undefined) data.rule = (dto.rule || null) as any;
     if (dto.organizationId !== undefined) data.organization = dto.organizationId
       ? { connect: { id: dto.organizationId } }

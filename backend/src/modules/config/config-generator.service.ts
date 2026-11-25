@@ -300,12 +300,17 @@ export class ConfigGeneratorService {
     };
 
     if (balancerConfig.observerSelectors.length) {
-      config.observatory = {
-        subjectSelector: [...new Set(balancerConfig.observerSelectors)],
-        probeUrl: balancerConfig.probeUrl || 'https://www.google.com/generate_204',
-        probeInterval: `${balancerConfig.probeIntervalSec || 30}s`,
-        enableConcurrency: true,
-      };
+      const subjectSelector = [...new Set(balancerConfig.observerSelectors)];
+      if (balancerConfig.burst && balancerConfig.observatoryMode === 'burstObservatory') {
+        config.burstObservatory = { subjectSelector, pingConfig: balancerConfig.burst };
+      } else {
+        config.observatory = {
+          subjectSelector,
+          probeUrl: balancerConfig.probeUrl || 'https://www.google.com/generate_204',
+          probeInterval: `${balancerConfig.probeIntervalSec || 30}s`,
+          enableConcurrency: true,
+        };
+      }
     }
 
     // Optional loopback API for per-user traffic statistics read by the agent.
