@@ -37,6 +37,11 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 с настройками destination/interval/sampling/timeout. Если включён burst, генератор пишет
 только `burstObservatory` с объединённым subjectSelector. Документация `docs/balancers.md`.
 
+Живая проверка v2.36.0: балансировщик `burstObservatory` + `leastPing` применён, конфиг
+содержит `burstObservatory.pingConfig` (60s/10/5s/HEAD), обычного `observatory` нет;
+`xray run -test` — `Configuration OK`. Тестовый балансировщик удалён, конфиг применён
+повторно, агент `xray: running` (revision 28).
+
 ## DNS profiles (v2.35.0, 2026-11-25)
 
 Новый раздел `/dns-profiles`: визуальный редактор Xray `dns` — hosts, серверы
