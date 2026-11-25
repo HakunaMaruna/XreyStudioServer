@@ -31,6 +31,17 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Installation statistics / telemetry (v2.40.0, 2026-11-26)
+
+Добровольная статистика установок. При первом входе показывается модальное окно со ссылкой
+на `docs/telemetry-license.md` и выбором «разрешить/не отправлять». Отправляются только
+агрегированные счётчики (пользователи, ноды, подключения, правила, плагины и т.д.) и
+обезличенные счётчики ошибок раз в 6 часов. Главный сервер принимает отчёты по API-токену
+со scope `TELEMETRY`, хранит установки/снимки/события в `Telemetry*` таблицах.
+Сводка: `/telemetry`, `GET /api/telemetry/installations`, `GET /api/telemetry/logs`.
+Настройки: `TELEMETRY_URL`, `TELEMETRY_TOKEN`, `TELEMETRY_INTERVAL_MS`.
+Обратная миграция: `backend/prisma/telemetry-down.sql`.
+
 ## Deferred plugin follow-ups (2026-11-26)
 
 Список работ по плагинам, которые не вошли в MVP: контейнер/WASM-изоляция для сторонних

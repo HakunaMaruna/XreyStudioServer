@@ -252,6 +252,49 @@ model ConfigRevision {
   @@index([nodeId, version])
 }
 
+model TelemetrySetting {
+  id                String    @id @default("default")
+  installId         String    @unique
+  accepted          Boolean   @default(false)
+  enabled           Boolean   @default(false)
+  licenseAcceptedAt DateTime?
+  lastSentAt        DateTime?
+  updatedAt         DateTime  @updatedAt
+}
+
+model TelemetryInstallation {
+  id        String               @id @default(uuid())
+  installId String               @unique
+  mode      String               @default("tenant")
+  version   String?
+  firstSeen DateTime             @default(now())
+  lastSeen  DateTime             @default(now())
+  snapshots TelemetrySnapshot[]
+  logs      TelemetryLog[]
+}
+
+model TelemetrySnapshot {
+  id             String               @id @default(uuid())
+  installationId String
+  installation   TelemetryInstallation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  payload        Json
+  createdAt      DateTime             @default(now())
+
+  @@index([installationId, createdAt])
+}
+
+model TelemetryLog {
+  id             String               @id @default(uuid())
+  installationId String
+  installation   TelemetryInstallation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  level          String
+  source         String
+  message        String
+  createdAt      DateTime             @default(now())
+
+  @@index([installationId, createdAt])
+}
+
 model AuditLog {
   id        String   @id @default(uuid())
   userId    String?
@@ -498,6 +541,7 @@ enum ApiTokenScope {
   USERS_READ
   NODE_DOMAIN
   PLUGIN_STORE
+  TELEMETRY
 }
 
 model NodeDomain {

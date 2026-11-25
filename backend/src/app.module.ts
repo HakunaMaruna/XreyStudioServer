@@ -47,6 +47,7 @@ import { SubscriptionPageModule } from './modules/subscription-page/subscription
 import { TelegramBotModule } from './modules/telegram-bot/telegram-bot.module';
 import { SnapshotsModule } from './modules/snapshots/snapshots.module';
 import { PluginsModule } from './modules/plugins/plugins.module';
+import { TelemetryModule } from './modules/telemetry/telemetry.module';
 
 @Module({
   imports: [
@@ -103,6 +104,7 @@ import { PluginsModule } from './modules/plugins/plugins.module';
     TelegramBotModule,
     SnapshotsModule,
     PluginsModule,
+    TelemetryModule,
   ],
   providers: [
     SeedService,
