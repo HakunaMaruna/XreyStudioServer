@@ -34,6 +34,16 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 backend `tsc --noEmit` 0, `eslint` 0 errors, `nest build` rc=0, unit jest 42 suites /
 210 tests зелёные. pg e2e по-прежнему пропущен локально (pg_dump 16 vs PGlite 19).
 
+### Push status (2026-11-26)
+
+Правки запушены в GitHub веткой `ux/panel-2026-11-26` (5 atomic-коммитов, rebase на
+`origin/main` v2.41.4, конфликтов не было). Резервные refs на `fff8ed4` (v2.41.0):
+ветка `backup/2026-11-26` и тег `backup-2026-11-26`. В `main` ничего не влито, PR не
+открывался, prod не трогался. После rebase повторно проверено: FE/BE `tsc` 0,
+`eslint` 0 errors, `next build --webpack` rc=0, `nest build` rc=0, jest 42 suites /
+213 tests. Рабочее дерево `/work/XreyStudioServer` синхронизировано с запушенной
+веткой; git-метаданные `/work` остаются на старом HEAD из-за proot.
+
 ## Postponed: plugin system + store + cloud account (2026-11-25)
 
 Задача отложена пользователем до дополнительных уточнений. Реализация не начиналась.
