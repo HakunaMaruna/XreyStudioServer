@@ -1,2 +1,2 @@
 // Синхронизируется из package.json скриптом prebuild — не редактируйте вручную.
-export const APP_VERSION = '2.41.4';
+export const APP_VERSION = '2.41.5';

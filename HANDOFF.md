@@ -62,6 +62,13 @@ backend `tsc --noEmit` 0, `eslint` 0 errors, `nest build` rc=0, unit jest 42 sui
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## UX branch sync (v2.41.5, 2026-11-26)
+
+Влита ветка второго агента `ux/panel-2026-11-26` (6 коммитов): node delete confirmation,
+live polling/ping states, async IIFE в agent-client, фикс hydration Date.now() в сабскрипшене
+и мастере, упрощение signature/vpn app query. Дополнительно исправлен баг в их правке:
+`const rows` + `rows.push()` ломал первичный seeding приложений — возвращается mutable копия.
+
 ## Agent fixes (v2.41.4, 2026-11-26)
 
 Найдена причина гибели агента после выпуска TLS-сертификата: исходный HTTP-сервер
