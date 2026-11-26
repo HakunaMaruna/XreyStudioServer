@@ -75,7 +75,8 @@ export default function SubscriptionPage() {
 
   useEffect(() => {
     setNow(Date.now());
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    // countdown показывается с точностью до минуты — обновлять чаще не нужно
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -222,7 +223,7 @@ export default function SubscriptionPage() {
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-center gap-3">
         {settings?.logoUrl ? (
-          <img src={settings.logoUrl} alt={settings.brand || t.subscriptionPage} className="h-11 w-11 rounded-xl object-contain" />
+          <img src={settings.logoUrl} alt={settings.brand || t.subscriptionPage} loading="lazy" decoding="async" className="h-11 w-11 rounded-xl object-contain" />
         ) : (
           <div className="grid h-11 w-11 place-items-center rounded-xl text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${accent}, ${accent}bb)` }}>
             <Icon name="zap" size={20} />
@@ -352,7 +353,7 @@ export default function SubscriptionPage() {
                 <div key={app.id} className="rounded-xl border border-line bg-surface-2/50 p-3">
                   <div className="flex items-center gap-3">
                     {app.iconUrl ? (
-                      <img src={app.iconUrl} alt="" className="h-9 w-9 rounded-lg object-contain" />
+                      <img src={app.iconUrl} alt="" loading="lazy" decoding="async" className="h-9 w-9 rounded-lg object-contain" />
                     ) : (
                       <div className="grid h-9 w-9 place-items-center rounded-lg border border-brand/30 bg-brand/10 text-brand"><Icon name="download" size={17} /></div>
                     )}

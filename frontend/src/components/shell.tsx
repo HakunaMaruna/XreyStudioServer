@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLang } from '../lib/i18n';
 import { api, clearTokens, isLoggedIn } from '../lib/api';
 import { getTheme, applyTheme, type Theme } from '../lib/theme';
@@ -22,6 +22,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [query, setQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [controlMode, setControlMode] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setAuthed(isLoggedIn());
@@ -38,6 +39,20 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     setSearchOpen(false);
     setQuery('');
   }, [pathname]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const target = e.target as HTMLElement | null;
+        const tag = target?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -227,9 +242,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <span className="font-medium text-fg">{current?.label ?? 'Dashboard'}</span>
           </div>
 
-          <div className="relative ml-auto w-full max-w-[260px]">
+          <div className="relative ml-auto w-full max-w-[260px] max-sm:w-auto max-sm:max-w-none max-sm:flex-1">
             <Icon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
             <input
+              ref={searchRef}
               aria-label={t.searchPages}
               value={query}
               onChange={(e) => {

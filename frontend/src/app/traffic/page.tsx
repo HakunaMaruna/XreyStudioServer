@@ -1,16 +1,16 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { lazyChart } from '../../components/lazy-chart';
 import { api, isLoggedIn } from '../../lib/api';
+
+const CartesianGrid = lazyChart('CartesianGrid');
+const Legend = lazyChart('Legend');
+const Line = lazyChart('Line');
+const LineChart = lazyChart('LineChart');
+const ResponsiveContainer = lazyChart('ResponsiveContainer');
+const Tooltip = lazyChart('Tooltip');
+const XAxis = lazyChart('XAxis');
+const YAxis = lazyChart('YAxis');
 import { useLang } from '../../lib/i18n';
 import { Icon } from '../../components/icons';
 import { Badge, Button, Card, Field, PageHeader, SectionTitle, formatBytes } from '../../components/ui';
@@ -117,7 +117,7 @@ export default function TrafficPage() {
             <LineChart data={series}>
               <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 3" />
               <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'var(--subtle)', fontSize: 11 }} dy={8} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--subtle)', fontSize: 11 }} tickFormatter={(value) => formatBytes(value)} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--subtle)', fontSize: 11 }} tickFormatter={(value: number) => formatBytes(value)} />
               <Tooltip contentStyle={tooltipStyle} formatter={(value: any) => [formatBytes(value), '']} />
               <Legend />
               <Line type="monotone" dataKey="up" name={t.upload} stroke="var(--brand)" strokeWidth={2} dot={false} />
