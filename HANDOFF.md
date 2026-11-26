@@ -31,6 +31,13 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Stale node status (v2.41.3, 2026-11-26)
+
+Панель показывала `ONLINE` по БД-статусу даже после того, как агент перестал слать
+метрики. Теперь статус в API/UI вычисляется по времени последнего heartbeat
+(`NODE_OFFLINE_AFTER_MS`, по умолчанию 120 с), и dashboard-счётчик считает только
+свежие ONLINE-ноды.
+
 ## Follow-up hardening (v2.41.2, 2026-11-26)
 
 - PR #207 (UI audit: z-index, modal portal/scroll, safe-area, touch targets) влит в main.

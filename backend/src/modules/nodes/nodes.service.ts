@@ -14,6 +14,8 @@ import { AgentClientService } from '../config/agent-client.service';
 import { CreateNodeDto, NodeMetricsDto, RegisterNodeDto, UpdateNodeDto } from './dto/node.dto';
 import { NodeGeoDto } from './dto/geo.dto';
 
+const OFFLINE_AFTER_MS = Number(process.env.NODE_OFFLINE_AFTER_MS || 120_000);
+
 @Injectable()
 export class NodesService {
   constructor(
@@ -31,6 +33,15 @@ export class NodesService {
     return { organizationId: actor.organizationId || '__none__' };
   }
 
+  private displayStatus(node: { status: NodeStatus; lastSeenAt: Date | null }): NodeStatus {
+    const stale = !node.lastSeenAt || Date.now() - node.lastSeenAt.getTime() > OFFLINE_AFTER_MS;
+    return node.status === NodeStatus.ONLINE && stale ? NodeStatus.OFFLINE : node.status;
+  }
+
+  private isOnline(node: { lastSeenAt: Date | null }) {
+    return Boolean(node.lastSeenAt && Date.now() - node.lastSeenAt.getTime() <= OFFLINE_AFTER_MS);
+  }
+
   async findAll(actor: AuthUser) {
     const nodes = await this.prisma.node.findMany({
       where: this.tenantWhere(actor),
@@ -44,7 +55,8 @@ export class NodesService {
     return nodes.map((n) => ({
       ...n,
       tokenHash: undefined,
-      online: n.lastSeenAt ? Date.now() - n.lastSeenAt.getTime() < 60_000 : false,
+      status: this.displayStatus(n),
+      online: this.isOnline(n),
       agentOutdated: isAgentOutdated(n.agentVersion),
     }));
   }
@@ -71,7 +83,12 @@ export class NodesService {
       },
     });
     if (!node) throw new NotFoundException('Node not found');
-    return { ...node, tokenHash: undefined };
+    return {
+      ...node,
+      tokenHash: undefined,
+      status: this.displayStatus(node),
+      online: this.isOnline(node),
+    };
   }
 
   async create(dto: CreateNodeDto, actor: AuthUser) {
@@ -109,7 +126,12 @@ export class NodesService {
         : { disconnect: true };
     }
     const node = await this.prisma.node.update({ where: { id }, data });
-    return { ...node, tokenHash: undefined };
+    return {
+      ...node,
+      tokenHash: undefined,
+      status: this.displayStatus(node),
+      online: this.isOnline(node),
+    };
   }
 
   async remove(id: string, actor: AuthUser) {
@@ -222,8 +244,8 @@ export class NodesService {
     const ping = await this.agentClient.ping(node as any);
     return {
       nodeId: id,
-      status: node.status,
-      online: node.lastSeenAt ? Date.now() - node.lastSeenAt.getTime() < 60_000 : false,
+      status: this.displayStatus(node),
+      online: this.isOnline(node),
       lastSeenAt: node.lastSeenAt,
       lastError: node.lastError,
       agent: {
@@ -245,13 +267,13 @@ export class NodesService {
 
   async stats(actor: AuthUser) {
     const where = this.tenantWhere(actor);
-    const [total, online, offline, error] = await Promise.all([
+    const cutoff = new Date(Date.now() - OFFLINE_AFTER_MS);
+    const [total, online, error] = await Promise.all([
       this.prisma.node.count({ where }),
-      this.prisma.node.count({ where: { ...where, status: NodeStatus.ONLINE } }),
-      this.prisma.node.count({ where: { ...where, status: NodeStatus.OFFLINE } }),
+      this.prisma.node.count({ where: { ...where, status: NodeStatus.ONLINE, lastSeenAt: { gte: cutoff } } }),
       this.prisma.node.count({ where: { ...where, status: NodeStatus.ERROR } }),
     ]);
-    return { total, online, offline, error };
+    return { total, online, offline: Math.max(0, total - online - error), error };
   }
 
   async applyConfig(id: string, actor: AuthUser, revisionId?: string) {
