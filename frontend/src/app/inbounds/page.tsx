@@ -370,6 +370,7 @@ export default function InboundsPage() {
     () => [
       {
         accessorKey: 'tag',
+        size: 220,
         header: t.name,
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
@@ -381,13 +382,13 @@ export default function InboundsPage() {
           </div>
         ),
       },
-      { accessorKey: 'protocol', header: t.protocol, cell: ({ row }) => <Badge tone="brand">{row.original.protocol.toUpperCase()}</Badge> },
+      { accessorKey: 'protocol', size: 90, header: t.protocol, cell: ({ row }) => <Badge tone="brand">{row.original.protocol.toUpperCase()}</Badge> },
       {
-        id: 'transport', header: `${t.transport} / ${t.security}`,
+        id: 'transport', size: 110, header: `${t.transport} / ${t.security}`,
         cell: ({ row }) => <span className="text-xs text-muted">{row.original.transport} / {row.original.security}</span>,
       },
       {
-        id: 'traffic', header: t.trafficUsed,
+        id: 'traffic', size: 130, header: t.trafficUsed,
         cell: ({ row }) => (
           <span className="text-xs text-fg tabular-nums">
             {formatBytes(row.original.trafficUsed || 0)} / {Number(row.original.trafficLimit || 0) > 0 ? formatBytes(row.original.trafficLimit) : '∞'}
@@ -395,15 +396,15 @@ export default function InboundsPage() {
         ),
       },
       {
-        accessorKey: 'expiresAt', header: t.expiresAt,
+        accessorKey: 'expiresAt', size: 100, header: t.expiresAt,
         cell: ({ row }) => row.original.expiresAt ? <span className="text-xs text-muted">{new Date(row.original.expiresAt).toLocaleDateString()}</span> : <span className="text-subtle">—</span>,
       },
       {
-        accessorKey: 'enabled', header: t.enabled,
+        accessorKey: 'enabled', size: 80, header: t.enabled,
         cell: ({ row }) => row.original.enabled ? <Badge tone="success" dot>{t.enabled}</Badge> : <Badge tone="neutral" dot>{t.disabled}</Badge>,
       },
       {
-        id: 'actions', header: t.actions, enableSorting: false,
+        id: 'actions', size: 260, header: t.actions, enableSorting: false,
         cell: ({ row }) => (
           <div className="flex flex-wrap items-center justify-end gap-1">
             <Button size="sm" variant="ghost" icon="list" title={t.clientList} onClick={() => openClients(row.original)}>{t.clientList}</Button>
@@ -442,7 +443,7 @@ export default function InboundsPage() {
         title={editing ? t.editInbound : t.newInbound}
         subtitle={t.exposeProtocol}
         icon={<Icon name="plug" size={16} />}
-        size="xl"
+        size="lg"
         footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="check" onClick={submit} loading={busy}>{editing ? t.save : t.create}</Button></>}
       >
         <form onSubmit={submit} className="space-y-5">
@@ -453,7 +454,7 @@ export default function InboundsPage() {
           )}
 
           <div className="rounded-lg border border-line bg-surface-2/40 p-3">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Field label={t.inboundRecipe} hint={t.recipeAutoHint}>
                 <select value={recipeId} onChange={(e) => chooseRecipe(e.target.value)} className="field" disabled={busy}>
                   <option value="">{t.noRecipe}</option>
@@ -481,7 +482,7 @@ export default function InboundsPage() {
               <Field label={t.port}><input type="number" min={1} max={65535} value={form.port} onChange={(e) => setForm({ ...form, port: Number(e.target.value) })} className="field" required /></Field>
               <Field label={t.listen}><input value={form.listen} onChange={(e) => setForm({ ...form, listen: e.target.value })} className="field" /></Field>
             </div>
-            <div className="mt-4">
+            <div className="mt-4 max-w-md">
               <Field label={t.node} hint={!editing ? t.leaveEmptyGlobal : undefined}>
                 <select value={form.nodeId} onChange={(e) => setForm({ ...form, nodeId: e.target.value })} className="field" disabled={Boolean(editing)}>
                   <option value="">{t.global}</option>
@@ -560,9 +561,11 @@ export default function InboundsPage() {
           </div>
 
           <div className="border-t border-line pt-5">
+            <div className="max-w-3xl">
             <Field label={t.advancedSettings}>
               <textarea rows={6} value={form.settingsText} onChange={(e) => setForm({ ...form, settingsText: e.target.value })} className="field mono text-[11px]" />
             </Field>
+            </div>
             <div className="mt-4"><Toggle checked={form.enabled} onChange={(value) => setForm({ ...form, enabled: value })} label={t.enabled} /></div>
           </div>
         </form>
@@ -589,7 +592,7 @@ export default function InboundsPage() {
           </div>
           {form.clients.length === 0 && <p className="text-xs text-subtle">{t.noData}</p>}
           {form.clients.map((c, index) => (
-            <div key={index} className="mb-2 grid gap-2 rounded-lg border border-line bg-surface-2/40 p-3 sm:grid-cols-2 lg:grid-cols-6">
+            <div key={index} className="mb-2 grid gap-2 rounded-lg border border-line bg-surface-2/40 p-3 sm:grid-cols-2 lg:grid-cols-4">
               <Field label={t.user}>
                 <select value={c.userId} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, userId: e.target.value }; setForm({ ...form, clients }); }} className="field">
                   <option value="">—</option>
