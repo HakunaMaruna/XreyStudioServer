@@ -606,20 +606,30 @@ export default function InboundsPage() {
           </div>
           {form.clients.length === 0 && <p className="text-xs text-subtle">{t.noData}</p>}
           {form.clients.map((c, index) => (
-            <div key={index} className="mb-2 grid gap-2 rounded-lg border border-line bg-surface-2/40 p-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label={t.user}>
-                <select value={c.userId} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, userId: e.target.value }; setForm({ ...form, clients }); }} className="field">
-                  <option value="">—</option>
-                  {users.map((u) => <option key={u.id} value={u.id}>{u.email}</option>)}
-                </select>
-              </Field>
-              <Field label={t.trafficLimit} hint="GB"><input type="number" min={0} value={c.trafficLimitGb} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, trafficLimitGb: Number(e.target.value) }; setForm({ ...form, clients }); }} className="field" /></Field>
-              <Field label={t.expiresAt}><input type="date" value={c.expiresAt} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, expiresAt: e.target.value }; setForm({ ...form, clients }); }} className="field" /></Field>
-              <Field label={t.sortOrder}><input type="number" value={c.sortIndex} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, sortIndex: Number(e.target.value) }; setForm({ ...form, clients }); }} className="field" /></Field>
-              <Field label={t.comment}><input value={c.comment} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, comment: e.target.value }; setForm({ ...form, clients }); }} className="field" /></Field>
-              <div className="flex items-end gap-2">
+            <div key={index} className="flex flex-wrap items-end gap-2 rounded-lg border border-line bg-surface-2/40 p-2">
+              <div className="min-w-[150px] flex-1">
+                <Field label={t.user}>
+                  <select value={c.userId} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, userId: e.target.value }; setForm({ ...form, clients }); }} className="field">
+                    <option value="">—</option>
+                    {users.map((u) => <option key={u.id} value={u.id}>{u.email}</option>)}
+                  </select>
+                </Field>
+              </div>
+              <div className="w-20 shrink-0">
+                <Field label={t.trafficLimit} hint="GB"><input type="number" min={0} value={c.trafficLimitGb} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, trafficLimitGb: Number(e.target.value) }; setForm({ ...form, clients }); }} className="field" /></Field>
+              </div>
+              <div className="w-32 shrink-0">
+                <Field label={t.expiresAt}><input type="date" value={c.expiresAt} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, expiresAt: e.target.value }; setForm({ ...form, clients }); }} className="field" /></Field>
+              </div>
+              <div className="w-16 shrink-0">
+                <Field label={t.sortOrder}><input type="number" value={c.sortIndex} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, sortIndex: Number(e.target.value) }; setForm({ ...form, clients }); }} className="field" /></Field>
+              </div>
+              <div className="min-w-[100px] flex-1">
+                <Field label={t.comment}><input value={c.comment} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, comment: e.target.value }; setForm({ ...form, clients }); }} className="field" /></Field>
+              </div>
+              <div className="flex shrink-0 items-center gap-1 pb-1">
                 <Toggle checked={c.enabled} onChange={(v) => { const clients = [...form.clients]; clients[index] = { ...c, enabled: v }; setForm({ ...form, clients }); }} />
-                <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => setForm({ ...form, clients: form.clients.filter((_, i) => i !== index) })} />
+                <IconButton icon="trash" label={t.delete} tone="danger" className="!h-7 !w-7" onClick={() => setForm({ ...form, clients: form.clients.filter((_, i) => i !== index) })} />
               </div>
             </div>
           ))}
