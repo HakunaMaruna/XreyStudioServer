@@ -83,73 +83,75 @@ export class AgentClientService {
   }
 
   private request(url: string, payload: any, timeoutMs = 5000, method = 'POST', allowPrivate = false): Promise<any> {
-    return new Promise(async (resolve, reject) => {
-      const target = new URL(url);
-      const body = method === 'GET' ? '' : JSON.stringify(payload || {});
-      const isHttps = target.protocol === 'https:';
-      // Pin the connection to an address we validated: prevents DNS rebinding between base() and connect().
-      let lookup: https.RequestOptions['lookup'] | undefined;
-      const host = target.hostname.replace(/^\[|\]$/g, '');
-      if (isIP(host) === 0) {
-        try {
-          const addresses = await dns.lookup(host, { all: true });
-          if (!addresses.length) throw new Error('no DNS records');
-          const privateAllowed = allowPrivate || process.env.ALLOW_PRIVATE_AGENT_URLS === 'true';
-          for (const address of addresses) {
-            const value = address.family === 6 && address.address.toLowerCase().startsWith('::ffff:')
-              ? address.address.slice(7)
-              : address.address;
-            if (isForbiddenHost(value) || (!privateAllowed && isPrivateHost(value))) {
-              throw new Error(`resolved address ${address.address} is not allowed`);
+    return new Promise((resolve, reject) => {
+      void (async () => {
+        const target = new URL(url);
+        const body = method === 'GET' ? '' : JSON.stringify(payload || {});
+        const isHttps = target.protocol === 'https:';
+        // Pin the connection to an address we validated: prevents DNS rebinding between base() and connect().
+        let lookup: https.RequestOptions['lookup'] | undefined;
+        const host = target.hostname.replace(/^\[|\]$/g, '');
+        if (isIP(host) === 0) {
+          try {
+            const addresses = await dns.lookup(host, { all: true });
+            if (!addresses.length) throw new Error('no DNS records');
+            const privateAllowed = allowPrivate || process.env.ALLOW_PRIVATE_AGENT_URLS === 'true';
+            for (const address of addresses) {
+              const value = address.family === 6 && address.address.toLowerCase().startsWith('::ffff:')
+                ? address.address.slice(7)
+                : address.address;
+              if (isForbiddenHost(value) || (!privateAllowed && isPrivateHost(value))) {
+                throw new Error(`resolved address ${address.address} is not allowed`);
+              }
             }
+            const chosen = addresses[0];
+            lookup = (_hostname, _options, callback) => callback(null, chosen.address, chosen.family);
+          } catch (error: any) {
+            reject(new BadRequestException(`Unsafe agent host: ${error.message}`));
+            return;
           }
-          const chosen = addresses[0];
-          lookup = (_hostname, _options, callback) => callback(null, chosen.address, chosen.family);
-        } catch (error: any) {
-          reject(new BadRequestException(`Unsafe agent host: ${error.message}`));
-          return;
         }
-      }
-      const options: https.RequestOptions = {
-        lookup,
-        method,
-        hostname: target.hostname,
-        port: target.port || (isHttps ? 443 : 80),
-        path: `${target.pathname}${target.search}`,
-        headers: {
-          'X-Agent-Secret': process.env.AGENT_SECRET || process.env.AGENT_TOKEN || '',
-          ...(method === 'GET'
-            ? {}
-            : { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }),
-        },
-        timeout: timeoutMs,
-        ...(isHttps
-          ? {
-              ca: process.env.AGENT_CA ? readFileSync(process.env.AGENT_CA) : undefined,
-              cert: process.env.AGENT_CERT ? readFileSync(process.env.AGENT_CERT) : undefined,
-              key: process.env.AGENT_KEY ? readFileSync(process.env.AGENT_KEY) : undefined,
+        const options: https.RequestOptions = {
+          lookup,
+          method,
+          hostname: target.hostname,
+          port: target.port || (isHttps ? 443 : 80),
+          path: `${target.pathname}${target.search}`,
+          headers: {
+            'X-Agent-Secret': process.env.AGENT_SECRET || process.env.AGENT_TOKEN || '',
+            ...(method === 'GET'
+              ? {}
+              : { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }),
+          },
+          timeout: timeoutMs,
+          ...(isHttps
+            ? {
+                ca: process.env.AGENT_CA ? readFileSync(process.env.AGENT_CA) : undefined,
+                cert: process.env.AGENT_CERT ? readFileSync(process.env.AGENT_CERT) : undefined,
+                key: process.env.AGENT_KEY ? readFileSync(process.env.AGENT_KEY) : undefined,
+              }
+            : {}),
+        };
+        const req = (isHttps ? https : http).request(options, (res) => {
+          let data = '';
+          res.on('data', (chunk) => (data += chunk));
+          res.on('end', () => {
+            if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+              try {
+                resolve(data ? JSON.parse(data) : {});
+              } catch {
+                resolve({ raw: data });
+              }
+            } else {
+              reject(new Error(`Agent responded ${res.statusCode}: ${data}`));
             }
-          : {}),
-      };
-      const req = (isHttps ? https : http).request(options, (res) => {
-        let data = '';
-        res.on('data', (chunk) => (data += chunk));
-        res.on('end', () => {
-          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-            try {
-              resolve(data ? JSON.parse(data) : {});
-            } catch {
-              resolve({ raw: data });
-            }
-          } else {
-            reject(new Error(`Agent responded ${res.statusCode}: ${data}`));
-          }
+          });
         });
-      });
-      req.on('timeout', () => req.destroy(new Error('Agent request timeout')));
-      req.on('error', reject);
-      if (method !== 'GET') req.write(body);
-      req.end();
+        req.on('timeout', () => req.destroy(new Error('Agent request timeout')));
+        req.on('error', reject);
+        if (method !== 'GET') req.write(body);
+        req.end();
+      })().catch(reject);
     });
   }
 
