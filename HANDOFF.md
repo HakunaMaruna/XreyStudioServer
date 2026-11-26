@@ -78,6 +78,15 @@ backend `tsc --noEmit` 0, `eslint` 0 errors, `nest build` rc=0, unit jest 42 sui
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Per-inbound routing scope (v2.43.0, 2026-11-26)
+
+Правила (`Rule`) и профили маршрутизации (`RoutingProfile`) получили необязательное поле
+`inboundId`. При генерации конфига ноды правило/профиль с `inboundId` попадает только в
+конфиг ноды, которой принадлежит подключение, и автоматически получает `inboundTag`
+в Xray-правиле. В UI «Правила» и «Маршрутизация» добавлен выбор подключения, колонка
+сRARY показывающим, к какому inbound применено правило, и возможность изменить/удалить
+привязку. Обратная миграция: `backend/prisma/routing-inbound-down.sql`.
+
 ## INCY subscription format (v2.42.6, 2026-11-26)
 
 INCY отправляет `User-Agent: INCY/<version>/<platform>` и `x-client: INCY` и ожидает

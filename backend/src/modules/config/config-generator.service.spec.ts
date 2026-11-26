@@ -1,5 +1,29 @@
 import { ConfigGeneratorService } from './config-generator.service';
 
+describe('ConfigGeneratorService scoped routing', () => {
+  it('injects inboundTag only for rules assigned to the node inbound', async () => {
+    const prisma: any = {
+      node: { findUnique: jest.fn(async () => ({ id: 'n1', inbounds: [{ id: 'i2', tag: 'vl', protocol: 'vless', port: 443, settings: {}, userId: null, enabled: true }] })) },
+      user: { findMany: jest.fn(async () => []) },
+      rule: { findMany: jest.fn(async () => [
+        { id: 'r1', enabled: true, inboundId: 'i2', payload: { type: 'field', domain: ['scoped.example'], outboundTag: 'blocked' } },
+        { id: 'r2', enabled: true, inboundId: 'other', payload: { type: 'field', domain: ['other.example'], outboundTag: 'blocked' } },
+        { id: 'r3', enabled: true, inboundId: null, payload: { type: 'field', domain: ['global.example'], outboundTag: 'blocked' } },
+      ]) },
+      routingProfile: { findMany: jest.fn(async () => []) },
+      reverseTunnel: { findMany: jest.fn(async () => []) },
+    };
+    const service = new ConfigGeneratorService(prisma, {} as any, { emit: jest.fn() } as any,
+      { buildForConfig: jest.fn(async () => ({ outbounds: [], balancers: [], rules: [], observerSelectors: [] })) } as any,
+      { buildForConfig: jest.fn(async () => ({ servers: [] })) } as any);
+    const { config }: any = await service.generateConfig('n1');
+    const rules = config.routing.rules;
+    expect(rules).toContainEqual(expect.objectContaining({ domain: ['scoped.example'], inboundTag: ['vl'] }));
+    expect(rules).toContainEqual(expect.objectContaining({ domain: ['global.example'] }));
+    expect(JSON.stringify(rules)).not.toContain('other.example');
+  });
+});
+
 describe('ConfigGeneratorService external protocols', () => {
   const prisma: any = {
     node: { findUnique: jest.fn() },

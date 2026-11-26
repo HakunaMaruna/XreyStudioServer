@@ -6,6 +6,11 @@ export class ValidateRoutingDto {
 }
 
 export class CreateRoutingDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  inboundId?: string | null;
+
   @IsString()
   @MaxLength(120)
   name: string;
@@ -32,6 +37,11 @@ export class CreateRoutingDto {
 }
 
 export class UpdateRoutingDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  inboundId?: string | null;
+
   @IsOptional()
   @IsString()
   @MaxLength(120)

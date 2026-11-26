@@ -178,6 +178,8 @@ model Inbound {
   fallbackOf InboundFallback[] @relation("FallbackChildren")
   clients    InboundClient[]
   reverseTunnels ReverseTunnel[]
+  rules      Rule[]
+  routingProfiles RoutingProfile[]
 
   @@index([nodeId])
   @@index([userId])
@@ -237,9 +239,12 @@ model Rule {
   enabled        Boolean       @default(true)
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inboundId      String?
+  inbound        Inbound?      @relation(fields: [inboundId], references: [id], onDelete: SetNull)
   createdAt      DateTime      @default(now())
 
   @@index([organizationId])
+  @@index([inboundId])
 }
 
 model ConfigRevision {
@@ -491,6 +496,8 @@ model RoutingProfile {
   enabled        Boolean       @default(false)
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inboundId      String?
+  inbound        Inbound?      @relation(fields: [inboundId], references: [id], onDelete: SetNull)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 

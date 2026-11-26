@@ -22,9 +22,11 @@ type Profile = {
   recipe?: string | null;
   enabled: boolean;
   createdAt: string;
+  inboundId?: string | null;
+  inbound?: { id: string; tag: string; port: number } | null;
 };
 
-const emptyForm = { name: '', description: '', payloadText: '{}', recipe: '', enabled: false };
+const emptyForm = { name: '', description: '', payloadText: '{}', recipe: '', enabled: false, inboundId: '' };
 
 export default function RoutingPage() {
   const { t, lang } = useLang();
@@ -37,6 +39,7 @@ export default function RoutingPage() {
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [inbounds, setInbounds] = useState<{ id: string; tag: string; port: number }[]>([]);
 
   const load = async () => {
     setLoading(true);
@@ -53,6 +56,7 @@ export default function RoutingPage() {
   useEffect(() => {
     if (!isLoggedIn()) { window.location.href = '/login'; return; }
     api.get('/api/routing/recipes/list').then((d) => setRecipes(Array.isArray(d) ? d : d.data || [])).catch(() => undefined);
+    api.get('/api/inbounds').then((d) => setInbounds(Array.isArray(d) ? d : d.data || [])).catch(() => undefined);
     load();
   }, []);
 
@@ -65,6 +69,7 @@ export default function RoutingPage() {
       payloadText: JSON.stringify(recipe.payload, null, 2),
       recipe: id,
       enabled: false,
+      inboundId: form.inboundId,
     });
     setError('');
     setNotice('');
@@ -90,6 +95,7 @@ export default function RoutingPage() {
       payloadText: JSON.stringify(row.payload, null, 2),
       recipe: row.recipe || '',
       enabled: row.enabled,
+      inboundId: row.inboundId || '',
     });
     setError('');
     setNotice('');
@@ -102,7 +108,7 @@ export default function RoutingPage() {
     try { payload = JSON.parse(form.payloadText); } catch { setError(t.invalidJson); return; }
     setBusy(true);
     try {
-      const body = { name: form.name, description: form.description || undefined, payload, recipe: form.recipe || undefined, enabled: form.enabled };
+      const body = { name: form.name, description: form.description || undefined, payload, recipe: form.recipe || undefined, enabled: form.enabled, inboundId: form.inboundId || null };
       if (editing) await api.patch(`/api/routing/${editing}`, body);
       else await api.post('/api/routing', body);
       setOpen(false);
@@ -144,6 +150,12 @@ export default function RoutingPage() {
           </div>
         ),
       },
+      {
+        accessorKey: 'inbound', header: t.applyToInbound, enableSorting: false,
+        cell: ({ row }) => row.original.inbound
+          ? <Badge tone="brand">{row.original.inbound.tag} · {row.original.inbound.port}</Badge>
+          : <Badge tone="neutral">{t.allInbounds}</Badge>,
+      },
       { accessorKey: 'enabled', header: t.enabled, cell: ({ row }) => row.original.enabled ? <Badge tone="success" dot>{t.enabled}</Badge> : <Badge tone="neutral" dot>{t.disabled}</Badge> },
       { accessorKey: 'createdAt', header: t.createdAt, cell: ({ row }) => <span className="text-xs text-muted">{new Date(row.original.createdAt).toLocaleDateString()}</span> },
       {
@@ -157,7 +169,7 @@ export default function RoutingPage() {
         ),
       },
     ],
-    [t],
+    [t, inbounds],
   );
 
   return (
@@ -184,6 +196,12 @@ export default function RoutingPage() {
             <Field label={t.comment}><input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="field" /></Field>
           </div>
           <Field label={t.payload} hint="JSON"><textarea rows={10} value={form.payloadText} onChange={(e) => setForm({ ...form, payloadText: e.target.value })} className="field mono text-[11px]" /></Field>
+          <Field label={t.applyToInbound} hint={lang === 'ru' ? 'Профиль будет добавлен только в конфиг ноды с этим подключением' : 'The profile will be injected only into the config of the node owning this connection'}>
+            <select className="field" value={form.inboundId} onChange={(e) => setForm({ ...form, inboundId: e.target.value })}>
+              <option value="">{t.allInbounds}</option>
+              {inbounds.map((inbound) => <option key={inbound.id} value={inbound.id}>{inbound.tag} · {inbound.port}</option>)}
+            </select>
+          </Field>
           <Toggle checked={form.enabled} onChange={(v) => setForm({ ...form, enabled: v })} label={t.enabled} />
         </form>
       </Modal>

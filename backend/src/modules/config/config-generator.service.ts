@@ -159,6 +159,9 @@ export class ConfigGeneratorService {
       },
       select: { id: true, email: true, subscriptionToken: true, trafficUsed: true, configProfileId: true },
     });
+    const inboundTags = new Map<string, string>(
+      node.inbounds.filter((i: any) => i.enabled).map((i: any) => [i.id, i.tag]),
+    );
     const rules = await this.prisma.rule.findMany({
       where: {
         enabled: true,
@@ -330,16 +333,24 @@ export class ConfigGeneratorService {
         OR: [{ organizationId: null }, ...(node.organizationId ? [{ organizationId: node.organizationId }] : [])],
       },
     });
+    const nodeProfiles = routingProfiles.filter(
+      (profile: any) => !profile.inboundId || inboundTags.has(profile.inboundId),
+    );
     const profileRules: Record<string, unknown>[] = [];
     const profileDns: string[] = [];
     const profileOutbounds: Record<string, unknown>[] = [];
-    for (const profile of routingProfiles) {
+    for (const profile of nodeProfiles) {
       const payload = (profile.payload || {}) as {
         routingRules?: Record<string, unknown>[];
         dnsServers?: string[];
         outbounds?: Record<string, unknown>[];
       };
-      if (Array.isArray(payload.routingRules)) profileRules.push(...payload.routingRules);
+      if (Array.isArray(payload.routingRules)) {
+        const tag = (profile as any).inboundId ? inboundTags.get((profile as any).inboundId) : null;
+        profileRules.push(...(tag
+          ? payload.routingRules.map((rule: Record<string, unknown>) => ({ ...rule, inboundTag: [tag] }))
+          : payload.routingRules));
+      }
       if (Array.isArray(payload.dnsServers)) profileDns.push(...payload.dnsServers);
       if (Array.isArray(payload.outbounds)) profileOutbounds.push(...payload.outbounds);
     }
@@ -368,7 +379,12 @@ export class ConfigGeneratorService {
         rules: [
           ...reverseRules,
           ...balancerConfig.rules,
-          ...rules.map((r) => r.payload),
+          ...rules
+            .filter((r: any) => !r.inboundId || inboundTags.has(r.inboundId))
+            .map((r: any) => {
+              const tag = r.inboundId ? inboundTags.get(r.inboundId) : null;
+              return tag ? { ...(r.payload || {}), inboundTag: [tag] } : r.payload;
+            }),
           ...profileRules,
           { type: 'field', network: 'tcp,udp', outboundTag: 'direct' },
         ],

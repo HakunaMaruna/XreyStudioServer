@@ -8,10 +8,10 @@ import { Icon } from '../../components/icons';
 import { Badge, Button, CodeBlock, Field, HelpButton, IconButton, Modal, PageHeader, Toggle } from '../../components/ui';
 
 type Recipe = { id: string; title: string; description: string; type: string; payload: Record<string, unknown> };
-type RuleRow = { id: string; name: string; type: string; payload: Record<string, unknown>; recipe?: string | null; note?: string | null; enabled: boolean };
-type RuleForm = { name: string; type: string; payloadText: string; recipe: string; note: string; enabled: boolean };
+type RuleRow = { id: string; name: string; type: string; payload: Record<string, unknown>; recipe?: string | null; note?: string | null; enabled: boolean; inboundId?: string | null; inbound?: { id: string; tag: string; port: number } | null };
+type RuleForm = { name: string; type: string; payloadText: string; recipe: string; note: string; enabled: boolean; inboundId: string };
 
-const emptyForm: RuleForm = { name: '', type: 'field', payloadText: '{}', recipe: '', note: '', enabled: true };
+const emptyForm: RuleForm = { name: '', type: 'field', payloadText: '{}', recipe: '', note: '', enabled: true, inboundId: '' };
 
 export default function RulesPage() {
   const { t, lang } = useLang();
@@ -23,6 +23,7 @@ export default function RulesPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [inbounds, setInbounds] = useState<{ id: string; tag: string; port: number }[]>([]);
   const [notice, setNotice] = useState('');
 
   const chooseRecipe = (id: string) => {
@@ -60,6 +61,7 @@ export default function RulesPage() {
       return;
     }
     api.get('/api/rules/recipes/list').then((d) => setRecipes(Array.isArray(d) ? d : d.data || [])).catch(() => undefined);
+    api.get('/api/inbounds').then((d) => setInbounds(Array.isArray(d) ? d : d.data || [])).catch(() => undefined);
     load();
   }, []);
 
@@ -76,7 +78,7 @@ export default function RulesPage() {
     }
     setBusy(true);
     try {
-      const body = { name: form.name, type: form.type, payload, recipe: form.recipe || undefined, note: form.note || undefined, enabled: form.enabled };
+      const body = { name: form.name, type: form.type, payload, recipe: form.recipe || undefined, note: form.note || undefined, enabled: form.enabled, inboundId: form.inboundId || null };
       if (editing) await api.patch(`/api/rules/${editing}`, body);
       else await api.post('/api/rules', body);
       setForm(emptyForm);
@@ -92,7 +94,7 @@ export default function RulesPage() {
 
   const startEdit = (rule: RuleRow) => {
     setEditing(rule.id);
-    setForm({ name: rule.name, type: rule.type, payloadText: JSON.stringify(rule.payload, null, 2), recipe: rule.recipe || '', note: rule.note || '', enabled: rule.enabled });
+    setForm({ name: rule.name, type: rule.type, payloadText: JSON.stringify(rule.payload, null, 2), recipe: rule.recipe || '', note: rule.note || '', enabled: rule.enabled, inboundId: rule.inboundId || '' });
     setOpen(true);
   };
 
@@ -118,6 +120,12 @@ export default function RulesPage() {
           </div>
         ),
       },
+      {
+        accessorKey: 'inbound', header: t.applyToInbound, enableSorting: false,
+        cell: ({ row }) => row.original.inbound
+          ? <Badge tone="brand">{row.original.inbound.tag} · {row.original.inbound.port}</Badge>
+          : <Badge tone="neutral">{t.allInbounds}</Badge>,
+      },
       { accessorKey: 'type', header: t.type, cell: ({ row }) => <Badge tone="cyan">{row.original.type}</Badge> },
       { accessorKey: 'recipe', header: t.recipe, cell: ({ row }) => row.original.recipe ? <Badge tone="brand">{recipes.find((r) => r.id === row.original.recipe)?.title || row.original.recipe}</Badge> : <span className="text-subtle">—</span> },
       {
@@ -135,7 +143,7 @@ export default function RulesPage() {
         ),
       },
     ],
-    [t],
+    [t, inbounds],
   );
 
   return (
@@ -177,6 +185,12 @@ export default function RulesPage() {
             <textarea rows={8} value={form.payloadText} onChange={(e) => setForm({ ...form, payloadText: e.target.value })} className="field mono text-[11px] leading-relaxed" required />
           </Field>
           <Field label={t.note}><textarea rows={2} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} className="field" /></Field>
+          <Field label={t.applyToInbound} hint={lang === 'ru' ? 'Правило будет добавлено только в конфиг ноды с этим подключением' : 'The rule will be injected only into the config of the node owning this connection'}>
+            <select className="field" value={form.inboundId} onChange={(e) => setForm({ ...form, inboundId: e.target.value })}>
+              <option value="">{t.allInbounds}</option>
+              {inbounds.map((inbound) => <option key={inbound.id} value={inbound.id}>{inbound.tag} · {inbound.port}</option>)}
+            </select>
+          </Field>
           <Toggle checked={form.enabled} onChange={(value) => setForm({ ...form, enabled: value })} label={t.enabled} />
           {form.payloadText.trim() && (
             <div>

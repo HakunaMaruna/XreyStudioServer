@@ -17,6 +17,7 @@ describe('RoutingService', () => {
         update: jest.fn(async ({ data }: any) => data),
         delete: jest.fn(async () => ({})),
       },
+      inbound: { findUnique: jest.fn(async () => ({ id: 'i1', node: { organizationId: 'org-a' }, user: null })) },
     };
   });
 
@@ -37,14 +38,14 @@ describe('RoutingService', () => {
     );
   });
 
-  it('accepts a valid profile and rejects unknown outbound tags', () => {
+  it('accepts a valid profile and rejects unknown outbound tags', async () => {
     expect(service().validate(validPayload)).toEqual({ valid: true, errors: [] });
     const invalid = {
       ...validPayload,
       routingRules: [{ type: 'field', ip: ['10.0.0.0/8'], outboundTag: 'nowhere' }],
     };
     expect(service().validate(invalid).valid).toBe(false);
-    expect(() => service().create({ name: 'bad', payload: invalid }, admin)).toThrow('Invalid routing profile');
+    await expect(service().create({ name: 'bad', payload: invalid }, admin)).rejects.toThrow('Invalid routing profile');
   });
 
   it('rejects reserved and duplicate outbound tags', () => {
@@ -69,9 +70,23 @@ describe('RoutingService', () => {
     expect(prisma.routingProfile.findMany).toHaveBeenCalledWith({
       where: { organizationId: 'org-a' },
       orderBy: { createdAt: 'desc' },
+      include: { inbound: { select: { id: true, tag: true, port: true } } },
     });
     await expect(service().remove('foreign', operator)).rejects.toThrow('not found');
     expect(prisma.routingProfile.delete).not.toHaveBeenCalled();
+  });
+
+  it('stores the selected inbound scope and rejects another tenant inbound', async () => {
+    const created = await service().create(
+      { name: 'scoped', payload: validPayload, inboundId: 'i1', organizationId: 'org-a' },
+      admin,
+    );
+    expect(created).toMatchObject({ inboundId: 'i1' });
+    prisma.inbound.findUnique.mockResolvedValueOnce({ id: 'i2', node: { organizationId: 'org-b' }, user: null });
+    await expect(service().create(
+      { name: 'foreign', payload: validPayload, inboundId: 'i2', organizationId: 'org-b' },
+      operator,
+    )).rejects.toThrow('another organization');
   });
 
   it('stores recipe metadata and organization on create', async () => {

@@ -27,15 +27,32 @@ export class RoutingService {
     }
   }
 
+  private async assertInbound(dto: { inboundId?: string | null }, user: AuthUser) {
+    if (!dto.inboundId) return;
+    const inbound = await this.prisma.inbound.findUnique({
+      where: { id: dto.inboundId },
+      include: { node: { select: { organizationId: true } }, user: { select: { organizationId: true } } },
+    });
+    if (!inbound) throw new NotFoundException('Inbound not found');
+    if (user.role !== Role.ADMIN && inbound.node?.organizationId !== user.organizationId
+        && inbound.user?.organizationId !== user.organizationId) {
+      throw new ForbiddenException('Inbound belongs to another organization');
+    }
+  }
+
   list(user: AuthUser) {
     return this.prisma.routingProfile.findMany({
       where: this.tenantWhere(user),
       orderBy: { createdAt: 'desc' },
+      include: { inbound: { select: { id: true, tag: true, port: true } } },
     });
   }
 
   async findOne(id: string, user: AuthUser) {
-    const found = await this.prisma.routingProfile.findFirst({ where: { id, ...this.tenantWhere(user) } });
+    const found = await this.prisma.routingProfile.findFirst({
+      where: { id, ...this.tenantWhere(user) },
+      include: { inbound: { select: { id: true, tag: true, port: true } } },
+    });
     if (!found) throw new NotFoundException('Routing profile not found');
     return found;
   }
@@ -119,15 +136,17 @@ export class RoutingService {
     if (!check.valid) throw new ForbiddenException(`Invalid routing profile: ${check.errors.join(', ')}`);
   }
 
-  create(dto: {
+  async create(dto: {
     name: string;
     description?: string;
     payload: unknown;
     recipe?: string;
     enabled?: boolean;
     organizationId?: string | null;
+    inboundId?: string | null;
   }, user: AuthUser) {
     this.assertOrganization(dto, user);
+    await this.assertInbound(dto, user);
     this.assertValid(dto.payload);
     return this.prisma.routingProfile.create({
       data: {
@@ -137,6 +156,7 @@ export class RoutingService {
         recipe: dto.recipe,
         enabled: dto.enabled ?? false,
         organizationId: dto.organizationId ?? user.organizationId ?? null,
+        inboundId: dto.inboundId || null,
       },
     });
   }
@@ -148,9 +168,11 @@ export class RoutingService {
     recipe?: string;
     enabled?: boolean;
     organizationId?: string | null;
+    inboundId?: string | null;
   }, user: AuthUser) {
     await this.findOne(id, user);
     this.assertOrganization(dto, user);
+    await this.assertInbound(dto, user);
     if (dto.payload !== undefined) this.assertValid(dto.payload);
     return this.prisma.routingProfile.update({
       where: { id },
@@ -161,6 +183,7 @@ export class RoutingService {
         ...(dto.recipe !== undefined ? { recipe: dto.recipe } : {}),
         ...(dto.enabled !== undefined ? { enabled: dto.enabled } : {}),
         ...(dto.organizationId !== undefined ? { organizationId: dto.organizationId } : {}),
+        ...(dto.inboundId !== undefined ? { inboundId: dto.inboundId || null } : {}),
       },
     });
   }

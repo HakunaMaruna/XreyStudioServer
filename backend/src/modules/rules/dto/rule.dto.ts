@@ -1,6 +1,11 @@
-import { IsBoolean, IsObject, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateRuleDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  inboundId?: string | null;
+
   @IsString()
   name: string;
 
@@ -28,6 +33,11 @@ export class CreateRuleDto {
 }
 
 export class UpdateRuleDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  inboundId?: string | null;
+
   @IsOptional()
   @IsString()
   name?: string;
