@@ -4,6 +4,7 @@ import { join } from 'path';
 const mockUse = jest.fn();
 const mockCreate = jest.fn().mockResolvedValue({
   use: mockUse,
+  set: jest.fn(),
   enableCors: jest.fn(),
   useGlobalPipes: jest.fn(),
   setGlobalPrefix: jest.fn(),
