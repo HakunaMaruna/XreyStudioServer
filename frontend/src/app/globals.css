@@ -175,6 +175,8 @@ a:focus-visible,
 
 @utility panel {
   position: relative;
+  /* Grid/flex children must be allowed to shrink instead of forcing page overflow. */
+  min-width: 0;
   border-radius: 1.1rem;
   border: 1px solid var(--line);
   background:

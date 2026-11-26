@@ -89,26 +89,31 @@ export default function GeodataPage() {
   const columns = useMemo<ColumnDef<Category>[]>(
     () => [
       {
-        accessorKey: 'type', header: t.type,
+        accessorKey: 'type', header: t.type, size: 100,
         cell: ({ row }) => <Badge tone={row.original.type === 'geosite' ? 'brand' : 'cyan'}>{row.original.type.toUpperCase()}</Badge>,
       },
       {
-        accessorKey: 'code', header: t.code,
+        accessorKey: 'code', header: t.code, size: 260, meta: { noTruncate: true },
         cell: ({ row }) => (
-          <div>
-            <p className="font-medium text-fg">{row.original.name}</p>
-            <code className="mono text-[10px] text-subtle">{row.original.type}:{row.original.code}</code>
+          <div className="min-w-0">
+            <p className="truncate font-medium text-fg" title={row.original.name}>{row.original.name}</p>
+            <code className="mono block truncate text-[10px] text-subtle" title={`${row.original.type}:${row.original.code}`}>
+              {row.original.type}:{row.original.code}
+            </code>
           </div>
         ),
       },
-      { accessorKey: 'description', header: t.description, cell: ({ row }) => <span className="text-xs text-muted">{row.original.description || '—'}</span> },
       {
-        accessorKey: 'source', header: t.source,
+        accessorKey: 'description', header: t.description, size: 240,
+        cell: ({ row }) => <span className="text-xs text-muted" title={row.original.description || ''}>{row.original.description || '—'}</span>,
+      },
+      {
+        accessorKey: 'source', header: t.source, size: 110,
         cell: ({ row }) => <span className="text-[10px] uppercase tracking-wider text-subtle">{row.original.source}</span>,
       },
-      { accessorKey: 'enabled', header: t.enabled, cell: ({ row }) => <Toggle checked={row.original.enabled} onChange={() => toggle(row.original)} label="" /> },
+      { accessorKey: 'enabled', header: t.enabled, size: 90, meta: { noTruncate: true, align: 'center' }, cell: ({ row }) => <Toggle checked={row.original.enabled} onChange={() => toggle(row.original)} label="" /> },
       {
-        id: 'actions', header: t.actions, enableSorting: false,
+        id: 'actions', header: t.actions, enableSorting: false, size: 96, meta: { noTruncate: true, align: 'right' },
         cell: ({ row }) => (
           <div className="flex items-center gap-1">
             <IconButton icon="copy" label={t.copyRule} onClick={() => copyRule(row.original.type, row.original.code)} />

@@ -161,11 +161,17 @@ export default function SubscriptionPageAdmin() {
 
           <Card>
             <SectionTitle title={t.subAdminBlocks} />
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {BLOCKS.map(([key, label]) => (
-                <Field key={key} label={label}>
-                  <Toggle checked={Boolean(settings.blocks[key])} onChange={(value) => patch('blocks', { ...settings.blocks, [key]: value })} />
-                </Field>
+                <div
+                  key={key}
+                  className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-line bg-surface-2/40 px-3 py-2"
+                >
+                  <span className="min-w-0 truncate text-xs font-medium text-fg" title={label}>{label}</span>
+                  <span className="shrink-0">
+                    <Toggle checked={Boolean(settings.blocks[key])} onChange={(value) => patch('blocks', { ...settings.blocks, [key]: value })} />
+                  </span>
+                </div>
               ))}
             </div>
           </Card>

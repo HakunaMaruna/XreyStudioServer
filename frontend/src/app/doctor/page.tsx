@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
-import { Badge, Button, Card, PageHeader, SectionTitle } from '../../components/ui';
+import { Icon } from '../../components/icons';
+import { Badge, Button, Card, PageHeader, cn } from '../../components/ui';
 
 type Check = {
   id: string;
@@ -18,6 +19,7 @@ export default function DoctorPage() {
   const [checks, setChecks] = useState<Check[]>([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!isLoggedIn()) return;
@@ -56,29 +58,62 @@ export default function DoctorPage() {
         <Card><div className="py-6 text-center text-sm text-muted">{t.noIssues}</div></Card>
       )}
       {problems.length > 0 && (
-        <Card>
-          <SectionTitle title={t.doctor} />
-          <div className="divide-y divide-border">
-            {problems.map((check) => (
-              <div key={check.id + (check.entityId || '')} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{check.title}</span>
-                    <Badge tone={check.severity === 'critical' ? 'danger' : 'warning'}>{check.severity}</Badge>
-                  </div>
-                  <p className="text-xs text-muted">{check.detail}</p>
-                </div>
-                {check.fixable && (
-                  <Button
-                    size="sm"
-                    onClick={() => fix(check)}
-                    loading={busy === check.id + (check.entityId || '')}
+        <Card padded={false}>
+          <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
+            <h2 className="text-sm font-semibold text-fg">{t.doctor}</h2>
+            <Badge tone="warning">{problems.length}</Badge>
+          </div>
+          <div className="divide-y divide-line/70">
+            {problems.map((check) => {
+              const key = check.id + (check.entityId || '');
+              const open = expanded === key;
+              const critical = check.severity === 'critical';
+              return (
+                <div key={key}>
+                  <button
+                    type="button"
+                    onClick={() => setExpanded(open ? null : key)}
+                    aria-expanded={open}
+                    className="flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface-2/60"
                   >
-                    {t.applyFix}
-                  </Button>
-                )}
-              </div>
-            ))}
+                    <span
+                      className={cn(
+                        'mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg border',
+                        critical
+                          ? 'border-danger/30 bg-danger/10 text-danger'
+                          : 'border-warning/30 bg-warning/10 text-warning',
+                      )}
+                    >
+                      <Icon name="alert" size={14} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="min-w-0 truncate text-[13px] font-medium text-fg">{check.title}</span>
+                        <Badge tone={critical ? 'danger' : 'warning'}>{check.severity}</Badge>
+                      </span>
+                      {!open && (
+                        <span className="mt-0.5 block truncate text-[11px] text-muted" title={check.detail}>{check.detail}</span>
+                      )}
+                    </span>
+                    <Icon
+                      name="chevronDown"
+                      size={14}
+                      className={cn('mt-1 shrink-0 text-subtle transition-transform', open && 'rotate-180')}
+                    />
+                  </button>
+                  {open && (
+                    <div className="px-4 pb-3 pl-[3.25rem]">
+                      <p className="whitespace-pre-line break-words text-xs leading-relaxed text-muted">{check.detail}</p>
+                      {check.fixable && (
+                        <Button size="sm" className="mt-2" onClick={() => fix(check)} loading={busy === key}>
+                          {t.applyFix}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </Card>
       )}

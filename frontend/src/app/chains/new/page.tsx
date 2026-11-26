@@ -102,7 +102,7 @@ function SchemaBlock({
   meta?: string;
 }) {
   return (
-    <div className="w-[150px] shrink-0 rounded-xl border border-line bg-surface-2/60 p-3 sm:w-[170px]">
+    <div className="min-w-0 flex-1 basis-[150px] rounded-xl border border-line bg-surface-2/60 p-3 sm:max-w-[220px] sm:basis-[150px]">
       <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-subtle">
         <Icon name={icon} size={12} /> {label}
       </div>
@@ -117,7 +117,7 @@ function SchemaBlock({
 
 function SchemaArrow() {
   return (
-    <div className="flex w-5 shrink-0 items-center justify-center text-subtle" aria-hidden="true">
+    <div className="flex w-5 shrink-0 rotate-90 items-center justify-center self-center text-subtle sm:rotate-0" aria-hidden="true">
       <Icon name="chevronRight" size={16} />
     </div>
   );
@@ -441,8 +441,8 @@ export default function ChainsPage() {
                 <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-subtle">
                   {t.chainSchemaHint}
                 </p>
-                <div className="panel overflow-x-auto rounded-xl bg-app/40 p-3">
-                  <div className="flex min-w-max items-stretch gap-1">
+                <div className="panel rounded-xl bg-app/40 p-3">
+                  <div className="flex flex-col items-stretch gap-1 sm:flex-row sm:flex-wrap">
                     <SchemaBlock
                       icon="users"
                       label={t.chainClient}
@@ -460,7 +460,7 @@ export default function ChainsPage() {
                       meta={chain.entryNode ? chain.entryNode.id.slice(0, 6) : undefined}
                     />
                     {chain.exits?.map((exit, index) => (
-                      <div key={exit.id || `${exit.nodeId}-${index}`} className="flex items-stretch gap-1">
+                      <div key={exit.id || `${exit.nodeId}-${index}`} className="flex min-w-0 flex-1 items-stretch gap-1 sm:min-w-[150px]">
                         <SchemaArrow />
                         <SchemaBlock
                           icon="network"

@@ -232,23 +232,23 @@ export default function ReportsPage() {
       )}
       {tab === 'traffic' && traffic && (
         <>
-          <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-            <Card className="p-4">
+          <div className="mb-4 grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
+            <Card className="p-3.5">
               <p className="text-[10px] uppercase tracking-wider text-subtle">{t.trafficUsed}</p>
-              <p className="mt-2 text-[23px] font-semibold leading-none text-fg tabular-nums">{formatBytes(traffic.summary.total)}</p>
+              <p className="mt-2 text-lg font-semibold leading-none text-fg tabular-nums">{formatBytes(traffic.summary.total)}</p>
               <p className="mt-1.5 text-[10px] text-muted">{t.periodDays}: {traffic.range.days}</p>
             </Card>
-            <Card className="p-4">
+            <Card className="p-3.5">
               <p className="text-[10px] uppercase tracking-wider text-subtle">{t.bytesUp}</p>
-              <p className="mt-2 text-[23px] font-semibold leading-none text-brand tabular-nums">{formatBytes(traffic.summary.bytesUp)}</p>
+              <p className="mt-2 text-lg font-semibold leading-none text-brand tabular-nums">{formatBytes(traffic.summary.bytesUp)}</p>
             </Card>
-            <Card className="p-4">
+            <Card className="p-3.5">
               <p className="text-[10px] uppercase tracking-wider text-subtle">{t.bytesDown}</p>
-              <p className="mt-2 text-[23px] font-semibold leading-none text-cyan tabular-nums">{formatBytes(traffic.summary.bytesDown)}</p>
+              <p className="mt-2 text-lg font-semibold leading-none text-cyan tabular-nums">{formatBytes(traffic.summary.bytesDown)}</p>
             </Card>
-            <Card className="p-4">
+            <Card className="p-3.5">
               <p className="text-[10px] uppercase tracking-wider text-subtle">{t.change}</p>
-              <p className={`mt-2 text-[23px] font-semibold leading-none tabular-nums ${traffic.summary.changePct === null ? 'text-muted' : traffic.summary.changePct >= 0 ? 'text-success' : 'text-danger'}`}>
+              <p className={`mt-2 text-lg font-semibold leading-none tabular-nums ${traffic.summary.changePct === null ? 'text-muted' : traffic.summary.changePct >= 0 ? 'text-success' : 'text-danger'}`}>
                 {traffic.summary.changePct === null ? '—' : `${traffic.summary.changePct > 0 ? '+' : ''}${traffic.summary.changePct}%`}
               </p>
               <p className="mt-1.5 text-[10px] text-muted">{t.previousPeriod}: {formatBytes(traffic.summary.previousTotal)}</p>
@@ -263,7 +263,7 @@ export default function ReportsPage() {
               </div>
               <Badge tone="brand">{traffic.data.length} {t.periodDays}</Badge>
             </div>
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={200}>
               <AreaChart data={traffic.data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
                 <defs>
                   <linearGradient id="upFill" x1="0" y1="0" x2="0" y2="1">
@@ -291,7 +291,7 @@ export default function ReportsPage() {
               <div className="space-y-2">
                 {traffic.topUsers.map((user) => (
                   <div key={user.userId} className="flex items-center justify-between rounded-lg border border-line bg-surface-2/40 px-3 py-2 text-xs">
-                    <span className="flex items-center gap-2 text-muted"><Icon name="users" size={18} className="text-brand" />{user.email}</span>
+                    <span className="flex min-w-0 items-center gap-2 text-muted"><Icon name="users" size={16} className="shrink-0 text-brand" /><span className="truncate" title={user.email}>{user.email}</span></span>
                     <Badge tone="brand">{formatBytes(user.bytes)}</Badge>
                   </div>
                 ))}

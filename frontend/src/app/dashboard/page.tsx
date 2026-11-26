@@ -172,13 +172,13 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 xl:grid-cols-6">
+      <div className="grid gap-2.5 sm:gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))]">
         <StatCard delay={0} label={t.totalUsers} value={stats?.total ?? '—'} icon="users" tone="brand" hint={t.registeredAccounts} />
         <StatCard delay={60} label={t.activeUsers} value={stats?.active ?? '—'} icon="checkCircle" tone="success" hint={totalUsers ? `${Math.round(((stats?.active || 0) / totalUsers) * 100)}${t.percentOfUsers}` : undefined} />
         <StatCard delay={120} label={t.totalNodes} value={nodeStats?.total ?? '—'} icon="server" tone="cyan" hint={t.configuredNodes} />
         <StatCard delay={180} label={t.onlineNodes} value={nodeStats?.online ?? '—'} icon="activity" tone="success" hint={totalNodes ? `${Math.round(((nodeStats?.online || 0) / totalNodes) * 100)}% ${t.availability}` : undefined} />
         <StatCard delay={240} label={t.totalInbounds} value={inboundCount ?? '—'} icon="plug" tone="cyan" hint={t.configuredInbounds} />
-        <Link href="/doctor" className="block">
+        <Link href="/doctor" className="block min-w-0">
           <StatCard
             delay={300}
             label={t.problems}
