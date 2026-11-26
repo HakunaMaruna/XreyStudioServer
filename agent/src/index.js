@@ -68,6 +68,7 @@ const STUB_PAGE = (() => {
 const XRAY_MANAGED = process.env.XRAY_MANAGED === 'true';
 const TLS_DIR = process.env.AGENT_TLS_DIR || '/etc/xss-agent/tls';
 const lastUserStats = new Map();
+let lastFailedEntries = [];
 
 const app = express();
 app.use(express.json({ limit: '20mb' }));
@@ -283,6 +284,7 @@ async function collectTrafficEntries() {
     lastUserStats.set(email, { uplink, downlink });
     if (up || down) entries.push({ email, up, down });
   }
+  lastFailedEntries = entries;
   return entries;
 }
 
@@ -290,12 +292,23 @@ async function sendTraffic() {
   try {
     const entries = await collectTrafficEntries();
     if (!entries.length) return;
-    await fetch(`${PANEL_URL}/api/nodes/${NODE_ID}/traffic`, {
+    const res = await fetch(`${PANEL_URL}/api/nodes/${NODE_ID}/traffic`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AGENT_TOKEN}` },
       body: JSON.stringify({ entries }),
     });
+    if (!res.ok) throw new Error(`panel returned ${res.status}`);
   } catch (e) {
+    // Дельта уже обнулена в collectTrafficEntries — возвращаем её,
+    // чтобы неудачный отчёт не потерял трафик между опросами.
+    for (const entry of lastFailedEntries || []) {
+      const previous = lastUserStats.get(entry.email) || { uplink: 0, downlink: 0 };
+      lastUserStats.set(entry.email, {
+        uplink: Math.max(0, previous.uplink - entry.up),
+        downlink: Math.max(0, previous.downlink - entry.down),
+      });
+    }
+    lastFailedEntries = [];
     console.error('traffic report failed', e.message);
   }
 }
@@ -430,6 +443,7 @@ async function register() {
       body: JSON.stringify({ nodeId: NODE_ID, address: process.env.NODE_ADDRESS, agentVersion: AGENT_VERSION }),
     });
     console.log(`register: ${res.status} (agent ${AGENT_VERSION})`, await res.text());
+    if (!res.ok && res.status !== 404) console.error(`register: panel returned ${res.status}`);
   } catch (e) {
     console.error('register failed', e.message);
   }
@@ -440,7 +454,10 @@ async function pullConfig() {
     const res = await fetch(`${PANEL_URL}/api/nodes/${NODE_ID}/config`, {
       headers: { Authorization: `Bearer ${AGENT_TOKEN}` },
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      console.error(`pull config failed: panel returned ${res.status}`);
+      return;
+    }
     const data = await res.json();
     if (!data.config || data.version <= lastConfigVersion) return;
     const result = await applyConfig(data.config, data.version);
@@ -451,7 +468,8 @@ async function pullConfig() {
 }
 
 app.post('/decoy-certificate', auth, (req, res) => {
-  const { certificate, privateKey, hostname } = req.body || {};
+  const { payload, ...root } = req.body || {};
+  const { certificate, privateKey, hostname } = { ...root, ...(payload || {}) };
   if (!certificate || !privateKey || !hostname) {
     return res.status(400).json({ error: 'certificate, privateKey and hostname are required' });
   }
@@ -535,7 +553,8 @@ app.get('/logs', auth, async (req, res) => {
 });
 
 app.post('/certificate', auth, (req, res) => {
-  const { certificate, privateKey, hostname } = req.body || {};
+  const { payload, ...root } = req.body || {};
+  const { certificate, privateKey, hostname } = { ...root, ...(payload || {}) };
   if (!certificate || !privateKey || !hostname) {
     return res.status(400).json({ error: 'certificate, privateKey and hostname are required' });
   }
