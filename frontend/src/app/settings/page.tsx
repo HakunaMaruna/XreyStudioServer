@@ -470,7 +470,7 @@ export default function SettingsPage() {
                   label={t.enabled}
                 />
                 <div>
-                  <label className="label">{t.channelsActive}</label>
+                  <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-subtle">{t.channelsActive}</label>
                   <div className="flex flex-wrap gap-2">
                     {INTEGRATIONS.map((item) => (
                       <button
@@ -486,7 +486,7 @@ export default function SettingsPage() {
                 </div>
                 <Field label={t.quietFrom}>
                   <input
-                    className="input"
+                    className="field"
                     type="time"
                     value={policy.quietHoursStart ?? ''}
                     onChange={(event) =>
@@ -499,7 +499,7 @@ export default function SettingsPage() {
                 </Field>
                 <Field label={t.quietTo}>
                   <input
-                    className="input"
+                    className="field"
                     type="time"
                     value={policy.quietHoursEnd ?? ''}
                     onChange={(event) =>
@@ -509,7 +509,7 @@ export default function SettingsPage() {
                 </Field>
                 <Field label={t.cooldown}>
                   <input
-                    className="input"
+                    className="field"
                     type="number"
                     min={0}
                     max={1440}
@@ -524,7 +524,7 @@ export default function SettingsPage() {
                 </Field>
                 <Field label={t.minSeverity}>
                   <select
-                    className="input"
+                    className="field"
                     value={policy.minSeverity}
                     onChange={(event) =>
                       setPolicy((prev) => ({
@@ -540,7 +540,7 @@ export default function SettingsPage() {
                 </Field>
                 <Field label={t.escalation}>
                   <select
-                    className="input"
+                    className="field"
                     value={policy.escalationChannel ?? ''}
                     onChange={(event) =>
                       setPolicy((prev) => ({
@@ -557,7 +557,7 @@ export default function SettingsPage() {
                     ))}
                   </select>
                 </Field>
-                <Button onClick={saveNotificationPolicy} disabled={savingHub}>
+                <Button onClick={saveNotificationPolicy} disabled={savingHub} className="w-full sm:w-auto">
                   <Icon name="check" size={14} /> {t.saveSettings}
                 </Button>
               </div>
@@ -573,14 +573,14 @@ export default function SettingsPage() {
                 />
                 <Field label={t.backupCron} hint="0 3 * * *">
                   <input
-                    className="input"
+                    className="field"
                     value={backup.cron}
                     onChange={(event) => setBackup((prev) => ({ ...prev, cron: event.target.value }))}
                   />
                 </Field>
                 <Field label={t.backupRetentionDays}>
                   <input
-                    className="input"
+                    className="field"
                     type="number"
                     min={1}
                     max={365}
@@ -597,7 +597,7 @@ export default function SettingsPage() {
                   {t.lastBackup}: {backup.lastRun ? new Date(backup.lastRun).toLocaleString() : t.never}
                   {backup.lastStatus ? ` · ${backup.lastStatus}` : ''}
                 </div>
-                <Button onClick={saveBackupSettings} disabled={savingHub}>
+                <Button onClick={saveBackupSettings} disabled={savingHub} className="w-full sm:w-auto">
                   <Icon name="check" size={14} /> {t.saveSettings}
                 </Button>
                 <div className="border-t border-line pt-4" />
@@ -606,9 +606,9 @@ export default function SettingsPage() {
                   {INTEGRATIONS.map((item) => {
                     const readyChannel = Boolean(channels[item.key]);
                     return (
-                      <div className="flex items-center justify-between" key={item.key}>
-                        <span>{t[item.labelKey]}</span>
-                        <span className={`rounded-full border px-2 py-0.5 text-xs ${readyChannel ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-line text-muted'}`}>
+                      <div className="flex min-w-0 items-center justify-between gap-3" key={item.key}>
+                        <span className="min-w-0 truncate">{t[item.labelKey]}</span>
+                        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs ${readyChannel ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-line text-muted'}`}>
                           {readyChannel ? t.configured : t.notConfigured}
                         </span>
                       </div>
@@ -637,7 +637,7 @@ export default function SettingsPage() {
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label={t.snapshotRetention}>
                     <input
-                      className="input"
+                      className="field"
                       type="number"
                       min={1}
                       max={100}
@@ -652,7 +652,7 @@ export default function SettingsPage() {
                   </Field>
                   <Field label={t.snapshotCooldown}>
                     <input
-                      className="input"
+                      className="field"
                       type="number"
                       min={0}
                       max={10080}
@@ -666,7 +666,7 @@ export default function SettingsPage() {
                     />
                   </Field>
                 </div>
-                <Button onClick={saveSnapshotPolicy} disabled={snapshotBusy}>
+                <Button onClick={saveSnapshotPolicy} disabled={snapshotBusy} className="w-full sm:w-auto">
                   <Icon name="check" size={14} /> {t.snapshotSavePolicy}
                 </Button>
               </div>
@@ -676,7 +676,7 @@ export default function SettingsPage() {
                 <div className="grid gap-3 sm:grid-cols-3">
                   <Field label={t.snapshotLabel}>
                     <input
-                      className="input"
+                      className="field"
                       maxLength={120}
                       value={snapshotForm.label}
                       onChange={(event) => setSnapshotForm((prev) => ({ ...prev, label: event.target.value }))}
@@ -684,7 +684,7 @@ export default function SettingsPage() {
                   </Field>
                   <Field label={t.snapshotReason}>
                     <input
-                      className="input"
+                      className="field"
                       maxLength={240}
                       value={snapshotForm.reason}
                       onChange={(event) => setSnapshotForm((prev) => ({ ...prev, reason: event.target.value }))}
@@ -692,7 +692,7 @@ export default function SettingsPage() {
                   </Field>
                   <Field label={t.snapshotScope}>
                     <select
-                      className="input"
+                      className="field"
                       value={snapshotForm.scope}
                       onChange={(event) =>
                         setSnapshotForm((prev) => ({
@@ -706,7 +706,7 @@ export default function SettingsPage() {
                     </select>
                   </Field>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button icon="plus" onClick={createSnapshot} disabled={snapshotBusy}>
                     {t.snapshotCreate}
                   </Button>
@@ -748,10 +748,10 @@ export default function SettingsPage() {
                         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
                           <span>{t.snapshotSize}: {formatBytes(snapshot.sizeBytes)}</span>
                           <span>{t.snapshotVersion}: {snapshot.appVersion}</span>
-                          <span className="mono">{t.snapshotChecksum}: {String(snapshot.checksum || '').slice(0, 12)}</span>
+                          <span className="mono min-w-0 truncate" title={String(snapshot.checksum || '')}>{t.snapshotChecksum}: {String(snapshot.checksum || '').slice(0, 12)}</span>
                           {snapshot.restoredAt && <span>{t.snapshotStatusRestored}: {new Date(snapshot.restoredAt).toLocaleString()}</span>}
                         </div>
-                        <div className="mt-3 flex items-center gap-2">
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
                           <Button
                             size="sm"
                             icon="history"
@@ -785,17 +785,17 @@ export default function SettingsPage() {
             <SectionTitle title={t.quickLinks} subtitle={t.quickLinksSubtitle} />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {QUICK_LINKS.map((link) => (
-                <a className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 p-3 transition hover:border-brand/40" href={link.href} key={link.href}>
-                  <Icon name={link.icon} size={18} />
-                  <span>{t[link.labelKey]}</span>
-                  <Icon name="arrowUpRight" size={14} />
+                <a className="flex min-w-0 items-center gap-2 rounded-lg border border-line bg-surface-2 p-3 transition hover:border-brand/40" href={link.href} key={link.href}>
+                  <Icon name={link.icon} size={18} className="shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{t[link.labelKey]}</span>
+                  <Icon name="arrowUpRight" size={14} className="shrink-0" />
                 </a>
               ))}
               {dnsMode === 'control' && (
-                <a className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 p-3 transition hover:border-brand/40" href="/dns">
-                  <Icon name="network" size={18} />
-                  <span>{t.dnsSection}</span>
-                  <Icon name="arrowUpRight" size={14} />
+                <a className="flex min-w-0 items-center gap-2 rounded-lg border border-line bg-surface-2 p-3 transition hover:border-brand/40" href="/dns">
+                  <Icon name="network" size={18} className="shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{t.dnsSection}</span>
+                  <Icon name="arrowUpRight" size={14} className="shrink-0" />
                 </a>
               )}
             </div>
