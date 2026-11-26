@@ -5,6 +5,7 @@ import { SnapshotsModule } from '../snapshots/snapshots.module';
 import { EnvAuthProvider } from './auth-provider';
 import { PluginCatalogService } from './plugin-catalog.service';
 import { PluginManagerService } from './plugin-manager.service';
+import { PluginRecipeService } from './plugin-recipe.service';
 import { PluginRuntimeService } from './plugin-runtime.service';
 import { PluginStorageService } from './plugin-storage.service';
 import { PluginsController } from './plugins.controller';
@@ -15,10 +16,11 @@ import { PluginsController } from './plugins.controller';
   providers: [
     EnvAuthProvider,
     PluginStorageService,
+    PluginRecipeService,
     PluginRuntimeService,
     PluginCatalogService,
     PluginManagerService,
   ],
-  exports: [PluginManagerService, PluginCatalogService],
+  exports: [PluginManagerService, PluginCatalogService, PluginRecipeService],
 })
 export class PluginsModule {}

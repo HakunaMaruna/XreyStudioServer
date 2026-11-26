@@ -33,6 +33,10 @@ const sdk = {
   events: {
     emit: (event: string, payload: unknown) => request('events.emit', { event, payload }),
   },
+  recipes: {
+    register: (recipe: Record<string, unknown>) => request('recipes.register', { recipe }),
+    unregister: (recipeId: string) => request('recipes.unregister', { recipeId }),
+  },
 };
 
 let buffer = '';

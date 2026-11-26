@@ -29,6 +29,16 @@ type InboundRow = {
   node?: { name: string } | null;
 };
 
+type Recipe = {
+  id: string;
+  name: string;
+  description?: string;
+  source?: string;
+  pluginId?: string;
+};
+
+type Client = { userId: string; trafficLimitGb: number; expiresAt: string; enabled: boolean; comment: string; sortIndex: number };
+
 type InboundForm = {
   tag: string;
   protocol: string;
@@ -48,7 +58,7 @@ type InboundForm = {
   enabled: boolean;
   settingsText: string;
   fallbacks: Array<{ childId: string; path: string; alpn: string; dest: string; xver: number }>;
-  clients: Array<{ userId: string; trafficLimitGb: number; expiresAt: string; enabled: boolean; comment: string; sortIndex: number }>;
+  clients: Client[];
 };
 
 const emptyForm: InboundForm = {
@@ -63,11 +73,63 @@ const TRANSPORTS = ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'];
 const SECURITIES = ['none', 'tls', 'reality'];
 const RESETS = ['never', 'hourly', 'daily', 'weekly', 'monthly'];
 
+const emptyClient = (sortIndex = 0): Client => ({ userId: '', trafficLimitGb: 0, expiresAt: '', enabled: true, comment: '', sortIndex });
+
+const normalizeClients = (list: unknown): Client[] =>
+  Array.isArray(list)
+    ? list.map((c: any) => ({
+        userId: c.userId || '',
+        trafficLimitGb: Number(c.trafficLimit || 0) / 1024 ** 3,
+        expiresAt: c.expiresAt ? String(c.expiresAt).slice(0, 10) : '',
+        enabled: c.enabled !== false,
+        comment: c.comment || '',
+        sortIndex: c.sortIndex || 0,
+      }))
+    : [];
+
+const normalizeFallbacks = (list: unknown): InboundForm['fallbacks'] =>
+  Array.isArray(list)
+    ? list.map((f: any) => ({ childId: f.childId, path: f.path || '', alpn: f.alpn || '', dest: f.dest || '', xver: f.xver || 0 }))
+    : [];
+
+const formFromRow = (row: InboundRow): InboundForm => ({
+  tag: row.tag,
+  protocol: row.protocol,
+  port: row.port,
+  nodeId: '',
+  listen: row.listen || '0.0.0.0',
+  transport: row.transport || 'tcp',
+  security: row.security || 'none',
+  flow: row.flow || '',
+  path: row.path || '/ws',
+  sni: row.sni || '',
+  serviceName: row.serviceName || 'xss',
+  trafficLimitGb: Number(row.trafficLimit || 0) / 1024 ** 3,
+  expiresAt: row.expiresAt ? row.expiresAt.slice(0, 10) : '',
+  resetSchedule: row.resetSchedule || 'never',
+  resetDay: row.resetDay || 1,
+  enabled: row.enabled ?? true,
+  settingsText: JSON.stringify(row.settings || {}, null, 2),
+  fallbacks: normalizeFallbacks((row as any).fallbacks),
+  clients: normalizeClients((row as any).clients),
+});
+
+const clientPayload = (c: Client) => ({
+  userId: c.userId,
+  trafficLimit: Math.round(c.trafficLimitGb * 1024 ** 3),
+  expiresAt: c.expiresAt || undefined,
+  enabled: c.enabled,
+  comment: c.comment || undefined,
+  sortIndex: c.sortIndex,
+});
+
 export default function InboundsPage() {
   const { t } = useLang();
   const [inbounds, setInbounds] = useState<InboundRow[]>([]);
   const [nodes, setNodes] = useState<{ id: string; name: string }[]>([]);
   const [users, setUsers] = useState<{ id: string; email: string }[]>([]);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [recipeId, setRecipeId] = useState('');
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -75,17 +137,28 @@ export default function InboundsPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
+  // Client-list modal (edits the clients of a single inbound).
+  const [clientsOpen, setClientsOpen] = useState(false);
+  const [clientsInboundId, setClientsInboundId] = useState<string | null>(null);
+
+  // Group modal (bulk-add users as clients of a single inbound).
+  const [groupOpen, setGroupOpen] = useState(false);
+  const [groupInboundId, setGroupInboundId] = useState<string | null>(null);
+  const [groupSelected, setGroupSelected] = useState<string[]>([]);
+
   const load = async () => {
     setLoading(true);
     try {
-      const [ib, nd, us] = await Promise.all([
+      const [ib, nd, us, rc] = await Promise.all([
         api.get('/api/inbounds'),
         api.get('/api/nodes'),
         api.get('/api/users?limit=100').catch(() => ({ data: [] })),
+        api.get('/api/inbounds/recipes').catch(() => ({ data: [] })),
       ]);
       setInbounds(Array.isArray(ib) ? ib : ib.data || []);
       setNodes(Array.isArray(nd) ? nd : nd.data || []);
       setUsers(us.data || []);
+      setRecipes(Array.isArray(rc) ? rc : rc.data || []);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -101,40 +174,61 @@ export default function InboundsPage() {
     load();
   }, []);
 
-  const startCreate = () => { setEditing(null); setForm(emptyForm); setError(''); setOpen(true); };
+  const startCreate = () => { setEditing(null); setForm(emptyForm); setRecipeId(''); setError(''); setOpen(true); };
 
   const startEdit = (row: InboundRow) => {
     setEditing(row.id);
-    setForm({
-      tag: row.tag,
-      protocol: row.protocol,
-      port: row.port,
-      nodeId: '',
-      listen: row.listen || '0.0.0.0',
-      transport: row.transport || 'tcp',
-      security: row.security || 'none',
-      flow: row.flow || '',
-      path: row.path || '/ws',
-      sni: row.sni || '',
-      serviceName: row.serviceName || 'xss',
-      trafficLimitGb: Number(row.trafficLimit || 0) / 1024 ** 3,
-      expiresAt: row.expiresAt ? row.expiresAt.slice(0, 10) : '',
-      resetSchedule: row.resetSchedule || 'never',
-      resetDay: row.resetDay || 1,
-      enabled: row.enabled ?? true,
-      settingsText: JSON.stringify(row.settings || {}, null, 2),
-      fallbacks: (row as any).fallbacks?.map((f: any) => ({ childId: f.childId, path: f.path || '', alpn: f.alpn || '', dest: f.dest || '', xver: f.xver || 0 })) || [],
-      clients: (row as any).clients?.map((c: any) => ({
-        userId: c.userId,
-        trafficLimitGb: Number(c.trafficLimit || 0) / 1024 ** 3,
-        expiresAt: c.expiresAt ? c.expiresAt.slice(0, 10) : '',
-        enabled: c.enabled,
-        comment: c.comment || '',
-        sortIndex: c.sortIndex || 0,
-      })) || [],
-    });
+    setForm(formFromRow(row));
+    setRecipeId((row as any).recipe || '');
     setError('');
     setOpen(true);
+  };
+
+  // Recipes are prepared server-side; the returned DTO fills the form, but every
+  // field stays editable afterwards.
+  const applyPrepared = (dto: any) => {
+    if (!dto || typeof dto !== 'object') return;
+    const str = (value: unknown, fallback: string) => (value === undefined ? fallback : value == null ? '' : String(value));
+    setForm((prev) => ({
+      ...prev,
+      tag: str(dto.tag, prev.tag),
+      protocol: str(dto.protocol, prev.protocol),
+      port: dto.port === undefined ? prev.port : Number(dto.port),
+      nodeId: str(dto.nodeId, prev.nodeId),
+      listen: str(dto.listen, prev.listen),
+      transport: str(dto.transport, prev.transport),
+      security: str(dto.security, prev.security),
+      flow: str(dto.flow, prev.flow),
+      path: str(dto.path, prev.path),
+      sni: str(dto.sni, prev.sni),
+      serviceName: str(dto.serviceName, prev.serviceName),
+      settingsText: dto.settings === undefined ? prev.settingsText : JSON.stringify(dto.settings ?? {}, null, 2),
+      enabled: dto.enabled === undefined ? prev.enabled : Boolean(dto.enabled),
+      trafficLimitGb: dto.trafficLimit === undefined ? prev.trafficLimitGb : Number(dto.trafficLimit) / 1024 ** 3,
+      expiresAt: dto.expiresAt === undefined ? prev.expiresAt : str(dto.expiresAt, ''),
+      resetSchedule: str(dto.resetSchedule, prev.resetSchedule),
+      resetDay: dto.resetDay === undefined ? prev.resetDay : Number(dto.resetDay),
+      fallbacks: Array.isArray(dto.fallbacks) ? normalizeFallbacks(dto.fallbacks) : prev.fallbacks,
+      clients: Array.isArray(dto.clients) ? normalizeClients(dto.clients) : prev.clients,
+    }));
+  };
+
+  const chooseRecipe = async (id: string) => {
+    setRecipeId(id);
+    setError('');
+    if (!id) return;
+    setBusy(true);
+    try {
+      const dto = await api.post(`/api/inbounds/recipes/${encodeURIComponent(id)}/prepare`, {
+        nodeId: form.nodeId,
+        tag: form.tag,
+      });
+      applyPrepared(dto);
+    } catch (e: any) {
+      setError(e.message || t.recipeFailed);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -168,14 +262,7 @@ export default function InboundsPage() {
       enabled: form.enabled,
       settings,
       fallbacks: form.fallbacks.filter((f) => f.childId),
-      clients: form.clients.filter((c) => c.userId).map((c) => ({
-        userId: c.userId,
-        trafficLimit: Math.round(c.trafficLimitGb * 1024 ** 3),
-        expiresAt: c.expiresAt || undefined,
-        enabled: c.enabled,
-        comment: c.comment || undefined,
-        sortIndex: c.sortIndex,
-      })),
+      clients: form.clients.filter((c) => c.userId).map(clientPayload),
     };
     try {
       if (editing) await api.patch(`/api/inbounds/${editing}`, body);
@@ -196,6 +283,69 @@ export default function InboundsPage() {
     await api.delete(`/api/inbounds/${id}`);
     await load();
   };
+
+  const closeClients = () => { setClientsOpen(false); setClientsInboundId(null); setError(''); };
+
+  const openClients = (row: InboundRow, addEmpty = false) => {
+    setForm(formFromRow(row));
+    setClientsInboundId(row.id);
+    if (addEmpty) setForm((prev) => ({ ...prev, clients: [...prev.clients, emptyClient(prev.clients.length)] }));
+    setError('');
+    setClientsOpen(true);
+  };
+
+  const saveClients = async () => {
+    if (!clientsInboundId) return;
+    setError('');
+    setBusy(true);
+    try {
+      await api.patch(`/api/inbounds/${clientsInboundId}`, {
+        clients: form.clients.filter((c) => c.userId).map(clientPayload),
+      });
+      closeClients();
+      await load();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const closeGroup = () => { setGroupOpen(false); setGroupInboundId(null); setGroupSelected([]); setError(''); };
+
+  const openGroup = (row: InboundRow) => {
+    setForm(formFromRow(row));
+    setGroupInboundId(row.id);
+    setGroupSelected([]);
+    setError('');
+    setGroupOpen(true);
+  };
+
+  const saveGroup = async () => {
+    if (!groupInboundId) return;
+    setError('');
+    setBusy(true);
+    try {
+      const existing = form.clients.filter((c) => c.userId);
+      const present = new Set(existing.map((c) => c.userId));
+      const added = groupSelected
+        .filter((id) => !present.has(id))
+        .map((id, index) => ({ ...emptyClient(existing.length + index), userId: id }));
+      await api.patch(`/api/inbounds/${groupInboundId}`, {
+        clients: [...existing, ...added].map(clientPayload),
+      });
+      closeGroup();
+      await load();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const selectedRecipe = recipes.find((r) => r.id === recipeId);
+  const clientsInbound = inbounds.find((i) => i.id === clientsInboundId);
+  const groupInbound = inbounds.find((i) => i.id === groupInboundId);
 
   const columns = useMemo<ColumnDef<InboundRow>[]>(
     () => [
@@ -236,14 +386,17 @@ export default function InboundsPage() {
       {
         id: 'actions', header: t.actions, enableSorting: false,
         cell: ({ row }) => (
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center justify-end gap-1">
+            <Button size="sm" variant="ghost" icon="list" title={t.clientList} onClick={() => openClients(row.original)}>{t.clientList}</Button>
+            <Button size="sm" variant="ghost" icon="plus" title={t.addClient} onClick={() => openClients(row.original, true)}>{t.addClient}</Button>
+            <Button size="sm" variant="ghost" icon="users" title={t.group} onClick={() => openGroup(row.original)}>{t.group}</Button>
             <IconButton icon="edit" label={t.edit} onClick={() => startEdit(row.original)} />
             <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => remove(row.original.id)} />
           </div>
         ),
       },
     ],
-    [t],
+    [t, openClients, openGroup, remove],
   );
 
   return (
@@ -256,7 +409,7 @@ export default function InboundsPage() {
         actions={<Button icon="plus" variant="primary" onClick={startCreate}>{t.newInbound}</Button>}
       />
 
-      {error && !open && (
+      {error && !open && !clientsOpen && !groupOpen && (
         <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
         </div>
@@ -279,6 +432,23 @@ export default function InboundsPage() {
               <Icon name="alert" size={14} /> {error}
             </div>
           )}
+
+          <div className="rounded-lg border border-line bg-surface-2/40 p-3">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={t.inboundRecipe} hint={t.recipeAutoHint}>
+                <select value={recipeId} onChange={(e) => chooseRecipe(e.target.value)} className="field" disabled={busy}>
+                  <option value="">{t.noRecipe}</option>
+                  {recipes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              </Field>
+              {selectedRecipe && (
+                <div className="self-end space-y-0.5 text-[11px] text-subtle">
+                  {selectedRecipe.description && <p>{selectedRecipe.description}</p>}
+                  <p>{[selectedRecipe.source, selectedRecipe.pluginId].filter(Boolean).join(' · ')}</p>
+                </div>
+              )}
+            </div>
+          </div>
 
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-subtle">{t.name} / {t.protocol}</p>
@@ -371,37 +541,86 @@ export default function InboundsPage() {
           </div>
 
           <div className="border-t border-line pt-5">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wider text-subtle">{t.clientLimits}</p>
-              <Button size="sm" icon="plus" onClick={() => setForm({ ...form, clients: [...form.clients, { userId: '', trafficLimitGb: 0, expiresAt: '', enabled: true, comment: '', sortIndex: 0 }] })}>{t.addClient}</Button>
-            </div>
-            {form.clients.map((c, index) => (
-              <div key={index} className="mb-2 grid gap-2 rounded-lg border border-line bg-surface-2/40 p-3 sm:grid-cols-2 lg:grid-cols-6">
-                <Field label={t.user}>
-                  <select value={c.userId} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, userId: e.target.value }; setForm({ ...form, clients }); }} className="field">
-                    <option value="">—</option>
-                    {users.map((u) => <option key={u.id} value={u.id}>{u.email}</option>)}
-                  </select>
-                </Field>
-                <Field label={t.trafficLimit} hint="GB"><input type="number" min={0} value={c.trafficLimitGb} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, trafficLimitGb: Number(e.target.value) }; setForm({ ...form, clients }); }} className="field" /></Field>
-                <Field label={t.expiresAt}><input type="date" value={c.expiresAt} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, expiresAt: e.target.value }; setForm({ ...form, clients }); }} className="field" /></Field>
-                <Field label={t.sortOrder}><input type="number" value={c.sortIndex} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, sortIndex: Number(e.target.value) }; setForm({ ...form, clients }); }} className="field" /></Field>
-                <Field label={t.comment}><input value={c.comment} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, comment: e.target.value }; setForm({ ...form, clients }); }} className="field" /></Field>
-                <div className="flex items-end gap-2">
-                  <Toggle checked={c.enabled} onChange={(v) => { const clients = [...form.clients]; clients[index] = { ...c, enabled: v }; setForm({ ...form, clients }); }} />
-                  <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => setForm({ ...form, clients: form.clients.filter((_, i) => i !== index) })} />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t border-line pt-5">
             <Field label={t.advancedSettings}>
               <textarea rows={6} value={form.settingsText} onChange={(e) => setForm({ ...form, settingsText: e.target.value })} className="field mono text-[11px]" />
             </Field>
             <div className="mt-4"><Toggle checked={form.enabled} onChange={(value) => setForm({ ...form, enabled: value })} label={t.enabled} /></div>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={clientsOpen}
+        onClose={closeClients}
+        title={t.clientList}
+        subtitle={clientsInbound?.tag}
+        icon={<Icon name="users" size={16} />}
+        size="xl"
+        footer={<><Button onClick={closeClients}>{t.cancel}</Button><Button variant="primary" icon="check" onClick={saveClients} loading={busy}>{t.save}</Button></>}
+      >
+        <div className="space-y-3">
+          {error && (
+            <div className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+              <Icon name="alert" size={14} /> {error}
+            </div>
+          )}
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wider text-subtle">{t.clientLimits}</p>
+            <Button size="sm" icon="plus" onClick={() => setForm({ ...form, clients: [...form.clients, emptyClient(form.clients.length)] })}>{t.addClient}</Button>
+          </div>
+          {form.clients.length === 0 && <p className="text-xs text-subtle">{t.noData}</p>}
+          {form.clients.map((c, index) => (
+            <div key={index} className="mb-2 grid gap-2 rounded-lg border border-line bg-surface-2/40 p-3 sm:grid-cols-2 lg:grid-cols-6">
+              <Field label={t.user}>
+                <select value={c.userId} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, userId: e.target.value }; setForm({ ...form, clients }); }} className="field">
+                  <option value="">—</option>
+                  {users.map((u) => <option key={u.id} value={u.id}>{u.email}</option>)}
+                </select>
+              </Field>
+              <Field label={t.trafficLimit} hint="GB"><input type="number" min={0} value={c.trafficLimitGb} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, trafficLimitGb: Number(e.target.value) }; setForm({ ...form, clients }); }} className="field" /></Field>
+              <Field label={t.expiresAt}><input type="date" value={c.expiresAt} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, expiresAt: e.target.value }; setForm({ ...form, clients }); }} className="field" /></Field>
+              <Field label={t.sortOrder}><input type="number" value={c.sortIndex} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, sortIndex: Number(e.target.value) }; setForm({ ...form, clients }); }} className="field" /></Field>
+              <Field label={t.comment}><input value={c.comment} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, comment: e.target.value }; setForm({ ...form, clients }); }} className="field" /></Field>
+              <div className="flex items-end gap-2">
+                <Toggle checked={c.enabled} onChange={(v) => { const clients = [...form.clients]; clients[index] = { ...c, enabled: v }; setForm({ ...form, clients }); }} />
+                <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => setForm({ ...form, clients: form.clients.filter((_, i) => i !== index) })} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </Modal>
+
+      <Modal
+        open={groupOpen}
+        onClose={closeGroup}
+        title={t.groupModalTitle}
+        subtitle={groupInbound?.tag}
+        icon={<Icon name="users" size={16} />}
+        size="lg"
+        footer={<><Button onClick={closeGroup}>{t.cancel}</Button><Button variant="primary" icon="plus" onClick={saveGroup} loading={busy}>{t.addClient}</Button></>}
+      >
+        <div className="space-y-3">
+          {error && (
+            <div className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+              <Icon name="alert" size={14} /> {error}
+            </div>
+          )}
+          <p className="text-xs text-muted">{t.selectUsers}</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {users.map((u) => (
+              <label key={u.id} className="flex cursor-pointer items-center gap-2 rounded-lg border border-line bg-surface-2/40 px-3 py-2 text-xs text-fg">
+                <input
+                  type="checkbox"
+                  checked={groupSelected.includes(u.id)}
+                  onChange={(e) => setGroupSelected((prev) => e.target.checked ? [...prev, u.id] : prev.filter((id) => id !== u.id))}
+                  className="h-4 w-4"
+                />
+                <span className="truncate">{u.email}</span>
+              </label>
+            ))}
+            {users.length === 0 && <p className="text-xs text-subtle">{t.noData}</p>}
+          </div>
+        </div>
       </Modal>
     </>
   );

@@ -751,6 +751,18 @@ model Plugin {
   updatedAt     DateTime     @updatedAt
 }
 
+model PluginRecipe {
+  id        String   @id
+  pluginId  String
+  recipeId  String
+  payload   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([pluginId, recipeId])
+  @@index([pluginId])
+}
+
 model PluginStorage {
   pluginId  String
   key       String

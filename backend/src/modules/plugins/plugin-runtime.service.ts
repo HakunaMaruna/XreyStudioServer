@@ -5,6 +5,7 @@ import { isIP } from 'net';
 import { promises as dns } from 'dns';
 import * as path from 'path';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PluginRecipeService } from './plugin-recipe.service';
 import { PluginStorageService } from './plugin-storage.service';
 
 const TIMEOUT_MS = 10_000;
@@ -17,6 +18,7 @@ export class PluginRuntimeService {
   constructor(
     private readonly storage: PluginStorageService,
     private readonly notifications: NotificationsService,
+    private readonly recipes: PluginRecipeService,
   ) {}
 
   private isBlockedAddress(host: string) {
@@ -98,13 +100,21 @@ export class PluginRuntimeService {
           await this.storage.log(pluginId, msg.level || 'info', String(msg.message).slice(0, 500));
           return;
         }
-        if (!['storage.get', 'storage.set', 'storage.delete', 'settings.get', 'http.request', 'events.emit'].includes(msg.type)) return;
+        if (!['storage.get', 'storage.set', 'storage.delete', 'settings.get', 'http.request', 'events.emit',
+          'recipes.register', 'recipes.unregister'].includes(msg.type)) return;
         try {
           let value: any = null;
           if (msg.type === 'storage.get') value = await this.storage.get(pluginId, msg.payload.key);
           if (msg.type === 'storage.set') await this.storage.set(pluginId, msg.payload.key, msg.payload.value);
           if (msg.type === 'storage.delete') await this.storage.delete(pluginId, msg.payload.key);
           if (msg.type === 'settings.get') value = await this.storage.settings(pluginId);
+          // Recipe payloads may contain secrets: never log them, only pass to the validating service.
+          if (msg.type === 'recipes.register') {
+            value = await this.recipes.register(pluginId, msg.payload?.recipe ?? msg.payload);
+          }
+          if (msg.type === 'recipes.unregister') {
+            value = await this.recipes.unregister(pluginId, msg.payload?.recipeId);
+          }
           if (msg.type === 'http.request') {
             if (!await this.allowedUrl(String(msg.payload.url || ''))) throw new Error('Network target is not allowed');
             const response = await fetch(String(msg.payload.url), {

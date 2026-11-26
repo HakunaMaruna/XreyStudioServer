@@ -422,6 +422,16 @@ const dict = {
     leaveEmptyGlobal: 'Оставьте пустым, чтобы применить ко всем нодам',
     noSecurity: 'без защиты',
 
+    // Inbound recipes and client list
+    inboundRecipe: 'Рецепт',
+    noRecipe: 'Без рецепта',
+    recipeAutoHint: 'Рецепты автоматически генерируют ключи и безопасные значения по умолчанию.',
+    recipeFailed: 'Не удалось применить рецепт',
+    clientList: 'Список клиентов',
+    group: 'Группу',
+    groupModalTitle: 'Добавление группы клиентов',
+    selectUsers: 'Выберите пользователей',
+
     // Hosts and rules
     hostsSubtitle: 'Адреса назначения, SNI и пути',
     recipe: 'Готовый рецепт',
@@ -1217,6 +1227,16 @@ const dict = {
     global: 'Global',
     leaveEmptyGlobal: 'Leave empty to apply to all nodes',
     noSecurity: 'no security',
+
+    // Inbound recipes and client list
+    inboundRecipe: 'Recipe',
+    noRecipe: 'No recipe',
+    recipeAutoHint: 'Recipes auto-generate keys and safe defaults.',
+    recipeFailed: 'Failed to apply recipe',
+    clientList: 'Client list',
+    group: 'Group',
+    groupModalTitle: 'Add client group',
+    selectUsers: 'Select users',
 
     hostsSubtitle: 'Destination addresses, SNI values and paths',
     recipe: 'Ready-made recipe',

@@ -18,6 +18,7 @@ services:
     ports:
       # Default wizard inbound (VLESS Reality) listens on 443 inside the agent container.
       - "443:443/tcp"
+      - "4436:4436/tcp"
       # Panel-to-agent API (certificate install, config push, health checks).
       - "9090:9090/tcp"
       - "80:80/tcp"

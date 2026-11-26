@@ -23,6 +23,7 @@ describe('PluginManagerService', () => {
   let audit: any;
   let notifications: any;
   let catalog: any;
+  let recipes: any;
 
   beforeEach(() => {
     process.env.NODE_ENV = 'test';
@@ -57,9 +58,10 @@ describe('PluginManagerService', () => {
     audit = { log: jest.fn(async () => ({})) };
     notifications = { broadcast: jest.fn(async () => ({})) };
     catalog = { assertNotRevoked: jest.fn(async () => undefined), assertPolicyAllowed: jest.fn(async () => undefined) };
+    recipes = { removeAll: jest.fn(async () => undefined) };
   });
 
-  const service = () => new PluginManagerService(prisma, storage, runtime, snapshots, audit, notifications, catalog);
+  const service = () => new PluginManagerService(prisma, storage, runtime, snapshots, audit, notifications, catalog, recipes);
 
   it('installs an unsigned package in dev mode and audits it', async () => {
     const result: any = await service().install(pkg);

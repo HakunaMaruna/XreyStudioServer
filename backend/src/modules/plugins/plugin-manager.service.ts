@@ -9,6 +9,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { SnapshotsService } from '../snapshots/snapshots.service';
 import { PluginPackage, validatePackage, verifyPackageSignature } from './plugin-package';
 import { PluginCatalogService } from './plugin-catalog.service';
+import { PluginRecipeService } from './plugin-recipe.service';
 import { PluginRuntimeService } from './plugin-runtime.service';
 import { PluginStorageService } from './plugin-storage.service';
 
@@ -28,6 +29,7 @@ export class PluginManagerService implements OnModuleInit {
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly catalog: PluginCatalogService,
+    private readonly recipes: PluginRecipeService,
   ) {}
 
   onModuleInit() {
@@ -200,6 +202,7 @@ export class PluginManagerService implements OnModuleInit {
     await this.runtime.invoke(pluginId, 'onUninstall', { settings: await this.storage.settings(pluginId) }).catch(() => undefined);
     await this.runMigrations(pluginId, 'down');
     await this.storage.removeArtifacts(pluginId);
+    await this.recipes.removeAll(pluginId);
     await this.prisma.pluginStorage.deleteMany({ where: { pluginId } });
     await this.prisma.pluginLog.deleteMany({ where: { pluginId } });
     await this.prisma.plugin.delete({ where: { pluginId } });

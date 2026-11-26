@@ -18,6 +18,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { AuditService } from '../audit/audit.service';
 import { BulkInboundUsersDto, CreateInboundDto, UpdateInboundDto } from './dto/inbound.dto';
 import { InboundsService } from './inbounds.service';
+import { InboundRecipesService } from './inbound-recipes.service';
 
 @Controller('inbounds')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -26,6 +27,7 @@ export class InboundsController {
   constructor(
     private service: InboundsService,
     private audit: AuditService,
+    private recipes: InboundRecipesService,
   ) {}
 
   @Get()
@@ -38,6 +40,16 @@ export class InboundsController {
     const created = await this.service.create(body, user);
     await this.audit.log({ userId: user.userId, action: 'inbound.create', entity: 'Inbound', entityId: created.id, ip: req.ip });
     return created;
+  }
+
+  @Get('recipes')
+  recipeList() {
+    return this.recipes.list();
+  }
+
+  @Post('recipes/:id/prepare')
+  prepareRecipe(@Param('id') id: string, @Body() body: { nodeId?: string; tag?: string }) {
+    return this.recipes.prepare(id, body || {});
   }
 
   @Get(':id')

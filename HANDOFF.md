@@ -78,6 +78,18 @@ backend `tsc --noEmit` 0, `eslint` 0 errors, `nest build` rc=0, unit jest 42 sui
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Inbound recipes (v2.44.0, 2026-11-26)
+
+В создании подключения появился выбор готового рецепта: `GET /api/inbounds/recipes` +
+`POST /api/inbounds/recipes/:id/prepare`. Встроенные рецепты покрывают VLESS Reality
+(selfSNI/2054/4436), VLESS без TLS и VMess WS; для Reality автоматически генерируются
+X25519-ключи, shortId, SNI и `realityDest`. Плагины могут регистрировать свои рецепты
+через `sdk.recipes.register()/unregister()` (модель `PluginRecipe`). Рецепты и вынос
+клиентов в отдельное окно — паттерн из 3x-ui/Remnawave/Marzban; код не копировался
+(лицензии AGPL), перенесена только идея. В карточке подключения
+добавлены кнопки «Список клиентов», «Добавить клиента» и «Группу», редактор клиентов
+перенесён в отдельное окно.
+
 ## Per-inbound routing scope (v2.43.0, 2026-11-26)
 
 Правила (`Rule`) и профили маршрутизации (`RoutingProfile`) получили необязательное поле
