@@ -445,40 +445,24 @@ export default function NodesPage() {
                   const hasPing = Object.prototype.hasOwnProperty.call(pings, node.id);
                   const latency = pings[node.id];
                   const level = !hasPing ? 'idle' : latency == null ? 'down' : latency <= 100 ? 'good' : latency <= 300 ? 'fair' : 'poor';
-                  const palette = {
-                    idle: { text: 'text-subtle', bg: 'bg-surface-2/60', border: 'border-line', bar: 'bg-subtle' },
-                    down: { text: 'text-danger', bg: 'bg-danger/10', border: 'border-danger/25', bar: 'bg-danger' },
-                    good: { text: 'text-success', bg: 'bg-success/10', border: 'border-success/25', bar: 'bg-success' },
-                    fair: { text: 'text-warning', bg: 'bg-warning/10', border: 'border-warning/25', bar: 'bg-warning' },
-                    poor: { text: 'text-danger', bg: 'bg-danger/10', border: 'border-danger/25', bar: 'bg-danger' },
+                  const color = {
+                    idle: 'text-subtle', down: 'text-danger', good: 'text-success',
+                    fair: 'text-warning', poor: 'text-danger',
                   }[level];
-                  const quality = level === 'good' ? (lang === 'ru' ? 'Отлично' : 'Excellent')
-                    : level === 'fair' ? (lang === 'ru' ? 'Нормально' : 'Fair')
-                    : level === 'poor' ? (lang === 'ru' ? 'Плохо' : 'Poor')
-                    : level === 'down' ? t.unreachable
-                    : (lang === 'ru' ? 'Нет данных' : 'No data');
-                  const display = level === 'down' ? t.unreachable : latency == null ? '—' : `${latency} ms`;
+                  const dot = {
+                    idle: 'bg-subtle', down: 'bg-danger', good: 'bg-success',
+                    fair: 'bg-warning', poor: 'bg-danger',
+                  }[level];
+                  const display = !hasPing ? '—' : latency == null ? t.unreachable : `${latency} ms`;
                   return (
-                    <div className={`mt-3 rounded-xl border px-3 py-2.5 ${palette.bg} ${palette.border}`}>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-subtle">
-                          <Icon name="activity" size={13} /> {t.ping}
-                        </span>
-                        <span className={`flex items-center gap-1.5 text-base font-bold tabular-nums ${palette.text}`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${palette.bar} ${level === 'good' ? 'animate-soft-pulse' : ''}`} />
-                          {display}
-                        </span>
-                      </div>
-                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-2">
-                        <div
-                          className={`h-full rounded-full transition-all ${palette.bar}`}
-                          style={{ width: `${latency == null ? 0 : Math.min(100, Math.max(3, latency / 5))}%` }}
-                        />
-                      </div>
-                      <div className="mt-1 flex justify-between text-[10px] text-subtle">
-                        <span>{quality}</span>
-                        <span>0 · 100 · 300 ms</span>
-                      </div>
+                    <div className="mt-2 flex items-center justify-between gap-2 text-[10px]">
+                      <span className="flex items-center gap-1.5 text-subtle">
+                        <Icon name="activity" size={12} /> {t.ping}
+                      </span>
+                      <span className={`flex items-center gap-1.5 font-semibold tabular-nums ${color}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${dot} ${level === 'good' ? 'animate-soft-pulse' : ''}`} />
+                        {display}
+                      </span>
                     </div>
                   );
                 })()}
