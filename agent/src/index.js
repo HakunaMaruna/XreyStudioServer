@@ -707,8 +707,19 @@ function startDecoyServer() {
   const certPath = path.join(DECOY_TLS_DIR, 'fullchain.pem');
   const keyPath = path.join(DECOY_TLS_DIR, 'privkey.pem');
   if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
-    console.error('decoy certificate is missing; TLS decoy is not started');
-    return;
+    // Reality需要一个可达的本地dest。自动安装自带的自签名证书，避免新节点在
+    // wizard 未能及时下发 ACME 证书时完全无法建立连接。
+    try {
+      fs.mkdirSync(DECOY_TLS_DIR, { recursive: true, mode: 0o700 });
+      fs.copyFileSync(path.join(__dirname, '..', 'assets', 'decoy-selfsigned.pem'), certPath);
+      fs.copyFileSync(path.join(__dirname, '..', 'assets', 'decoy-selfsigned.key'), keyPath);
+      fs.chmodSync(certPath, 0o600);
+      fs.chmodSync(keyPath, 0o600);
+      console.log('installed bundled self-signed decoy certificate');
+    } catch (error) {
+      console.error(`decoy certificate setup failed: ${error.message}`);
+      return;
+    }
   }
   const server = https.createServer(
     { cert: fs.readFileSync(certPath), key: fs.readFileSync(keyPath) },
