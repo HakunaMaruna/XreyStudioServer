@@ -10,6 +10,15 @@ import { PluginStorageService } from './plugin-storage.service';
 const TIMEOUT_MS = 10_000;
 const MAX_OUTPUT = 256 * 1024;
 
+// Блокируемые IPv4-диапазоны (SSRF): loopback, private, CGNAT, link-local.
+const BLOCKED_IPV4_PREFIXES = new Set([0, 10, 127]);
+const BLOCKED_IPV4_RANGES: Array<[number, number, number, number]> = [
+  [172, 16, 172, 31],
+  [192, 168, 192, 168],
+  [169, 254, 169, 254],
+  [100, 64, 100, 127],
+];
+
 @Injectable()
 export class PluginRuntimeService {
   private readonly logger = new Logger(PluginRuntimeService.name);
@@ -26,9 +35,9 @@ export class PluginRuntimeService {
     if (h === 'localhost' || h === '0.0.0.0' || h === '::1' || h === 'metadata.google.internal') return true;
     if (isIP(ipv4) === 4) {
       const p = ipv4.split('.').map(Number);
-      if (p[0] === 127 || p[0] === 10 || (p[0] === 172 && p[1] >= 16 && p[1] <= 31) ||
-          (p[0] === 192 && p[1] === 168) || (p[0] === 169 && p[1] === 254) ||
-          (p[0] === 100 && p[1] >= 64 && p[1] <= 127)) return true;
+      if (BLOCKED_IPV4_PREFIXES.has(p[0])) return true;
+      if (BLOCKED_IPV4_RANGES.some(([lo0, lo1, hi0, hi1]) =>
+        p[0] >= lo0 && p[0] <= hi0 && p[1] >= lo1 && p[1] <= hi1)) return true;
     }
     return h.startsWith('fc') || h.startsWith('fd') || h.startsWith('fe80') || h.startsWith('::');
   }

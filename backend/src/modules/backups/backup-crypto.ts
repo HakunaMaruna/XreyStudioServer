@@ -6,12 +6,13 @@ const MAGIC = Buffer.from('XSS1');
 const IV_LENGTH = 12;
 const TAG_LENGTH = 16;
 const HEADER_LENGTH = MAGIC.length + 1 + IV_LENGTH;
+const AES_256_KEY_BYTES = 32;
 
 export function backupEncryptionKey(): Buffer | null {
   const raw = process.env.BACKUP_ENCRYPTION_KEY;
   if (!raw) return null;
   const key = Buffer.from(raw.trim(), 'base64');
-  return key.length === 32 ? key : null;
+  return key.length === AES_256_KEY_BYTES ? key : null;
 }
 
 export async function encryptFile(source: string, target: string, key: Buffer): Promise<void> {
