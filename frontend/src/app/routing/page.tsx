@@ -156,10 +156,10 @@ export default function RoutingPage() {
           ? <Badge tone="brand">{row.original.inbound.tag} · {row.original.inbound.port}</Badge>
           : <Badge tone="neutral">{t.allInbounds}</Badge>,
       },
-      { accessorKey: 'enabled', header: t.enabled, cell: ({ row }) => row.original.enabled ? <Badge tone="success" dot>{t.enabled}</Badge> : <Badge tone="neutral" dot>{t.disabled}</Badge> },
-      { accessorKey: 'createdAt', header: t.createdAt, cell: ({ row }) => <span className="text-xs text-muted">{new Date(row.original.createdAt).toLocaleDateString()}</span> },
+      { accessorKey: 'enabled', size: 80, header: t.enabled, cell: ({ row }) => row.original.enabled ? <Badge tone="success" dot>{t.enabled}</Badge> : <Badge tone="neutral" dot>{t.disabled}</Badge> },
+      { accessorKey: 'createdAt', size: 100, header: t.createdAt, cell: ({ row }) => <span className="text-xs text-muted">{new Date(row.original.createdAt).toLocaleDateString()}</span> },
       {
-        id: 'actions', header: t.actions, enableSorting: false,
+        id: 'actions', size: 120, header: t.actions, enableSorting: false,
         cell: ({ row }) => (
           <div className="flex items-center gap-1">
             <IconButton icon="power" label={t.enabled} onClick={() => toggle(row.original)} />

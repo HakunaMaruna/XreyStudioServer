@@ -201,7 +201,7 @@ export default function DataTable<T>({
         </div>
 
         {/* Desktop table */}
-        <div className="hidden lg:block">
+        <div className="hidden md:block">
         <div
           className="overflow-auto overscroll-contain"
           style={{ maxHeight: `min(72dvh, ${Math.max(320, rows.length * ROW_HEIGHT + 120)}px)` }}
@@ -296,7 +296,7 @@ export default function DataTable<T>({
       </div>
 
       {/* Mobile cards */}
-      <div className="space-y-2 lg:hidden">
+      <div className="space-y-2 md:hidden">
         {loading ? (
           Array.from({ length: 4 }).map((_, index) => (
             <div key={`card-skeleton-${index}`} className="panel space-y-3 p-4">
