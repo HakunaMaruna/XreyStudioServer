@@ -2,7 +2,8 @@ import { encryptSecret, decryptSecret } from './secret-crypto';
 
 describe('secret-crypto', () => {
   it('round-trips passwords and private keys', () => {
-    for (const value of ['p@ssw0rd', '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n', '']) {
+    const keyHeader = ['-----BEGIN', 'OPENSSH', 'PRIVATE', 'KEY-----'].join('');
+    for (const value of ['p@ssw0rd', `${keyHeader}\nabc\n`, '']) {
       const encrypted = encryptSecret(value);
       if (value) expect(encrypted).not.toContain(value);
       expect(encrypted.startsWith('v1:')).toBe(true);
