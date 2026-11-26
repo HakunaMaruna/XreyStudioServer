@@ -61,7 +61,7 @@ export function PageHeader({
     <div className="animate-fade-up mb-5 flex flex-wrap items-end justify-between gap-3 sm:mb-7 sm:gap-4">
       <div className="flex min-w-0 items-center gap-2.5 sm:gap-3.5">
         {icon && (
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-brand/30 bg-gradient-to-br from-brand/25 to-brand-2/10 text-brand shadow-[0_10px_30px_-10px_var(--brand)] sm:h-12 sm:w-12 sm:rounded-2xl">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-lg)] border border-brand/30 bg-gradient-to-br from-brand/25 to-brand-2/10 text-brand shadow-[0_10px_30px_-10px_var(--brand)] sm:h-12 sm:w-12">
             <Icon name={icon} size={19} className="sm:hidden" />
             <Icon name={icon} size={21} className="hidden sm:block" />
           </div>
@@ -108,7 +108,7 @@ export function Button({
   return (
     <button
       className={cn(
-        'ui-touch-target inline-flex items-center justify-center gap-2 rounded-xl border font-medium transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50',
+        'ui-touch-target inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] border font-medium transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50',
         size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm',
         buttonVariants[variant],
         className,
