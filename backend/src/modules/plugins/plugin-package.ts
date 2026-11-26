@@ -56,7 +56,7 @@ export function verifyPackageSignature(value: PluginPackage, publicKeyPem: strin
   if (!publicKeyPem) throw new BadRequestException('Store public key is not configured');
   // .env often stores PEM with literal "\n" sequences, sometimes mixed with real newlines.
   const pem = publicKeyPem.replace(/\\n/g, '\n').trim();
-  let valid = false;
+  let valid: boolean;
   try {
     valid = ed25519Verify(
       null,

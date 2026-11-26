@@ -155,7 +155,7 @@ export class SubscriptionPageService {
     const where: Prisma.VpnAppWhereInput = actor && actor.role !== Role.ADMIN
       ? { OR: [{ organizationId: null }, { organizationId: actor.organizationId || '__none__' }] }
       : {};
-    let rows = await this.prisma.vpnApp.findMany({ where, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] });
+    const rows = await this.prisma.vpnApp.findMany({ where, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] });
     const config = await this.config();
     if (!rows.length && !config.appsSeeded && (!actor || actor.role === Role.ADMIN)) {
       for (const app of DEFAULT_APPS) {
