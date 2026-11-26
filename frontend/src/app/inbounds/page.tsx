@@ -375,7 +375,7 @@ export default function InboundsPage() {
     () => [
       {
         accessorKey: 'tag',
-        size: 260,
+        size: 220,
         header: t.name,
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
@@ -387,17 +387,17 @@ export default function InboundsPage() {
           </div>
         ),
       },
-      { accessorKey: 'protocol', size: 90, header: t.protocol, cell: ({ row }) => <Badge tone="brand">{row.original.protocol.toUpperCase()}</Badge> },
+      { accessorKey: 'protocol', size: 80, header: t.protocol, cell: ({ row }) => <Badge tone="brand">{row.original.protocol.toUpperCase()}</Badge> },
       {
-        id: 'clients', size: 70, header: t.users,
+        id: 'clients', size: 60, header: t.users,
         cell: ({ row }) => <span className="text-xs text-muted tabular-nums">{row.original.clients?.length || 0}</span>,
       },
       {
-        id: 'transport', size: 90, header: `${t.transport} / ${t.security}`,
+        id: 'transport', size: 80, header: `${t.transport} / ${t.security}`,
         cell: ({ row }) => <span className="text-xs text-muted">{row.original.transport} / {row.original.security}</span>,
       },
       {
-        id: 'traffic', size: 100, header: t.trafficUsed,
+        id: 'traffic', size: 90, header: t.trafficUsed,
         cell: ({ row }) => (
           <span className="text-xs text-fg tabular-nums">
             {formatBytes(row.original.trafficUsed || 0)} / {Number(row.original.trafficLimit || 0) > 0 ? formatBytes(row.original.trafficLimit) : '∞'}
@@ -405,7 +405,7 @@ export default function InboundsPage() {
         ),
       },
       {
-        accessorKey: 'expiresAt', size: 90, header: t.expiresAt,
+        accessorKey: 'expiresAt', size: 80, header: t.expiresAt,
         cell: ({ row }) => row.original.expiresAt ? <span className="text-xs text-muted">{new Date(row.original.expiresAt).toLocaleDateString()}</span> : <span className="text-subtle">—</span>,
       },
       {
@@ -413,14 +413,14 @@ export default function InboundsPage() {
         cell: ({ row }) => row.original.enabled ? <Badge tone="success" dot>{t.enabled}</Badge> : <Badge tone="neutral" dot>{t.disabled}</Badge>,
       },
       {
-        id: 'actions', size: 140, header: t.actions, enableSorting: false,
+        id: 'actions', size: 190, header: t.actions, enableSorting: false,
         cell: ({ row }) => (
-          <div className="flex flex-wrap items-center justify-end gap-1">
-            <Button size="sm" variant="ghost" icon="list" title={t.clientList} onClick={() => openClients(row.original)}><span className="hidden xl:inline">{t.clientList}</span></Button>
-            <Button size="sm" variant="ghost" icon="plus" title={t.addClient} onClick={() => openClients(row.original, true)}><span className="hidden xl:inline">{t.addClient}</span></Button>
-            <Button size="sm" variant="ghost" icon="users" title={t.group} onClick={() => openGroup(row.original)}><span className="hidden xl:inline">{t.group}</span></Button>
-            <IconButton icon="edit" label={t.edit} onClick={() => startEdit(row.original)} />
-            <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => remove(row.original.id)} />
+          <div className="flex flex-nowrap items-center justify-end gap-0.5">
+            <IconButton icon="list" label={t.clientList} className="!h-7 !w-7 shrink-0" onClick={() => openClients(row.original)} />
+            <IconButton icon="plus" label={t.addClient} className="!h-7 !w-7 shrink-0" onClick={() => openClients(row.original, true)} />
+            <IconButton icon="users" label={t.group} className="!h-7 !w-7 shrink-0" onClick={() => openGroup(row.original)} />
+            <IconButton icon="edit" label={t.edit} className="!h-7 !w-7 shrink-0" onClick={() => startEdit(row.original)} />
+            <IconButton icon="trash" label={t.delete} tone="danger" className="!h-7 !w-7 shrink-0" onClick={() => remove(row.original.id)} />
           </div>
         ),
       },

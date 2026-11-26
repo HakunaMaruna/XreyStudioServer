@@ -138,26 +138,26 @@ export default function RoutingPage() {
   const columns = useMemo<ColumnDef<Profile>[]>(
     () => [
       {
-        accessorKey: 'name', header: t.name,
+        accessorKey: 'name', size: 230, header: t.name,
         cell: ({ row }) => (
-          <div className="flex items-center gap-3">
-            <div className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface-2 text-brand"><Icon name="route" size={15} /></div>
-            <div>
-              <p className="font-medium text-fg">{row.original.name}</p>
-              <p className="text-[10px] text-subtle">{row.original.description || '—'}</p>
-              {row.original.recipe && <Badge tone="brand" className="mt-1">{row.original.recipe}</Badge>}
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-line bg-surface-2 text-brand"><Icon name="route" size={15} /></div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium text-fg">{row.original.name}</p>
+              <p className="truncate text-[10px] text-subtle">{row.original.description || '—'}</p>
             </div>
+            {row.original.recipe && <Badge tone="brand" className="shrink-0">{row.original.recipe}</Badge>}
           </div>
         ),
       },
       {
-        accessorKey: 'inbound', header: t.applyToInbound, enableSorting: false,
+        accessorKey: 'inbound', size: 140, header: t.inbounds, enableSorting: false,
         cell: ({ row }) => row.original.inbound
           ? <Badge tone="brand">{row.original.inbound.tag} · {row.original.inbound.port}</Badge>
           : <Badge tone="neutral">{t.allInbounds}</Badge>,
       },
       { accessorKey: 'enabled', size: 80, header: t.enabled, cell: ({ row }) => row.original.enabled ? <Badge tone="success" dot>{t.enabled}</Badge> : <Badge tone="neutral" dot>{t.disabled}</Badge> },
-      { accessorKey: 'createdAt', size: 100, header: t.createdAt, cell: ({ row }) => <span className="text-xs text-muted">{new Date(row.original.createdAt).toLocaleDateString()}</span> },
+      { accessorKey: 'createdAt', size: 90, header: t.createdAt, cell: ({ row }) => <span className="text-xs text-muted">{new Date(row.original.createdAt).toLocaleDateString()}</span> },
       {
         id: 'actions', size: 120, header: t.actions, enableSorting: false,
         cell: ({ row }) => (
