@@ -68,9 +68,16 @@ export default function SubscriptionPage() {
   const [theme, setTheme] = useState<Theme>('dark');
   const [platform, setPlatform] = useState<string>('all');
   const [appFilter, setAppFilter] = useState<string>('featured');
+  const [now, setNow] = useState(0);
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
   const isPreview = token === 'preview';
+
+  useEffect(() => {
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const stored = typeof window !== 'undefined' ? localStorage.getItem('xss_theme') : null;
@@ -201,7 +208,7 @@ export default function SubscriptionPage() {
   const limit = Number(data.trafficLimit || 0);
   const percent = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
   const remaining = Math.max(0, limit - used);
-  const expiryMs = data.expiresAt ? new Date(data.expiresAt).getTime() - Date.now() : 0;
+  const expiryMs = data.expiresAt && now ? new Date(data.expiresAt).getTime() - now : 0;
   const countdown = expiryMs <= 0 ? '—' : expiryMs > 86_400_000
     ? `${Math.floor(expiryMs / 86_400_000)} ${t.subDaysLeft}`
     : expiryMs > 3_600_000

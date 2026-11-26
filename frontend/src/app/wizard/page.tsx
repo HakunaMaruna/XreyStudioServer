@@ -334,7 +334,7 @@ export default function WizardPage() {
             <div key={entry.id} className={entry.level === 'error' ? 'text-danger'
               : entry.level === 'warn' ? 'text-warning'
                 : entry.level === 'output' ? 'text-subtle' : 'text-success'}>
-              <span className="text-subtle">[{new Date(entry.createdAt || Date.now()).toLocaleTimeString()}]</span>{' '}
+              <span className="text-subtle">[{entry.createdAt ? new Date(entry.createdAt).toLocaleTimeString() : '—'}]</span>{' '}
               {entry.message}
             </div>
           ))}
