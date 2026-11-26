@@ -38,6 +38,7 @@ function isForbiddenHost(host: string) {
 @Injectable()
 export class AgentClientService {
   private readonly logger = new Logger(AgentClientService.name);
+  private readonly lastPingError = new Map<string, string>();
 
   private base(node: { address: string; agentUrl?: string | null }, allowPrivate = false) {
     const explicit = node.agentUrl;
@@ -189,9 +190,14 @@ export class AgentClientService {
     const started = Date.now();
     try {
       const base = this.base(node, true);
-      await this.request(`${base.replace(/\/$/, '')}/health`, undefined, 3000, 'GET', true);
+      await this.request(`${base.replace(/\/$/, '')}/health`, undefined, 5000, 'GET', true);
+      this.lastPingError.delete(node.address);
       return { reachable: true, latencyMs: Date.now() - started };
     } catch (error: any) {
+      if (this.lastPingError.get(node.address) !== error.message) {
+        this.lastPingError.set(node.address, error.message);
+        this.logger.warn(`Ping failed for ${node.address}: ${error.message}`);
+      }
       return { reachable: false, latencyMs: null, error: error.message };
     }
   }

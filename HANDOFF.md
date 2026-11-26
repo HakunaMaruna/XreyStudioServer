@@ -41,8 +41,12 @@ backend `tsc --noEmit` 0, `eslint` 0 errors, `nest build` rc=0, unit jest 42 sui
 ветка `backup/2026-11-26` и тег `backup-2026-11-26`. В `main` ничего не влито, PR не
 открывался, prod не трогался. После rebase повторно проверено: FE/BE `tsc` 0,
 `eslint` 0 errors, `next build --webpack` rc=0, `nest build` rc=0, jest 42 suites /
-213 tests. Рабочее дерево `/work/XreyStudioServer` синхронизировано с запушенной
-веткой; git-метаданные `/work` остаются на старом HEAD из-за proot.
+213 tests. `/work/XreyStudioServer` синхронизирован полностью: рабочее дерево и `.git`
+находятся на `ux/panel-2026-11-26` (`core.filemode=false` из-за прав proot), `git fsck
+--connectivity-only` чистый. Старый `.git` (с локальным коммитом `501ad7a`) сохранён в
+`/tmp/opencode/xss-work-git-backup-2026-11-26`. Неотслеживаемые локальные файлы
+(`api.md`, `hosts.md`, `node-onboarding.md`, `frontend/public/vendor/` и др.) оставлены
+на месте.
 
 ## Postponed: plugin system + store + cloud account (2026-11-25)
 
