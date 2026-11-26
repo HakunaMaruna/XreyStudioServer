@@ -13,6 +13,18 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 > pg_dump 16 vs PGlite 19 (в CI проходит). `/work` чистый; proot блокирует запись объектов
 > git — синхронизируйте копированием loose objects из `/tmp/opencode/xss-work-225`.
 
+## Final UX branch status (2026-11-26, PR #208 merged)
+
+PR #208 (`ux/panel-2026-11-26`) влит в `main` как `7a77ea7`; CI зелёный (backend, frontend,
+docker, e2e-postgres, smoke). Во время работы `main` ушёл вперёд до v2.42.1 (`d917959`),
+поэтому ветка была перебазирована на него. PG-спект `xray-stats-and-protocols.e2e-pg-spec.ts`
+потребовал трёх правок: аргументы `ConfigGeneratorService` (balancers + dnsProfiles), mock
+`reverseTunnel.findMany` и удаление ожидания `streamSettings.flow` (с v2.42.0 flow остаётся
+только в `settings`). Локально после rebase: FE/BE tsc 0, eslint 0 errors, backend jest
+42 suites / 215 tests, PG-спект 6/6, `next build --webpack` rc=0. Prod не трогался.
+`/work/XreyStudioServer` синхронизирован: HEAD `4ef85f8`, origin/main `7a77ea7`,
+`core.filemode=false`, untracked-файлы сохранены.
+
 ## Handoff continuation (2026-11-26, v2.41.0)
 
 Активный `/work/XreyStudioServer` был рассинхронизирован с рабочим каталогом другого
