@@ -115,8 +115,8 @@ fetch(process.env.PDNS_API_URL + '/api/v1/servers/localhost/zones/' + zone, {
     ]);
     const shellHook = (change: string) => `#!/bin/sh
 set -e
-PDNS_API_URL='${pdnsUrl}' PDNS_API_KEY='${pdnsKey}' PDNS_ZONE='${pdnsZone}' \\
-PDNS_CHANGETYPE='${change}' CERTBOT_LABEL='${domain.label}' node '${hook}'
+PDNS_API_URL=${shellQuote(pdnsUrl)} PDNS_API_KEY=${shellQuote(pdnsKey)} PDNS_ZONE=${shellQuote(pdnsZone)} \\
+PDNS_CHANGETYPE=${shellQuote(change)} CERTBOT_LABEL=${shellQuote(domain.label)} node '${hook}'
 ${change === 'REPLACE' ? 'sleep 5' : ''}
 `;
     const auth = path.join(dir, 'auth.sh');

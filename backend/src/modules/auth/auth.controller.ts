@@ -31,16 +31,18 @@ export class AuthController {
 
   @Post('login')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
-  login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const tokens = await this.auth.login(dto);
     setUiCookie(res);
-    return this.auth.login(dto);
+    return tokens;
   }
 
   @Post('refresh')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  refresh(@Body() dto: RefreshDto, @Res({ passthrough: true }) res: Response) {
+  async refresh(@Body() dto: RefreshDto, @Res({ passthrough: true }) res: Response) {
+    const tokens = await this.auth.refresh(dto.refreshToken);
     setUiCookie(res);
-    return this.auth.refresh(dto.refreshToken);
+    return tokens;
   }
 
   @Post('logout')

@@ -3,6 +3,7 @@ import * as path from 'path';
 import { spawn } from 'child_process';
 import { createGzip, gunzipSync } from 'zlib';
 import { createWriteStream } from 'fs';
+import { randomBytes } from 'crypto';
 import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { backupEncryptionKey, decryptFile, encryptFile } from './backup-crypto';
 import { s3Enabled, uploadToS3 } from './backup-s3';
@@ -195,7 +196,7 @@ export class BackupsService {
     if (!name.endsWith('.enc')) return fs.readFile(file);
     const key = backupEncryptionKey();
     if (!key) throw new ServiceUnavailableException('BACKUP_ENCRYPTION_KEY is not configured');
-    const temp = path.join(this.dir(), `.restore-${Date.now()}-${Math.random().toString(16).slice(2)}.gz`);
+    const temp = path.join(this.dir(), `.restore-${Date.now()}-${randomBytes(8).toString('hex')}.gz`);
     try {
       await decryptFile(file, temp, key);
       return await fs.readFile(temp);

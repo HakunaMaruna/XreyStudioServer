@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -11,10 +12,28 @@ import { APP_VERSION } from './version';
 };
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+  // The panel runs behind Caddy on a private Docker network. Trusting only
+  // private proxies restores per-client IPs for throttling and audit logs while
+  // a direct public connection cannot spoof X-Forwarded-For.
+  app.set('trust proxy', 'uniquelocal');
   app.use(helmet());
   app.use(cookieParser());
-  app.enableCors({ origin: process.env.CORS_ORIGIN || '*', credentials: true });
+  // Panel credentials travel in the Authorization header, so cross-origin access
+  // must be an explicit allow-list. A wildcard is never combined with credentials.
+  const configuredOrigins = (process.env.CORS_ORIGIN || '')
+    .split(',')
+    .map((value) => value.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+  const developmentOrigins = [/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/];
+  app.enableCors({
+    origin: configuredOrigins.length
+      ? configuredOrigins
+      : process.env.NODE_ENV === 'production'
+        ? false
+        : developmentOrigins,
+    credentials: true,
+  });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.setGlobalPrefix('api');
 

@@ -85,7 +85,11 @@ export class AuthService {
     if (!stored || stored.expiresAt.getTime() < Date.now()) {
       throw new UnauthorizedException('Refresh token expired');
     }
-    await this.prisma.refreshToken.delete({ where: { id: stored.id } });
+    // Single use: two parallel refreshes must not both mint a new session.
+    const revoked = await this.prisma.refreshToken.deleteMany({ where: { id: stored.id } });
+    if (revoked.count !== 1) {
+      throw new UnauthorizedException('Refresh token already used');
+    }
 
     const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
     if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException('User unavailable');

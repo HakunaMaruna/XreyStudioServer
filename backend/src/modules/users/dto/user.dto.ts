@@ -1,4 +1,6 @@
 import {
+  ArrayMaxSize,
+  IsArray,
   IsEmail,
   IsEnum,
   IsInt,
@@ -136,9 +138,11 @@ export class UsersQueryDto {
 }
 
 export class BulkUsersDto {
+  @IsArray()
+  @ArrayMaxSize(1000)
   @IsString({ each: true })
   ids: string[];
 
-  @IsString()
+  @IsIn(['disable', 'enable', 'delete', 'resetTraffic'])
   action: 'disable' | 'enable' | 'delete' | 'resetTraffic';
 }

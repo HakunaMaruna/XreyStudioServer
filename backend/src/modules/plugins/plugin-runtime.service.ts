@@ -121,6 +121,8 @@ export class PluginRuntimeService {
               method: String(msg.payload.method || 'GET'),
               headers: msg.payload.headers || {},
               body: msg.payload.body ? JSON.stringify(msg.payload.body) : undefined,
+              // A public URL must not redirect the request into a private network.
+              redirect: 'error',
               signal: AbortSignal.timeout(5000),
             });
             value = { status: response.status, body: (await response.text()).slice(0, 100_000) };

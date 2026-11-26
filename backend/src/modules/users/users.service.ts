@@ -112,8 +112,8 @@ export class UsersService implements OnModuleInit {
   }
 
   async create(dto: CreateUserDto, actor: AuthUser) {
-    if (dto.role === Role.ADMIN && actor.role !== Role.ADMIN) {
-      throw new ForbiddenException('Only admin can create admins');
+    if (actor.role !== Role.ADMIN && (dto.role ?? Role.USER) !== Role.USER) {
+      throw new ForbiddenException('Only admin can assign roles');
     }
     if (actor.role !== Role.ADMIN && dto.organizationId && dto.organizationId !== actor.organizationId) {
       throw new ForbiddenException('Cannot assign a user to another organization');
@@ -178,12 +178,13 @@ export class UsersService implements OnModuleInit {
   async update(id: string, dto: UpdateUserDto, actor: AuthUser) {
     const target = await this.findOne(id, actor);
     const previousSquadId = target.squadId;
-    if (dto.role === Role.ADMIN && actor.role !== Role.ADMIN) {
-      throw new ForbiddenException('Only admin can promote to admin');
+    // OPERATOR works with ordinary users only: no role grants and no access to
+    // accounts of other operators or admins (password reset would be takeover).
+    if (actor.role !== Role.ADMIN && dto.role !== undefined && dto.role !== Role.USER) {
+      throw new ForbiddenException('Only admin can assign roles');
     }
-    // OPERATOR не должен иметь возможности перехватить аккаунт ADMIN.
-    if (target.role === Role.ADMIN && actor.role !== Role.ADMIN) {
-      throw new ForbiddenException('Only admin can modify an admin account');
+    if (target.role !== Role.USER && actor.role !== Role.ADMIN) {
+      throw new ForbiddenException('Only admin can modify privileged accounts');
     }
     const data: Prisma.UserUpdateInput = {};
     if (dto.email) data.email = dto.email.toLowerCase();
@@ -254,7 +255,12 @@ export class UsersService implements OnModuleInit {
 
   async bulk(dto: BulkUsersDto, actor: AuthUser) {
     if (!dto.ids?.length) throw new BadRequestException('No ids provided');
-    const where = { id: { in: dto.ids }, ...this.tenantWhere(actor) };
+    const where = {
+      id: { in: dto.ids },
+      ...this.tenantWhere(actor),
+      // Operators must not disable or delete admins/other operators in bulk.
+      ...(actor.role === Role.ADMIN ? {} : { role: Role.USER }),
+    };
     switch (dto.action) {
       case 'disable':
         return this.prisma.user.updateMany({ where, data: { status: UserStatus.DISABLED } });

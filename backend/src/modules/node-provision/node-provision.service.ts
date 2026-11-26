@@ -18,6 +18,18 @@ const REMOTE_DIR = '/opt/xrey-agent';
 const DEFAULT_COMMAND_TIMEOUT_MS = 600_000;
 const UPDATE_TIMEOUT_MS = 600_000;
 const MAX_OUTPUT = 16_384;
+const VERSION_PATTERN = /^v?\d+(?:\.\d+){1,3}(?:-[0-9A-Za-z.-]+)?$/;
+// Remote repo path ends up in a shell command; allow only a plain absolute path.
+const REPO_DIR_PATTERN = /^\/[A-Za-z0-9._\/-]+$/;
+
+const shellQuote = (value: string) => `'${String(value).replace(/'/g, `'\\''`)}'`;
+
+function assertTargetVersion(value?: string): string | undefined {
+  if (!value) return undefined;
+  const version = value.trim();
+  if (!VERSION_PATTERN.test(version)) throw new BadRequestException('Invalid target version');
+  return version;
+}
 
 type ExecResult = { code: number; output: string };
 export type ProvisionProgress = (stage: string, message: string, level?: string) => Promise<void> | void;
@@ -250,7 +262,7 @@ export class NodeProvisionService {
     const conn = await this.connect(dto);
     await this.emit(progress, 'ssh', 'SSH connection established');
     try {
-      const repo = process.env.NODE_PROVISION_REPO || DEFAULT_REPO;
+      const repo = shellQuote(process.env.NODE_PROVISION_REPO || DEFAULT_REPO);
       const sudo = this.sudoPrefix(dto);
       const setup =
         `set -e; ${sudo}mkdir -p ${REMOTE_DIR}; ` +
@@ -278,7 +290,7 @@ export class NodeProvisionService {
 
       await this.emit(progress, 'install', 'Installing agent (install.sh --mode node)…');
       // Pass PANEL_URL explicitly and skip interactive prompts/DNS lookup on the node.
-      const quotedPanelUrl = `'${panelUrl.replace(/'/g, `'\\''`)}'`;
+      const quotedPanelUrl = shellQuote(panelUrl);
       const installCommand = sudo
         ? `cd ${REMOTE_DIR} && ${sudo}env PANEL_URL=${quotedPanelUrl} bash install.sh --mode node --yes --domain localhost`
         : `cd ${REMOTE_DIR} && PANEL_URL=${quotedPanelUrl} bash install.sh --mode node --yes --domain localhost`;
@@ -321,11 +333,15 @@ export class NodeProvisionService {
     if (!node) throw new BadRequestException('Node not found');
 
     const repoDir = dto.repoDir || REMOTE_DIR;
+    if (!REPO_DIR_PATTERN.test(repoDir) || repoDir.includes('..')) {
+      throw new BadRequestException('Invalid repository directory');
+    }
+    const targetVersion = assertTargetVersion(dto.targetVersion);
     const sudo = this.sudoPrefix(dto);
     const command =
       `set -e; cd ${repoDir}; ` +
       `${sudo}git fetch --tags --force origin; ` +
-      `${this.gitUpdate(sudo, dto.targetVersion)}; ` +
+      `${this.gitUpdate(sudo, targetVersion)}; ` +
       `${sudo}docker compose build agent; ` +
       `${sudo}docker compose up -d --no-deps agent`;
 
@@ -336,7 +352,7 @@ export class NodeProvisionService {
         return {
           updated: false,
           nodeId: node.id,
-          targetVersion: dto.targetVersion || null,
+          targetVersion: targetVersion || null,
           error: 'Update command failed',
           output: result.output.slice(-4000),
         };
@@ -344,7 +360,7 @@ export class NodeProvisionService {
       return {
         updated: true,
         nodeId: node.id,
-        targetVersion: dto.targetVersion || null,
+        targetVersion: targetVersion || null,
         output: result.output.slice(-4000),
       };
     } finally {

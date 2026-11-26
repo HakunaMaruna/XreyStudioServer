@@ -26,6 +26,30 @@ export function isLoggedIn() {
   return Boolean(getTokens().accessToken);
 }
 
+// Concurrent 401s share one refresh: refresh tokens are single-use on the API.
+let refreshPromise: Promise<boolean> | null = null;
+
+async function refreshSession(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const { refreshToken } = getTokens();
+      if (!refreshToken) return false;
+      const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      setTokens(data.accessToken, data.refreshToken);
+      return true;
+    })()
+      .catch(() => false)
+      .finally(() => { refreshPromise = null; });
+  }
+  return refreshPromise;
+}
+
 async function request<T = any>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
   const { accessToken } = getTokens();
   const headers: Record<string, string> = {
@@ -35,19 +59,7 @@ async function request<T = any>(path: string, options: RequestInit = {}, retry =
   };
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (res.status === 401 && retry) {
-    const { refreshToken } = getTokens();
-    if (refreshToken) {
-      const refreshed = await fetch(`${API_BASE}/api/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      });
-      if (refreshed.ok) {
-        const data = await refreshed.json();
-        setTokens(data.accessToken, data.refreshToken);
-        return request<T>(path, options, false);
-      }
-    }
+    if (await refreshSession()) return request<T>(path, options, false);
     clearTokens();
   }
   if (!res.ok) {

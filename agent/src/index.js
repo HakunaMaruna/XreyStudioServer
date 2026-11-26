@@ -90,6 +90,15 @@ function run(cmd, args, timeout = 5000) {
   });
 }
 
+// Hostnames are used in certificate paths and certbot arguments; reject
+// path separators, shell metacharacters and traversal.
+function normalizeHostname(value) {
+  const host = String(value || '').trim();
+  if (!host || host.length > 253 || host.includes('..')) return null;
+  if (!/^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$/.test(host)) return null;
+  return host;
+}
+
 function auth(req, res, next) {
   const header = String(req.headers['x-agent-secret'] || (req.headers.authorization || '').replace(/^Bearer\s+/i, ''));
   const expected = String(AGENT_SECRET || '');
@@ -562,11 +571,12 @@ async function pullConfig() {
 app.post('/decoy-certificate', auth, (req, res) => {
   const { payload, ...root } = req.body || {};
   const { certificate, privateKey, hostname } = { ...root, ...(payload || {}) };
-  if (!certificate || !privateKey || !hostname) {
-    return res.status(400).json({ error: 'certificate, privateKey and hostname are required' });
+  const host = normalizeHostname(hostname);
+  if (!certificate || !privateKey || !host) {
+    return res.status(400).json({ error: 'certificate, privateKey and a valid hostname are required' });
   }
   try {
-    decoyHost = String(hostname);
+    decoyHost = host;
     saveDecoyCertificate(certificate, privateKey, decoyHost);
     startDecoyServer();
     res.json({ installed: true, hostname: decoyHost, port: DECOY_PORT, https: true });
@@ -680,8 +690,9 @@ app.get('/logs', auth, async (req, res) => {
 app.post('/certificate', auth, (req, res) => {
   const { payload, ...root } = req.body || {};
   const { certificate, privateKey, hostname } = { ...root, ...(payload || {}) };
-  if (!certificate || !privateKey || !hostname) {
-    return res.status(400).json({ error: 'certificate, privateKey and hostname are required' });
+  const host = normalizeHostname(hostname);
+  if (!certificate || !privateKey || !host) {
+    return res.status(400).json({ error: 'certificate, privateKey and a valid hostname are required' });
   }
   try {
     fs.mkdirSync(TLS_DIR, { recursive: true, mode: 0o700 });
@@ -691,8 +702,8 @@ app.post('/certificate', auth, (req, res) => {
       cert: fs.readFileSync(path.join(TLS_DIR, 'fullchain.pem')),
       key: fs.readFileSync(path.join(TLS_DIR, 'privkey.pem')),
     });
-    console.log(`installed TLS certificate for ${hostname}`);
-    res.json({ installed: true, hostname, https: true });
+    console.log(`installed TLS certificate for ${host}`);
+    res.json({ installed: true, hostname: host, https: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -772,19 +783,20 @@ function saveDecoyCertificate(certificate, privateKey, hostname) {
 }
 
 async function renewDecoyCertificate() {
-  if (!decoyHost || renewing) return { renewed: false, reason: decoyHost ? 'busy' : 'no decoy host' };
+  const host = normalizeHostname(decoyHost);
+  if (!host || renewing) return { renewed: false, reason: host ? 'busy' : 'no decoy host' };
   renewing = true;
   try {
     fs.mkdirSync(ACME_WEBROOT, { recursive: true });
     const result = await run('certbot', [
-      'certonly', '--webroot', '-w', ACME_WEBROOT, '-d', decoyHost,
+      'certonly', '--webroot', '-w', ACME_WEBROOT, '-d', host,
       '--email', ACME_EMAIL, '--agree-tos', '--non-interactive', '--keep-until-expiring',
-      '--cert-name', decoyHost,
+      '--cert-name', host,
     ], 120000);
     if (!result.ok) throw new Error(result.stderr || result.error || 'certbot failed');
-    const live = `/etc/letsencrypt/live/${decoyHost}`;
+    const live = `/etc/letsencrypt/live/${host}`;
     saveDecoyCertificate(fs.readFileSync(path.join(live, 'fullchain.pem'), 'utf8'),
-      fs.readFileSync(path.join(live, 'privkey.pem'), 'utf8'), decoyHost);
+      fs.readFileSync(path.join(live, 'privkey.pem'), 'utf8'), host);
     startDecoyServer();
     return { renewed: true };
   } finally {

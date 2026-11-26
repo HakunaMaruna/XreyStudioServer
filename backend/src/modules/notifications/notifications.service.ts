@@ -2,6 +2,45 @@ import { Injectable, Logger } from '@nestjs/common';
 import { NotificationChannel, NotificationEvent, Prisma } from '@prisma/client';
 import { createHmac } from 'crypto';
 import { isIP } from 'net';
+
+function isPrivateIpv4(parts: number[]) {
+  return (
+    parts.length === 4 &&
+    (parts[0] === 10 || parts[0] === 127 ||
+      (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+      (parts[0] === 192 && parts[1] === 168) ||
+      (parts[0] === 169 && parts[1] === 254) ||
+      (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) ||
+      parts[0] === 0)
+  );
+}
+
+/** True for loopback, private, link-local and metadata hosts, including numeric IPv4. */
+function isPrivateHost(host: string) {
+  if (
+    host === 'localhost' || host === '0.0.0.0' || host === '::' || host === '::1' ||
+    host === 'metadata.google.internal'
+  ) {
+    return true;
+  }
+  if (isIP(host) === 4) return isPrivateIpv4(host.split('.').map(Number));
+
+  const numeric = /^\d+$/.test(host)
+    ? Number(host)
+    : /^0x[0-9a-f]+$/i.test(host)
+      ? Number.parseInt(host.slice(2), 16)
+      : NaN;
+  if (Number.isSafeInteger(numeric) && numeric >= 0 && numeric <= 0xffffffff) {
+    return isPrivateIpv4([24, 16, 8, 0].map((shift) => (numeric >>> shift) & 255));
+  }
+
+  if (isIP(host) === 6) {
+    const mapped = host.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
+    if (mapped) return isPrivateIpv4(mapped[1].split('.').map(Number));
+    return host.startsWith('fe80') || host.startsWith('fc') || host.startsWith('fd');
+  }
+  return false;
+}
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -41,6 +80,8 @@ export class NotificationsService {
   ) {}
 
   // Внутренние/metadata адреса запрещены для исходящего webhook в проде.
+  // Числовые и hex-формы IPv4 тоже разворачиваем: fetch понимает 2130706433
+  // как 127.0.0.1, поэтому одной проверки isIP недостаточно.
   private assertWebhookUrl(raw: string) {
     const url = new URL(raw);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') {
@@ -50,19 +91,7 @@ export class NotificationsService {
       throw new Error('Webhook URL must use https in production');
     }
     const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
-    const parts = host.split('.').map(Number);
-    const privateHost =
-      host === 'localhost' || host === '0.0.0.0' || host === '::' || host === '::1' ||
-      host === 'metadata.google.internal' ||
-      (isIP(host) === 4 && (
-        parts[0] === 10 || parts[0] === 127 ||
-        (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
-        (parts[0] === 192 && parts[1] === 168) ||
-        (parts[0] === 169 && parts[1] === 254) ||
-        (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127)
-      )) ||
-      host.startsWith('fe80') || host.startsWith('fc') || host.startsWith('fd');
-    if (privateHost && process.env.NODE_ENV === 'production') {
+    if (isPrivateHost(host) && process.env.NODE_ENV === 'production') {
       throw new Error('Private webhook addresses are not allowed');
     }
     return url;
@@ -110,7 +139,14 @@ export class NotificationsService {
       const secret = await this.settings.value('WEBHOOK_SECRET');
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (secret) headers['X-XSS-Signature'] = `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`;
-      const res = await fetch(url, { method: 'POST', headers, body, signal: AbortSignal.timeout(8000) });
+      // Redirects could point a public webhook to a private address; never follow them.
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body,
+        redirect: 'error',
+        signal: AbortSignal.timeout(8000),
+      });
       // Тело ответа провайдера не возвращаем и не логируем — там могут быть секреты.
       return { sent: res.ok, ...(res.ok ? {} : { error: `Webhook HTTP ${res.status}` }) };
     } catch (e: any) {
