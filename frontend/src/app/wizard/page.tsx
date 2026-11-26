@@ -47,6 +47,7 @@ export default function WizardPage() {
   const [installOpen, setInstallOpen] = useState(false);
   const [install, setInstall] = useState<any>(null);
   const pollRef = useRef<number | null>(null);
+  const redirectRef = useRef<number | null>(null);
   const [error, setError] = useState('');
   const [result, setResult] = useState<WizardResult | null>(null);
   const [applied, setApplied] = useState(false);
@@ -58,7 +59,10 @@ export default function WizardPage() {
 
   useEffect(() => {
     if (!isLoggedIn()) window.location.href = '/login';
-    return () => { if (pollRef.current !== null) window.clearInterval(pollRef.current); };
+    return () => {
+      if (pollRef.current !== null) window.clearInterval(pollRef.current);
+      if (redirectRef.current !== null) window.clearTimeout(redirectRef.current);
+    };
   }, []);
 
   const update = (key: keyof typeof form, value: string) =>
@@ -123,6 +127,8 @@ export default function WizardPage() {
     try {
       await api.post(`/api/nodes/${result.nodeId}/apply`, {});
       setApplied(true);
+      setInstallOpen(false);
+      redirectRef.current = window.setTimeout(() => { window.location.href = '/nodes'; }, 1600);
     } catch (e: any) {
       setError(e.message || 'Apply failed');
     } finally {
@@ -306,6 +312,12 @@ export default function WizardPage() {
               </Button>
             )}
           </div>
+          {applied && (
+            <div className="mt-4 flex items-center gap-2 rounded-xl border border-success/25 bg-success/10 px-3 py-2 text-sm text-success" role="status">
+              <Icon name="checkCircle" size={16} />
+              <span>{t.wizardApplied} · {t.wizardRedirecting}</span>
+            </div>
+          )}
           {error && <p className="mt-3 text-sm text-danger">{error}</p>}
         </Card>
       )}
@@ -316,8 +328,13 @@ export default function WizardPage() {
           : install?.status === 'success' ? t.wizardInstallSuccess : t.wizardInstalling}
         icon={<Icon name="terminal" size={16} />}
         size="lg"
-        footer={<Button disabled={install?.status === 'running'} onClick={() => setInstallOpen(false)}>
-          {install?.status === 'running' ? '…' : install?.status === 'failed' ? t.wizardClose : t.wizardContinue}
+        footer={<Button
+          className="w-full sm:w-auto sm:min-w-[8rem]"
+          icon={install?.status === 'success' ? 'check' : undefined}
+          disabled={install?.status === 'running'}
+          onClick={() => setInstallOpen(false)}
+        >
+          {install?.status === 'failed' ? t.wizardClose : t.wizardContinue}
         </Button>}
       >
         <div className="mb-2 flex items-center justify-between text-xs text-muted">
