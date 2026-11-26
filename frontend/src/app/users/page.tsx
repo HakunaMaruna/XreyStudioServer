@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ColumnDef, OnChangeFn, SortingState } from '@tanstack/react-table';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
@@ -24,6 +24,7 @@ export default function UsersPage() {
   const { t } = useLang();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ready, setReady] = useState(false);
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -75,20 +76,60 @@ export default function UsersPage() {
   }, [appliedSearch, status, role, pageIndex, pageSize, sorting]);
 
   useEffect(() => {
-    if (!isLoggedIn()) window.location.href = '/login';
+    if (!isLoggedIn()) {
+      window.location.href = '/login';
+      return;
+    }
+    // Restore the last filters from the URL: a reload or a shared link keeps them.
+    const params = new URLSearchParams(window.location.search);
+    const searchParam = params.get('q') || '';
+    const statusParam = params.get('status') || '';
+    const roleParam = params.get('role') || '';
+    const pageParam = Number(params.get('page'));
+    const limitParam = Number(params.get('limit'));
+    if (searchParam) {
+      setSearch(searchParam);
+      setAppliedSearch(searchParam);
+    }
+    if (statusParam) setStatus(statusParam);
+    if (roleParam) setRole(roleParam);
+    if (Number.isInteger(pageParam) && pageParam > 1) setPageIndex(pageParam - 1);
+    if ([10, 20, 50, 100].includes(limitParam)) setPageSize(limitParam);
+    setReady(true);
   }, []);
 
+  // Skip the first run so filters restored from the URL keep their page index.
+  const filtersRef = useRef<{ search: string; status: string; role: string } | null>(null);
+
   useEffect(() => {
+    if (!ready) return;
+    const previous = filtersRef.current;
+    filtersRef.current = { search, status, role };
+    if (!previous) return;
+    const changed = previous.search !== search || previous.status !== status || previous.role !== role;
+    if (!changed) return;
     const timer = setTimeout(() => {
       setAppliedSearch(search);
       setPageIndex(0);
     }, 300);
     return () => clearTimeout(timer);
-  }, [search, status, role]);
+  }, [search, status, role, ready]);
 
   useEffect(() => {
-    if (isLoggedIn()) load();
-  }, [load]);
+    if (ready && isLoggedIn()) load();
+  }, [ready, load]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const params = new URLSearchParams();
+    if (appliedSearch) params.set('q', appliedSearch);
+    if (status) params.set('status', status);
+    if (role) params.set('role', role);
+    if (pageIndex > 0) params.set('page', String(pageIndex + 1));
+    if (pageSize !== 20) params.set('limit', String(pageSize));
+    const query = params.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+  }, [ready, appliedSearch, status, role, pageIndex, pageSize]);
 
   useEffect(() => {
     if (!isLoggedIn()) return;
@@ -303,17 +344,22 @@ export default function UsersPage() {
           />
         ),
         enableSorting: false,
-        size: 40,
+        size: 44,
+        meta: { noTruncate: true },
       },
       {
         accessorKey: 'email',
         header: t.email,
+        size: 300,
+        meta: { noTruncate: true },
         cell: ({ row }) => (
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <Avatar label={row.original.email.slice(0, 2).toUpperCase()} size="sm" />
-            <div>
-              <p className="font-medium text-fg">{row.original.email}</p>
-              <p className="text-[10px] text-subtle">{t.idLabel} {row.original.id.slice(0, 8)}</p>
+            <div className="min-w-0">
+              <p className="truncate font-medium text-fg" title={row.original.email}>{row.original.email}</p>
+              <p className="truncate text-[10px] text-subtle" title={row.original.id}>
+                {t.idLabel} <span className="mono">{row.original.id.slice(0, 8)}</span>
+              </p>
             </div>
           </div>
         ),
@@ -321,15 +367,19 @@ export default function UsersPage() {
       {
         accessorKey: 'telegramId',
         header: t.telegramId,
+        size: 150,
+        meta: { noTruncate: true },
         cell: ({ row }) =>
           row.original.telegramId ? (
             <a
               href={`https://t.me/${encodeURIComponent(row.original.telegramId)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-brand hover:underline"
+              title={`@${row.original.telegramId}`}
+              className="inline-flex max-w-full min-w-0 items-center gap-1 text-xs text-brand hover:underline"
             >
-              <Icon name="external" size={12} /> @{row.original.telegramId}
+              <Icon name="external" size={12} className="shrink-0" />
+              <span className="truncate">@{row.original.telegramId}</span>
             </a>
           ) : (
             <span className="text-xs text-muted">—</span>
@@ -338,6 +388,7 @@ export default function UsersPage() {
       {
         accessorKey: 'role',
         header: t.role,
+        size: 110,
         cell: ({ row }) => (
           <Badge tone={row.original.role === 'ADMIN' ? 'brand' : row.original.role === 'OPERATOR' ? 'cyan' : 'neutral'}>
             {row.original.role}
@@ -347,23 +398,29 @@ export default function UsersPage() {
       {
         accessorKey: 'status',
         header: t.status,
+        size: 120,
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
       {
         accessorKey: 'trafficLimit',
         header: t.trafficLimit,
+        size: 120,
         cell: ({ row }) => <span className="font-medium text-fg tabular-nums">{formatBytes(row.original.trafficLimit)}</span>,
       },
       {
         id: 'chain',
         header: t.chainBadge,
         enableSorting: false,
+        size: 200,
+        meta: { noTruncate: true, mobileHidden: true },
         cell: ({ row }) => <ChainCard userId={row.original.id} onUnbound={() => load()} />,
       },
       {
         id: 'actions',
         header: t.actions,
         enableSorting: false,
+        size: 136,
+        meta: { noTruncate: true, align: 'right' },
         cell: ({ row }) => (
           <div className="flex items-center gap-1">
             <IconButton icon="key" label={t.connectionKey} tone="brand" onClick={() => openConnection(row.original)} />
@@ -445,6 +502,7 @@ export default function UsersPage() {
         loading={loading}
         getRowId={(row) => row.id}
         hideSearch
+        total={total}
         sorting={sorting}
         onSortingChange={handleSortingChange}
         manualSorting

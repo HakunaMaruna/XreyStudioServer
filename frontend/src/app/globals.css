@@ -223,6 +223,49 @@ a:focus-visible,
   font-family: var(--font-code);
 }
 
+/* Простые таблицы внутри панелей: горизонтальный скролл только у контейнера. */
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 12px;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  background: var(--surface-2);
+  color: var(--subtle);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.table td {
+  color: var(--muted);
+}
+
+.table tbody tr:hover {
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+}
+
+.table td.mono {
+  word-break: break-word;
+}
+
 .grid-fade {
   background-image:
     linear-gradient(to right, var(--line) 1px, transparent 1px),

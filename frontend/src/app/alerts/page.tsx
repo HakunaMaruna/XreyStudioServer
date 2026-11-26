@@ -245,6 +245,7 @@ export default function AlertsPage() {
         loading={loading}
         getRowId={(row) => row.id}
         hideSearch
+        total={total}
         serverPagination={{
           pageIndex, pageSize,
           pageCount: Math.max(1, Math.ceil(total / pageSize)),

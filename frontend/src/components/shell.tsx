@@ -294,7 +294,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <IconButton icon="sparkles" label="Toggle icon set" onClick={toggleIconSet} />
         </header>
 
-        <main id="main-content" className="relative z-content mx-auto max-w-[1600px] px-4 py-5 pb-[max(1.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-7 lg:px-8">{children}</main>
+        <main id="main-content" className="relative z-content mx-auto w-full max-w-[1400px] px-4 py-5 pb-[max(1.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-7 lg:px-8">{children}</main>
       </div>
     </div>
   );

@@ -1,13 +1,15 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang, type Dict } from '../../lib/i18n';
+import DataTable from '../../components/data-table';
 import {
   Badge,
   Button,
   Card,
-  EmptyState,
   Field,
+  IconButton,
   Modal,
   PageHeader,
   Toggle,
@@ -189,6 +191,77 @@ export default function ApiTokensPage() {
     }
   };
 
+  const tokenColumns: ColumnDef<TokenRow>[] = [
+    {
+      accessorKey: 'name',
+      header: t.tokenName,
+      size: 300,
+      meta: { noTruncate: true },
+      cell: ({ row }) => (
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="mono truncate font-medium text-fg" title={row.original.name}>
+              {row.original.name}
+            </span>
+            {row.original.revokedAt && <Badge tone="danger" className="shrink-0">revoked</Badge>}
+          </div>
+          <p className="mono truncate text-[10px] text-subtle" title={row.original.id}>
+            {row.original.id}
+          </p>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'scopes',
+      header: t.tokenScopes,
+      size: 240,
+      enableSorting: false,
+      meta: { noTruncate: true },
+      cell: ({ row }) => (
+        <div className="flex flex-wrap gap-1">
+          {row.original.scopes.map((scope) => (
+            <Badge key={scope} tone="info">{t[scopeKey[scope]]}</Badge>
+          ))}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'createdAt',
+      header: t.tokenCreated,
+      size: 150,
+      cell: ({ row }) => <span title={row.original.createdAt}>{formatDate(row.original.createdAt, lang)}</span>,
+    },
+    {
+      accessorKey: 'lastUsedAt',
+      header: t.tokenLastUsed,
+      size: 150,
+      cell: ({ row }) => <span title={row.original.lastUsedAt || ''}>{formatDate(row.original.lastUsedAt, lang)}</span>,
+    },
+    {
+      accessorKey: 'expiresAt',
+      header: t.tokenExpires,
+      size: 150,
+      cell: ({ row }) => <span title={row.original.expiresAt || ''}>{formatDate(row.original.expiresAt, lang)}</span>,
+    },
+    {
+      id: 'actions',
+      header: t.actions,
+      size: 64,
+      enableSorting: false,
+      meta: { noTruncate: true, align: 'right' },
+      cell: ({ row }) => (
+        <IconButton
+          icon="trash"
+          label={t.tokenRevoke}
+          tone="danger"
+          disabled={Boolean(row.original.revokedAt) || busyId === row.original.id}
+          onClick={() => void revoke(row.original.id)}
+        />
+      ),
+    },
+  ];
+
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -225,58 +298,14 @@ export default function ApiTokensPage() {
         </Card>
       )}
 
-      <Card padded={false}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-line text-xs uppercase tracking-wider text-muted">
-                <th className="px-4 py-3">{t.tokenName}</th>
-                <th className="px-4 py-3">{t.tokenScopes}</th>
-                <th className="px-4 py-3">{t.tokenCreated}</th>
-                <th className="px-4 py-3">{t.tokenLastUsed}</th>
-                <th className="px-4 py-3">{t.tokenExpires}</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {tokens.map((token) => (
-                <tr key={token.id} className="border-b border-line/60 last:border-0">
-                  <td className="px-4 py-3 font-medium text-fg">
-                    {token.name}
-                    {token.revokedAt && (
-                      <Badge tone="danger" className="ml-2">revoked</Badge>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {token.scopes.map((scope) => (
-                        <Badge key={scope} tone="info">{t[scopeKey[scope]]}</Badge>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-muted">{formatDate(token.createdAt, lang)}</td>
-                  <td className="px-4 py-3 text-muted">{formatDate(token.lastUsedAt, lang)}</td>
-                  <td className="px-4 py-3 text-muted">{formatDate(token.expiresAt, lang)}</td>
-                  <td className="px-4 py-3 text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon="trash"
-                      disabled={Boolean(token.revokedAt) || busyId === token.id}
-                      onClick={() => void revoke(token.id)}
-                    >
-                      {t.tokenRevoke}
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {!loading && tokens.length === 0 && (
-            <EmptyState icon="key" title={t.apiTokens} description={t.apiTokensSubtitle} />
-          )}
-        </div>
-      </Card>
+      <DataTable
+        data={tokens}
+        columns={tokenColumns}
+        loading={loading}
+        getRowId={(row) => row.id}
+        total={tokens.length}
+        searchPlaceholder={t.search}
+      />
 
       <div>
         <h2 className="mb-1 text-lg font-semibold text-fg">{t.notificationRoutes}</h2>
