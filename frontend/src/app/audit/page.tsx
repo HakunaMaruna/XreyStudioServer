@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import { Icon } from '../../components/icons';
-import { Badge, Card, EmptyState, PageHeader, cn } from '../../components/ui';
+import { Badge, Card, EmptyState, PageHeader, PaginationBar, cn } from '../../components/ui';
 
 type AuditRow = {
   id: string;
@@ -259,41 +259,17 @@ export default function AuditPage() {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 border-t border-line px-3 py-2 text-xs text-muted">
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setPageIndex((page) => Math.max(0, page - 1))}
-              disabled={pageIndex === 0}
-              className="ui-touch-target grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand/40 hover:text-fg disabled:opacity-30"
-              aria-label={t.previous}
-            >
-              <Icon name="chevronLeft" size={15} />
-            </button>
-            <span className="px-2 tabular-nums">
-              {t.page} <span className="font-medium text-fg">{pageIndex + 1}</span> {t.of} {pageCount}
-            </span>
-            <button
-              onClick={() => setPageIndex((page) => Math.min(pageCount - 1, page + 1))}
-              disabled={pageIndex >= pageCount - 1}
-              className="ui-touch-target grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand/40 hover:text-fg disabled:opacity-30"
-              aria-label={t.next}
-            >
-              <Icon name="chevronRight" size={15} />
-            </button>
-          </div>
-          <label className="ml-auto flex items-center gap-2">
-            <span className="text-subtle max-sm:hidden">{t.pageSize}</span>
-            <select
-              value={pageSize}
-              onChange={(e) => { setPageSize(Number(e.target.value)); setPageIndex(0); }}
-              className="field w-auto py-1"
-            >
-              {[20, 50, 100].map((size) => (
-                <option key={size} value={size}>{size}</option>
-              ))}
-            </select>
-          </label>
-        </div>
+        <PaginationBar
+          pageIndex={pageIndex}
+          pageCount={pageCount}
+          total={total}
+          rowsOnPage={rows.length}
+          pageSize={pageSize}
+          pageSizeOptions={[20, 50, 100]}
+          onPageChange={(index) => setPageIndex(Math.min(Math.max(0, index), pageCount - 1))}
+          onPageSizeChange={(size) => { setPageSize(size); setPageIndex(0); }}
+          className="border-t border-line px-3 py-2.5"
+        />
       </Card>
     </>
   );

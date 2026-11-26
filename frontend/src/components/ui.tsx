@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from 'react';
 import { Icon, type IconName } from './icons';
+import { useLang } from '../lib/i18n';
 
 export function cn(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(' ');
@@ -467,5 +468,113 @@ export function HelpButton({ title, children }: { title: string; children: React
         <div className="space-y-3 text-sm leading-relaxed text-muted">{children}</div>
       </Modal>
     </>
+  );
+}
+
+type PaginationBarProps = {
+  pageIndex: number;
+  pageCount: number;
+  total: number;
+  rowsOnPage: number;
+  pageSize: number;
+  pageSizeOptions?: number[];
+  onPageChange: (pageIndex: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
+  hidePageSize?: boolean;
+  className?: string;
+};
+
+/**
+ * Shared list footer: "1-20 of 150" on the left, rows-per-page and numbered
+ * pages on the right. Used by every table so all lists paginate alike.
+ */
+export function PaginationBar({
+  pageIndex,
+  pageCount,
+  total,
+  rowsOnPage,
+  pageSize,
+  pageSizeOptions = [10, 20, 50, 100],
+  onPageChange,
+  onPageSizeChange,
+  hidePageSize = false,
+  className,
+}: PaginationBarProps) {
+  const { t } = useLang();
+  const totalPages = Math.max(1, pageCount || 1);
+  const current = Math.min(Math.max(0, pageIndex), totalPages - 1);
+  const rangeStart = rowsOnPage ? current * pageSize + 1 : 0;
+  const rangeEnd = rowsOnPage ? current * pageSize + rowsOnPage : 0;
+
+  const items = (() => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, index) => index) as Array<number | 'gap'>;
+    const list: Array<number | 'gap'> = [0];
+    const start = Math.max(1, current - 1);
+    const end = Math.min(totalPages - 2, current + 1);
+    if (start > 1) list.push('gap');
+    for (let index = start; index <= end; index += 1) list.push(index);
+    if (end < totalPages - 2) list.push('gap');
+    list.push(totalPages - 1);
+    return list;
+  })();
+
+  const go = (index: number) => onPageChange(Math.min(Math.max(0, index), totalPages - 1));
+  const pageButton = 'ui-touch-target grid h-8 min-w-8 place-items-center rounded-lg border px-2 tabular-nums transition-colors';
+  const navButton = 'ui-touch-target grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand/40 hover:text-fg disabled:opacity-30';
+
+  return (
+    <div className={cn('flex flex-wrap items-center justify-between gap-3 text-xs text-muted', className)}>
+      <span className="tabular-nums">
+        <span className="font-medium text-fg">{rangeStart}–{rangeEnd}</span> {t.of}{' '}
+        <span className="font-medium text-fg">{total}</span>
+      </span>
+
+      <div className="flex flex-wrap items-center gap-3">
+        {!hidePageSize && onPageSizeChange && (
+          <label className="flex items-center gap-2">
+            <span className="text-subtle max-sm:hidden">{t.pageSize}</span>
+            <select
+              value={pageSize}
+              onChange={(event) => onPageSizeChange(Number(event.target.value))}
+              className="field w-auto py-1"
+            >
+              {pageSizeOptions.map((size) => (
+                <option key={size} value={size}>{size === 0 ? t.all : size}</option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        <nav className="flex items-center gap-1" aria-label={t.page}>
+          <button type="button" onClick={() => go(current - 1)} disabled={current <= 0} className={navButton} aria-label={t.previous}>
+            <Icon name="chevronLeft" size={15} />
+          </button>
+          {items.map((item, index) =>
+            item === 'gap' ? (
+              <span key={`gap-${index}`} className="px-0.5 text-subtle" aria-hidden="true">…</span>
+            ) : (
+              <button
+                key={item}
+                type="button"
+                onClick={() => go(item)}
+                aria-current={item === current ? 'page' : undefined}
+                aria-label={`${t.page} ${item + 1}`}
+                className={cn(
+                  pageButton,
+                  item === current
+                    ? 'border-brand/40 bg-brand/15 font-semibold text-brand'
+                    : 'border-line bg-surface text-muted hover:border-brand/40 hover:text-fg',
+                )}
+              >
+                {item + 1}
+              </button>
+            ),
+          )}
+          <button type="button" onClick={() => go(current + 1)} disabled={current >= totalPages - 1} className={navButton} aria-label={t.next}>
+            <Icon name="chevronRight" size={15} />
+          </button>
+        </nav>
+      </div>
+    </div>
   );
 }
