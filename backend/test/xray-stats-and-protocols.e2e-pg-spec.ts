@@ -12,6 +12,7 @@ describe('ConfigGeneratorService: Xray stats, Reality and VMess (QA v2.15)', () 
     rule: { findMany: jest.fn() },
     configProfile: { findMany: jest.fn().mockResolvedValue([]) },
     routingProfile: { findMany: jest.fn().mockResolvedValue([]) },
+    reverseTunnel: { findMany: jest.fn().mockResolvedValue([]) },
   };
   let service: ConfigGeneratorService;
   const savedStatsEnabled = process.env.XRAY_STATS_ENABLED;
@@ -82,7 +83,9 @@ describe('ConfigGeneratorService: Xray stats, Reality and VMess (QA v2.15)', () 
     prisma.node.findUnique.mockResolvedValue(realityNode());
     prisma.user.findMany.mockResolvedValue([]);
     prisma.rule.findMany.mockResolvedValue([]);
-    service = new ConfigGeneratorService(prisma, {} as any, { emit: jest.fn() } as any);
+    service = new ConfigGeneratorService(prisma, {} as any, { emit: jest.fn() } as any,
+      { buildForConfig: jest.fn(async () => ({ outbounds: [], balancers: [], rules: [], observerSelectors: [] })) } as any,
+      { buildForConfig: jest.fn(async () => ({ servers: [] })) } as any);
   });
 
   const generate = async (): Promise<any> => (await service.generateConfig('n1')).config;
@@ -144,7 +147,6 @@ describe('ConfigGeneratorService: Xray stats, Reality and VMess (QA v2.15)', () 
       streamSettings: {
         network: 'raw',
         security: 'reality',
-        flow: 'xtls-rprx-vision',
         realitySettings: {
           show: false,
           dest: 'www.microsoft.com:443',
