@@ -157,7 +157,8 @@ export class SubscriptionPageService {
       : {};
     const existing = await this.prisma.vpnApp.findMany({ where, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] });
     const config = await this.config();
-    if (!existing.length && !config.appsSeeded && (!actor || actor.role === Role.ADMIN)) {
+    // Seed only from an authenticated admin request: a public page view must not write.
+    if (!existing.length && !config.appsSeeded && actor?.role === Role.ADMIN) {
       const seeded = [...existing];
       for (const app of DEFAULT_APPS) {
         seeded.push(await this.prisma.vpnApp.create({ data: { ...app, instructions: (app.instructions || null) as any } }));
@@ -209,6 +210,30 @@ export class SubscriptionPageService {
       blocks: { ...global.blocks, ...((templateSettings?.blocks as Record<string, boolean>) || {}) },
       support: { ...global.support, ...((templateSettings?.support as Record<string, string>) || {}) },
     };
+    // Template overrides bypass updateSettings(), so sanitize them again here:
+    // raw CSS or javascript: links from a template must not reach the public page.
+    try {
+      merged.customCss = this.sanitizeCss(String(merged.customCss || ''));
+    } catch {
+      merged.customCss = '';
+    }
+    for (const key of ['logoUrl', 'faviconUrl'] as const) {
+      try {
+        merged[key] = merged[key] ? this.safeUrl(merged[key], key) : '';
+      } catch {
+        merged[key] = '';
+      }
+    }
+    for (const key of ['telegram', 'website'] as const) {
+      try {
+        merged.support[key] = merged.support[key] ? this.safeUrl(merged.support[key], `support.${key}`) : '';
+      } catch {
+        merged.support[key] = '';
+      }
+    }
+    if (!['auto', 'dark', 'light'].includes(merged.defaultTheme)) merged.defaultTheme = 'auto';
+    if (merged.accent && !/^#[0-9a-fA-F]{6}$/.test(merged.accent)) merged.accent = DEFAULT_PAGE_SETTINGS.accent;
+    if (merged.background && !/^#[0-9a-fA-F]{6}$/.test(merged.background)) merged.background = '';
     const apps = (await this.listApps())
       .filter((app) => app.enabled)
       .map((app) => ({

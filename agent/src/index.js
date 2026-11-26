@@ -80,7 +80,24 @@ const lastUserStats = new Map();
 let lastFailedEntries = [];
 
 const app = express();
-app.use(express.json({ limit: '20mb' }));
+
+function isAuthorized(req) {
+  const header = String(req.headers['x-agent-secret'] || (req.headers.authorization || '').replace(/^Bearer\s+/i, ''));
+  const expected = String(AGENT_SECRET || '');
+  const a = Buffer.from(header);
+  const b = Buffer.from(expected);
+  return Boolean(expected) && a.length === b.length && timingSafeEqual(a, b);
+}
+
+// Authenticate before parsing the (large) JSON body: unauthenticated requests
+// must not be able to make the agent buffer 20 MB. `/health` stays public.
+app.use((req, res, next) => {
+  if (req.path === '/health') return next();
+  if (!isAuthorized(req)) return res.status(403).json({ error: 'Forbidden' });
+  return next();
+});
+const jsonParser = express.json({ limit: '20mb' });
+app.use((req, res, next) => (req.path === '/health' ? next() : jsonParser(req, res, next)));
 
 function run(cmd, args, timeout = 5000) {
   return new Promise((resolve) => {
@@ -100,13 +117,7 @@ function normalizeHostname(value) {
 }
 
 function auth(req, res, next) {
-  const header = String(req.headers['x-agent-secret'] || (req.headers.authorization || '').replace(/^Bearer\s+/i, ''));
-  const expected = String(AGENT_SECRET || '');
-  const a = Buffer.from(header);
-  const b = Buffer.from(expected);
-  if (!expected || a.length !== b.length || !timingSafeEqual(a, b)) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
+  if (!isAuthorized(req)) return res.status(403).json({ error: 'Forbidden' });
   next();
 }
 
