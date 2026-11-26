@@ -55,7 +55,10 @@ describe('WizardService', () => {
       provision: jest.fn(async () => ({ nodeId: 'node-1', name: 'msk-01', agentToken: 'secret' })),
     };
     configGenerator = { createRevision: jest.fn(async () => ({ version: 3 })) };
-    agentClient = { installDecoyCertificate: jest.fn(async () => ({ installed: true })) };
+    agentClient = {
+      installDecoyCertificate: jest.fn(async () => ({ installed: true })),
+      ping: jest.fn(async () => ({ reachable: true, latencyMs: 10 })),
+    };
   });
 
   const service = () => {

@@ -322,14 +322,25 @@ export class WizardService {
       await report('cert', `Certificate pending: ${error.message}`, 95, 'warn');
     }
     if (certificate && security === 'reality') {
-      await report('cert', 'Installing decoy site certificate on the node', 97);
-      try {
-        await this.agent.installDecoyCertificate(
-          { address: dto.host, agentUrl: provisioned.agentUrl },
-          { certificate: certificate.certificate, privateKey: certificate.privateKey, hostname: domain.fqdn },
-        );
-      } catch (error: any) {
-        await report('cert', `Decoy certificate install failed: ${error.message}`, 97, 'warn');
+      await report('cert', 'Waiting for the agent before installing the decoy certificate', 97);
+      let agentReady = false;
+      for (let attempt = 0; attempt < 12; attempt += 1) {
+        const ping = await this.agent.ping({ address: dto.host, agentUrl: provisioned.agentUrl });
+        if (ping.reachable) { agentReady = true; break; }
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+      }
+      if (!agentReady) {
+        await report('cert', 'Agent did not become reachable; decoy certificate was not installed', 97, 'warn');
+      } else {
+        await report('cert', 'Installing decoy site certificate on the node', 97);
+        try {
+          await this.agent.installDecoyCertificate(
+            { address: dto.host, agentUrl: provisioned.agentUrl },
+            { certificate: certificate.certificate, privateKey: certificate.privateKey, hostname: domain.fqdn },
+          );
+        } catch (error: any) {
+          await report('cert', `Decoy certificate install failed: ${error.message}`, 97, 'warn');
+        }
       }
     }
     const revision = await this.configGenerator.createRevision(provisioned.nodeId);
