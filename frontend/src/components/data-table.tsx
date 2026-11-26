@@ -46,7 +46,7 @@ type DataTableProps<T> = {
 };
 
 const DEFAULT_COLUMN_SIZE = 160;
-const ROW_HEIGHT = 44;
+const ROW_HEIGHT = 34;
 
 function metaOf<T>(column: Column<T>) {
   return column.columnDef.meta ?? {};
@@ -222,7 +222,7 @@ export default function DataTable<T>({
                     <th
                       key={header.id}
                       scope="col"
-                      className="sticky top-0 z-10 border-b border-line bg-surface-2 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-subtle"
+                      className="sticky top-0 z-10 border-b border-line bg-surface-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-subtle"
                     >
                       {header.column.getCanSort() ? (
                         <button
@@ -253,7 +253,7 @@ export default function DataTable<T>({
                 Array.from({ length: 6 }).map((_, rowIndex) => (
                   <tr key={`skeleton-${rowIndex}`}>
                     {visibleColumns.map((column, cellIndex) => (
-                      <td key={`${column.id}-${cellIndex}`} className="px-3 py-3">
+                      <td key={`${column.id}-${cellIndex}`} className="px-3 py-2">
                         <div
                           className="h-3 animate-pulse rounded bg-surface-3"
                           style={{ width: cellIndex === 0 ? '55%' : `${68 + ((rowIndex + cellIndex) % 3) * 11}%` }}
@@ -276,7 +276,7 @@ export default function DataTable<T>({
                       const align = meta.align === 'right' ? 'text-right' : meta.align === 'center' ? 'text-center' : '';
                       const bare = isBareCell(cell.column);
                       return (
-                        <td key={cell.id} className={cn('min-w-0 px-3 py-2.5 text-muted align-middle group-hover:text-fg', align)}>
+                        <td key={cell.id} className={cn('min-w-0 px-3 py-1.5 text-muted align-middle group-hover:text-fg', align)}>
                           <div
                             className={cn('min-w-0', !bare && 'truncate')}
                             title={bare ? undefined : cellTitle(cell)}

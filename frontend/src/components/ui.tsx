@@ -24,7 +24,7 @@ type CardProps = { children: ReactNode; className?: string; padded?: boolean; de
 export function Card({ children, className, padded = true, delay }: CardProps) {
   return (
     <section
-      className={cn('panel panel-hover animate-fade-up', padded && 'p-5', className)}
+      className={cn('panel panel-hover animate-fade-up', padded && 'ui-card-pad', className)}
       style={delay ? { animationDelay: `${delay}ms` } : undefined}
     >
       {children}
