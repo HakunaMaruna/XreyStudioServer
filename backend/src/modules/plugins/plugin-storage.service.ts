@@ -43,6 +43,34 @@ export class PluginStorageService {
     return dir;
   }
 
+  private backupDir(pluginId: string) {
+    return `${this.artifactDirSync(pluginId)}.previous`;
+  }
+
+  private artifactDirSync(pluginId: string) {
+    return path.join(this.root(), this.assertId(pluginId));
+  }
+
+  async backupArtifacts(pluginId: string) {
+    const dir = await this.artifactDir(pluginId);
+    const backup = this.backupDir(pluginId);
+    await fs.rm(backup, { recursive: true, force: true });
+    const exists = await fs.stat(dir).then(() => true).catch(() => false);
+    if (exists) await fs.cp(dir, backup, { recursive: true });
+    return backup;
+  }
+
+  async restoreArtifacts(pluginId: string) {
+    const dir = await this.artifactDir(pluginId);
+    const backup = this.backupDir(pluginId);
+    await fs.rm(dir, { recursive: true, force: true });
+    const exists = await fs.stat(backup).then(() => true).catch(() => false);
+    if (exists) {
+      await fs.cp(backup, dir, { recursive: true });
+      await fs.rm(backup, { recursive: true, force: true });
+    }
+  }
+
   async removeArtifacts(pluginId: string) {
     const dir = await this.artifactDir(pluginId);
     await fs.rm(dir, { recursive: true, force: true });

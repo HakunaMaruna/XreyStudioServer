@@ -63,7 +63,6 @@ export class PluginRuntimeService {
         XSS_PLUGIN_DIR: artifactPath,
         XSS_PLUGIN_ID: pluginId,
         XSS_PLUGIN_ENTRY: entry,
-        XSS_PLUGIN_SETTINGS: JSON.stringify(context.settings || {}),
       },
       stdio: ['pipe', 'pipe', 'pipe'],
     });
@@ -149,7 +148,11 @@ export class PluginRuntimeService {
         if (code && code !== 0) finish(new Error(`Plugin worker exited ${code}: ${stderr.slice(0, 300)}`));
       });
 
-      child.stdin.write(`${JSON.stringify({ type: 'invoke', id: 1, hook })}\n`);
+      child.stdin.write(`${JSON.stringify({
+        type: 'invoke', id: 1, hook,
+        settings: context.settings || {},
+        payload: context.payload ?? null,
+      })}\n`);
     });
   }
 }

@@ -165,16 +165,30 @@ export class PluginManagerService implements OnModuleInit {
     const row = await this.find(pluginId);
     if (row.version === value.manifest.version) throw new BadRequestException('Plugin version is unchanged');
     await this.snapshot(`update ${pluginId}`, actor?.userId);
+    await this.storage.backupArtifacts(pluginId);
     await this.storage.unpack(pluginId, value);
-    await this.prisma.plugin.update({
-      where: { pluginId },
-      data: { version: value.manifest.version, manifest: value.manifest as any, permissions: value.manifest.permissions as any, signature: value.signature as any || null },
-    });
     try {
+      await this.prisma.plugin.update({
+        where: { pluginId },
+        data: { version: value.manifest.version, manifest: value.manifest as any, permissions: value.manifest.permissions as any, signature: value.signature as any || null },
+      });
       await this.runtime.invoke(pluginId, 'onUpdate', { settings: await this.storage.settings(pluginId) });
       await this.auditAction('plugin.update', pluginId, actor);
       return this.find(pluginId);
     } catch (error: any) {
+      // Roll back artifacts, SQL migration state and DB metadata to the previous version.
+      await this.runMigrations(pluginId, 'down').catch(() => undefined);
+      await this.storage.restoreArtifacts(pluginId).catch(() => undefined);
+      await this.runMigrations(pluginId, 'up').catch(() => undefined);
+      await this.prisma.plugin.update({
+        where: { pluginId },
+        data: {
+          version: row.version,
+          manifest: row.manifest,
+          permissions: row.permissions,
+          signature: row.signature,
+        },
+      }).catch(() => undefined);
       await this.quarantine(pluginId, `onUpdate failed: ${error.message}`);
       throw error;
     }

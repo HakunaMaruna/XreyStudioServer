@@ -31,6 +31,14 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Follow-up hardening (v2.41.2, 2026-11-26)
+
+- PR #207 (UI audit: z-index, modal portal/scroll, safe-area, touch targets) влит в main.
+- Настройки плагина больше не передаются в env воркера — они приходят в IPC `invoke`
+  вместе с `payload`; убрано противоречие с «no env access».
+- Неудачное обновление плагина теперь откатывает артефакты, SQL-миграции (down/up)
+  и метаданные БД к предыдущей версии, затем переводит плагин в QUARANTINED.
+
 ## Code review / security fixes (v2.41.0, 2026-11-26)
 
 Проведена ревизия тремя параллельными проверками. Исправлено:

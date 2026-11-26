@@ -58,11 +58,13 @@ process.stdin.on('data', (chunk) => {
     (async () => {
       try {
         const dir = process.env.XSS_PLUGIN_DIR || '';
-        const settings = JSON.parse(process.env.XSS_PLUGIN_SETTINGS || '{}');
+        const settings = message.settings || {};
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const mod = require(`${dir}/${(process.env.XSS_PLUGIN_ENTRY || '').replace(/^\//, '')}`);
         const fn = mod[message.hook] || mod.default?.[message.hook];
-        const value = typeof fn === 'function' ? await fn(sdk, { settings }) : null;
+        const value = typeof fn === 'function'
+          ? await fn(sdk, { settings, payload: message.payload ?? null })
+          : null;
         send({ type: 'result', id: message.id, value: value ?? null });
       } catch (error: any) {
         send({ type: 'result', id: message.id, error: error?.message || 'plugin error' });
