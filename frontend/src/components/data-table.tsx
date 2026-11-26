@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   flexRender,
   getCoreRowModel,
@@ -36,6 +36,10 @@ type DataTableProps<T> = {
   /** Total row count on the server, used for the footer counter. */
   total?: number;
   hideSearch?: boolean;
+  /** Extra controls shown next to the search field (filters, scope selects). */
+  filters?: ReactNode;
+  /** Primary actions pinned to the right of the toolbar, like a list "Create" button. */
+  actions?: ReactNode;
   sorting?: SortingState;
   onSortingChange?: OnChangeFn<SortingState>;
   manualSorting?: boolean;
@@ -79,6 +83,8 @@ export default function DataTable<T>({
   serverPagination,
   total,
   hideSearch = false,
+  filters,
+  actions,
   sorting: controlledSorting,
   onSortingChange: controlledOnSortingChange,
   manualSorting = false,
@@ -161,6 +167,31 @@ export default function DataTable<T>({
   const pageSizeOptions = serverPagination ? [10, 20, 50, 100] : [20, 50, 100, 0];
   const pageSizeValue = serverPagination ? pageSize : showAllRows ? 0 : pageSize;
 
+  const goToPage = (index: number) => {
+    const lastIndex = Math.max(0, (pageCount || 1) - 1);
+    const next = Math.min(Math.max(0, index), lastIndex);
+    if (serverPagination) serverPagination.onPageChange(next);
+    else table.setPageIndex(next);
+  };
+
+  // Numbered pages with gaps, so long lists stay navigable without a scrollbar.
+  const pageButtons = useMemo(() => {
+    const total = Math.max(1, pageCount || 1);
+    const current = Math.min(pageIndex, total - 1);
+    if (total <= 7) return Array.from({ length: total }, (_, index) => index) as Array<number | 'gap'>;
+    const items: Array<number | 'gap'> = [0];
+    const start = Math.max(1, current - 1);
+    const end = Math.min(total - 2, current + 1);
+    if (start > 1) items.push('gap');
+    for (let index = start; index <= end; index += 1) items.push(index);
+    if (end < total - 2) items.push('gap');
+    items.push(total - 1);
+    return items;
+  }, [pageCount, pageIndex]);
+
+  const rangeStart = rows.length ? pageIndex * pageSize + 1 : 0;
+  const rangeEnd = rows.length ? pageIndex * pageSize + rows.length : 0;
+
   const visibleDetailsFor = (rowId: string) => {
     const visibleCount = 3;
     if (expandedCards[rowId] || detailColumns.length <= visibleCount) return detailColumns;
@@ -169,16 +200,22 @@ export default function DataTable<T>({
 
   return (
     <div className="space-y-3">
-      {!hideSearch && (
-        <div className="relative max-w-sm">
-          <Icon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
-          <input
-            aria-label={searchPlaceholder || t.search}
-            value={globalFilter ?? ''}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            placeholder={searchPlaceholder || t.search}
-            className="field pl-9"
-          />
+      {(!hideSearch || filters || actions) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {!hideSearch && (
+            <div className="relative w-full min-w-[180px] max-w-xs flex-1 sm:flex-none sm:w-72">
+              <Icon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
+              <input
+                aria-label={searchPlaceholder || t.search}
+                value={globalFilter ?? ''}
+                onChange={(e) => setGlobalFilter(e.target.value)}
+                placeholder={searchPlaceholder || t.search}
+                className="field pl-9"
+              />
+            </div>
+          )}
+          {filters}
+          {actions && <div className="ml-auto flex flex-wrap items-center gap-2">{actions}</div>}
         </div>
       )}
 
@@ -252,7 +289,7 @@ export default function DataTable<T>({
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <tr key={row.id} className="group transition-colors even:bg-surface-2/25 hover:bg-surface-2/70">
+                  <tr key={row.id} className="group h-11 transition-colors even:bg-surface-2/25 hover:bg-surface-2/70">
                     {row.getVisibleCells().map((cell) => {
                       const meta = metaOf(cell.column);
                       const align = meta.align === 'right' ? 'text-right' : meta.align === 'center' ? 'text-center' : '';
@@ -359,43 +396,70 @@ export default function DataTable<T>({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 px-1 text-xs text-muted">
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-            className="ui-touch-target grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand/40 hover:text-fg disabled:opacity-30"
-            aria-label={t.previous}
-          >
-            <Icon name="chevronLeft" size={15} />
-          </button>
-          <span className="px-2 tabular-nums">
-            {t.page} <span className="font-medium text-fg">{pageIndex + 1}</span> {t.of} {pageCount || 1}
-          </span>
-          <button
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-            className="ui-touch-target grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand/40 hover:text-fg disabled:opacity-30"
-            aria-label={t.next}
-          >
-            <Icon name="chevronRight" size={15} />
-          </button>
-        </div>
-        <span className="rounded-md border border-line bg-surface-3 px-2 py-0.5 tabular-nums text-muted">
-          {t.total}: <span className="font-medium text-fg">{filteredCount}</span>
+      <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-xs text-muted">
+        <span className="tabular-nums">
+          <span className="font-medium text-fg">{rangeStart}–{rangeEnd}</span> {t.of}{' '}
+          <span className="font-medium text-fg">{filteredCount}</span>
         </span>
-        <label className="ml-auto flex items-center gap-2">
-          <span className="text-subtle max-sm:hidden">{t.pageSize}</span>
-          <select
-            value={pageSizeValue}
-            onChange={(e) => changePageSize(Number(e.target.value))}
-            className="field w-auto py-1"
-          >
-            {pageSizeOptions.map((size) => (
-              <option key={size} value={size}>{size === 0 ? t.all : size}</option>
-            ))}
-          </select>
-        </label>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2">
+            <span className="text-subtle max-sm:hidden">{t.pageSize}</span>
+            <select
+              value={pageSizeValue}
+              onChange={(e) => changePageSize(Number(e.target.value))}
+              className="field w-auto py-1"
+            >
+              {pageSizeOptions.map((size) => (
+                <option key={size} value={size}>{size === 0 ? t.all : size}</option>
+              ))}
+            </select>
+          </label>
+
+          <nav className="flex items-center gap-1" aria-label={t.page}>
+            <button
+              type="button"
+              onClick={() => goToPage(pageIndex - 1)}
+              disabled={pageIndex <= 0}
+              className="ui-touch-target grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand/40 hover:text-fg disabled:opacity-30"
+              aria-label={t.previous}
+            >
+              <Icon name="chevronLeft" size={15} />
+            </button>
+
+            {pageButtons.map((item, index) =>
+              item === 'gap' ? (
+                <span key={`gap-${index}`} className="px-0.5 text-subtle" aria-hidden="true">…</span>
+              ) : (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => goToPage(item)}
+                  aria-current={item === pageIndex ? 'page' : undefined}
+                  aria-label={`${t.page} ${item + 1}`}
+                  className={cn(
+                    'ui-touch-target grid h-8 min-w-8 place-items-center rounded-lg border px-2 tabular-nums transition-colors',
+                    item === pageIndex
+                      ? 'border-brand/40 bg-brand/15 font-semibold text-brand'
+                      : 'border-line bg-surface text-muted hover:border-brand/40 hover:text-fg',
+                  )}
+                >
+                  {item + 1}
+                </button>
+              ),
+            )}
+
+            <button
+              type="button"
+              onClick={() => goToPage(pageIndex + 1)}
+              disabled={pageIndex >= (pageCount || 1) - 1}
+              className="ui-touch-target grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand/40 hover:text-fg disabled:opacity-30"
+              aria-label={t.next}
+            >
+              <Icon name="chevronRight" size={15} />
+            </button>
+          </nav>
+        </div>
       </div>
     </div>
   );
