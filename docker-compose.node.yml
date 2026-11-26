@@ -25,4 +25,9 @@ services:
       - "2053:2053/tcp"
       - "2053:2053/udp"
       - "2054:2054/tcp"
+    volumes:
+      - xss_agent_decoy:/etc/xss-agent/decoy
     restart: unless-stopped
+
+volumes:
+  xss_agent_decoy:

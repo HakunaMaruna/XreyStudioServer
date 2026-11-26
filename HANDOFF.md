@@ -78,6 +78,14 @@ backend `tsc --noEmit` 0, `eslint` 0 errors, `nest build` rc=0, unit jest 42 sui
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Decoy certificate persistence (v2.44.1, 2026-11-26)
+
+Reality-подключения «pingуются», но интернет не шёл: агент терял сертификат заглушки
+при пересоздании контейнера, HTTPS на `127.0.0.1:8443` не поднимался, и Xray писал
+`REALITY: failed to dial dest: 127.0.0.1:8443: connection refused`. Добавлен volume
+`xss_agent_decoy:/etc/xss-agent/decoy` в `docker-compose.node.yml`. После переустановки
+сертификата локальный Xray-клиент прошёл через Reality и получил `curl=200`.
+
 ## Inbound recipes (v2.44.0, 2026-11-26)
 
 В создании подключения появился выбор готового рецепта: `GET /api/inbounds/recipes` +
