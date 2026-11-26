@@ -1,12 +1,20 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { lazyChart } from '../../components/lazy-chart';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
 import { Badge, Button, Card, Field, HelpButton, PageHeader, Segmented, formatBytes } from '../../components/ui';
+
+const Area = lazyChart('Area');
+const AreaChart = lazyChart('AreaChart');
+const CartesianGrid = lazyChart('CartesianGrid');
+const ResponsiveContainer = lazyChart('ResponsiveContainer');
+const Tooltip = lazyChart('Tooltip');
+const XAxis = lazyChart('XAxis');
+const YAxis = lazyChart('YAxis');
 
 type OrgRow = {
   id: string;
@@ -269,7 +277,7 @@ export default function ReportsPage() {
                 </defs>
                 <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 3" />
                 <XAxis dataKey="date" tick={{ fill: 'var(--subtle)', fontSize: 10 }} axisLine={false} tickLine={false} minTickGap={24} />
-                <YAxis tick={{ fill: 'var(--subtle)', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatBytes(v)} width={56} />
+                <YAxis tick={{ fill: 'var(--subtle)', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatBytes(v)} width={56} />
                 <Tooltip contentStyle={chartTooltip} labelStyle={{ color: 'var(--fg)' }} formatter={(value: any, name: any) => [formatBytes(value), name === 'bytesUp' ? t.bytesUp : t.bytesDown]} />
                 <Area type="monotone" dataKey="bytesUp" stackId="1" stroke="var(--brand)" fill="url(#upFill)" strokeWidth={2} />
                 <Area type="monotone" dataKey="bytesDown" stackId="1" stroke="var(--cyan)" fill="url(#downFill)" strokeWidth={2} />

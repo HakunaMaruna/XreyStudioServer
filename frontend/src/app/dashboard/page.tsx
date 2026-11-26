@@ -1,18 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { lazyChart } from '../../components/lazy-chart';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import { fetchUpdateStatus, type UpdateStatus } from '../../lib/updates';
@@ -35,6 +24,17 @@ const tooltipStyle = {
   color: 'var(--fg)',
   boxShadow: '0 12px 30px -12px rgba(0,0,0,.6)',
 };
+
+const ResponsiveContainer = lazyChart('ResponsiveContainer');
+const PieChart = lazyChart('PieChart');
+const Pie = lazyChart('Pie');
+const Cell = lazyChart('Cell');
+const BarChart = lazyChart('BarChart');
+const Bar = lazyChart('Bar');
+const CartesianGrid = lazyChart('CartesianGrid');
+const XAxis = lazyChart('XAxis');
+const YAxis = lazyChart('YAxis');
+const Tooltip = lazyChart('Tooltip');
 
 export default function DashboardPage() {
   const { t } = useLang();
