@@ -366,7 +366,7 @@ export default function UsersPage() {
         ),
       },
     ],
-    [t],
+    [t, selectedIds, users],
   );
 
   return (
