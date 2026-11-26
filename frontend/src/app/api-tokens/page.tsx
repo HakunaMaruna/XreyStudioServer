@@ -276,7 +276,7 @@ export default function ApiTokensPage() {
       />
 
       {error && (
-        <div className="animate-fade-up rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+        <div className="animate-fade-up mb-4 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger">
           {error}
         </div>
       )}
@@ -285,8 +285,8 @@ export default function ApiTokensPage() {
         <Card>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted">{t.tokenValue}</p>
-              <code className="block break-all rounded-lg bg-surface-2 px-3 py-2 text-xs text-fg">{createdToken}</code>
+              <p className="mb-1 text-xs font-medium text-muted">{t.tokenValue}</p>
+              <code className="block break-all rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-xs text-fg">{createdToken}</code>
             </div>
             <div className="flex gap-2">
               <Button icon={copied ? 'check' : 'copy'} onClick={() => void copyToken()}>
@@ -312,19 +312,19 @@ export default function ApiTokensPage() {
         <p className="mb-4 text-sm text-muted">{t.notificationRoutesSubtitle}</p>
         <Card padded={false}>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left text-[13px]">
               <thead>
-                <tr className="border-b border-line text-xs uppercase tracking-wider text-muted">
-                  <th className="px-4 py-3">{t.events}</th>
+                <tr className="border-b border-line bg-surface-2 text-xs font-semibold text-muted">
+                  <th className="px-3 py-2">{t.events}</th>
                   {CHANNELS.map((channel) => (
-                    <th key={channel} className="px-4 py-3 text-center">{t[channelKey[channel]]}</th>
+                    <th key={channel} className="px-3 py-2 text-center">{t[channelKey[channel]]}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {EVENTS.map((event) => (
                   <tr key={event} className="border-b border-line/60 last:border-0">
-                    <td className="px-4 py-3 font-medium text-fg">{t[eventKey[event]]}</td>
+                    <td className="px-3 py-2 font-medium text-fg">{t[eventKey[event]]}</td>
                     {CHANNELS.map((channel) => {
                       const route = routeMap.get(`${event}:${channel}`);
                       const enabled = Boolean(route?.enabled);

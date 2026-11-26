@@ -106,7 +106,7 @@ export default function OrganizationsPage() {
       />
 
       {error && (
-        <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
         </div>
       )}
@@ -117,7 +117,7 @@ export default function OrganizationsPage() {
         </div>
       ) : items.length === 0 ? (
         <Card className="py-16 text-center">
-          <div className="mx-auto mb-4 grid h-11 w-11 place-items-center rounded-xl border border-line bg-surface-2 text-subtle"><Icon name="box" size={20} /></div>
+          <div className="mx-auto mb-4 grid h-11 w-11 place-items-center rounded-lg border border-line bg-surface-2 text-subtle"><Icon name="box" size={20} /></div>
           <p className="text-sm font-medium text-fg">{t.noOrganizations}</p>
           <p className="mt-1 text-xs text-muted">{t.organizationsSubtitle}</p>
         </Card>
@@ -127,7 +127,7 @@ export default function OrganizationsPage() {
             <Card key={item.id} delay={index * 50} className="group">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-xl border border-brand/25 bg-brand-soft text-brand">
+                  <div className="grid h-8 w-8 place-items-center rounded-lg border border-brand/25 bg-brand-soft text-brand">
                     <Icon name="shield" size={18} />
                   </div>
                   <div>
@@ -143,11 +143,11 @@ export default function OrganizationsPage() {
 
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <div className="rounded-lg border border-line bg-surface-2/50 p-3">
-                  <p className="text-[10px] uppercase tracking-wider text-subtle">{t.users}</p>
+                  <p className="text-[11px] text-subtle">{t.users}</p>
                   <p className="mt-1 text-lg font-semibold text-fg tabular-nums">{item._count?.users ?? '—'}</p>
                 </div>
                 <div className="rounded-lg border border-line bg-surface-2/50 p-3">
-                  <p className="text-[10px] uppercase tracking-wider text-subtle">{t.nodes}</p>
+                  <p className="text-[11px] text-subtle">{t.nodes}</p>
                   <p className="mt-1 text-lg font-semibold text-fg tabular-nums">{item._count?.nodes ?? '—'}</p>
                 </div>
               </div>

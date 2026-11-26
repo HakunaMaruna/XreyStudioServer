@@ -179,7 +179,7 @@ export default function SubscriptionPage() {
     return (
       <main className="grid min-h-screen place-items-center p-6" style={style}>
         <Card className="max-w-sm text-center">
-          <div className="mx-auto mb-4 grid h-11 w-11 place-items-center rounded-xl border border-danger/25 bg-danger/10 text-danger">
+          <div className="mx-auto mb-4 grid h-11 w-11 place-items-center rounded-lg border border-danger/25 bg-danger/10 text-danger">
             <Icon name="alert" size={20} />
           </div>
           <p className="text-sm font-medium text-fg">{limitReached ? t.deviceLimitReached : t.subscriptionUnavailable}</p>
@@ -223,9 +223,9 @@ export default function SubscriptionPage() {
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-center gap-3">
         {settings?.logoUrl ? (
-          <img src={settings.logoUrl} alt={settings.brand || t.subscriptionPage} loading="lazy" decoding="async" className="h-11 w-11 rounded-xl object-contain" />
+          <img src={settings.logoUrl} alt={settings.brand || t.subscriptionPage} loading="lazy" decoding="async" className="h-11 w-11 rounded-lg object-contain" />
         ) : (
-          <div className="grid h-11 w-11 place-items-center rounded-xl text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${accent}, ${accent}bb)` }}>
+          <div className="grid h-11 w-11 place-items-center rounded-lg text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${accent}, ${accent}bb)` }}>
             <Icon name="zap" size={20} />
           </div>
         )}
@@ -262,7 +262,7 @@ export default function SubscriptionPage() {
         {settings?.customCss && <style>{settings.customCss}</style>}
         {header}
         <Card className="text-center">
-          <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl border border-danger/25 bg-danger/10 text-danger">
+          <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-lg border border-danger/25 bg-danger/10 text-danger">
             <Icon name="alert" size={22} />
           </div>
           <p className="text-base font-semibold text-fg">{statusText}</p>
@@ -282,25 +282,25 @@ export default function SubscriptionPage() {
       {header}
 
       {settings?.announcement && (
-        <div className="rounded-xl border border-brand/30 bg-brand/10 px-4 py-3 text-xs text-fg">{settings.announcement}</div>
+        <div className="rounded-lg border border-brand/30 bg-brand/10 px-4 py-3 text-xs text-fg">{settings.announcement}</div>
       )}
 
       <Card className="overflow-hidden">
         <div className="grid gap-5 p-5 sm:grid-cols-3">
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-subtle">{t.status}</p>
+            <p className="text-[11px] text-subtle">{t.status}</p>
             <p className={cn('mt-2 text-base font-semibold', active ? 'text-success' : 'text-danger')}>{statusText}</p>
           </div>
           {blocks.expiry !== false && (
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-subtle">{t.expiry}</p>
+              <p className="text-[11px] text-subtle">{t.expiry}</p>
               <p className="mt-2 text-sm font-medium text-fg">{data.expiresAt ? new Date(data.expiresAt).toLocaleDateString() : '—'}</p>
               <p className="mt-1 text-[10px] text-brand">{countdown}</p>
             </div>
           )}
           {blocks.traffic !== false && (
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-subtle">{t.traffic}</p>
+              <p className="text-[11px] text-subtle">{t.traffic}</p>
               <p className="mt-2 text-sm font-medium text-fg tabular-nums">{formatBytes(used)} <span className="text-subtle">/ {limit ? formatBytes(limit) : '∞'}</span></p>
               <p className="mt-1 text-[10px] text-subtle">{t.subRemaining}: {limit ? formatBytes(remaining) : '∞'}</p>
               {limit > 0 && (
@@ -317,11 +317,11 @@ export default function SubscriptionPage() {
         <Card>
           <SectionTitle title={t.qrCode} subtitle={t.scanClient} />
           <div className="flex flex-wrap items-center gap-5">
-            <div className="rounded-xl border border-line bg-white p-3">
+            <div className="rounded-lg border border-line bg-white p-3">
               <QRCodeSVG value={subscriptionUrl} size={136} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="mb-2 text-[10px] uppercase tracking-wider text-subtle">{t.subscriptionUrl}</p>
+              <p className="mb-2 text-[11px] text-subtle">{t.subscriptionUrl}</p>
               <div className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 p-2">
                 <code className="mono min-w-0 flex-1 truncate text-[11px] text-muted">{subscriptionUrl}</code>
                 <IconButton icon={copied ? 'check' : 'copy'} label={t.copy} tone={copied ? 'brand' : 'default'} onClick={() => copy(subscriptionUrl)} />
@@ -350,7 +350,7 @@ export default function SubscriptionPage() {
               const link = deepLink(app);
               const instruction = app.instructions?.[lang] || app.instructions?.en || app.instructions?.ru;
               return (
-                <div key={app.id} className="rounded-xl border border-line bg-surface-2/50 p-3">
+                <div key={app.id} className="rounded-lg border border-line bg-surface-2/50 p-3">
                   <div className="flex items-center gap-3">
                     {app.iconUrl ? (
                       <img src={app.iconUrl} alt="" loading="lazy" decoding="async" className="h-9 w-9 rounded-lg object-contain" />

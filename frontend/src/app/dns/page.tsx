@@ -245,10 +245,10 @@ export default function DnsPage() {
         }
       />
 
-      {error && <div className="mb-4 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger"><Icon name="alert" size={15} />{error}</div>}
-      {notice && <div className="mb-4 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-xs text-success">{notice}</div>}
+      {error && <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger"><Icon name="alert" size={15} />{error}</div>}
+      {notice && <div className="mb-4 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
       {status && !status.available && status.error && (
-        <div className="mb-4 rounded-xl border border-warning/25 bg-warning/10 px-4 py-3 text-xs text-warning">{status.error}</div>
+        <div className="mb-4 rounded-lg border border-warning/25 bg-warning/10 px-3 py-2 text-xs text-warning">{status.error}</div>
       )}
 
       <div className="mb-4">
@@ -270,29 +270,29 @@ export default function DnsPage() {
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Card className="p-4">
-              <p className="text-[10px] uppercase tracking-wider text-subtle">{t.status}</p>
+              <p className="text-[11px] text-subtle">{t.status}</p>
               <p className="mt-2 text-lg font-semibold text-fg">{status.available ? 'OK' : '—'}</p>
               <p className="mt-1 text-[10px] text-muted">PowerDNS {status.version || ''}</p>
             </Card>
             <Card className="p-4">
-              <p className="text-[10px] uppercase tracking-wider text-subtle">{t.dnsZones}</p>
+              <p className="text-[11px] text-subtle">{t.dnsZones}</p>
               <p className="mt-2 text-lg font-semibold text-fg tabular-nums">{status.zones ?? '—'}</p>
               <p className="mt-1 text-[10px] text-muted">{status.zone}</p>
             </Card>
             <Card className="p-4">
-              <p className="text-[10px] uppercase tracking-wider text-subtle">{t.dnsQueries}</p>
+              <p className="text-[11px] text-subtle">{t.dnsQueries}</p>
               <p className="mt-2 text-lg font-semibold text-fg tabular-nums">{status.queries ?? '—'}</p>
               <p className="mt-1 text-[10px] text-muted">servfail: {status.servfail ?? 0}</p>
             </Card>
             <Card className="p-4">
-              <p className="text-[10px] uppercase tracking-wider text-subtle">{t.dnsUptime}</p>
+              <p className="text-[11px] text-subtle">{t.dnsUptime}</p>
               <p className="mt-2 text-lg font-semibold text-fg tabular-nums">{status.uptime ? uptime(status.uptime) : '—'}</p>
               <p className="mt-1 text-[10px] text-muted">{t.dnsLatency}: {status.latency ?? 0} µs</p>
             </Card>
           </div>
           <Card className="mt-4">
             <SectionTitle title={t.dnsDelegation} subtitle={lang === 'ru' ? 'Записи в родительской зоне у регистратора' : 'Records at your registrar'} />
-            <pre className="mono overflow-x-auto rounded-xl border border-line bg-surface-2/60 p-3 text-[11px] leading-relaxed text-muted">{`${status.zone}.\tNS\tns1.h2onetwork.pro.
+            <pre className="mono overflow-x-auto rounded-lg border border-line bg-surface-2/60 p-3 text-[11px] leading-relaxed text-muted">{`${status.zone}.\tNS\tns1.h2onetwork.pro.
 ${status.zone}.\tNS\tns2.h2onetwork.pro.
 ns1.h2onetwork.pro.\tA\t<IP CONTROL>
 ns2.h2onetwork.pro.\tA\t<IP CONTROL>`}</pre>
@@ -308,7 +308,7 @@ ns2.h2onetwork.pro.\tA\t<IP CONTROL>`}</pre>
           />
           <div className="space-y-2">
             {zones.map((zone) => (
-              <div key={zone.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface-2/40 px-3 py-2.5 text-xs">
+              <div key={zone.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-surface-2/40 px-3 py-2.5 text-xs">
                 <div className="flex flex-wrap items-center gap-2">
                   <Icon name="database" size={16} className="text-brand" />
                   <span className="mono text-fg">{zone.name}</span>
@@ -343,7 +343,7 @@ ns2.h2onetwork.pro.\tA\t<IP CONTROL>`}</pre>
           {busy ? <div className="py-8 text-center text-xs text-muted">{t.loading}</div> : (
             <div className="space-y-2">
               {records.map((row, index) => (
-                <div key={`${row.name}-${row.type}-${index}`} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface-2/40 px-3 py-2 text-xs">
+                <div key={`${row.name}-${row.type}-${index}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-surface-2/40 px-3 py-2 text-xs">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone="cyan">{row.type}</Badge>
                     <span className="mono text-fg">{row.name}</span>
@@ -369,7 +369,7 @@ ns2.h2onetwork.pro.\tA\t<IP CONTROL>`}</pre>
                 {dnssecState?.enabled ? t.disable : t.dnssecEnable}
               </Button>}
             />
-            <div className="rounded-xl border border-warning/25 bg-warning/10 px-4 py-3 text-xs text-warning">{t.dnssecWarning}</div>
+            <div className="rounded-lg border border-warning/25 bg-warning/10 px-3 py-2 text-xs text-warning">{t.dnssecWarning}</div>
             <div className="mt-4 flex items-center gap-2">
               <Badge tone={dnssecState?.enabled ? 'success' : 'neutral'} dot>{dnssecState?.enabled ? 'DNSSEC ON' : 'DNSSEC OFF'}</Badge>
               <Badge tone="neutral">{dnssecState?.keys.length || 0} {t.dnssecKeys}</Badge>
@@ -399,7 +399,7 @@ ns2.h2onetwork.pro.\tA\t<IP CONTROL>`}</pre>
             {!dnssecState?.keys.length ? <div className="py-8 text-center text-xs text-subtle">{t.dnssecNoKeys}</div> : (
               <div className="space-y-2">
                 {dnssecState.keys.map((key) => (
-                  <div key={key.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface-2/40 px-3 py-2 text-xs">
+                  <div key={key.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-surface-2/40 px-3 py-2 text-xs">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge tone="brand">#{key.id} {key.keytype.toUpperCase()}</Badge>
                       <span className="text-muted">{key.algorithm || '—'}</span>
@@ -421,7 +421,7 @@ ns2.h2onetwork.pro.\tA\t<IP CONTROL>`}</pre>
           <Card>
             <SectionTitle title={t.dnssecDs} subtitle={lang === 'ru' ? 'Скопируйте DS-записи в родительскую зону' : 'Copy DS records to the parent zone'} />
             {!dnssecState?.ds.length ? <div className="py-8 text-center text-xs text-subtle">{t.noData}</div> : (
-              <pre className="mono overflow-x-auto rounded-xl border border-line bg-surface-2/60 p-3 text-[11px] leading-relaxed text-muted">{dnssecState.ds.join('\n')}</pre>
+              <pre className="mono overflow-x-auto rounded-lg border border-line bg-surface-2/60 p-3 text-[11px] leading-relaxed text-muted">{dnssecState.ds.join('\n')}</pre>
             )}
           </Card>
         </div>

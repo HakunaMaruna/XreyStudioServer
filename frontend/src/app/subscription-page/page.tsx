@@ -122,12 +122,12 @@ export default function SubscriptionPageAdmin() {
       />
 
       {error && (
-        <div role="alert" className="mb-4 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+        <div role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} />{error}
         </div>
       )}
       {notice && (
-        <div role="status" aria-live="polite" className="mb-4 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-xs text-success">
+        <div role="status" aria-live="polite" className="mb-4 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">
           {notice}
         </div>
       )}
@@ -151,8 +151,8 @@ export default function SubscriptionPageAdmin() {
               <Field label="Logo URL"><input className="field" value={settings.logoUrl} onChange={(e) => patch('logoUrl', e.target.value)} /></Field>
               <Field label="Favicon URL"><input className="field" value={settings.faviconUrl} onChange={(e) => patch('faviconUrl', e.target.value)} /></Field>
               <Field label="Announcement"><input className="field" value={settings.announcement} onChange={(e) => patch('announcement', e.target.value)} /></Field>
-              <Field label="Accent"><input type="color" className="field h-10" value={settings.accent} onChange={(e) => patch('accent', e.target.value)} /></Field>
-              <Field label="Background"><input type="color" className="field h-10" value={settings.background || '#070a14'} onChange={(e) => patch('background', e.target.value)} /></Field>
+              <Field label="Accent"><input type="color" className="field h-8 p-1" value={settings.accent} onChange={(e) => patch('accent', e.target.value)} /></Field>
+              <Field label="Background"><input type="color" className="field h-8 p-1" value={settings.background || '#0d1117'} onChange={(e) => patch('background', e.target.value)} /></Field>
               <Field label={t.subAdminDefaultTheme}>
                 <select className="field" value={settings.defaultTheme} onChange={(e) => patch('defaultTheme', e.target.value)}>
                   <option value="auto">auto</option><option value="dark">dark</option><option value="light">light</option>
@@ -200,7 +200,7 @@ export default function SubscriptionPageAdmin() {
           <SectionTitle title={t.subAdminApps} action={<Button size="sm" icon="plus" variant="primary" onClick={() => { setEditing(null); setAppForm(emptyApp()); setAppOpen(true); }}>{t.subAdminAppNew}</Button>} />
           <div className="space-y-2">
             {apps.map((app) => (
-              <div key={app.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface-2/40 px-3 py-2 text-xs">
+              <div key={app.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface-2/40 px-3 py-2 text-xs">
                 <Badge tone="brand">{app.sortOrder}</Badge>
                 <span className="font-medium text-fg">{app.name}</span>
                 <Badge tone="neutral">{app.platform}</Badge>
@@ -219,7 +219,7 @@ export default function SubscriptionPageAdmin() {
 
       {tab === 'preview' && (
         <Card className="p-0">
-          <iframe title={t.subAdminPreview} src="/sub/preview" className="h-[720px] w-full rounded-xl border-0" />
+          <iframe title={t.subAdminPreview} src="/sub/preview" className="h-[720px] w-full rounded-lg border-0" />
         </Card>
       )}
 

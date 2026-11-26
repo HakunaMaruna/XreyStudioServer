@@ -362,7 +362,7 @@ export default function NodesPage() {
       />
 
       {error && (
-        <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
         </div>
       )}
@@ -370,15 +370,15 @@ export default function NodesPage() {
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         <Card className="flex items-center gap-2.5 p-3">
           <div className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface-2 text-muted"><Icon name="server" size={17} /></div>
-          <div><p className="text-[10px] uppercase tracking-wider text-subtle">{t.totalNodesLabel}</p><p className="text-base font-semibold text-fg tabular-nums">{nodes.length}</p></div>
+          <div><p className="text-[11px] text-subtle">{t.totalNodesLabel}</p><p className="text-base font-semibold text-fg tabular-nums">{nodes.length}</p></div>
         </Card>
         <Card className="flex items-center gap-2.5 p-3">
           <div className="grid h-8 w-8 place-items-center rounded-lg border border-success/25 bg-success/10 text-success"><Icon name="activity" size={17} /></div>
-          <div><p className="text-[10px] uppercase tracking-wider text-subtle">{t.online}</p><p className="text-base font-semibold text-fg tabular-nums">{online}</p></div>
+          <div><p className="text-[11px] text-subtle">{t.online}</p><p className="text-base font-semibold text-fg tabular-nums">{online}</p></div>
         </Card>
         <Card className="flex items-center gap-2.5 p-3">
           <div className="grid h-8 w-8 place-items-center rounded-lg border border-warning/25 bg-warning/10 text-warning"><Icon name="pulse" size={17} /></div>
-          <div><p className="text-[10px] uppercase tracking-wider text-subtle">{t.availability}</p><p className="text-base font-semibold text-fg tabular-nums">{nodes.length ? Math.round((online / nodes.length) * 100) : 0}%</p></div>
+          <div><p className="text-[11px] text-subtle">{t.availability}</p><p className="text-base font-semibold text-fg tabular-nums">{nodes.length ? Math.round((online / nodes.length) * 100) : 0}%</p></div>
         </Card>
       </div>
 
@@ -416,7 +416,7 @@ export default function NodesPage() {
             return (
               <Card key={node.id} className="node-card p-3 sm:p-4">
                 <div className="flex items-start gap-3">
-                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-brand/30 bg-brand/10 text-brand">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-brand/30 bg-brand/10 text-brand">
                     <Icon name="server" size={22} />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -524,7 +524,7 @@ export default function NodesPage() {
           <div className="relative space-y-3 pl-6">
             <div className="absolute bottom-3 left-[7px] top-3 w-px bg-line" />
             {revisions.map((revision) => (
-              <div key={revision.id} className="relative rounded-xl border border-line bg-surface-2/50 p-3.5">
+              <div key={revision.id} className="relative rounded-lg border border-line bg-surface-2/50 p-3.5">
                 <span className="absolute -left-[22px] top-5 h-2.5 w-2.5 rounded-full border-2 border-surface bg-brand" />
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
@@ -569,14 +569,14 @@ export default function NodesPage() {
                 { label: t.trafficUsed, value: health.latestMetric ? formatBytes(health.latestMetric.trafficUp) : '—' },
                 { label: t.connections, value: health.latestMetric ? String(health.latestMetric.connections) : '—' },
               ].map((item) => (
-                <div key={item.label} className="rounded-xl border border-line bg-surface-2/50 p-3">
-                  <p className="text-[10px] uppercase tracking-wider text-subtle">{item.label}</p>
+                <div key={item.label} className="rounded-lg border border-line bg-surface-2/50 p-3">
+                  <p className="text-[11px] text-subtle">{item.label}</p>
                   <p className="mt-1.5 text-sm font-medium text-fg tabular-nums">{item.value}</p>
                 </div>
               ))}
             </div>
             <div>
-              <p className="mb-2 text-[10px] uppercase tracking-wider text-subtle">{t.lastError}</p>
+              <p className="mb-2 text-[11px] text-subtle">{t.lastError}</p>
               {health.lastError ? (
                 <div className="flex items-start gap-2 rounded-lg border border-danger/25 bg-danger/10 p-3 text-xs text-danger">
                   <Icon name="alert" size={14} className="mt-0.5 shrink-0" />{health.lastError}
@@ -672,7 +672,7 @@ export default function NodesPage() {
             <Icon name="refresh" size={15} className="animate-spin text-brand" />{t.loading}
           </div>
         ) : logsData?.logs?.length ? (
-          <div className="mono max-h-[60vh] space-y-1 overflow-y-auto rounded-xl border border-line bg-app/70 p-3 text-[11px] leading-relaxed">
+          <div className="mono max-h-[60vh] space-y-1 overflow-y-auto rounded-lg border border-line bg-app/70 p-3 text-[11px] leading-relaxed">
             {logsData.logs.map((entry, index) => (
               <div key={`${entry.timestamp}-${index}`} className="flex gap-3">
                 <span className="shrink-0 text-subtle">{new Date(entry.timestamp).toLocaleTimeString()}</span>
@@ -783,13 +783,13 @@ export default function NodesPage() {
               </Badge>
             </div>
             <div>
-              <p className="mb-2 text-[10px] uppercase tracking-wider text-subtle">{t.networkSpeed}</p>
+              <p className="mb-2 text-[11px] text-subtle">{t.networkSpeed}</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 {[
                   { label: t.upload, value: `${metricsData.network?.uploadMbps ?? 0} Mbps` },
                   { label: t.download, value: `${metricsData.network?.downloadMbps ?? 0} Mbps` },
                 ].map((item) => (
-                  <div key={item.label} className="rounded-xl border border-line bg-surface-2/50 p-3">
+                  <div key={item.label} className="rounded-lg border border-line bg-surface-2/50 p-3">
                     <p className="text-[11px] text-subtle">{item.label}</p>
                     <p className="mt-1 text-sm font-semibold text-fg tabular-nums">{item.value}</p>
                   </div>
@@ -839,20 +839,20 @@ export default function NodesPage() {
               <Badge tone="neutral">{checkData.targetType || '—'}</Badge>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-line bg-surface-2/50 p-3">
-                <p className="text-[10px] uppercase tracking-wider text-subtle">{t.cheburcheckTarget}</p>
+              <div className="rounded-lg border border-line bg-surface-2/50 p-3">
+                <p className="text-[11px] text-subtle">{t.cheburcheckTarget}</p>
                 <p className="mono mt-1 text-sm text-fg">{checkData.target}</p>
                 <p className="mt-1 text-[11px] text-muted">{checkData.ips?.join(', ') || '—'}</p>
               </div>
-              <div className="rounded-xl border border-line bg-surface-2/50 p-3">
-                <p className="text-[10px] uppercase tracking-wider text-subtle">{t.cheburcheckGeo}</p>
+              <div className="rounded-lg border border-line bg-surface-2/50 p-3">
+                <p className="text-[11px] text-subtle">{t.cheburcheckGeo}</p>
                 <p className="mt-1 text-sm text-fg">{checkData.geo?.location || '—'}</p>
                 <p className="mt-1 text-[11px] text-muted">{checkData.geo?.organisation || ''} {checkData.geo?.asn || ''}</p>
               </div>
             </div>
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-[10px] uppercase tracking-wider text-subtle">{t.cheburcheckProbes}</p>
+                <p className="text-[11px] text-subtle">{t.cheburcheckProbes}</p>
                 <Badge tone="neutral">{checkData.probes?.length || 0}</Badge>
               </div>
               <div className="max-h-56 space-y-2 overflow-y-auto">

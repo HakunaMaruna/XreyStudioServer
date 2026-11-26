@@ -201,7 +201,7 @@ export default function PaymentsPage() {
       />
 
       {error && (
-        <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
         </div>
       )}
@@ -209,15 +209,15 @@ export default function PaymentsPage() {
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         <Card delay={0} className="flex items-center gap-3 p-4">
           <div className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-surface-2 text-brand"><Icon name="download" size={17} /></div>
-          <div><p className="text-[10px] uppercase tracking-wider text-subtle">{t.payments}</p><p className="text-lg font-semibold text-fg tabular-nums">{payments.length}</p></div>
+          <div><p className="text-[11px] text-subtle">{t.payments}</p><p className="text-lg font-semibold text-fg tabular-nums">{payments.length}</p></div>
         </Card>
         <Card delay={60} className="flex items-center gap-3 p-4">
           <div className="grid h-9 w-9 place-items-center rounded-lg border border-success/25 bg-success/10 text-success"><Icon name="checkCircle" size={17} /></div>
-          <div><p className="text-[10px] uppercase tracking-wider text-subtle">{t.resolved}</p><p className="text-lg font-semibold text-fg tabular-nums">{payments.filter((p) => p.status === 'paid').length}</p></div>
+          <div><p className="text-[11px] text-subtle">{t.resolved}</p><p className="text-lg font-semibold text-fg tabular-nums">{payments.filter((p) => p.status === 'paid').length}</p></div>
         </Card>
         <Card delay={120} className="flex items-center gap-3 p-4">
           <div className="grid h-9 w-9 place-items-center rounded-lg border border-cyan/25 bg-cyan/10 text-cyan"><Icon name="list" size={17} /></div>
-          <div><p className="text-[10px] uppercase tracking-wider text-subtle">{t.plans}</p><p className="text-lg font-semibold text-fg tabular-nums">{plans.length}</p></div>
+          <div><p className="text-[11px] text-subtle">{t.plans}</p><p className="text-lg font-semibold text-fg tabular-nums">{plans.length}</p></div>
         </Card>
       </div>
 

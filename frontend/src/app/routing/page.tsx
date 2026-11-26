@@ -176,8 +176,8 @@ export default function RoutingPage() {
     <>
       <PageHeader eyebrow={t.infrastructure} title={t.routing} subtitle={t.routingSubtitle} icon="route"
         actions={<><HelpButton title={t.help}><p>{lang === 'ru' ? 'Рецепты заполняют форму проверенными наборами правил. Включённые профили добавляются в dns.servers, outbounds и routing.rules генерируемого конфига Xray. Кнопка «Проверить» не сохраняет профиль, а показывает ошибки валидации.' : 'Recipes fill the form with verified presets. Enabled profiles are merged into dns.servers, outbounds and routing.rules of the generated Xray config. Validate shows errors without saving.'}</p></HelpButton><Button icon="plus" variant="primary" onClick={startCreate}>{t.create}</Button></>} />
-      {error && <div className="mb-5 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">{error}</div>}
-      {notice && <div className="mb-5 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-xs text-success">{notice}</div>}
+      {error && <div className="mb-4 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>}
+      {notice && <div className="mb-4 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
       <DataTable data={rows} columns={columns} loading={loading} getRowId={(row) => row.id} />
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? t.edit : t.create} subtitle={t.routingSubtitle} icon={<Icon name="route" size={16} />} size="lg"

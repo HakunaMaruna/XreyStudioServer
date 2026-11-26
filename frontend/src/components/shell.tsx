@@ -152,22 +152,22 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   };
 
   const sidebar = (
-    <div className="animate-slide-left flex h-full flex-col border-r border-line bg-surface/70 backdrop-blur-xl">
-      <div className="flex h-16 items-center gap-3 border-b border-line px-5">
-        <div className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-brand to-brand-2 text-white shadow-[0_6px_20px_-8px_var(--brand)]">
-          <Icon name="zap" size={18} className="fill-white/20" />
+    <div className="animate-slide-left flex h-full flex-col border-r border-line bg-surface">
+      <div className="flex h-14 items-center gap-2.5 border-b border-line px-4">
+        <div className="grid h-8 w-8 place-items-center rounded-lg bg-brand text-white">
+          <Icon name="zap" size={16} />
         </div>
         <div className="leading-tight">
-          <p className="text-sm font-semibold tracking-tight text-fg">XreyStudio</p>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">{t.controlPanel}</p>
+          <p className="text-[13px] font-semibold text-fg">XreyStudio</p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-subtle">{t.controlPanel}</p>
         </div>
       </div>
 
-      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
+      <nav className="flex-1 space-y-5 overflow-y-auto px-2 py-3">
         {sections.map((section) => (
           <div key={section.title}>
-            <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-subtle">{section.title}</p>
-            <div className="space-y-1">
+            <p className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-subtle">{section.title}</p>
+            <div className="space-y-0.5">
               {section.items.map((item) => {
                 const active = pathname === item.href;
                 return (
@@ -175,16 +175,15 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all',
+                      'group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors',
                       active
-                        ? 'bg-gradient-to-r from-brand/20 via-brand-soft to-transparent font-medium text-brand shadow-[inset_3px_0_0_var(--brand)]'
+                        ? 'bg-brand/10 font-medium text-brand'
                         : 'text-muted hover:bg-surface-2 hover:text-fg',
                     )}
                   >
-                    {active && <span className="absolute -left-3 h-5 w-0.5 rounded-r-full bg-brand" />}
-                    <Icon name={item.icon} size={17} className={active ? 'text-brand' : 'text-subtle group-hover:text-fg'} />
+                    <Icon name={item.icon} size={16} className={active ? 'text-brand' : 'text-subtle group-hover:text-fg'} />
                     {item.label}
-                    {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-brand" />}
+
                   </Link>
                 );
               })}
@@ -193,8 +192,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         ))}
       </nav>
 
-      <div className="space-y-3 border-t border-line p-3">
-        <div className="rounded-xl border border-line bg-surface-2 p-3">
+      <div className="space-y-2 border-t border-line p-2.5">
+        <div className="rounded-lg border border-line bg-surface-2 p-2.5">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium text-muted">{t.systemStatus}</span>
             <Badge tone="success" dot>{t.online}</Badge>
@@ -204,7 +203,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <div className="flex justify-between text-[10px] text-subtle"><span>{t.version}</span><span>v{APP_VERSION}</span></div>
           </div>
         </div>
-        <div className="flex items-center gap-3 rounded-xl border border-line bg-surface-2 p-2.5">
+        <div className="flex items-center gap-2.5 rounded-lg border border-line bg-surface-2 p-2">
           <Avatar label="AD" size="sm" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-medium text-fg">{t.administrator}</p>
@@ -224,17 +223,17 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       >
         Skip to content
       </a>
-      <aside className="fixed inset-y-0 left-0 z-sidebar hidden w-[248px] lg:block">{sidebar}</aside>
+      <aside className="fixed inset-y-0 left-0 z-sidebar hidden w-[var(--ui-sidebar-w)] lg:block">{sidebar}</aside>
 
       {mobileOpen && (
         <div className="fixed inset-0 z-overlay lg:hidden" role="dialog" aria-modal="true" aria-label={t.controlPanel}>
-          <div className="absolute inset-0 bg-app/80 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 w-[264px]">{sidebar}</aside>
+          <div className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} />
+          <aside className="absolute inset-y-0 left-0 w-[var(--ui-sidebar-w-mobile)]">{sidebar}</aside>
         </div>
       )}
 
-      <div className="lg:pl-[248px]">
-        <header className="ui-safe-top sticky top-0 z-sticky flex min-h-16 items-center gap-3 border-b border-line bg-app/80 px-4 backdrop-blur-xl sm:px-6">
+      <div className="lg:pl-[var(--ui-sidebar-w)]">
+        <header className="ui-safe-top sticky top-0 z-sticky flex min-h-14 items-center gap-3 border-b border-line bg-surface px-4 sm:px-6">
           <IconButton icon="menu" label="Menu" className="lg:hidden" onClick={() => setMobileOpen(true)} />
 
           <div className="hidden items-center gap-2 text-sm sm:flex">
@@ -294,7 +293,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <IconButton icon="sparkles" label="Toggle icon set" onClick={toggleIconSet} />
         </header>
 
-        <main id="main-content" className="relative z-content mx-auto w-full max-w-[1400px] px-4 py-5 pb-[max(1.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-7 lg:px-8">{children}</main>
+        <main id="main-content" className="relative z-content mx-auto w-full max-w-[var(--ui-content-max)] px-4 py-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-5">{children}</main>
       </div>
     </div>
   );

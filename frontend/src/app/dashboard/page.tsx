@@ -19,10 +19,9 @@ const CHART_COLORS = ['var(--success)', 'var(--warning)', 'var(--danger)'];
 const tooltipStyle = {
   background: 'var(--surface-2)',
   border: '1px solid var(--line)',
-  borderRadius: 10,
+  borderRadius: 8,
   fontSize: 11,
   color: 'var(--fg)',
-  boxShadow: '0 12px 30px -12px rgba(0,0,0,.6)',
 };
 
 const ResponsiveContainer = lazyChart('ResponsiveContainer');
@@ -107,7 +106,7 @@ export default function DashboardPage() {
         icon="grid"
         actions={
           <>
-            <span className="inline-flex items-center gap-2 rounded-md border border-success/25 bg-success/10 px-2 py-0.5 text-[11px] font-medium text-success">
+            <span className="inline-flex items-center gap-2 rounded-lg border border-success/25 bg-success/10 px-2 py-0.5 text-[11px] font-medium text-success">
               <span className="animate-soft-pulse h-1.5 w-1.5 rounded-full bg-success" />
               {t.live}
             </span>
@@ -117,7 +116,7 @@ export default function DashboardPage() {
       />
 
       {update?.error && (
-        <div className="mb-4 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-xs text-warning">
+        <div className="mb-4 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
           {t.updateCheckError.replace('{error}', update.error)}
         </div>
       )}
@@ -126,7 +125,7 @@ export default function DashboardPage() {
         <Card className="mb-4 border-warning/30 bg-warning/5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-start gap-3">
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-warning/30 bg-warning/10 text-warning">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-warning/30 bg-warning/10 text-warning">
                 <Icon name="download" size={18} />
               </div>
               <div>
@@ -172,7 +171,7 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-2 sm:gap-3 md:grid-cols-3 2xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-6">
         <StatCard delay={0} label={t.totalUsers} value={stats?.total ?? '—'} icon="users" tone="brand" hint={t.registeredAccounts} />
         <StatCard delay={60} label={t.activeUsers} value={stats?.active ?? '—'} icon="checkCircle" tone="success" hint={totalUsers ? `${Math.round(((stats?.active || 0) / totalUsers) * 100)}${t.percentOfUsers}` : undefined} />
         <StatCard delay={120} label={t.totalNodes} value={nodeStats?.total ?? '—'} icon="server" tone="cyan" hint={t.configuredNodes} />
@@ -190,7 +189,7 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+      <div className="mt-3 grid gap-3 lg:grid-cols-2">
         <Card delay={240}>
           <SectionTitle title={t.usersByStatus} subtitle={t.distributionStatuses} />
           <div className="flex items-center gap-4">
@@ -206,8 +205,8 @@ export default function DashboardPage() {
                 </PieChart>
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-semibold tracking-tight text-fg tabular-nums">{totalUsers}</span>
-                <span className="text-[10px] uppercase tracking-widest text-subtle">{t.total}</span>
+                <span className="text-xl font-semibold tracking-tight text-fg tabular-nums">{totalUsers}</span>
+                <span className="text-[11px] text-subtle">{t.total}</span>
               </div>
             </div>
             <div className="flex-1 space-y-3">
@@ -245,7 +244,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="mt-4 grid gap-3 xl:grid-cols-3">
+      <div className="mt-3 grid gap-3 xl:grid-cols-3">
         <Card delay={360} className="xl:col-span-2">
           <SectionTitle title={t.nodeLoad} subtitle={t.cpuRamByNode} />
           {loads.length === 0 ? (
@@ -266,33 +265,33 @@ export default function DashboardPage() {
 
         <Card delay={420}>
           <SectionTitle title={t.trafficOverview} subtitle={t.aggregatedUsage} />
-          <div className="rounded-xl border border-line bg-surface-2/60 p-3">
+          <div className="rounded-lg border border-line bg-surface-2/60 p-3">
             <div className="flex items-center gap-3">
-              <div className="grid h-9 w-9 place-items-center rounded-xl border border-cyan/25 bg-cyan/10 text-cyan">
+              <div className="grid h-8 w-8 place-items-center rounded-lg border border-cyan/25 bg-cyan/10 text-cyan">
                 <Icon name="activity" size={20} />
               </div>
               <div>
-                <p className="text-[11px] uppercase tracking-wider text-subtle">{t.trafficUsed}</p>
+                <p className="text-[11px] text-subtle">{t.trafficUsed}</p>
                 <p className="text-xl font-semibold tracking-tight text-fg tabular-nums">{formatBytes(stats?.trafficUsed)}</p>
               </div>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-3 border-t border-line pt-3">
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-subtle">{t.active}</p>
+                <p className="text-[11px] text-subtle">{t.active}</p>
                 <p className="mt-1 text-sm font-medium text-fg tabular-nums">{stats?.active ?? '—'}</p>
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-subtle">{t.online}</p>
+                <p className="text-[11px] text-subtle">{t.online}</p>
                 <p className="mt-1 text-sm font-medium text-fg tabular-nums">{nodeStats?.online ?? '—'}</p>
               </div>
             </div>
           </div>
           <div className="mt-3 space-y-2">
-            <Link href="/users" className="flex items-center justify-between rounded-lg border border-line bg-surface-2/40 px-3 py-2.5 text-xs text-muted transition-colors hover:border-brand/30 hover:text-fg">
+            <Link href="/users" className="flex items-center justify-between rounded-lg border border-line bg-surface-2/40 px-3 py-2 text-xs text-muted transition-colors hover:border-line-2 hover:text-fg">
               <span className="flex items-center gap-2"><Icon name="users" size={18} className="text-brand" /> {t.manageSubscribers}</span>
               <Icon name="arrowUpRight" size={18} />
             </Link>
-            <Link href="/nodes" className="flex items-center justify-between rounded-lg border border-line bg-surface-2/40 px-3 py-2.5 text-xs text-muted transition-colors hover:border-brand/30 hover:text-fg">
+            <Link href="/nodes" className="flex items-center justify-between rounded-lg border border-line bg-surface-2/40 px-3 py-2 text-xs text-muted transition-colors hover:border-line-2 hover:text-fg">
               <span className="flex items-center gap-2"><Icon name="server" size={18} className="text-cyan" /> {t.inspectNodes}</span>
               <Icon name="arrowUpRight" size={18} />
             </Link>

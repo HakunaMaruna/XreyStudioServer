@@ -109,7 +109,7 @@ export default function GeodataPage() {
       },
       {
         accessorKey: 'source', header: t.source, size: 110,
-        cell: ({ row }) => <span className="text-[10px] uppercase tracking-wider text-subtle">{row.original.source}</span>,
+        cell: ({ row }) => <span className="text-xs text-subtle">{row.original.source}</span>,
       },
       { accessorKey: 'enabled', header: t.enabled, size: 90, meta: { noTruncate: true, align: 'center' }, cell: ({ row }) => <Toggle checked={row.original.enabled} onChange={() => toggle(row.original)} label="" /> },
       {
@@ -139,7 +139,7 @@ export default function GeodataPage() {
           </div>
         } />
       {notice && (
-        <div role="status" aria-live="polite" className="mb-5 rounded-xl border border-brand/25 bg-brand-soft px-4 py-3 text-xs text-brand">
+        <div role="status" aria-live="polite" className="mb-4 rounded-lg border border-brand/25 bg-brand-soft px-3 py-2 text-xs text-brand">
           {notice}
         </div>
       )}
@@ -150,10 +150,10 @@ export default function GeodataPage() {
         <StatCard label="geoip" value={geoip} icon="server" tone="info" />
       </div>
 
-      <Card className="mt-5 mb-5 flex flex-wrap gap-2 p-4">
+      <Card className="mt-3 mb-4 flex flex-wrap gap-2 p-2.5">
         {(['all', 'geosite', 'geoip'] as const).map((item) => (
           <button key={item} onClick={() => setFilter(item)}
-            className={cn('rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
+            className={cn('h-7 rounded-lg border px-2.5 text-xs font-medium transition-colors',
               filter === item ? 'border-brand/40 bg-brand-soft text-brand' : 'border-line bg-surface-2 text-muted hover:text-fg')}>
             {item === 'all' ? t.all : item.toUpperCase()}
           </button>

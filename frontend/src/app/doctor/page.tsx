@@ -56,12 +56,12 @@ export default function DoctorPage() {
     <>
       <PageHeader eyebrow="Infrastructure" title={t.doctor} subtitle={t.doctorSubtitle} icon="activity" />
       {error && (
-        <div role="alert" className="mb-4 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+        <div role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
         </div>
       )}
       {notice && (
-        <div role="status" aria-live="polite" className="mb-4 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-xs text-success">
+        <div role="status" aria-live="polite" className="mb-4 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">
           {notice}
         </div>
       )}
@@ -70,8 +70,8 @@ export default function DoctorPage() {
       )}
       {problems.length > 0 && (
         <Card padded={false}>
-          <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
-            <h2 className="text-sm font-semibold text-fg">{t.doctor}</h2>
+          <div className="flex items-center justify-between gap-3 border-b border-line px-3 py-2.5">
+            <h2 className="text-[13px] font-semibold text-fg">{t.doctor}</h2>
             <Badge tone="warning">{problems.length}</Badge>
           </div>
           <div className="divide-y divide-line/70">
@@ -85,11 +85,11 @@ export default function DoctorPage() {
                     type="button"
                     onClick={() => setExpanded(open ? null : key)}
                     aria-expanded={open}
-                    className="flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface-2/60"
+                    className="flex w-full items-start gap-3 px-3 py-2 text-left transition-colors hover:bg-surface-2/60"
                   >
                     <span
                       className={cn(
-                        'mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg border',
+                        'mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-lg border',
                         critical
                           ? 'border-danger/30 bg-danger/10 text-danger'
                           : 'border-warning/30 bg-warning/10 text-warning',
@@ -113,7 +113,7 @@ export default function DoctorPage() {
                     />
                   </button>
                   {open && (
-                    <div className="px-4 pb-3 pl-[3.25rem]">
+                    <div className="px-3 pb-3 pl-[3rem]">
                       <p className="whitespace-pre-line break-words text-xs leading-relaxed text-muted">{check.detail}</p>
                       {check.fixable && (
                         <Button size="sm" className="mt-2" onClick={() => fix(check)} loading={busy === key}>

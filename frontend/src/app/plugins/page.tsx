@@ -112,8 +112,8 @@ export default function PluginsPage() {
         actions={<><HelpButton title={t.help}>
           <p>{lang === 'ru' ? 'Плагины исполняются в отдельном воркере с лимитами, без доступа к БД ядра и окружению. Все действия аудируются и предваряются снимком.' : 'Plugins run in a limited worker without core DB or env access. All actions are audited and preceded by a snapshot.'}</p>
         </HelpButton><Button icon="refresh" size="sm" onClick={load}>{t.refresh}</Button></>} />
-      {error && <div className="mb-4 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">{error}</div>}
-      {notice && <div className="mb-4 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-xs text-success">{notice}</div>}
+      {error && <div className="mb-4 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>}
+      {notice && <div className="mb-4 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
       <div className="mb-4"><Segmented value={tab} onChange={setTab} options={[
         { value: 'installed', label: t.pluginsInstalled, icon: 'box' },
         { value: 'catalog', label: t.pluginsCatalog, icon: 'globe' },
@@ -157,7 +157,7 @@ export default function PluginsPage() {
 
       {tab === 'catalog' && (
         <div className="space-y-3">
-          {catalog?.offline && <div className="rounded-xl border border-warning/25 bg-warning/10 px-4 py-3 text-xs text-warning">{t.pluginsOffline}</div>}
+          {catalog?.offline && <div className="rounded-lg border border-warning/25 bg-warning/10 px-3 py-2 text-xs text-warning">{t.pluginsOffline}</div>}
           {!catalog?.plugins.length ? <Card className="py-16 text-center text-xs text-subtle">{t.noData}</Card> : (
             <div className="grid gap-3 md:grid-cols-2">
               {catalog.plugins.map((plugin) => (

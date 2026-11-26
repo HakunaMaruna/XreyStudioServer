@@ -470,7 +470,7 @@ export default function SettingsPage() {
                   label={t.enabled}
                 />
                 <div>
-                  <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-subtle">{t.channelsActive}</label>
+                  <label className="mb-1.5 block text-[11px] font-medium text-subtle">{t.channelsActive}</label>
                   <div className="flex flex-wrap gap-2">
                     {INTEGRATIONS.map((item) => (
                       <button
@@ -623,7 +623,7 @@ export default function SettingsPage() {
             <SectionTitle title={t.snapshotStateTitle} subtitle={t.snapshotStateSubtitle} />
             <div className="space-y-5">
               <div className="space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-subtle">{t.snapshotPolicyTitle}</p>
+                <p className="text-xs font-semibold text-subtle">{t.snapshotPolicyTitle}</p>
                 <Toggle
                   checked={snapshotPolicy.autoBeforeUpdates}
                   onChange={(value) => setSnapshotPolicy((prev) => ({ ...prev, autoBeforeUpdates: value }))}
@@ -672,7 +672,7 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-3 border-t border-line pt-5">
-                <p className="text-xs font-semibold uppercase tracking-wider text-subtle">{t.snapshotCreateTitle}</p>
+                <p className="text-xs font-semibold text-subtle">{t.snapshotCreateTitle}</p>
                 <div className="grid gap-3 sm:grid-cols-3">
                   <Field label={t.snapshotLabel}>
                     <input
@@ -717,7 +717,7 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-2 border-t border-line pt-5">
-                <p className="text-xs font-semibold uppercase tracking-wider text-subtle">{t.snapshotStateTitle}</p>
+                <p className="text-xs font-semibold text-subtle">{t.snapshotStateTitle}</p>
                 {snapshotNotice && (
                   <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
                     {snapshotNotice}
@@ -890,7 +890,7 @@ export default function SettingsPage() {
             label={t.updateCheck}
           />
           <div>
-            <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-subtle">{t.updateChannel}</p>
+            <p className="mb-2 text-[11px] font-medium text-subtle">{t.updateChannel}</p>
             <Segmented
               value={settings.updateChannel}
               onChange={(value) => setSettings((prev) => ({ ...prev, updateChannel: value as 'stable' | 'dev' }))}

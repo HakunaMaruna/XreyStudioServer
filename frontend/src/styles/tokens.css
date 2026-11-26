@@ -1,0 +1,156 @@
+/*
+ * Single source of truth for sizes and surfaces.
+ *
+ * Values measured from the two reference panels:
+ *   Remnawave (Mantine): 8px control radius, 36px md control height,
+ *     sidebar 300 / header 64, content padding 32.
+ *   3x-ui (Ant Design 6): 32px control height, 6px radius, card radius 12,
+ *     content padding 24/8, small table (8px cells), pagination 25.
+ *
+ * Base names (--space-*, --radius-*, --control-h-*, --row-h, --sidebar-w,
+ * --header-h) follow the upstream token scale so pages written against it keep
+ * working; --ui-* aliases are the semantic names used by the shared components.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Spacing (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+
+  /* Radii: controls 8, cards/dialogs 12, tags 4 */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* Controls */
+  --control-h-sm: 28px;
+  --control-h-md: 32px;
+  --control-h-lg: 36px;
+  --input-h: 32px;
+
+  /* Tables: 3x-ui small (8px block padding, 13px text) */
+  --row-h: 38px;
+  --cell-y: 8px;
+  --cell-x: 12px;
+  --table-font: 13px;
+  --table-head-font: 12px;
+
+  /* Layout */
+  --sidebar-w: 260px;
+  --sidebar-w-mobile: 280px;
+  --header-h: 56px;
+  --content-pad: 24px;
+  --content-pad-sm: 16px;
+  --content-max: 1680px;
+
+  /* Elevation: hairline shadows, not glows */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.32);
+  --shadow-card-hover: 0 8px 24px -14px rgba(0, 0, 0, 0.6);
+  --shadow-modal: 0 18px 48px -24px rgba(0, 0, 0, 0.75);
+
+  /* Layers: dropdown < sticky < sidebar < overlay < modal < toast < tooltip */
+  --z-content: 10;
+  --z-dropdown: 40;
+  --z-sticky: 50;
+  --z-sidebar: 60;
+  --z-overlay: 80;
+  --z-modal: 90;
+  --z-toast: 100;
+  --z-tooltip: 110;
+
+  /* Surfaces (Remnawave dark palette) */
+  --app: #0d1117;
+  --surface: #161b22;
+  --surface-2: #1c232d;
+  --surface-3: #242c38;
+  --line: #2a323e;
+  --line-2: #3a4553;
+  --fg: #e8edf6;
+  --muted: #9aa7ba;
+  --subtle: #8494aa;
+
+  --brand: #8b7cff;
+  --brand-2: #38bdf8;
+  --brand-soft: rgba(139, 124, 255, 0.14);
+  --accent-gradient: linear-gradient(135deg, var(--brand), var(--brand-2));
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #fb7185;
+  --info: #60a5fa;
+  --cyan: #22d3ee;
+
+  --font-ui: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Typography */
+  --ui-font-xs: 11px;
+  --ui-font-sm: 12px;
+  --ui-font-base: 13px;
+  --ui-font-md: 14px;
+  --ui-font-lg: 16px;
+  --ui-font-title: 20px;
+
+  /* Semantic aliases used by the shared components */
+  --ui-radius-xs: var(--radius-sm);
+  --ui-radius-sm: 6px;
+  --ui-radius-md: var(--radius-md);
+  --ui-radius-lg: var(--radius-lg);
+  --ui-radius-xl: var(--radius-xl);
+  --ui-radius-full: var(--radius-full);
+  --ui-control-h-sm: var(--control-h-sm);
+  --ui-control-h: var(--control-h-md);
+  --ui-control-h-lg: var(--control-h-lg);
+  --ui-table-row: var(--row-h);
+  --ui-table-cell-y: var(--cell-y);
+  --ui-table-cell-x: var(--cell-x);
+  --ui-table-font: var(--table-font);
+  --ui-table-head-font: var(--table-head-font);
+  --ui-sidebar-w: var(--sidebar-w);
+  --ui-sidebar-w-mobile: var(--sidebar-w-mobile);
+  --ui-header-h: var(--header-h);
+  --ui-content-pad: var(--content-pad);
+  --ui-content-pad-sm: var(--content-pad-sm);
+  --ui-content-max: var(--content-max);
+  --ui-shadow-1: var(--shadow-card);
+  --ui-shadow-2: var(--shadow-card-hover);
+  --ui-shadow-3: var(--shadow-modal);
+}
+
+:root.light {
+  color-scheme: light;
+
+  /* 3x-ui light shell: #e6e8ec page, #fff cards */
+  --app: #e9ecf1;
+  --surface: #ffffff;
+  --surface-2: #f5f7fa;
+  --surface-3: #eef1f6;
+  --line: #e2e7ef;
+  --line-2: #cfd7e3;
+  --fg: #151b26;
+  --muted: #55637a;
+  --subtle: #68758b;
+
+  --brand: #6355e0;
+  --brand-2: #0284c7;
+  --brand-soft: rgba(99, 85, 224, 0.1);
+  --accent-gradient: linear-gradient(135deg, var(--brand), var(--brand-2));
+  --success: #0f9d6e;
+  --warning: #b45309;
+  --danger: #d92d4b;
+  --info: #1d4ed8;
+  --cyan: #0e7490;
+
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --shadow-card-hover: 0 8px 24px -14px rgba(16, 24, 40, 0.22);
+  --shadow-modal: 0 18px 48px -26px rgba(16, 24, 40, 0.3);
+}

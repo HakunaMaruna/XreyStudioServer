@@ -21,7 +21,7 @@ type WizardResult = {
 };
 
 const inputClass =
-  'w-full rounded-xl border border-line-2 bg-surface-2 px-3 py-2 text-sm text-fg outline-none transition focus:border-brand/60';
+  'w-full rounded-lg border border-line-2 bg-surface-2 px-3 py-2 text-sm text-fg outline-none transition focus:border-brand/60';
 
 export default function WizardPage() {
   const { t, lang } = useLang();
@@ -161,7 +161,7 @@ export default function WizardPage() {
             key={label}
             type="button"
             onClick={() => index < step && setStep(index)}
-            className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition ${
+            className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
               index === step
                 ? 'border-brand/50 bg-brand/15 text-fg'
                 : index < step
@@ -175,7 +175,7 @@ export default function WizardPage() {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+        <div className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}
@@ -200,7 +200,7 @@ export default function WizardPage() {
             )}
           </div>
           <div className="mt-5">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-subtle">{t.wizardAuthMode}</span>
+            <span className="text-[11px] font-medium text-subtle">{t.wizardAuthMode}</span>
             <div className="mt-2 flex flex-wrap gap-2">
               {(['key', 'password', 'password_key'] as AuthMode[]).map((mode) => (
                 <Button key={mode} variant={authMode === mode ? 'primary' : 'subtle'} size="sm" onClick={() => setAuthMode(mode)}>
@@ -257,7 +257,7 @@ export default function WizardPage() {
               <input className={inputClass} value={form.ipv6} onChange={(e) => update('ipv6', e.target.value)} />
             </Field>
             <div className="sm:col-span-2">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-subtle">{t.wizardDomainMode}</span>
+              <span className="text-[11px] font-medium text-subtle">{t.wizardDomainMode}</span>
               <div className="mt-2">
                 <Segmented value={domainMode} onChange={setDomainMode} options={[
                   { value: 'auto', label: t.wizardAutoDomain, icon: 'globe' },
@@ -313,7 +313,7 @@ export default function WizardPage() {
             )}
           </div>
           {applied && (
-            <div className="mt-4 flex items-center gap-2 rounded-xl border border-success/25 bg-success/10 px-3 py-2 text-sm text-success" role="status">
+            <div className="mt-4 flex items-center gap-2 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-sm text-success" role="status">
               <Icon name="checkCircle" size={16} />
               <span>{t.wizardApplied} · {t.wizardRedirecting}</span>
             </div>
@@ -345,8 +345,8 @@ export default function WizardPage() {
           <div className="h-full rounded-full bg-brand transition-all duration-500"
             style={{ width: `${install?.progress || 0}%` }} />
         </div>
-        <p className="mt-4 text-[11px] font-medium uppercase tracking-wider text-subtle">{t.wizardInstallTerminal}</p>
-        <div className="mono mt-2 max-h-72 space-y-1 overflow-auto rounded-xl border border-line bg-[#07090f] p-3 text-[11px] leading-relaxed">
+        <p className="mt-4 text-[11px] font-medium text-subtle">{t.wizardInstallTerminal}</p>
+        <div className="mono mt-2 max-h-72 space-y-1 overflow-auto rounded-lg border border-line bg-[#07090f] p-3 text-[11px] leading-relaxed">
           {(install?.logs || []).map((entry: any) => (
             <div key={entry.id} className={entry.level === 'error' ? 'text-danger'
               : entry.level === 'warn' ? 'text-warning'

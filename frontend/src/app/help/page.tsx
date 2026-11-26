@@ -66,7 +66,7 @@ export default function DocsPage() {
           </div>
         </Card>
 
-        <Card className="min-w-0 p-5 sm:p-7">
+        <Card className="min-w-0 p-4 sm:p-5">
           <div className="doc-content">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{current.markdown}</ReactMarkdown>
           </div>

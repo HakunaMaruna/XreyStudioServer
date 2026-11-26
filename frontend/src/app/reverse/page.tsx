@@ -114,7 +114,7 @@ export default function ReversePage() {
         }
       />
 
-      {error && <div className="mb-4 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger"><Icon name="alert" size={15} />{error}</div>}
+      {error && <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger"><Icon name="alert" size={15} />{error}</div>}
 
       {!rows.length ? (
         <Card className="py-16 text-center text-xs text-subtle">{t.noData}</Card>
@@ -124,7 +124,7 @@ export default function ReversePage() {
             <Card key={row.id} className="node-card p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-xl border border-brand/30 bg-brand/10 text-brand"><Icon name="network" size={20} /></div>
+                  <div className="grid h-8 w-8 place-items-center rounded-lg border border-brand/30 bg-brand/10 text-brand"><Icon name="network" size={20} /></div>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold text-fg">{row.name}</p>

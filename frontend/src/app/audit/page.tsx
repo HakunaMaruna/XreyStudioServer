@@ -136,7 +136,7 @@ export default function AuditPage() {
       />
 
       {error && (
-        <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
         </div>
       )}
@@ -177,7 +177,7 @@ export default function AuditPage() {
         <div className="max-h-[min(65dvh,640px)] divide-y divide-line/70 overflow-y-auto overscroll-contain">
           {loading ? (
             Array.from({ length: 6 }).map((_, index) => (
-              <div key={`audit-skeleton-${index}`} className="flex items-center gap-3 px-3 py-2.5">
+              <div key={`audit-skeleton-${index}`} className="flex items-center gap-3 px-3 py-2">
                 <div className="h-3 w-24 animate-pulse rounded bg-surface-3" />
                 <div className="h-3 w-16 animate-pulse rounded bg-surface-3" />
                 <div className="h-3 flex-1 animate-pulse rounded bg-surface-3" />

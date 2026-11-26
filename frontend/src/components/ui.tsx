@@ -24,7 +24,7 @@ type CardProps = { children: ReactNode; className?: string; padded?: boolean; de
 export function Card({ children, className, padded = true, delay }: CardProps) {
   return (
     <section
-      className={cn('panel panel-hover animate-fade-up', padded && 'ui-card-pad', className)}
+      className={cn('panel panel-hover animate-fade-up', padded && 'p-4', className)}
       style={delay ? { animationDelay: `${delay}ms` } : undefined}
     >
       {children}
@@ -34,10 +34,10 @@ export function Card({ children, className, padded = true, delay }: CardProps) {
 
 export function SectionTitle({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
   return (
-    <div className="mb-4 flex items-start justify-between gap-4">
+    <div className="mb-3 flex items-start justify-between gap-4">
       <div>
-        <h2 className="text-sm font-semibold tracking-tight text-fg">{title}</h2>
-        {subtitle && <p className="mt-1 text-xs text-muted">{subtitle}</p>}
+        <h2 className="text-[13px] font-semibold text-fg">{title}</h2>
+        {subtitle && <p className="mt-0.5 text-xs text-muted">{subtitle}</p>}
       </div>
       {action}
     </div>
@@ -58,20 +58,19 @@ export function PageHeader({
   eyebrow?: string;
 }) {
   return (
-    <div className="animate-fade-up mb-5 flex flex-wrap items-end justify-between gap-3 sm:mb-7 sm:gap-4">
-      <div className="flex min-w-0 items-center gap-2.5 sm:gap-3.5">
+    <div className="animate-fade-up mb-4 flex flex-wrap items-end justify-between gap-3 sm:mb-5">
+      <div className="flex min-w-0 items-center gap-3">
         {icon && (
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-lg)] border border-brand/30 bg-gradient-to-br from-brand/25 to-brand-2/10 text-brand shadow-[0_10px_30px_-10px_var(--brand)] sm:h-12 sm:w-12">
-            <Icon name={icon} size={19} className="sm:hidden" />
-            <Icon name={icon} size={21} className="hidden sm:block" />
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-line bg-surface-2 text-brand">
+            <Icon name={icon} size={18} />
           </div>
         )}
         <div className="min-w-0">
           {eyebrow && (
-            <p className="mb-1 bg-gradient-to-r from-brand to-brand-2 bg-clip-text text-[9px] font-semibold uppercase tracking-[0.18em] text-transparent sm:text-[10px]">{eyebrow}</p>
+            <p className="mb-1 text-[11px] font-medium text-brand">{eyebrow}</p>
           )}
-          <h1 className="truncate text-xl font-semibold tracking-tight text-fg sm:text-2xl">{title}</h1>
-          {subtitle && <p className="mt-1 text-xs text-muted sm:text-sm">{subtitle}</p>}
+          <h1 className="truncate text-lg font-semibold tracking-tight text-fg sm:text-xl">{title}</h1>
+          {subtitle && <p className="mt-0.5 text-xs text-muted sm:text-[13px]">{subtitle}</p>}
         </div>
       </div>
       {actions && <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{actions}</div>}
@@ -87,12 +86,11 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const buttonVariants: Record<NonNullable<ButtonProps['variant']>, string> = {
-  primary:
-    'border-brand/40 bg-gradient-to-b from-brand to-brand-2 text-white shadow-[0_8px_24px_-10px_var(--brand)] hover:brightness-110',
-  secondary: 'border-line-2 bg-surface-2 text-fg hover:border-brand/40 hover:bg-surface-3',
+  primary: 'border-brand bg-brand text-white hover:bg-brand/90',
+  secondary: 'border-line bg-surface-2 text-fg hover:border-line-2 hover:bg-surface-3',
   ghost: 'border-transparent bg-transparent text-muted hover:bg-surface-2 hover:text-fg',
   danger: 'border-danger/30 bg-danger/10 text-danger hover:bg-danger/20',
-  subtle: 'border-line bg-surface text-muted hover:text-fg hover:border-line-2',
+  subtle: 'border-line bg-surface text-muted hover:border-line-2 hover:text-fg',
 };
 
 export function Button({
@@ -108,8 +106,8 @@ export function Button({
   return (
     <button
       className={cn(
-        'ui-touch-target inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] border font-medium transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50',
-        size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm',
+        'ui-touch-target inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50',
+        size === 'sm' ? 'h-7 px-2.5 text-xs' : 'h-8 px-3.5 text-[13px]',
         buttonVariants[variant],
         className,
       )}
@@ -177,7 +175,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium tracking-wide',
+        'inline-flex items-center gap-1.5 rounded border px-1.5 text-[11px] font-medium leading-5',
         toneClasses[tone],
         className,
       )}
@@ -215,16 +213,15 @@ export function StatCard({
   delay?: number;
 }) {
   return (
-    <Card delay={delay} className="group relative overflow-hidden p-4">
-      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-brand via-brand-2 to-transparent opacity-50" />
-      <div className="relative flex items-start justify-between gap-2">
+    <Card delay={delay} className="p-4">
+      <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase leading-tight tracking-[0.1em] text-subtle">{label}</p>
-          <p className="mt-2 text-[23px] font-semibold leading-none tracking-tight text-fg tabular-nums">{value}</p>
-          {hint && <p className="mt-1.5 truncate text-[10px] text-muted">{hint}</p>}
+          <p className="truncate text-[11px] font-medium text-subtle" title={label}>{label}</p>
+          <p className="mt-1.5 text-xl font-semibold leading-none tracking-tight text-fg tabular-nums">{value}</p>
+          {hint && <p className="mt-1 truncate text-[11px] text-muted" title={hint}>{hint}</p>}
         </div>
-        <div className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-xl border', toneClasses[tone])}>
-          <Icon name={icon} size={22} />
+        <div className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-lg border', toneClasses[tone])}>
+          <Icon name={icon} size={18} />
         </div>
       </div>
     </Card>
@@ -239,8 +236,8 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
     typeof child.type === 'string' &&
     ['input', 'select', 'textarea'].includes(child.type as string);
   return (
-    <label htmlFor={isControl ? id : undefined} className="block space-y-1.5">
-      <span className="text-[11px] font-medium uppercase tracking-wider text-subtle">{label}</span>
+    <label htmlFor={isControl ? id : undefined} className="block space-y-1">
+      <span className="block text-xs font-medium text-subtle">{label}</span>
       {isControl ? cloneElement(child as ReactElement<any>, { id }) : children}
       {hint && <span className="block text-[11px] text-subtle">{hint}</span>}
     </label>
@@ -254,10 +251,10 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className="inline-flex items-center gap-2.5 text-sm text-muted"
+      className="inline-flex items-center gap-2 text-[13px] text-muted"
     >
-      <span className={cn('relative h-5 w-9 rounded-full border transition-colors', checked ? 'border-brand/50 bg-brand' : 'border-line-2 bg-surface-3')}>
-        <span className={cn('absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white shadow transition-all', checked ? 'left-[18px]' : 'left-0.5')} />
+      <span className={cn('relative h-4 w-7 shrink-0 rounded-full border transition-colors', checked ? 'border-brand bg-brand' : 'border-line-2 bg-surface-3')}>
+        <span className={cn('absolute top-[1px] h-3 w-3 rounded-full bg-white transition-all', checked ? 'left-[14px]' : 'left-[1px]')} />
       </span>
       {label}
     </button>
@@ -283,11 +280,11 @@ export function ProgressBar({ value, tone = 'brand' }: { value: number; tone?: T
 
 export function EmptyState({ icon = 'box', title, description }: { icon?: IconName; title: string; description?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center px-4 py-14 text-center">
-      <div className="mb-3 grid h-11 w-11 place-items-center rounded-xl border border-line bg-surface-2 text-subtle">
-        <Icon name={icon} size={20} />
+    <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
+      <div className="mb-2.5 grid h-9 w-9 place-items-center rounded-lg border border-line bg-surface-2 text-subtle">
+        <Icon name={icon} size={18} />
       </div>
-      <p className="text-sm font-medium text-fg">{title}</p>
+      <p className="text-[13px] font-medium text-fg">{title}</p>
       {description && <p className="mt-1 max-w-sm text-xs text-muted">{description}</p>}
     </div>
   );
@@ -295,7 +292,7 @@ export function EmptyState({ icon = 'box', title, description }: { icon?: IconNa
 
 export function CodeBlock({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <pre className={cn('mono max-h-64 overflow-auto rounded-xl border border-line bg-app/70 p-3 text-[11px] leading-relaxed text-muted', className)}>
+    <pre className={cn('mono max-h-64 overflow-auto rounded-lg border border-line bg-app/70 p-3 text-[11px] leading-relaxed text-muted', className)}>
       {children}
     </pre>
   );
@@ -303,7 +300,7 @@ export function CodeBlock({ children, className }: { children: ReactNode; classN
 
 export function Avatar({ label = 'AD', size = 'md' }: { label?: string; size?: 'sm' | 'md' }) {
   return (
-    <div className={cn('grid shrink-0 place-items-center rounded-xl border border-brand/30 bg-gradient-to-br from-brand/30 to-brand-2/10 font-semibold text-brand', size === 'sm' ? 'h-8 w-8 text-[11px]' : 'h-10 w-10 text-xs')}>
+    <div className={cn('grid shrink-0 place-items-center rounded-lg border border-line bg-surface-2 font-semibold text-brand', size === 'sm' ? 'h-8 w-8 text-[11px]' : 'h-9 w-9 text-xs')}>
       {label}
     </div>
   );
@@ -381,11 +378,11 @@ export function Modal({
   }, [open]);
 
   if (!open || typeof document === 'undefined') return null;
-  const widths = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl', xl: 'max-w-5xl' };
+  const widths = { sm: 'max-w-[480px]', md: 'max-w-[560px]', lg: 'max-w-[760px]', xl: 'max-w-[960px]' };
 
   return createPortal(
     <div className="ui-sheet fixed inset-0 z-modal flex items-center justify-center p-4">
-      <div className="animate-fade-in absolute inset-0 bg-app/80 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+      <div className="animate-fade-in absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
       <div
         ref={dialogRef}
         role="dialog"
@@ -394,18 +391,18 @@ export function Modal({
         tabIndex={-1}
         className={cn('panel ui-dialog animate-modal-in relative flex max-h-[88dvh] w-full flex-col overflow-hidden p-0', widths[size])}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
-          <div className="flex items-start gap-3">
-            {icon && <span className="mt-0.5 grid h-8 w-8 place-items-center rounded-lg border border-brand/25 bg-brand-soft text-brand">{icon}</span>}
-            <div>
-              <h2 id={titleId} className="text-base font-semibold text-fg">{title}</h2>
-              {subtitle && <p className="mt-0.5 text-xs text-muted">{subtitle}</p>}
+        <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-3">
+          <div className="flex min-w-0 items-start gap-2.5">
+            {icon && <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-line bg-surface-2 text-brand">{icon}</span>}
+            <div className="min-w-0">
+              <h2 id={titleId} className="truncate text-[15px] font-semibold text-fg">{title}</h2>
+              {subtitle && <p className="mt-0.5 truncate text-xs text-muted">{subtitle}</p>}
             </div>
           </div>
           <IconButton icon="close" label="Close" onClick={onClose} />
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">{children}</div>
-        {footer && <div className="ui-safe-bottom flex items-center justify-end gap-2 border-t border-line px-5 py-4">{footer}</div>}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">{children}</div>
+        {footer && <div className="ui-safe-bottom flex flex-wrap items-center justify-end gap-2 border-t border-line px-5 py-3">{footer}</div>}
       </div>
     </div>,
     document.body,
@@ -422,13 +419,13 @@ export function Segmented<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="inline-flex max-w-full flex-wrap gap-1 rounded-lg border border-line bg-surface-2 p-1">
+    <div className="inline-flex max-w-full flex-wrap gap-0.5 rounded-lg border border-line bg-surface-2 p-0.5">
       {options.map((option) => (
         <button
           key={option.value}
           onClick={() => onChange(option.value)}
           className={cn(
-            'inline-flex max-w-full items-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+            'inline-flex h-7 max-w-full items-center gap-1.5 whitespace-nowrap rounded px-2.5 text-xs font-medium transition-colors',
             value === option.value ? 'bg-brand-soft text-brand shadow-sm' : 'text-muted hover:text-fg',
           )}
         >
@@ -519,8 +516,8 @@ export function PaginationBar({
   })();
 
   const go = (index: number) => onPageChange(Math.min(Math.max(0, index), totalPages - 1));
-  const pageButton = 'ui-touch-target grid h-8 min-w-8 place-items-center rounded-lg border px-2 tabular-nums transition-colors';
-  const navButton = 'ui-touch-target grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand/40 hover:text-fg disabled:opacity-30';
+  const pageButton = 'ui-touch-target grid h-7 min-w-7 place-items-center rounded-lg border px-1.5 tabular-nums transition-colors';
+  const navButton = 'ui-touch-target grid h-7 w-7 place-items-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-brand/40 hover:text-fg disabled:opacity-30';
 
   return (
     <div className={cn('flex flex-wrap items-center justify-between gap-3 text-xs text-muted', className)}>
@@ -536,7 +533,7 @@ export function PaginationBar({
             <select
               value={pageSize}
               onChange={(event) => onPageSizeChange(Number(event.target.value))}
-              className="field w-auto py-1"
+              className="field h-7 w-auto py-0"
             >
               {pageSizeOptions.map((size) => (
                 <option key={size} value={size}>{size === 0 ? t.all : size}</option>

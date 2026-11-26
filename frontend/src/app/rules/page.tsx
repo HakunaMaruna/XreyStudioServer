@@ -157,11 +157,11 @@ export default function RulesPage() {
       />
 
       {error && (
-        <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
         </div>
       )}
-      {notice && <div className="mb-5 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-xs text-success">{notice}</div>}
+      {notice && <div className="mb-4 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
 
       <DataTable data={rules} columns={columns} loading={loading} getRowId={(row) => row.id} />
 
@@ -194,7 +194,7 @@ export default function RulesPage() {
           <Toggle checked={form.enabled} onChange={(value) => setForm({ ...form, enabled: value })} label={t.enabled} />
           {form.payloadText.trim() && (
             <div>
-              <p className="mb-2 text-[10px] uppercase tracking-wider text-subtle">{t.preview}</p>
+              <p className="mb-2 text-[11px] text-subtle">{t.preview}</p>
               <CodeBlock>{JSON.stringify((() => { try { return JSON.parse(form.payloadText); } catch { return { error: t.invalidJson }; } })(), null, 2)}</CodeBlock>
             </div>
           )}

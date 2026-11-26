@@ -102,8 +102,8 @@ function SchemaBlock({
   meta?: string;
 }) {
   return (
-    <div className="w-full min-w-0 rounded-xl border border-line bg-surface-2/60 p-3 @lg:w-auto @lg:flex-1 @lg:basis-[150px] @lg:max-w-[220px]">
-      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-subtle">
+    <div className="w-full min-w-0 rounded-lg border border-line bg-surface-2/60 p-3 @lg:w-auto @lg:flex-1 @lg:basis-[150px] @lg:max-w-[220px]">
+      <div className="flex items-center gap-1.5 text-[11px] text-subtle">
         <Icon name={icon} size={12} /> {label}
       </div>
       <p className="mt-2 truncate text-xs font-medium text-fg" title={value}>{value}</p>
@@ -386,12 +386,12 @@ export default function ChainsPage() {
       />
 
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger" role="alert">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger" role="alert">
           <Icon name="alert" size={15} /> {error}
         </div>
       )}
       {notice && (
-        <div className="mb-4 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-xs text-success" role="status">
+        <div className="mb-4 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success" role="status">
           {notice}
         </div>
       )}
@@ -403,9 +403,9 @@ export default function ChainsPage() {
               <div className="h-4 w-1/2 rounded bg-surface-3" />
               <div className="mt-3 h-3 w-2/3 rounded bg-surface-3/70" />
               <div className="mt-6 grid grid-cols-3 gap-2">
-                <div className="h-14 rounded-xl bg-surface-3/70" />
-                <div className="h-14 rounded-xl bg-surface-3/70" />
-                <div className="h-14 rounded-xl bg-surface-3/70" />
+                <div className="h-14 rounded-lg bg-surface-3/70" />
+                <div className="h-14 rounded-lg bg-surface-3/70" />
+                <div className="h-14 rounded-lg bg-surface-3/70" />
               </div>
               <div className="mt-5 h-8 rounded-lg bg-surface-3/60" />
             </div>
@@ -422,7 +422,7 @@ export default function ChainsPage() {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="truncate text-sm font-semibold text-fg">{chain.name}</h3>
+                    <h3 className="truncate text-[13px] font-semibold text-fg">{chain.name}</h3>
                     <ChainStatusBadge status={chain.status} fallback={t.chainBadge} />
                     <Badge tone="cyan">
                       {chain.routingMode === 'rules' ? t.chainRoutingRules : t.chainRoutingAll}
@@ -438,7 +438,7 @@ export default function ChainsPage() {
               </div>
 
               <div>
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-subtle">
+                <p className="mb-2 text-[11px] font-medium text-subtle">
                   {t.chainSchemaHint}
                 </p>
                 <div className="panel @container rounded-[var(--radius-lg)] bg-app/40 p-3">
@@ -492,7 +492,7 @@ export default function ChainsPage() {
                     ? chain.bindings.map((binding) => (
                         <span
                           key={binding.id}
-                          className="inline-flex max-w-[160px] items-center gap-1 rounded-md border border-line bg-surface-2 px-1.5 py-0.5 text-[10px] text-muted"
+                          className="inline-flex max-w-[160px] items-center gap-1 rounded-lg border border-line bg-surface-2 px-1.5 py-0.5 text-[10px] text-muted"
                         >
                           <Icon name="users" size={10} className="shrink-0" />
                           <span className="truncate">{binding.userEmail || binding.squadName || t.chainBadge}</span>
@@ -594,14 +594,14 @@ export default function ChainsPage() {
 
           <div>
             <div className="mb-2 flex items-center justify-between gap-2">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-subtle">{t.chainExitNodes}</span>
+              <span className="text-[11px] font-medium text-subtle">{t.chainExitNodes}</span>
               <Button size="sm" icon="plus" onClick={() => setDraft({ ...draft, exits: [...draft.exits, newExit()] })}>
                 {t.chainAddExit}
               </Button>
             </div>
             <div className="space-y-2">
               {draft.exits.map((exit, index) => (
-                <div key={exit.key} className="rounded-xl border border-line bg-surface-2/50 p-3">
+                <div key={exit.key} className="rounded-lg border border-line bg-surface-2/50 p-3">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <span className="text-[11px] font-semibold text-muted">{t.chainExit} {index + 1}</span>
                     <IconButton

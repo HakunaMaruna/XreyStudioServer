@@ -64,7 +64,7 @@ export default function ChainCard({
   };
 
   if (loading) {
-    return <span className="inline-block h-5 w-24 animate-pulse rounded-md bg-surface-3" aria-label={t.loading} />;
+    return <span className="inline-block h-5 w-24 animate-pulse rounded-lg bg-surface-3" aria-label={t.loading} />;
   }
 
   const host = String(binding?.entry?.host ?? '').trim();
@@ -91,7 +91,7 @@ export default function ChainCard({
           disabled={!binding || busy}
           title={t.chainUnbind}
           className={cn(
-            'ui-touch-target rounded-md border border-transparent px-1.5 py-0.5 text-[11px] font-medium text-danger transition-colors',
+            'ui-touch-target rounded-lg border border-transparent px-1.5 py-0.5 text-[11px] font-medium text-danger transition-colors',
             binding && !busy
               ? 'hover:border-danger/25 hover:bg-danger/10'
               : 'cursor-not-allowed opacity-30',

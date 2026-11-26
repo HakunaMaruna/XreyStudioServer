@@ -160,12 +160,12 @@ export default function BackupsPage() {
       />
 
       {error && (
-        <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
         </div>
       )}
       {notice && (
-        <div className="mb-5 flex items-center gap-2 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-xs text-success">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">
           <Icon name="checkCircle" size={15} /> {notice}
         </div>
       )}
@@ -211,7 +211,7 @@ export default function BackupsPage() {
                 className="field"
               />
             </Field>
-            <div className="rounded-xl border border-line bg-surface-2/50 p-3 text-[11px] leading-relaxed text-muted">
+            <div className="rounded-lg border border-line bg-surface-2/50 p-3 text-[11px] leading-relaxed text-muted">
               {t.backupsSubtitle}
             </div>
           </div>
@@ -224,7 +224,7 @@ export default function BackupsPage() {
         <Card className="py-20 text-center text-xs text-muted">{t.loading}</Card>
       ) : items.length === 0 ? (
         <Card className="py-20 text-center">
-          <div className="mx-auto mb-4 grid h-11 w-11 place-items-center rounded-xl border border-line bg-surface-2 text-subtle"><Icon name="database" size={20} /></div>
+          <div className="mx-auto mb-4 grid h-11 w-11 place-items-center rounded-lg border border-line bg-surface-2 text-subtle"><Icon name="database" size={20} /></div>
           <p className="text-sm font-medium text-fg">{t.noBackups}</p>
           <p className="mt-1 text-xs text-muted">{t.backupsSubtitle}</p>
         </Card>

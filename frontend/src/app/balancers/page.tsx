@@ -250,7 +250,7 @@ export default function BalancersPage() {
         }
       />
 
-      {error && <div className="mb-4 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger"><Icon name="alert" size={15} />{error}</div>}
+      {error && <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger"><Icon name="alert" size={15} />{error}</div>}
 
       {loading ? (
         <Card className="py-16 text-center text-xs text-muted">{t.loading}</Card>
@@ -262,7 +262,7 @@ export default function BalancersPage() {
             <Card key={row.id} className="node-card p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-xl border border-brand/30 bg-brand/10 text-brand"><Icon name="zap" size={20} /></div>
+                  <div className="grid h-8 w-8 place-items-center rounded-lg border border-brand/30 bg-brand/10 text-brand"><Icon name="zap" size={20} /></div>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold text-fg">{row.name}</p>
@@ -317,11 +317,11 @@ export default function BalancersPage() {
           </div>
 
           <div>
-            <span className="text-[11px] font-medium uppercase tracking-wider text-subtle">{t.balancerStrategy}</span>
+            <span className="text-[11px] font-medium text-subtle">{t.balancerStrategy}</span>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {STRATEGIES.map((strategy) => (
                 <button key={strategy} type="button" onClick={() => setForm({ ...form, strategy })}
-                  className={`rounded-xl border px-3 py-2 text-left transition ${form.strategy === strategy ? 'border-brand/50 bg-brand/10' : 'border-line bg-surface-2 hover:border-brand/30'}`}>
+                  className={`rounded-lg border px-3 py-2 text-left transition ${form.strategy === strategy ? 'border-brand/50 bg-brand/10' : 'border-line bg-surface-2 hover:border-brand/30'}`}>
                   <span className="block text-xs font-semibold text-fg">{strategy}</span>
                   <span className="mt-0.5 block text-[10px] text-muted">{strategyHint(strategy)}</span>
                 </button>
@@ -360,7 +360,7 @@ export default function BalancersPage() {
             {!form.members.length && <p className="py-3 text-center text-xs text-subtle">{t.balancerNoMembers}</p>}
             <div className="space-y-3">
               {form.members.map((member, index) => (
-                <div key={index} className="rounded-xl border border-line bg-surface-2/40 p-3">
+                <div key={index} className="rounded-lg border border-line bg-surface-2/40 p-3">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <Badge tone="cyan">#{index + 1}</Badge>
                     <div className="flex items-center gap-2">

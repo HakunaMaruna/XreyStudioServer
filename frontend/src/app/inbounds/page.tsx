@@ -439,12 +439,12 @@ export default function InboundsPage() {
       />
 
       {notice && !open && !clientsOpen && !groupOpen && (
-        <div className="mb-5 flex items-center gap-2 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-xs text-success" role="status">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success" role="status">
           <Icon name="checkCircle" size={15} /> {notice}
         </div>
       )}
       {error && !open && !clientsOpen && !groupOpen && (
-        <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
         </div>
       )}
@@ -485,7 +485,7 @@ export default function InboundsPage() {
           </div>
 
           <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-subtle">{t.name} / {t.protocol}</p>
+            <p className="mb-3 text-xs font-semibold text-subtle">{t.name} / {t.protocol}</p>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Field label={t.name}><input value={form.tag} onChange={(e) => setForm({ ...form, tag: e.target.value })} className="field" required /></Field>
               <Field label={t.protocol}>
@@ -507,7 +507,7 @@ export default function InboundsPage() {
           </div>
 
           <div className="border-t border-line pt-5">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-subtle">{t.transport} / {t.security}</p>
+            <p className="mb-3 text-xs font-semibold text-subtle">{t.transport} / {t.security}</p>
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label={t.transport}>
                 <select value={form.transport} onChange={(e) => setForm({ ...form, transport: e.target.value })} className="field">
@@ -535,7 +535,7 @@ export default function InboundsPage() {
           </div>
 
           <div className="border-t border-line pt-5">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-subtle">{t.trafficLimit} / {t.expiresAt}</p>
+            <p className="mb-3 text-xs font-semibold text-subtle">{t.trafficLimit} / {t.expiresAt}</p>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Field label={t.trafficLimit} hint="GB"><input type="number" min={0} value={form.trafficLimitGb} onChange={(e) => setForm({ ...form, trafficLimitGb: Number(e.target.value) })} className="field" /></Field>
               <Field label={t.expiresAt}><input type="date" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} className="field" /></Field>
@@ -553,7 +553,7 @@ export default function InboundsPage() {
           <div className="border-t border-line pt-5">
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-subtle">{t.fallbacks}</p>
+                <p className="text-xs font-semibold text-subtle">{t.fallbacks}</p>
                 <p className="text-[11px] text-subtle">{t.fallbackHint}</p>
               </div>
               <Button size="sm" icon="plus" onClick={() => setForm({ ...form, fallbacks: [...form.fallbacks, { childId: '', path: '', alpn: '', dest: '', xver: 0 }] })}>{t.addFallback}</Button>
@@ -601,7 +601,7 @@ export default function InboundsPage() {
             </div>
           )}
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-subtle">{t.clientLimits}</p>
+            <p className="text-xs font-semibold text-subtle">{t.clientLimits}</p>
             <Button size="sm" icon="plus" onClick={() => setForm({ ...form, clients: [...form.clients, emptyClient(form.clients.length)] })}>{t.addClient}</Button>
           </div>
           {form.clients.length === 0 && <p className="text-xs text-subtle">{t.noData}</p>}

@@ -444,7 +444,7 @@ export default function UsersPage() {
       />
 
       {error && (
-        <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
         </div>
       )}
@@ -637,14 +637,14 @@ export default function UsersPage() {
               </a>
             )}
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-subtle">{t.subscriptionLink}</p>
+              <p className="mb-2 text-xs font-semibold text-subtle">{t.subscriptionLink}</p>
               <div className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 p-3">
                 <code className="mono min-w-0 flex-1 break-all text-xs text-muted">{connection.subscriptionUrl}</code>
                 <IconButton icon="copy" label={t.copyLink} tone="brand" onClick={() => copyText(connection.subscriptionUrl)} />
               </div>
             </div>
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-subtle">{t.connectionKey}</p>
+              <p className="mb-2 text-xs font-semibold text-subtle">{t.connectionKey}</p>
               <div className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 p-3">
                 <code className="mono min-w-0 flex-1 break-all text-xs text-fg">{connection.subscriptionToken}</code>
                 <IconButton icon="copy" label={t.copy} onClick={() => copyText(connection.subscriptionToken)} />
@@ -676,7 +676,7 @@ export default function UsersPage() {
                   } catch (e: any) { setError(e.message); }
                 }}>{t.save}</Button>
               </div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-subtle">{t.devices}</p>
+              <p className="mb-2 text-xs font-semibold text-subtle">{t.devices}</p>
               <div className="mb-2 flex gap-2">
                 <input value={hwidInput} onChange={(e) => setHwidInput(e.target.value)} placeholder={t.hwid} className="field" />
                 <Button icon="plus" disabled={!hwidInput} onClick={async () => {
@@ -706,7 +706,7 @@ export default function UsersPage() {
               </div>
             </div>
             <div className="border-t border-line pt-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-subtle">{t.configProfiles}</p>
+              <p className="mb-2 text-xs font-semibold text-subtle">{t.configProfiles}</p>
               <select
                 value={connection.configProfileId || ''}
                 onChange={async (e) => {
@@ -723,7 +723,7 @@ export default function UsersPage() {
               </select>
             </div>
             <div className="border-t border-line pt-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-subtle">{t.subscriptionTemplates}</p>
+              <p className="mb-2 text-xs font-semibold text-subtle">{t.subscriptionTemplates}</p>
               <select
                 value={connection.subscriptionTemplateId || ''}
                 onChange={async (e) => {
@@ -740,7 +740,7 @@ export default function UsersPage() {
               </select>
             </div>
             <div className="border-t border-line pt-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-subtle">{t.attachToInbound}</p>
+              <p className="mb-2 text-xs font-semibold text-subtle">{t.attachToInbound}</p>
               <div className="flex gap-2">
                 <select value={attachId} onChange={(e) => setAttachId(e.target.value)} className="field">
                   <option value="">{t.selectInbound}</option>

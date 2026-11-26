@@ -46,9 +46,9 @@ export default function PublicDocsPage() {
       <script type="application/ld+json">
         {JSON.stringify(jsonLd).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026')}
       </script>
-      <header className="mb-10">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-brand">XreyStudio Server</p>
-        <h1 className="text-3xl font-bold tracking-tight text-fg sm:text-4xl">
+      <header className="mb-6">
+        <p className="mb-1 text-[11px] font-medium text-brand">XreyStudio Server</p>
+        <h1 className="text-xl font-semibold tracking-tight text-fg sm:text-2xl">
           Self-hosted VPN control panel — documentation
         </h1>
         <p className="mt-4 max-w-2xl text-sm leading-7 text-muted">
@@ -74,7 +74,7 @@ export default function PublicDocsPage() {
           <section
             key={section.id}
             id={section.id}
-            className="scroll-mt-6 rounded-2xl border border-line bg-surface-1 p-5 sm:p-7"
+            className="scroll-mt-6 rounded-xl border border-line bg-surface p-4"
           >
             {!section.markdown.trimStart().startsWith('# ') && (
               <h2 className="mb-4 text-xl font-semibold text-fg">{section.title}</h2>

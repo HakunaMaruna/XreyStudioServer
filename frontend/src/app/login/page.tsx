@@ -37,29 +37,26 @@ export default function LoginPage() {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden p-4 sm:p-8">
-      <div className="pointer-events-none absolute inset-0 grid-fade opacity-40" />
-      <div className="animate-fade-up relative grid w-full max-w-5xl overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_40px_100px_-40px_rgba(0,0,0,.9)] lg:grid-cols-2">
-        <div className="relative hidden flex-col justify-between overflow-hidden border-r border-line bg-gradient-to-br from-brand/15 via-surface to-surface p-10 lg:flex">
-          <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-brand/25 blur-3xl" />
-          <div className="absolute -bottom-32 -right-16 h-72 w-72 rounded-full bg-brand-2/15 blur-3xl" />
-
-          <div className="relative flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-brand to-brand-2 text-white shadow-[0_8px_24px_-8px_var(--brand)]">
-              <Icon name="zap" size={20} />
+      <div className="pointer-events-none absolute inset-0 grid-fade opacity-25" />
+      <div className="animate-fade-up relative grid w-full max-w-4xl overflow-hidden rounded-xl border border-line bg-surface shadow-[var(--ui-shadow-3)] lg:grid-cols-2">
+        <div className="relative hidden flex-col justify-between border-r border-line bg-surface-2 p-8 lg:flex">
+          <div className="flex items-center gap-2.5">
+            <div className="grid h-8 w-8 place-items-center rounded-lg bg-brand text-white">
+              <Icon name="zap" size={16} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-fg">XreyStudio</p>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-subtle">{t.controlPanel}</p>
+              <p className="text-[13px] font-semibold text-fg">XreyStudio</p>
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-subtle">{t.controlPanel}</p>
             </div>
           </div>
 
-          <div className="relative space-y-8 py-12">
+          <div className="space-y-6 py-8">
             <div>
-              <h2 className="max-w-sm text-3xl font-semibold leading-tight tracking-tight text-fg">
+              <h2 className="max-w-sm text-xl font-semibold leading-snug tracking-tight text-fg">
                 {t.brandTitle1}<br />
-                <span className="bg-gradient-to-r from-brand to-cyan bg-clip-text text-transparent">{t.brandTitle2}</span>
+                <span className="text-brand">{t.brandTitle2}</span>
               </h2>
-              <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted">{t.brandDescription}</p>
+              <p className="mt-3 max-w-sm text-[13px] leading-relaxed text-muted">{t.brandDescription}</p>
             </div>
             <div className="space-y-4">
               {features.map((feature) => (
@@ -79,14 +76,14 @@ export default function LoginPage() {
           <p className="relative text-[10px] text-subtle">© 2026 XreyStudio · v{APP_VERSION}</p>
         </div>
 
-        <div className="flex items-center justify-center p-8 sm:p-12">
-          <form onSubmit={submit} className="w-full max-w-sm space-y-5">
+        <div className="flex items-center justify-center p-6 sm:p-10">
+          <form onSubmit={submit} className="w-full max-w-sm space-y-4">
             <div>
-              <div className="mb-6 grid h-10 w-10 place-items-center rounded-xl border border-brand/25 bg-brand-soft text-brand lg:hidden">
-                <Icon name="zap" size={19} />
+              <div className="mb-5 grid h-9 w-9 place-items-center rounded-lg border border-line bg-surface-2 text-brand lg:hidden">
+                <Icon name="zap" size={18} />
               </div>
-              <h1 className="text-2xl font-semibold tracking-tight text-fg">{t.signIn}</h1>
-              <p className="mt-1.5 text-sm text-muted">{t.credentialsSubtitle}</p>
+              <h1 className="text-xl font-semibold tracking-tight text-fg">{t.signIn}</h1>
+              <p className="mt-1 text-[13px] text-muted">{t.credentialsSubtitle}</p>
             </div>
 
             <Field label={t.email}>
@@ -124,7 +121,7 @@ export default function LoginPage() {
             </Field>
 
             {error && (
-              <div className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2.5 text-xs text-danger">
+              <div className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
                 <Icon name="alert" size={14} /> {error}
               </div>
             )}
@@ -135,7 +132,7 @@ export default function LoginPage() {
 
             <div className="flex items-center gap-3 py-1">
               <span className="h-px flex-1 bg-line" />
-              <span className="text-[10px] uppercase tracking-widest text-subtle">{t.secureAccess}</span>
+              <span className="text-[11px] text-subtle">{t.secureAccess}</span>
               <span className="h-px flex-1 bg-line" />
             </div>
             <p className="text-center text-[11px] leading-relaxed text-subtle">{t.restrictedAccess}</p>

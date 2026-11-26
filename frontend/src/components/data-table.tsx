@@ -46,7 +46,7 @@ type DataTableProps<T> = {
 };
 
 const DEFAULT_COLUMN_SIZE = 160;
-const ROW_HEIGHT = 34;
+const ROW_HEIGHT = 38;
 
 function metaOf<T>(column: Column<T>) {
   return column.columnDef.meta ?? {};
@@ -183,7 +183,7 @@ export default function DataTable<T>({
   return (
     <div className="space-y-3">
       <div className="panel overflow-hidden">
-        <div className={cn('flex flex-wrap items-center gap-2 p-3', hideSearch && !filters && !actions && 'hidden')}>
+        <div className={cn('flex flex-wrap items-center gap-2 border-b border-line p-2.5', hideSearch && !filters && !actions && 'hidden')}>
           {!hideSearch && (
             <div className="relative w-full min-w-[180px] max-w-xs flex-1 sm:flex-none sm:w-72">
               <Icon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
@@ -204,7 +204,7 @@ export default function DataTable<T>({
         <div className="hidden md:block">
         <div
           className="overflow-auto overscroll-contain"
-          style={{ maxHeight: `min(72dvh, ${Math.max(320, rows.length * ROW_HEIGHT + 120)}px)` }}
+          style={{ maxHeight: `min(72dvh, ${Math.max(320, rows.length * ROW_HEIGHT + 96)}px)` }}
           tabIndex={0}
           role="region"
           aria-label="table"
@@ -222,7 +222,7 @@ export default function DataTable<T>({
                     <th
                       key={header.id}
                       scope="col"
-                      className="sticky top-0 z-10 border-b border-line bg-surface-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-subtle"
+                      className="sticky top-0 z-10 border-b border-line bg-surface-2 px-3 py-2 text-xs font-semibold text-muted"
                     >
                       {header.column.getCanSort() ? (
                         <button
@@ -270,13 +270,13 @@ export default function DataTable<T>({
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <tr key={row.id} className="group h-11 transition-colors even:bg-surface-2/25 hover:bg-surface-2/70">
+                  <tr key={row.id} className="group h-[38px] transition-colors hover:bg-surface-2/70">
                     {row.getVisibleCells().map((cell) => {
                       const meta = metaOf(cell.column);
                       const align = meta.align === 'right' ? 'text-right' : meta.align === 'center' ? 'text-center' : '';
                       const bare = isBareCell(cell.column);
                       return (
-                        <td key={cell.id} className={cn('min-w-0 px-3 py-1.5 text-muted align-middle group-hover:text-fg', align)}>
+                        <td key={cell.id} className={cn('min-w-0 px-3 py-2 text-muted align-middle group-hover:text-fg', align)}>
                           <div
                             className={cn('min-w-0', !bare && 'truncate')}
                             title={bare ? undefined : cellTitle(cell)}
@@ -318,7 +318,7 @@ export default function DataTable<T>({
             const actionsCell = actionsColumn ? cells.get('actions') : undefined;
             const primaryCell = primaryColumn ? cells.get(primaryColumn.id) : undefined;
             return (
-              <article key={row.id} className="panel p-3.5">
+              <article key={row.id} className="panel p-3">
                 <div className="flex items-start gap-2.5">
                   {selectCell && (
                     <div className="pt-1">{flexRender(selectCell.column.columnDef.cell, selectCell.getContext())}</div>

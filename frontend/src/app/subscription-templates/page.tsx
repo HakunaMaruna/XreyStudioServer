@@ -121,7 +121,7 @@ export default function SubscriptionTemplatesPage() {
     <>
       <PageHeader eyebrow={t.billing} title={t.subscriptionTemplates} subtitle={t.subscriptionTemplatesSubtitle} icon="file"
         actions={<Button icon="plus" variant="primary" onClick={startCreate}>{t.create}</Button>} />
-      {error && <div className="mb-5 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">{error}</div>}
+      {error && <div className="mb-4 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>}
       <DataTable data={rows} columns={columns} loading={loading} getRowId={(row) => row.id} />
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? t.edit : t.create} subtitle={t.subscriptionTemplatesSubtitle} icon={<Icon name="file" size={16} />} size="lg"

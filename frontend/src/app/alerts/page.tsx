@@ -207,7 +207,7 @@ export default function AlertsPage() {
       {tab === 'history' && (
         <>
       {error && (
-        <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
         </div>
       )}
@@ -222,7 +222,7 @@ export default function AlertsPage() {
               <p className="text-xs font-medium capitalize text-fg">{key}</p>
               <p className="text-[10px] text-subtle">{channels[key] ? t.connected : t.notConfigured}</p>
             </div>
-            <span className={cn('h-2 w-2 rounded-full', channels[key] ? 'bg-success shadow-[0_0_8px_var(--success)]' : 'bg-line-2')} />
+            <span className={cn('h-2 w-2 rounded-full', channels[key] ? 'bg-success' : 'bg-line-2')} />
           </Card>
         )) : (
           <div className="col-span-full py-4 text-center text-xs text-subtle">{t.loadingChannels}</div>
@@ -258,8 +258,8 @@ export default function AlertsPage() {
 
       {tab === 'settings' && (
         <div className="space-y-4">
-          {notice && <div className="rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-xs text-success">{notice}</div>}
-          {error && <div className="mb-2 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger"><Icon name="alert" size={15} /> {error}</div>}
+          {notice && <div className="rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
+          {error && <div className="mb-2 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger"><Icon name="alert" size={15} /> {error}</div>}
 
           <Card>
             <SectionTitle title={t.notificationChannels} subtitle={t.leaveEmptyToKeep} />
@@ -329,9 +329,9 @@ export default function AlertsPage() {
           <Card>
             <SectionTitle title={t.notificationMatrix} />
             <div className="overflow-x-auto">
-              <table className="w-full text-xs">
+              <table className="w-full min-w-[560px] text-xs">
                 <thead>
-                  <tr className="border-b border-line text-left text-subtle">
+                  <tr className="border-b border-line bg-surface-2 text-left text-muted">
                     <th className="py-2 pr-3 font-medium">{t.type}</th>
                     {MATRIX_CHANNELS.map((channel) => <th key={channel} className="px-2 py-2 text-center font-medium">{channel}</th>)}
                   </tr>
@@ -347,7 +347,7 @@ export default function AlertsPage() {
                           <td key={channel} className="px-2 py-2 text-center">
                             <button type="button" aria-label={`${event} ${channel}`}
                               onClick={() => toggleRoute(event, channel)}
-                              className={`h-6 w-6 rounded-md border transition ${active ? 'border-success/40 bg-success/20 text-success' : 'border-line bg-surface-2 text-subtle hover:text-fg'}`}>
+                              className={`h-6 w-6 rounded-lg border transition ${active ? 'border-success/40 bg-success/20 text-success' : 'border-line bg-surface-2 text-subtle hover:text-fg'}`}>
                               {active ? '✓' : '—'}
                             </button>
                           </td>

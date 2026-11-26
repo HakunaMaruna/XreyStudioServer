@@ -70,8 +70,8 @@ export default function TelemetryPage() {
             ? 'Отправляются только агрегированные счётчики и обезличенные события. Данные можно отключить в любой момент. Сбор включён только после принятия лицензионного соглашения.'
             : 'Only aggregated counters and anonymized events are sent. You can disable it at any time. Collection starts only after the license agreement is accepted.'}</p>
         </HelpButton><Button icon="refresh" size="sm" onClick={load}>{t.refresh}</Button></>} />
-      {error && <div className="mb-4 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">{error}</div>}
-      {notice && <div className="mb-4 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-xs text-success">{notice}</div>}
+      {error && <div className="mb-4 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>}
+      {notice && <div className="mb-4 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
 
       <div className="grid gap-3 md:grid-cols-2">
         <Card className="p-4">
@@ -91,7 +91,7 @@ export default function TelemetryPage() {
           <SectionTitle title={t.telemetryOverview} subtitle={lang === 'ru' ? 'Что отправляется' : 'What is sent'} />
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {COUNT_KEYS.map((key) => (
-              <div key={key} className="rounded-xl border border-line bg-surface-2/40 p-2.5">
+              <div key={key} className="rounded-lg border border-line bg-surface-2/40 p-2.5">
                 <p className="text-[10px] uppercase text-subtle">{key}</p>
                 <p className="text-lg font-semibold text-fg">{preview?.counts?.[key] ?? 0}</p>
               </div>

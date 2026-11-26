@@ -134,7 +134,7 @@ export default function SquadsPage() {
     <>
       <PageHeader eyebrow={t.access} title={t.squads} subtitle={t.squadsSubtitle} icon="users"
         actions={<Button icon="plus" variant="primary" onClick={startCreate}>{t.create}</Button>} />
-      {error && <div className="mb-5 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">{error}</div>}
+      {error && <div className="mb-4 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>}
       <DataTable data={rows} columns={columns} loading={loading} getRowId={(row) => row.id} />
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? t.edit : t.create} subtitle={t.squadsSubtitle} icon={<Icon name="users" size={16} />} size="lg"
@@ -149,7 +149,7 @@ export default function SquadsPage() {
             <Field label={t.expiresAt}><input type="date" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} className="field" /></Field>
           </div>
           <div className="border-t border-line pt-4">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-subtle">{t.users}</p>
+            <p className="mb-2 text-xs font-semibold text-subtle">{t.users}</p>
             <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-line bg-surface-2/40 p-2">
               {allUsers.map((u) => (
                 <div key={u.id} className="flex items-center gap-2 rounded px-2 py-1 text-xs text-muted hover:bg-surface-3">
