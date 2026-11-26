@@ -46,7 +46,6 @@ export class ConfigGeneratorService {
       network: inbound.transport || 'tcp',
       security: inbound.security || 'none',
     };
-    if (inbound.flow && inbound.security !== 'none') stream.flow = inbound.flow;
     if (inbound.transport === 'ws' || inbound.transport === 'xhttp') {
       stream.wsSettings = { path: inbound.path || settings.wsPath || '/ws', headers: { Host: inbound.sni || '', ...(settings.wsHeaders || {}) } };
     }

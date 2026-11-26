@@ -1,11 +1,14 @@
 import { resolveCname } from 'dns/promises';
-import { randomUUID } from 'crypto';
+import { Resolver } from 'dns';
+import { promisify } from 'util';
+import { generateKeyPairSync, randomBytes, randomUUID } from 'crypto';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { encryptSecret } from '../../common/secret-crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { ApiTokenContext } from '../api-tokens/api-tokens.service';
+import { AgentClientService } from '../config/agent-client.service';
 import { ConfigGeneratorService } from '../config/config-generator.service';
 import { ControlService } from '../control/control.service';
 import { NodeProvisionService } from '../node-provision/node-provision.service';
@@ -21,6 +24,7 @@ export class WizardService {
     private readonly control: ControlService,
     private readonly provision: NodeProvisionService,
     private readonly configGenerator: ConfigGeneratorService,
+    private readonly agent: AgentClientService,
   ) {}
 
   private context(user: AuthUser): ApiTokenContext {
@@ -31,6 +35,35 @@ export class WizardService {
       organizationId: user.organizationId || null,
       scopes: ['NODE_DOMAIN' as any],
     };
+  }
+
+  /** Xray x25519 keys are raw 32 bytes encoded as base64url, same as `xray x25519`. */
+  private realityKeys() {
+    const { publicKey, privateKey } = generateKeyPairSync('x25519');
+    const raw = (key: any, type: 'spki' | 'pkcs8') =>
+      key.export({ format: 'der', type }).subarray(-32).toString('base64url');
+    return {
+      privateKey: raw(privateKey, 'pkcs8'),
+      publicKey: raw(publicKey, 'spki'),
+      shortId: randomBytes(8).toString('hex'),
+    };
+  }
+
+  private async resolveA(host: string): Promise<string[]> {
+    const resolver = new Resolver();
+    const servers = (process.env.NODE_DNS_RESOLVERS || '1.1.1.1,8.8.8.8')
+      .split(',').map((item) => item.trim()).filter(Boolean);
+    if (servers.length) resolver.setServers(servers);
+    return await promisify(resolver.resolve4).call(resolver, host) as string[];
+  }
+
+  private async assertDns(fqdn: string, ipv4: string) {
+    const addresses = await this.resolveA(fqdn).catch(() => [] as string[]);
+    if (!addresses.includes(ipv4)) {
+      throw new BadRequestException(
+        `DNS for ${fqdn} does not point to ${ipv4}. Add an A record and retry (get ${addresses.join(', ') || 'no A record'}).`,
+      );
+    }
   }
 
   private async allocate(dto: CreateNodeWizardDto, user: AuthUser) {
@@ -159,6 +192,9 @@ export class WizardService {
     await report('domain', 'Requesting a domain from CONTROL…', 8);
     const domain = await this.allocate(dto, user);
     await report('domain', `Domain allocated: ${domain.fqdn}`, 15);
+    await report('domain', `Checking DNS for ${domain.fqdn}…`, 18);
+    await this.assertDns(domain.fqdn, dto.ipv4 || dto.host);
+    await report('domain', 'DNS confirmed', 20);
     const includeCustomCert = dto.issueCustomCert !== false;
     try {
       if (dto.userDomain && includeCustomCert) {
@@ -225,21 +261,44 @@ export class WizardService {
 
     await report('inbound', 'Creating VLESS TLS inbound', 82);
     const port = Number(process.env.WIZARD_INBOUND_PORT || 443);
+    let security = 'reality';
+    if (!domain.fqdn) {
+      if (process.env.WIZARD_REALITY_FALLBACK === 'true') {
+        security = 'tls';
+        this.logger.warn('Node domain is missing; falling back to legacy VLESS TLS inbound');
+        await report('inbound', 'Domain missing — using legacy TLS inbound', 82, 'warn');
+      } else {
+        throw new BadRequestException('Node domain is required for the default Reality inbound');
+      }
+    }
+    const reality = security === 'reality' ? this.realityKeys() : null;
+    const decoyPort = Number(process.env.WIZARD_DECOY_PORT || 8443);
     const inbound = await this.prisma.inbound.create({
       data: {
         tag: `wizard-${domain.label}`,
         nodeId: provisioned.nodeId,
         protocol: 'vless',
         transport: 'tcp',
-        security: 'tls',
+        security,
         port,
         listen: '0.0.0.0',
+        flow: security === 'reality' ? 'xtls-rprx-vision' : null,
         sni: domain.fqdn,
-        settings: {
+        settings: security === 'reality' ? {
           publicHost: domain.fqdn,
           sni: domain.fqdn,
-          // selfSNI: the client repeats the node's own panel-issued domain in the TLS SNI.
-          // Probes without a valid VLESS first packet are routed to a loopback decoy site.
+          flow: 'xtls-rprx-vision',
+          // selfSNI: Reality mimics our own node domain; unknown probes hit the local decoy site.
+          realityDest: `${process.env.WIZARD_DECOY_HOST || '127.0.0.1'}:${decoyPort}`,
+          realityServerNames: [domain.fqdn],
+          realityPrivateKey: reality?.privateKey,
+          realityPublicKey: reality?.publicKey,
+          realityShortIds: reality ? [reality.shortId] : [],
+          realityFingerprint: 'chrome',
+          spiderX: '/',
+        } : {
+          publicHost: domain.fqdn,
+          sni: domain.fqdn,
           fallbackDest: Number(process.env.NODE_STUB_PORT || 18080),
           fallbackAlpn: 'http/1.1',
         },
@@ -247,9 +306,8 @@ export class WizardService {
       },
     });
 
-    await report('bind', 'Binding node to domain and generating configuration', 90);
+    await report('bind', 'Binding node to domain', 90);
     await this.control.bindNode(domain.id, provisioned.nodeId, this.context(user)).catch(() => undefined);
-    const revision = await this.configGenerator.createRevision(provisioned.nodeId);
 
     await report('cert', 'Requesting TLS certificate…', 95);
     let certificate: any = null;
@@ -263,6 +321,18 @@ export class WizardService {
       this.logger.warn(`Certificate issuance pending: ${error.message}`);
       await report('cert', `Certificate pending: ${error.message}`, 95, 'warn');
     }
+    if (certificate && security === 'reality') {
+      await report('cert', 'Installing decoy site certificate on the node', 97);
+      try {
+        await this.agent.installDecoyCertificate(
+          { address: dto.host, agentUrl: provisioned.agentUrl },
+          { certificate: certificate.certificate, privateKey: certificate.privateKey, hostname: domain.fqdn },
+        );
+      } catch (error: any) {
+        await report('cert', `Decoy certificate install failed: ${error.message}`, 97, 'warn');
+      }
+    }
+    const revision = await this.configGenerator.createRevision(provisioned.nodeId);
 
     return {
       nodeId: provisioned.nodeId,

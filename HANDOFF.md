@@ -62,6 +62,17 @@ backend `tsc --noEmit` 0, `eslint` 0 errors, `nest build` rc=0, unit jest 42 sui
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Default Reality inbound + decoy site (v2.42.0, 2026-11-26)
+
+Мастер теперь создаёт для новой ноды VLESS + Reality + xtls-rprx-vision на порту 443.
+Reality dest — локальный TLS-сайт `127.0.0.1:8443`, serverNames/shortIds/ключи X25519
+уникальны для ноды, fingerprint=chrome. Перед установкой проверяется A-запись домена
+(`NODE_DNS_RESOLVERS`); при отсутствии домена — явная ошибка или fallback по
+`WIZARD_REALITY_FALLBACK=true` с предупреждением в лог. CONTROL выпускает сертификат,
+мастер передаёт его агенту через `/decoy-certificate`; агент поднимает HTTPS-заглушку
+только на loopback:8443 и HTTP-01/webroot на :80 с автопродлением. Шаблон заглушки —
+`agent/assets/decoy.html`. Старые ноды и TLS-inbound'ы не изменены.
+
 ## UX branch sync (v2.41.5, 2026-11-26)
 
 Влита ветка второго агента `ux/panel-2026-11-26` (6 коммитов): node delete confirmation,

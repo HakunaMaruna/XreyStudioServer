@@ -22,6 +22,12 @@ const SINGBOX_BIN = process.env.SINGBOX_BIN || 'sing-box';
 const SINGBOX_SERVICE = process.env.SINGBOX_SERVICE || 'sing-box';
 const NODE_STUB_PORT = Number(process.env.NODE_STUB_PORT || 18080);
 const NODE_STUB_ENABLED = process.env.NODE_STUB_ENABLED !== 'false';
+const DECOY_PORT = Number(process.env.DECOY_PORT || 8443);
+const DECOY_TLS_DIR = process.env.DECOY_TLS_DIR || '/etc/xss-agent/decoy';
+const DECOY_HTTP_PORT = Number(process.env.DECOY_HTTP_PORT || 80);
+const ACME_WEBROOT = process.env.ACME_WEBROOT || '/var/www/certbot';
+const ACME_EMAIL = process.env.LE_EMAIL || 'admin@example.com';
+const DECOY_RENEW_INTERVAL = Math.max(3600000, Number(process.env.DECOY_RENEW_INTERVAL_MS || 86400000));
 const XRAY_STATS_ENABLED = process.env.XRAY_STATS_ENABLED === 'true';
 const XRAY_API_HOST = process.env.XRAY_API_HOST || '127.0.0.1';
 const XRAY_API_PORT = Number(process.env.XRAY_API_PORT || 8080);
@@ -46,6 +52,19 @@ let lastNet = null;
 let lastAppliedConfig = null;
 let activeServer = null;
 let xrayProcess = null;
+let decoyServer = null;
+let acmeServer = null;
+let decoyHost = process.env.DECOY_HOST || '';
+try {
+  if (!decoyHost) decoyHost = fs.readFileSync(path.join(DECOY_TLS_DIR, 'host.txt'), 'utf8').trim();
+} catch {}
+let renewing = false;
+const STUB_PAGE = (() => {
+  const file = path.join(__dirname, '..', 'assets', 'decoy.html');
+  try { return fs.readFileSync(file, 'utf8'); } catch {
+    return '<!doctype html><title>Welcome</title><h1>Welcome</h1><p>This site is under construction.</p>';
+  }
+})();
 const XRAY_MANAGED = process.env.XRAY_MANAGED === 'true';
 const TLS_DIR = process.env.AGENT_TLS_DIR || '/etc/xss-agent/tls';
 const lastUserStats = new Map();
@@ -431,6 +450,30 @@ async function pullConfig() {
   }
 }
 
+app.post('/decoy-certificate', auth, (req, res) => {
+  const { certificate, privateKey, hostname } = req.body || {};
+  if (!certificate || !privateKey || !hostname) {
+    return res.status(400).json({ error: 'certificate, privateKey and hostname are required' });
+  }
+  try {
+    decoyHost = String(hostname);
+    saveDecoyCertificate(certificate, privateKey, decoyHost);
+    startDecoyServer();
+    res.json({ installed: true, hostname: decoyHost, port: DECOY_PORT, https: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/decoy/renew', auth, async (_req, res) => {
+  try {
+    const result = await renewDecoyCertificate();
+    res.json(result);
+  } catch (error) {
+    res.status(502).json({ renewed: false, error: error.message });
+  }
+});
+
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -511,6 +554,89 @@ app.post('/certificate', auth, (req, res) => {
   }
 });
 
+/** Local TLS site used as a Reality destination. Never bound to a public interface. */
+function startDecoyServer() {
+  if (decoyServer) {
+    try { decoyServer.close(); } catch {}
+    decoyServer = null;
+  }
+  const certPath = path.join(DECOY_TLS_DIR, 'fullchain.pem');
+  const keyPath = path.join(DECOY_TLS_DIR, 'privkey.pem');
+  if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
+    console.error('decoy certificate is missing; TLS decoy is not started');
+    return;
+  }
+  const server = https.createServer(
+    { cert: fs.readFileSync(certPath), key: fs.readFileSync(keyPath) },
+    (_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(STUB_PAGE);
+    },
+  );
+  server.on('error', (error) => console.error(`decoy server error: ${error.message}`));
+  decoyServer = server;
+  server.listen(DECOY_PORT, '127.0.0.1', () => {
+    console.log(`decoy site listening on 127.0.0.1:${DECOY_PORT}`);
+  });
+}
+
+/** HTTP-01 responder for ACME; no default site is exposed on the public IP. */
+function startAcmeServer() {
+  const server = http.createServer((req, res) => {
+    let pathname = '';
+    try { pathname = new URL(req.url || '/', 'http://localhost').pathname; } catch {}
+    if (pathname.startsWith('/.well-known/acme-challenge/')) {
+      const token = path.basename(pathname);
+      const file = path.join(ACME_WEBROOT, '.well-known', 'acme-challenge', token);
+      if (/^[A-Za-z0-9_-]+$/.test(token) && fs.existsSync(file)) {
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end(fs.readFileSync(file, 'utf8'));
+        return;
+      }
+    }
+    const host = String(req.headers.host || '').split(':')[0].toLowerCase();
+    if (decoyHost && host && host !== decoyHost.toLowerCase()) {
+      res.socket?.destroy();
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(STUB_PAGE);
+  });
+  server.on('error', (error) => console.error(`ACME server error: ${error.message}`));
+  acmeServer = server;
+  server.listen(DECOY_HTTP_PORT, '0.0.0.0', () => {
+    console.log(`ACME HTTP-01 responder listening on :${DECOY_HTTP_PORT}`);
+  });
+}
+
+function saveDecoyCertificate(certificate, privateKey, hostname) {
+  fs.mkdirSync(DECOY_TLS_DIR, { recursive: true, mode: 0o700 });
+  fs.writeFileSync(path.join(DECOY_TLS_DIR, 'fullchain.pem'), certificate, { mode: 0o600 });
+  fs.writeFileSync(path.join(DECOY_TLS_DIR, 'privkey.pem'), privateKey, { mode: 0o600 });
+  if (hostname) fs.writeFileSync(path.join(DECOY_TLS_DIR, 'host.txt'), hostname, { mode: 0o600 });
+}
+
+async function renewDecoyCertificate() {
+  if (!decoyHost || renewing) return { renewed: false, reason: decoyHost ? 'busy' : 'no decoy host' };
+  renewing = true;
+  try {
+    fs.mkdirSync(ACME_WEBROOT, { recursive: true });
+    const result = await run('certbot', [
+      'certonly', '--webroot', '-w', ACME_WEBROOT, '-d', decoyHost,
+      '--email', ACME_EMAIL, '--agree-tos', '--non-interactive', '--keep-until-expiring',
+      '--cert-name', decoyHost,
+    ], 120000);
+    if (!result.ok) throw new Error(result.stderr || result.error || 'certbot failed');
+    const live = `/etc/letsencrypt/live/${decoyHost}`;
+    saveDecoyCertificate(fs.readFileSync(path.join(live, 'fullchain.pem'), 'utf8'),
+      fs.readFileSync(path.join(live, 'privkey.pem'), 'utf8'), decoyHost);
+    startDecoyServer();
+    return { renewed: true };
+  } finally {
+    renewing = false;
+  }
+}
+
 function startServer(tlsOptions) {
   if (activeServer) {
     try { activeServer.close(); } catch {}
@@ -556,19 +682,20 @@ startServer(tlsOptions);
 // Loopback decoy site for Xray fallbacks. It is never exposed on a public
 // interface; only Xray's local fallback can reach it.
 if (NODE_STUB_ENABLED && Number.isInteger(NODE_STUB_PORT) && NODE_STUB_PORT > 0 && NODE_STUB_PORT < 65536) {
-  const stubPage = '<!doctype html><html lang="en"><head><meta charset="utf-8">'
-    + '<meta name="viewport" content="width=device-width, initial-scale=1">'
-    + '<title>Welcome</title></head><body><h1>Welcome</h1>'
-    + '<p>This site is under construction.</p></body></html>';
-  http.createServer((req, res) => {
+  http.createServer((_req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(stubPage);
+    res.end(STUB_PAGE);
   }).listen(NODE_STUB_PORT, '127.0.0.1', () => {
-    console.log(`decoy site listening on 127.0.0.1:${NODE_STUB_PORT}`);
+    console.log(`legacy decoy site listening on 127.0.0.1:${NODE_STUB_PORT}`);
   }).on('error', (error) => {
-    console.error(`decoy site failed on 127.0.0.1:${NODE_STUB_PORT}: ${error.message}`);
+    console.error(`legacy decoy site failed on 127.0.0.1:${NODE_STUB_PORT}: ${error.message}`);
   });
 }
+startDecoyServer();
+startAcmeServer();
+setInterval(() => {
+  renewDecoyCertificate().catch((error) => console.error(`decoy renewal failed: ${error.message}`));
+}, DECOY_RENEW_INTERVAL);
 
 // При перезапуске контейнера конфиг уже лежит на диске — поднимаем Xray сразу,
 // не дожидаясь следующего pullConfig (панель может быть временно недоступна).

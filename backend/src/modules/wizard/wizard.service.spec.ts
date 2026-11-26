@@ -4,6 +4,12 @@ import { WizardService } from './wizard.service';
 jest.mock('dns/promises', () => ({
   resolveCname: jest.fn(async () => ['_acme-challenge.abc123.node.h2onetwork.pro']),
 }));
+jest.mock('dns', () => ({
+  Resolver: jest.fn().mockImplementation(() => ({
+    setServers: jest.fn(),
+    resolve4: (_host: string, cb: (e: any, a: string[]) => void) => cb(null, ['203.0.113.10']),
+  })),
+}));
 
 const user = { userId: 'u', email: 'admin@example.com', role: 'ADMIN', organizationId: 'org-1' } as any;
 const baseDto = {
@@ -20,6 +26,7 @@ describe('WizardService', () => {
   let control: any;
   let provision: any;
   let configGenerator: any;
+  let agentClient: any;
 
   beforeEach(() => {
     jest.mocked(resolveCname).mockClear();
@@ -48,9 +55,30 @@ describe('WizardService', () => {
       provision: jest.fn(async () => ({ nodeId: 'node-1', name: 'msk-01', agentToken: 'secret' })),
     };
     configGenerator = { createRevision: jest.fn(async () => ({ version: 3 })) };
+    agentClient = { installDecoyCertificate: jest.fn(async () => ({ installed: true })) };
   });
 
-  const service = () => new WizardService(prisma, control, provision, configGenerator);
+  const service = () => {
+    const instance = new WizardService(prisma, control, provision, configGenerator, agentClient);
+    // Avoid real DNS lookups in unit tests.
+    (instance as any).resolveA = jest.fn(async () => [baseDto.host]);
+    return instance;
+  };
+
+  it('generates Xray-compatible X25519 keys and a short id', () => {
+    const keys = (service() as any).realityKeys();
+    expect(keys.privateKey).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(keys.publicKey).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(keys.shortId).toMatch(/^[0-9a-f]{16}$/);
+    expect(keys.privateKey).not.toBe(keys.publicKey);
+  });
+
+  it('stops when the node domain does not resolve to the node IP', async () => {
+    const instance = service() as any;
+    instance.resolveA = jest.fn(async () => ['198.51.100.9']);
+    await expect(instance.create({ ...baseDto } as any, user)).rejects.toThrow('does not point to');
+    expect(provision.provision).not.toHaveBeenCalled();
+  });
 
   it('rejects missing secrets before allocating a domain', async () => {
     await expect(service().create({ ...baseDto, authMode: 'password' } as any, user)).rejects.toThrow('Password is required');
@@ -80,19 +108,23 @@ describe('WizardService', () => {
     expect(await service().installation('install-1', user)).toMatchObject({ progress: 100 });
   });
 
-  it('creates a node, VLESS TLS inbound and stores encrypted credentials', async () => {
+  it('creates a node, VLESS Reality inbound and stores encrypted credentials', async () => {
     const result = await service().create({ ...baseDto, userDomain: 'vpn.example.com' } as any, user);
     expect(control.allocate).toHaveBeenCalled();
     expect(provision.provision).toHaveBeenCalledWith(expect.objectContaining({ host: '203.0.113.10', username: 'root' }), user, expect.any(Function));
     expect(prisma.inbound.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         protocol: 'vless',
-        security: 'tls',
+        security: 'reality',
+        flow: 'xtls-rprx-vision',
         sni: 'abc123.node.h2onetwork.pro',
         settings: expect.objectContaining({
           sni: 'abc123.node.h2onetwork.pro',
-          fallbackDest: expect.any(Number),
-          fallbackAlpn: 'http/1.1',
+          realityDest: '127.0.0.1:8443',
+          realityServerNames: ['abc123.node.h2onetwork.pro'],
+          realityPrivateKey: expect.any(String),
+          realityPublicKey: expect.any(String),
+          realityShortIds: [expect.stringMatching(/^[0-9a-f]{16}$/)],
         }),
       }),
     }));
@@ -101,6 +133,10 @@ describe('WizardService', () => {
     expect(credential.privateKey).toMatch(/^v1:/);
     expect(credential.privateKey).not.toContain('PRIVATE KEY');
     expect(control.issueCertificate).toHaveBeenCalledWith('domain-1', expect.anything(), ['vpn.example.com']);
+    expect(agentClient.installDecoyCertificate).toHaveBeenCalledWith(
+      expect.objectContaining({ address: baseDto.host }),
+      expect.objectContaining({ hostname: 'abc123.node.h2onetwork.pro' }),
+    );
     expect(result).toMatchObject({ nodeId: 'node-1', fqdn: 'abc123.node.h2onetwork.pro', revision: 3, certificateIssued: true });
     expect(result).not.toHaveProperty('agentToken');
   });

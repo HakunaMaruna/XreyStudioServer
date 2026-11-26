@@ -3,7 +3,7 @@ FROM node:20-alpine
 # Xray сам запускается внутри контейнера агента (managed-режим), поэтому
 # бинарник нужен прямо в образе. TARGETARCH задаётся BuildKit автоматически.
 ARG TARGETARCH
-RUN apk add --no-cache curl unzip ca-certificates \
+RUN apk add --no-cache curl unzip ca-certificates certbot \
  && case "${TARGETARCH:-amd64}" in \
       amd64) XARCH=64 ;; \
       arm64) XARCH=arm64-v8a ;; \
@@ -28,5 +28,6 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install --omit=dev
 COPY src ./src
-EXPOSE 9090
+COPY assets ./assets
+EXPOSE 9090 80
 CMD ["node", "src/index.js"]

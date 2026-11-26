@@ -177,6 +177,13 @@ export class AgentClientService {
     return this.request(`${this.base(node, true)}/certificate`, { payload }, 15000, 'POST', true);
   }
 
+  async installDecoyCertificate(
+    node: { address: string; agentUrl?: string | null },
+    payload: { certificate: string; privateKey: string; hostname: string },
+  ) {
+    return this.request(`${this.base(node, true)}/decoy-certificate`, { payload }, 15000, 'POST', true);
+  }
+
   // Быстрый HTTP-RTT до агента: используется как «пинг» в карточке метрик ноды.
   async ping(node: { address: string; agentUrl?: string | null }) {
     const started = Date.now();
