@@ -5,7 +5,7 @@ const path = require('path');
 const https = require('https');
 const http = require('http');
 const { execFile, spawn } = require('child_process');
-const { timingSafeEqual } = require('crypto');
+const { timingSafeEqual, createHash } = require('crypto');
 const si = require('systeminformation');
 const {
   applyRelays,
@@ -56,6 +56,7 @@ let xrayStatus = 'unknown';
 let singboxStatus = 'unknown';
 let lastGood = null;
 let lastConfigVersion = 0;
+let lastConfigHash = { xray: null, singbox: null };
 let lastNet = null;
 let lastAppliedConfig = null;
 let activeServer = null;
@@ -120,6 +121,18 @@ function backupCurrent() {
   return target;
 }
 
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+
+function configHash(config) {
+  return createHash('sha256').update(stableStringify(config)).digest('hex');
+}
+
 function validateConfig(config) {
   if (!config || typeof config !== 'object') throw new Error('Config must be an object');
   if (!Array.isArray(config.inbounds)) throw new Error('inbounds must be an array');
@@ -139,6 +152,11 @@ function validateSingbox(config) {
 
 async function applySingboxConfig(config, version) {
   validateSingbox(config);
+  const hash = configHash(config);
+  if (hash === lastConfigHash.singbox) {
+    console.log('sing-box config unchanged, skipping reload');
+    return { engine: 'sing-box', applied: false, reloaded: false, skipped: true, version: lastConfigVersion };
+  }
   fs.mkdirSync(path.dirname(SINGBOX_CONFIG_PATH), { recursive: true });
   const tmp = path.join(path.dirname(SINGBOX_CONFIG_PATH), `singbox-candidate-${Date.now()}.json`);
   fs.writeFileSync(tmp, JSON.stringify(config, null, 2));
@@ -151,6 +169,7 @@ async function applySingboxConfig(config, version) {
   fs.unlinkSync(tmp);
   const reload = await run('systemctl', ['reload-or-restart', SINGBOX_SERVICE], 10000);
   singboxStatus = reload.ok ? 'running' : 'error';
+  lastConfigHash.singbox = reload.ok ? hash : null;
   return { engine: 'sing-box', applied: true, reloaded: reload.ok, version: version || lastConfigVersion };
 }
 
@@ -221,6 +240,11 @@ async function reloadXrayService() {
 
 async function applyXrayConfig(config, version) {
   validateConfig(config);
+  const hash = configHash(config);
+  if (hash === lastConfigHash.xray && xrayStatus === 'running') {
+    console.log('xray config unchanged, skipping reload');
+    return { applied: false, reloaded: false, skipped: true, version: lastConfigVersion, managed: XRAY_MANAGED };
+  }
   ensureDirs();
   const tmp = path.join(BACKUP_DIR, `candidate-${Date.now()}.json`);
   fs.writeFileSync(tmp, JSON.stringify(config, null, 2));
@@ -235,6 +259,7 @@ async function applyXrayConfig(config, version) {
   lastConfigVersion = version || lastConfigVersion;
   const reload = await reloadXrayService();
   xrayStatus = reload.ok ? 'running' : 'error';
+  lastConfigHash.xray = reload.ok ? hash : null;
   return {
     applied: true,
     reloaded: reload.ok,
@@ -272,16 +297,60 @@ async function queryUserStat(email, direction) {
   return result.ok ? parseStatValue(result.stdout) : 0;
 }
 
-async function collectTrafficEntries() {
-  if (!XRAY_STATS_ENABLED) return [];
-  const config = lastAppliedConfig?.xray || lastAppliedConfig;
-  const emails = new Set();
-  for (const inbound of config?.inbounds || []) {
-    for (const client of inbound.settings?.clients || []) {
-      if (client.email) emails.add(client.email);
-    }
+function parseStatsOutput(stdout) {
+  const raw = String(stdout || '').trim();
+  const result = new Map();
+  if (!raw) return result;
+  let stats;
+  try {
+    stats = JSON.parse(raw).stat || [];
+  } catch {
+    // Старые версии Xray печатают «имя значение» по строке.
+    stats = raw.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
+      const parts = line.split(/\s+/);
+      return { name: parts[0], value: parts[1] };
+    });
   }
+  for (const item of stats) {
+    const match = /^user>>>(.+)>>>traffic>>>(uplink|downlink)$/.exec(String(item?.name || ''));
+    if (!match) continue;
+    const value = Number(item.value);
+    if (!Number.isFinite(value)) continue;
+    const entry = result.get(match[1]) || { uplink: 0, downlink: 0 };
+    entry[match[2]] = value;
+    result.set(match[1], entry);
+  }
+  return result;
+}
 
+// Один запрос вместо двух процессов на каждого пользователя.
+// Возвращает null, если pattern-запрос не поддержан — тогда вызывается старый путь.
+async function collectTrafficEntriesPattern(emails) {
+  if (!emails.size) return [];
+  const server = `${XRAY_API_HOST}:${XRAY_API_PORT}`;
+  let result = await run(XRAY_BIN, ['api', 'statsquery', '--server', server, '-pattern', 'user>>>'], 15000);
+  if (!result.ok && /unknown command|unknown flag|flag provided but not defined/i.test(result.stderr || '')) {
+    result = await run(XRAY_BIN, ['api', 'statsq', '--server', server, '--pattern', 'user>>>'], 15000);
+  }
+  if (!result.ok) return null;
+  const all = parseStatsOutput(result.stdout);
+  if (!all.size) return null;
+  const entries = [];
+  for (const email of emails) {
+    const current = all.get(email);
+    if (!current) continue;
+    const uplink = Number(current.uplink || 0);
+    const downlink = Number(current.downlink || 0);
+    const previous = lastUserStats.get(email) || { uplink: 0, downlink: 0 };
+    const up = Math.max(0, uplink - previous.uplink);
+    const down = Math.max(0, downlink - previous.downlink);
+    lastUserStats.set(email, { uplink, downlink });
+    if (up || down) entries.push({ email, up, down });
+  }
+  return entries;
+}
+
+async function collectTrafficEntriesLegacy(emails) {
   const entries = [];
   for (const email of emails) {
     const uplink = await queryUserStat(email, 'uplink');
@@ -292,6 +361,21 @@ async function collectTrafficEntries() {
     lastUserStats.set(email, { uplink, downlink });
     if (up || down) entries.push({ email, up, down });
   }
+  return entries;
+}
+
+async function collectTrafficEntries() {
+  if (!XRAY_STATS_ENABLED) return [];
+  const config = lastAppliedConfig?.xray || lastAppliedConfig;
+  const emails = new Set();
+  for (const inbound of config?.inbounds || []) {
+    for (const client of inbound.settings?.clients || []) {
+      if (client.email) emails.add(client.email);
+    }
+  }
+
+  let entries = await collectTrafficEntriesPattern(emails);
+  if (entries === null) entries = await collectTrafficEntriesLegacy(emails);
   lastFailedEntries = entries;
   return entries;
 }
@@ -562,6 +646,8 @@ app.post('/rollback', auth, async (req, res) => {
     return res.status(400).json({ error: 'No backup available' });
   }
   fs.copyFileSync(lastGood, CONFIG_PATH);
+  lastConfigHash = { xray: null, singbox: null };
+  lastConfigVersion = 0;
   const result = await reloadXrayService();
   res.json({ rolledBack: true, reloaded: result.ok, managed: XRAY_MANAGED });
 });
