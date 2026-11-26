@@ -78,6 +78,15 @@ backend `tsc --noEmit` 0, `eslint` 0 errors, `nest build` rc=0, unit jest 42 sui
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## VPN chains (v2.45.0, 2026-11-26)
+
+Цепочки клиент → вход → выход по модели Mistgate relay: вход пересылает зашифрованный TCP как
+есть, ключей выхода не имеет. Модели `ProxyChain`/`ProxyChainHop`/`ChainBinding`, CRUD +
+apply + bind/unbind API, проверка циклов и онлайн-нод, several exits с приоритетами,
+агентский TCP-relay с сохранением конфига, подписка получает только адрес входа.
+UI: `/chains` со схемой и карточкой клиента «Отвязать». Обратная миграция:
+`backend/prisma/chain-down.sql`.
+
 ## Mobile/performance pass (v2.44.2, 2026-11-26)
 
 Из PR #210 выборочно перенесены мобильный viewport/theme-color, lazy-загрузка recharts

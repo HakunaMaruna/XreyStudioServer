@@ -81,6 +81,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         title: t.infrastructure,
         items: [
           { href: '/nodes', label: t.nodes, icon: 'server' },
+          { href: '/chains', label: t.chains, icon: 'route' },
           { href: '/wizard', label: t.wizard, icon: 'plus' },
       { href: '/health-checks', label: t.healthChecks, icon: 'pulse' },
           { href: '/inbounds', label: t.inbounds, icon: 'plug' },

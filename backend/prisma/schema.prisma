@@ -28,6 +28,7 @@ model Organization {
   balancers          Balancer[]
   reverseTunnels     ReverseTunnel[]
   vpnApps            VpnApp[]
+  chains             ProxyChain[]
 }
 
 model User {
@@ -58,6 +59,7 @@ model User {
   trafficReports         UserTraffic[]
   refreshTokens          RefreshToken[]
   apiTokens              ApiToken[]
+  chainBindings          ChainBinding[]
   createdAt              DateTime              @default(now())
   updatedAt              DateTime              @updatedAt
 
@@ -118,6 +120,7 @@ model Node {
   configProfiles       ConfigProfile[]
   cheburchecks         CheburcheckResult[]
   reverseTunnels       ReverseTunnel[]
+  chainHops            ProxyChainHop[] @relation("ChainHopNode")
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
 
@@ -461,6 +464,7 @@ model Squad {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   users          User[]
+  chainBindings  ChainBinding[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -969,3 +973,59 @@ model SnapshotPolicy {
   cooldownMinutes    Int      @default(15)
   updatedAt          DateTime @updatedAt
 }
+
+
+model ProxyChain {
+  id             String          @id @default(uuid())
+  name           String
+  status         String          @default("active")
+  routingMode    String          @default("all")
+  routingRules   Json?
+  organizationId String?
+  organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  hops           ProxyChainHop[]
+  bindings       ChainBinding[]
+
+  @@index([organizationId])
+}
+
+model ProxyChainHop {
+  id         String      @id @default(uuid())
+  chainId    String
+  chain      ProxyChain  @relation(fields: [chainId], references: [id], onDelete: Cascade)
+  nodeId     String
+  node       Node        @relation("ChainHopNode", fields: [nodeId], references: [id], onDelete: Cascade)
+  role       String
+  priority   Int         @default(0)
+  protocol   String      @default("vless")
+  security   String      @default("reality")
+  port       Int
+  listen     String      @default("0.0.0.0")
+  uuid       String
+  privateKey String?
+  publicKey  String?
+  shortId    String?
+  sni        String?
+  enabled    Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+
+  @@unique([chainId, nodeId, role])
+  @@index([nodeId])
+}
+
+model ChainBinding {
+  id        String      @id @default(uuid())
+  chainId   String
+  chain     ProxyChain  @relation(fields: [chainId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  squadId   String?
+  squad     Squad?      @relation(fields: [squadId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+
+  @@index([userId])
+  @@index([squadId])
+}
+

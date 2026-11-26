@@ -178,6 +178,17 @@ export class AgentClientService {
     return this.request(`${this.base(node, true)}/certificate`, { payload }, 15000, 'POST', true);
   }
 
+  async applyRelays(
+    node: { address: string; agentUrl?: string | null },
+    relays: Array<{ id: string; listenPort: number; targetHost: string; targetPort: number; enabled: boolean }>,
+  ) {
+    return this.request(`${this.base(node, true)}/relays`, { relays }, 15000, 'POST', true);
+  }
+
+  async relayStatus(node: { address: string; agentUrl?: string | null }) {
+    return this.request(`${this.base(node, true)}/relays`, undefined, 5000, 'GET', true);
+  }
+
   async installDecoyCertificate(
     node: { address: string; agentUrl?: string | null },
     payload: { certificate: string; privateKey: string; hostname: string },

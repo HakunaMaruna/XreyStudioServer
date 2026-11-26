@@ -5,6 +5,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
+import ChainCard from '../../components/chain-card';
 import {
   Avatar, Badge, Button, Card, Field, IconButton, Modal, PageHeader,
   StatusBadge, formatBytes,
@@ -354,6 +355,12 @@ export default function UsersPage() {
         cell: ({ row }) => <span className="font-medium text-fg tabular-nums">{formatBytes(row.original.trafficLimit)}</span>,
       },
       {
+        id: 'chain',
+        header: t.chainBadge,
+        enableSorting: false,
+        cell: ({ row }) => <ChainCard userId={row.original.id} onUnbound={() => load()} />,
+      },
+      {
         id: 'actions',
         header: t.actions,
         enableSorting: false,
@@ -366,7 +373,7 @@ export default function UsersPage() {
         ),
       },
     ],
-    [t, selectedIds, users],
+    [t, selectedIds, users, load],
   );
 
   return (

@@ -7,6 +7,14 @@ const http = require('http');
 const { execFile, spawn } = require('child_process');
 const { timingSafeEqual } = require('crypto');
 const si = require('systeminformation');
+const {
+  applyRelays,
+  loadRelays,
+  saveRelays,
+  getRelays,
+  getRelayStatus,
+  getRelaySummary,
+} = require('./relay');
 
 const PANEL_URL = (process.env.PANEL_URL || 'http://localhost:3000').replace(/\/$/, '');
 const AGENT_TOKEN = process.env.AGENT_TOKEN || '';
@@ -500,6 +508,7 @@ app.get('/health', (req, res) => {
     singbox: singboxStatus,
     version: lastConfigVersion,
     agentVersion: AGENT_VERSION,
+    relays: getRelaySummary(),
   });
 });
 
@@ -509,13 +518,43 @@ app.get('/metrics', auth, async (req, res) => {
 
 app.post('/config', auth, async (req, res) => {
   try {
-    const config = req.body.config || req.body;
-    const result = await applyConfig(config, req.body.version || 0);
+    const body = req.body || {};
+    const hasRelays = Object.prototype.hasOwnProperty.call(body, 'relays');
+    const hasConfig = body.config != null;
+    let result = {};
+    if (hasConfig || !hasRelays) {
+      result = await applyConfig(body.config || body, body.version || 0);
+    }
+    // A panel "apply" can push Xray config and relays in one request.
+    if (hasRelays) {
+      const relays = Array.isArray(body.relays) ? body.relays : [];
+      result.relays = applyRelays(relays);
+      saveRelays(relays);
+      result.applied = result.applied !== false;
+    }
     res.json(result);
   } catch (e) {
     xrayStatus = 'error';
     res.status(400).json({ applied: false, error: e.message });
   }
+});
+
+app.post('/relays', auth, (req, res) => {
+  try {
+    if (!Array.isArray(req.body?.relays)) {
+      return res.status(400).json({ applied: false, error: 'relays must be an array' });
+    }
+    const relays = req.body.relays;
+    const counts = applyRelays(relays);
+    saveRelays(relays);
+    res.json({ applied: true, ...counts });
+  } catch (e) {
+    res.status(400).json({ applied: false, error: e.message });
+  }
+});
+
+app.get('/relays', auth, (req, res) => {
+  res.json({ relays: getRelays(), status: getRelayStatus() });
 });
 
 app.post('/rollback', auth, async (req, res) => {
@@ -728,4 +767,15 @@ if (XRAY_MANAGED && fs.existsSync(CONFIG_PATH)) {
       console.error('managed xray start failed', error.message);
     }
   }, 1500);
+}
+
+// Persisted relays are restored on startup so they survive agent restarts.
+try {
+  const savedRelays = loadRelays();
+  if (savedRelays.length) {
+    const counts = applyRelays(savedRelays);
+    console.log(`relays restored: ${counts.configured} configured, ${counts.started} started`);
+  }
+} catch (error) {
+  console.error(`relay restore failed: ${error.message}`);
 }

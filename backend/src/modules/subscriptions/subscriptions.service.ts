@@ -1,10 +1,15 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SubscriptionPageService } from '../subscription-page/subscription-page.service';
+import { ChainsService } from '../chains/chains.service';
 
 @Injectable()
 export class SubscriptionsService {
-  constructor(private prisma: PrismaService, private page: SubscriptionPageService) {}
+  constructor(
+    private prisma: PrismaService,
+    private page: SubscriptionPageService,
+    private chains: ChainsService,
+  ) {}
 
   private encodeBase64(value: string) {
     return Buffer.from(value).toString('base64').replace(/=+$/, '');
@@ -121,6 +126,19 @@ export class SubscriptionsService {
     return user;
   }
 
+  private buildChainLink(user: any, server: { host: string; port: number; uuid: string; publicKey: string; shortId: string; sni: string; flow: string; name: string }) {
+    const params = new URLSearchParams();
+    params.set('type', 'tcp');
+    params.set('security', 'reality');
+    params.set('pbk', server.publicKey);
+    params.set('sid', server.shortId);
+    params.set('sni', server.sni);
+    params.set('fp', 'chrome');
+    params.set('encryption', 'none');
+    if (server.flow) params.set('flow', server.flow);
+    return `vless://${server.uuid}@${server.host}:${server.port}?${params.toString()}#${encodeURIComponent(server.name)}`;
+  }
+
   async getStatus(token: string) {
     const user = await this.loadUser(token);
     const directIds = new Set(user.inbounds.map((i: any) => i.id));
@@ -183,6 +201,7 @@ export class SubscriptionsService {
         ).values(),
       ),
       links,
+      chainServers: await this.chains.subscriptionServers(user.id, user.organizationId || null),
       deviceLimit: user.deviceLimit,
       deviceCount: (user as any).devices?.length ?? 0,
       deviceIds: ((user as any).devices || []).map((d: any) => d.hwid),
@@ -209,7 +228,10 @@ export class SubscriptionsService {
 
   async raw(token: string) {
     const data = await this.assertUsable(token);
-    return data.links.map((l: any) => l.link).join('\n');
+    const direct = data.links.map((l: any) => l.link);
+    const chains = (data.chainServers || []).map((server: any) =>
+      this.buildChainLink(data.user, server));
+    return [...direct, ...chains].join('\n');
   }
 
   async base64(token: string) {
