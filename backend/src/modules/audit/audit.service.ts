@@ -31,13 +31,27 @@ export class AuditService {
     }
   }
 
-  findAll(params: { page?: number; limit?: number; entity?: string; userId?: string; action?: string }) {
+  findAll(params: {
+    page?: number;
+    limit?: number;
+    entity?: string;
+    userId?: string;
+    action?: string;
+    level?: 'destructive' | 'change' | 'info';
+  }) {
     const page = Math.max(1, Number(params.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(params.limit) || 20));
     const where: any = {};
     if (params.entity) where.entity = params.entity;
     if (params.userId) where.userId = params.userId;
     if (params.action) where.action = { contains: params.action, mode: 'insensitive' };
+    const destructive = ['DELETE', 'REVOKE', 'BAN', 'ROLLBACK', 'RESET', 'RESTORE', 'REMOVE', 'DISABLE'];
+    const change = ['CREATE', 'UPDATE', 'PATCH', 'APPLY', 'SYNC', 'IMPORT', 'SEED', 'POST', 'ENABLE'];
+    const matches = (keywords: string[]) =>
+      keywords.map((keyword) => ({ action: { contains: keyword, mode: 'insensitive' as const } }));
+    if (params.level === 'destructive') where.OR = matches(destructive);
+    else if (params.level === 'change') where.OR = matches(change);
+    else if (params.level === 'info') where.NOT = { OR: matches([...destructive, ...change]) };
     return Promise.all([
       this.prisma.auditLog.findMany({
         where,
