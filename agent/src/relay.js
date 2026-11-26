@@ -54,9 +54,8 @@ function normalizeId(value) {
 
 function isLoopbackHost(host) {
   if (host === 'localhost' || host === 'localhost.') return true;
-  const ip = net.isIP(host);
-  if (ip === 4) return host.startsWith('127.');
-  if (ip === 6) return host === '::1' || host === '0:0:0:0:0:0:0:1';
+  if (net.isIPv4(host)) return host.startsWith('127.');
+  if (net.isIP(host) === 6) return host === '::1' || host === '0:0:0:0:0:0:0:1';
   return false;
 }
 
