@@ -136,8 +136,30 @@ export class NodesService {
 
   async remove(id: string, actor: AuthUser) {
     await this.findOne(id, actor);
-    await this.prisma.node.delete({ where: { id } });
-    return { success: true };
+    // Prisma cascades inbounds, metrics, geo, revisions, health checks, tunnels, etc.
+    // The remaining tables have no FK relation, so clean them explicitly in one transaction.
+    const [jobs, credentials, domains, traffic] = await this.prisma.$transaction([
+      this.prisma.nodeInstallJob.deleteMany({ where: { nodeId: id } }),
+      this.prisma.wizardCredential.deleteMany({ where: { nodeId: id } }),
+      this.prisma.nodeDomain.deleteMany({ where: { nodeId: id } }),
+      this.prisma.userTraffic.updateMany({ where: { nodeId: id }, data: { nodeId: null } }),
+      this.prisma.node.delete({ where: { id } }),
+    ]);
+    return {
+      success: true,
+      deleted: {
+        installJobs: jobs.count,
+        wizardCredentials: credentials.count,
+        nodeDomains: domains.count,
+        trafficRowsUnlinked: traffic.count,
+      },
+    };
+  }
+
+  /** Removes inbounds whose node was deleted before cascade was enabled (nodeId = null). */
+  async removeOrphanInbounds() {
+    const result = await this.prisma.inbound.deleteMany({ where: { nodeId: null } });
+    return { success: true, deleted: result.count };
   }
 
   async rotateToken(id: string, actor: AuthUser) {

@@ -120,6 +120,15 @@ export class NodesController {
     return updated;
   }
 
+  @Delete('orphan-inbounds')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN)
+  async removeOrphanInbounds(@Req() req: any) {
+    const result = await this.service.removeOrphanInbounds();
+    await this.audit.log({ userId: req.user?.userId, action: 'inbound.deleteOrphans', entity: 'Inbound', ip: req.ip });
+    return result;
+  }
+
   @Delete(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN)

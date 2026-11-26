@@ -152,7 +152,7 @@ model Inbound {
   id            String    @id @default(uuid())
   tag           String    @unique
   nodeId        String?
-  node          Node?     @relation(fields: [nodeId], references: [id])
+  node          Node?     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
   userId        String?
   user          User?     @relation(fields: [userId], references: [id])
   protocol      String

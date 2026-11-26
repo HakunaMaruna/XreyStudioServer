@@ -30,10 +30,17 @@ export function middleware(req: NextRequest) {
 
   if (!DECOY_ENABLED) {
     if (pathname.startsWith('/sub/')) {
+      // Match only a single token segment. `/sub/<token>` must become
+      // `/api/subscriptions/<token>` — keep the `/sub` prefix here produced
+      // `/api/subscriptions/sub/<token>` and a 404 for every VPN client.
+      const match = /^\/sub\/([A-Za-z0-9_-]+)\/?$/.exec(pathname);
+      if (!match) return NextResponse.next();
       const ua = req.headers.get('user-agent') || '';
       if (!BROWSER_UA.test(ua)) {
         const upstream = process.env.BACKEND_INTERNAL_URL || 'http://backend:3000';
-        return NextResponse.rewrite(`${upstream}/api/subscriptions${pathname}${req.nextUrl.search}`);
+        return NextResponse.rewrite(
+          `${upstream}/api/subscriptions/${match[1]}${req.nextUrl.search}`,
+        );
       }
     }
     return NextResponse.next();

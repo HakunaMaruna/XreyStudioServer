@@ -78,6 +78,16 @@ backend `tsc --noEmit` 0, `eslint` 0 errors, `nest build` rc=0, unit jest 42 sui
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Subscription 404 and node cleanup (v2.42.5, 2026-11-26)
+
+- `frontend/src/middleware.ts`: реврайт `/sub/<token>` для не-браузерных UA теперь даёт
+  `/api/subscriptions/<token>` вместо `/api/subscriptions/sub/<token>` (404 у Incy и всех
+  VPN-клиентов). Добавлен `npm run test:sub-rewrite`.
+- Удаление ноды теперь каскадно удаляет inbounds (`onDelete: Cascade`) и в одной транзакции
+  чистит install-задачи, wizard-креды, домены и развязывает UserTraffic. Добавлен
+  `DELETE /api/nodes/orphan-inbounds` для уже существующих "висячих" подключений.
+- ТЕЛЕМЕТРИЯ:-normalization `TELEMETRY_URL` больше не дублирует `/api`.
+
 ## Persistent ACME state (v2.42.4, 2026-11-26)
 
 `/etc/letsencrypt` в backend теперь volumes (`letsencrypt`) и не теряется при пересоздании

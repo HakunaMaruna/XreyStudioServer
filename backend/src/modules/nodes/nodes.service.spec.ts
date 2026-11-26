@@ -53,3 +53,39 @@ describe('NodesService stale status', () => {
     }));
   });
 });
+
+describe('NodesService cleanup', () => {
+  const actor = { userId: 'u1', role: Role.ADMIN, organizationId: null } as any;
+
+  it('deletes node-related rows and cascades inbounds', async () => {
+    const tx = [
+      { count: 1 }, // install jobs
+      { count: 1 }, // wizard credentials
+      { count: 1 }, // domains
+      { count: 2 }, // traffic unlinked
+      { id: 'n1' }, // node
+    ];
+    const prisma: any = {
+      node: { findFirst: jest.fn(async () => ({ id: 'n1', organizationId: null })), delete: jest.fn(async () => ({})) },
+      nodeInstallJob: { deleteMany: jest.fn(async () => ({ count: 1 })) },
+      wizardCredential: { deleteMany: jest.fn(async () => ({ count: 1 })) },
+      nodeDomain: { deleteMany: jest.fn(async () => ({ count: 1 })) },
+      userTraffic: { updateMany: jest.fn(async () => ({ count: 2 })) },
+      $transaction: jest.fn(async () => tx),
+    };
+    const service = new NodesService(prisma, {} as any, {} as any);
+    const result = await service.remove('n1', actor);
+    expect(result).toMatchObject({
+      success: true,
+      deleted: { installJobs: 1, wizardCredentials: 1, nodeDomains: 1, trafficRowsUnlinked: 2 },
+    });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('removes orphan inbounds from already deleted nodes', async () => {
+    const deleteMany = jest.fn(async () => ({ count: 3 }));
+    const service = new NodesService({ inbound: { deleteMany } } as any, {} as any, {} as any);
+    expect(await service.removeOrphanInbounds()).toEqual({ success: true, deleted: 3 });
+    expect(deleteMany).toHaveBeenCalledWith({ where: { nodeId: null } });
+  });
+});
