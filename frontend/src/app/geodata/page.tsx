@@ -138,7 +138,11 @@ export default function GeodataPage() {
             <Button icon="plus" variant="primary" onClick={() => { setForm(emptyForm); setOpen(true); }}>{t.create}</Button>
           </div>
         } />
-      {notice && <div className="mb-5 rounded-xl border border-brand/25 bg-brand-soft px-4 py-3 text-xs text-brand">{notice}</div>}
+      {notice && (
+        <div role="status" aria-live="polite" className="mb-5 rounded-xl border border-brand/25 bg-brand-soft px-4 py-3 text-xs text-brand">
+          {notice}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         <StatCard label={t.total} value={rows.length} icon="box" tone="brand" />

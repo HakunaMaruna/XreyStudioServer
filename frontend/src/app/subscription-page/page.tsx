@@ -121,8 +121,16 @@ export default function SubscriptionPageAdmin() {
         }
       />
 
-      {error && <div className="mb-4 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger"><Icon name="alert" size={15} />{error}</div>}
-      {notice && <div className="mb-4 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-xs text-success">{notice}</div>}
+      {error && (
+        <div role="alert" className="mb-4 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+          <Icon name="alert" size={15} />{error}
+        </div>
+      )}
+      {notice && (
+        <div role="status" aria-live="polite" className="mb-4 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-xs text-success">
+          {notice}
+        </div>
+      )}
 
       <div className="mb-4">
         <Segmented value={tab} onChange={setTab} options={[

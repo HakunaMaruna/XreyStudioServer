@@ -18,6 +18,7 @@ export default function DoctorPage() {
   const { t } = useLang();
   const [checks, setChecks] = useState<Check[]>([]);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -34,12 +35,13 @@ export default function DoctorPage() {
     if (!window.confirm(`${t.applyFix}: ${check.title} — ${check.detail}?`)) return;
     setBusy(check.id + (check.entityId || ''));
     setError('');
+    setNotice('');
     try {
       const result = await api.post<{ message?: string }>('/api/doctor/fix', {
         checkId: check.id,
         entityId: check.entityId,
       });
-      setError(result.message || t.fixApplied);
+      setNotice(result.message || t.fixApplied);
       load();
     } catch (err: any) {
       setError(err.message || 'Fix failed');
@@ -53,7 +55,16 @@ export default function DoctorPage() {
   return (
     <>
       <PageHeader eyebrow="Infrastructure" title={t.doctor} subtitle={t.doctorSubtitle} icon="activity" />
-      {error && <div className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>}
+      {error && (
+        <div role="alert" className="mb-4 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
+          <Icon name="alert" size={15} /> {error}
+        </div>
+      )}
+      {notice && (
+        <div role="status" aria-live="polite" className="mb-4 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-xs text-success">
+          {notice}
+        </div>
+      )}
       {checks.length > 0 && problems.length === 0 && (
         <Card><div className="py-6 text-center text-sm text-muted">{t.noIssues}</div></Card>
       )}

@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import { Icon } from '../../components/icons';
@@ -56,22 +56,66 @@ export default function AuditPage() {
     }
   }, [entity, appliedUserId, appliedSearch, level, pageIndex, pageSize]);
 
-  useEffect(() => {
-    if (!isLoggedIn()) window.location.href = '/login';
-  }, []);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    if (!isLoggedIn()) {
+      window.location.href = '/login';
+      return;
+    }
+    // Restore filters from the URL so a reload or a shared link keeps them.
+    const params = new URLSearchParams(window.location.search);
+    const levelParam = params.get('level') as Level | null;
+    const pageParam = Number(params.get('page'));
+    const limitParam = Number(params.get('limit'));
+    if (params.get('q')) {
+      setSearch(params.get('q')!);
+      setAppliedSearch(params.get('q')!);
+    }
+    if (params.get('user')) {
+      setUserId(params.get('user')!);
+      setAppliedUserId(params.get('user')!);
+    }
+    if (params.get('entity')) setEntity(params.get('entity')!);
+    if (levelParam && ['destructive', 'change', 'info'].includes(levelParam)) setLevel(levelParam);
+    if (Number.isInteger(pageParam) && pageParam > 1) setPageIndex(pageParam - 1);
+    if ([20, 50, 100].includes(limitParam)) setPageSize(limitParam);
+    setReady(true);
+  }, []);
+
+  // Skip the first run so restored filters keep their page index.
+  const filtersRef = useRef<{ search: string; userId: string } | null>(null);
+
+  useEffect(() => {
+    if (!ready) return;
+    const previous = filtersRef.current;
+    filtersRef.current = { search, userId };
+    if (!previous) return;
+    if (previous.search === search && previous.userId === userId) return;
     const timer = setTimeout(() => {
       setAppliedSearch(search.trim());
       setAppliedUserId(userId.trim());
       setPageIndex(0);
     }, 300);
     return () => clearTimeout(timer);
-  }, [search, userId]);
+  }, [search, userId, ready]);
 
   useEffect(() => {
-    if (isLoggedIn()) load();
-  }, [load]);
+    if (ready && isLoggedIn()) load();
+  }, [ready, load]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const params = new URLSearchParams();
+    if (appliedSearch) params.set('q', appliedSearch);
+    if (appliedUserId) params.set('user', appliedUserId);
+    if (entity) params.set('entity', entity);
+    if (level !== 'all') params.set('level', level);
+    if (pageIndex > 0) params.set('page', String(pageIndex + 1));
+    if (pageSize !== 20) params.set('limit', String(pageSize));
+    const query = params.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+  }, [ready, appliedSearch, appliedUserId, entity, level, pageIndex, pageSize]);
 
   const levelOf = (action: string) => {
     if (destructive.test(action)) return { tone: 'danger' as const, label: t.levelDestructive };
