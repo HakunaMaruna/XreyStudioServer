@@ -102,7 +102,7 @@ function SchemaBlock({
   meta?: string;
 }) {
   return (
-    <div className="min-w-0 flex-1 basis-[150px] rounded-xl border border-line bg-surface-2/60 p-3 sm:max-w-[220px] sm:basis-[150px]">
+    <div className="w-full min-w-0 rounded-xl border border-line bg-surface-2/60 p-3 @lg:w-auto @lg:flex-1 @lg:basis-[150px] @lg:max-w-[220px]">
       <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-subtle">
         <Icon name={icon} size={12} /> {label}
       </div>
@@ -117,7 +117,7 @@ function SchemaBlock({
 
 function SchemaArrow() {
   return (
-    <div className="flex w-5 shrink-0 rotate-90 items-center justify-center self-center text-subtle sm:rotate-0" aria-hidden="true">
+    <div className="flex w-5 shrink-0 rotate-90 items-center justify-center self-center text-subtle @lg:rotate-0" aria-hidden="true">
       <Icon name="chevronRight" size={16} />
     </div>
   );
@@ -397,15 +397,15 @@ export default function ChainsPage() {
       )}
 
       {loading ? (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3" aria-busy="true" aria-label={t.loading}>
+        <div className="grid gap-3" aria-busy="true" aria-label={t.loading}>
           {Array.from({ length: 6 }).map((_, index) => (
             <div key={index} className="panel animate-pulse p-5">
               <div className="h-4 w-1/2 rounded bg-surface-3" />
               <div className="mt-3 h-3 w-2/3 rounded bg-surface-3/70" />
-              <div className="mt-6 flex gap-2">
-                <div className="h-14 w-[140px] rounded-xl bg-surface-3/70" />
-                <div className="h-14 w-[140px] rounded-xl bg-surface-3/70" />
-                <div className="h-14 w-[140px] rounded-xl bg-surface-3/70" />
+              <div className="mt-6 grid grid-cols-3 gap-2">
+                <div className="h-14 rounded-xl bg-surface-3/70" />
+                <div className="h-14 rounded-xl bg-surface-3/70" />
+                <div className="h-14 rounded-xl bg-surface-3/70" />
               </div>
               <div className="mt-5 h-8 rounded-lg bg-surface-3/60" />
             </div>
@@ -416,7 +416,7 @@ export default function ChainsPage() {
           <EmptyState icon="route" title={t.chainNoChains} description={t.chainNoChainsHint} />
         </Card>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3">
           {chains.map((chain) => (
             <Card key={chain.id} className="flex flex-col gap-4">
               <div className="flex items-start justify-between gap-2">
@@ -441,8 +441,8 @@ export default function ChainsPage() {
                 <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-subtle">
                   {t.chainSchemaHint}
                 </p>
-                <div className="panel rounded-xl bg-app/40 p-3">
-                  <div className="flex flex-col items-stretch gap-1 sm:flex-row sm:flex-wrap">
+                <div className="panel @container rounded-xl bg-app/40 p-3">
+                  <div className="flex flex-col items-stretch gap-1 @lg:flex-row @lg:flex-wrap">
                     <SchemaBlock
                       icon="users"
                       label={t.chainClient}
@@ -460,7 +460,7 @@ export default function ChainsPage() {
                       meta={chain.entryNode ? chain.entryNode.id.slice(0, 6) : undefined}
                     />
                     {chain.exits?.map((exit, index) => (
-                      <div key={exit.id || `${exit.nodeId}-${index}`} className="flex min-w-0 flex-1 items-stretch gap-1 sm:min-w-[150px]">
+                      <div key={exit.id || `${exit.nodeId}-${index}`} className="flex min-w-0 items-stretch gap-1 @lg:flex-1 @lg:basis-[150px]">
                         <SchemaArrow />
                         <SchemaBlock
                           icon="network"
