@@ -78,6 +78,15 @@ backend `tsc --noEmit` 0, `eslint` 0 errors, `nest build` rc=0, unit jest 42 sui
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Node token sync (2026-11-26)
+
+Локальный агент master (`test-node`, `3f587d0c…`) имел расхождение `AGENT_TOKEN`
+в `.env` и `tokenHash` в БД → `403 Invalid node token`, узел отображался OFFLINE.
+Токен перевыпущен через `POST /api/nodes/:id/rotate-token`, `.env` обновлён
+(бэкап `.env.bak-token-*`), контейнер agent пересоздан. Узел снова ONLINE,
+конфиг версии 33 применён, `403` в логах нет. Удалённый узел «Хельсинки»
+(`144.31.226.113`) не затрагивался.
+
 ## Agent performance from PR #168 (v2.46.1, 2026-11-26)
 
 Ветка `feat/agent-hash-stats` была на 171 коммит позади main — изменения перенесены
