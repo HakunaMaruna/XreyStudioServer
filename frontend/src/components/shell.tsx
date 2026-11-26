@@ -39,6 +39,19 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     setQuery('');
   }, [pathname]);
 
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileOpen(false);
+    };
+    document.body.classList.add('ui-scroll-locked');
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.classList.remove('ui-scroll-locked');
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [mobileOpen]);
+
   const sections: NavSection[] = useMemo(
     () => [
       {
@@ -195,17 +208,17 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       >
         Skip to content
       </a>
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[248px] lg:block">{sidebar}</aside>
+      <aside className="fixed inset-y-0 left-0 z-sidebar hidden w-[248px] lg:block">{sidebar}</aside>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-overlay lg:hidden" role="dialog" aria-modal="true" aria-label={t.controlPanel}>
           <div className="absolute inset-0 bg-app/80 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
           <aside className="absolute inset-y-0 left-0 w-[264px]">{sidebar}</aside>
         </div>
       )}
 
       <div className="lg:pl-[248px]">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-app/80 px-4 backdrop-blur-xl sm:px-6">
+        <header className="ui-safe-top sticky top-0 z-sticky flex min-h-16 items-center gap-3 border-b border-line bg-app/80 px-4 backdrop-blur-xl sm:px-6">
           <IconButton icon="menu" label="Menu" className="lg:hidden" onClick={() => setMobileOpen(true)} />
 
           <div className="hidden items-center gap-2 text-sm sm:flex">
@@ -230,7 +243,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             />
             <kbd className="mono pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-line bg-surface-3 px-1.5 py-0.5 text-[11px] text-subtle">/</kbd>
             {searchOpen && query.trim() && (
-              <div className="panel absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden p-1.5">
+              <div className="panel absolute left-0 right-0 top-full z-dropdown mt-2 max-h-[60dvh] overflow-y-auto p-1.5">
                 {results.length === 0 ? (
                   <p className="px-3 py-2 text-xs text-muted">{t.noPagesFound}</p>
                 ) : (
@@ -264,7 +277,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <IconButton icon="sparkles" label="Toggle icon set" onClick={toggleIconSet} />
         </header>
 
-        <main id="main-content" className="relative z-10 mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:px-8">{children}</main>
+        <main id="main-content" className="relative z-content mx-auto max-w-[1600px] px-4 py-5 pb-[max(1.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-7 lg:px-8">{children}</main>
       </div>
     </div>
   );
