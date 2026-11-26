@@ -180,6 +180,7 @@ model Inbound {
   fallbacks  InboundFallback[] @relation("InboundFallbacks")
   fallbackOf InboundFallback[] @relation("FallbackChildren")
   clients    InboundClient[]
+  squadLinks InboundSquad[]
   reverseTunnels ReverseTunnel[]
   rules      Rule[]
   routingProfiles RoutingProfile[]
@@ -214,9 +215,11 @@ model InboundClient {
   enabled      Boolean   @default(true)
   comment      String?
   sortIndex    Int       @default(0)
+  sourceSquadId String?
   createdAt    DateTime  @default(now())
 
   @@unique([inboundId, userId])
+  @@index([sourceSquadId])
   @@index([inboundId])
 }
 
@@ -465,6 +468,7 @@ model Squad {
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   users          User[]
   chainBindings  ChainBinding[]
+  inboundLinks   InboundSquad[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -1027,6 +1031,18 @@ model ChainBinding {
   createdAt DateTime    @default(now())
 
   @@index([userId])
+  @@index([squadId])
+}
+
+model InboundSquad {
+  id        String   @id @default(uuid())
+  inboundId String
+  squadId   String
+  createdAt DateTime @default(now())
+  inbound   Inbound  @relation(fields: [inboundId], references: [id], onDelete: Cascade)
+  squad     Squad    @relation(fields: [squadId], references: [id], onDelete: Cascade)
+
+  @@unique([inboundId, squadId])
   @@index([squadId])
 }
 

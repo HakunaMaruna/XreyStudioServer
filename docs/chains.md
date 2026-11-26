@@ -35,3 +35,16 @@
 Конфиг сохраняется в `/etc/xss-agent/relays.json` и восстанавливается после перезапуска.
 
 Обратная миграция: `backend/prisma/chain-down.sql`.
+
+## Живая привязка групп к подключениям
+
+`InboundSquad` хранит связь подключения (`Inbound`) и группы пользователей (`Squad`).
+Клиенты, добавленные через такую связь, помечаются `InboundClient.sourceSquadId`,
+поэтому ручные клиенты никогда не удаляются при синхронизации.
+
+- `GET /api/inbounds/:id/squads`, `POST /api/inbounds/:id/squads` `{squadId}`,
+  `DELETE /api/inbounds/:id/squads/:squadId`.
+- Состав группы меняется через `PATCH /api/squads/:id/members` или карточку пользователя —
+  клиенты всех привязанных подключений обновляются автоматически.
+- Удаление группы снимает все привязки и клиентов, пришедших от неё.
+- Обратная миграция: `backend/prisma/inbound-squad-down.sql`.

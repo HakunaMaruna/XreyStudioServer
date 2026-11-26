@@ -432,6 +432,11 @@ const dict = {
     clientList: 'Список клиентов',
     group: 'Группу',
     groupModalTitle: 'Добавление группы клиентов',
+    groupLiveHint: 'Клиенты добавляются автоматически и удаляются при изменении состава группы.',
+    bind: 'Привязать',
+    unbind: 'Отвязать',
+    selectSquad: 'Выберите группу пользователей',
+    noSquads: 'Группы пользователей не созданы',
     selectUsers: 'Выберите пользователей',
 
     // Hosts and rules
@@ -1281,6 +1286,11 @@ const dict = {
     clientList: 'Client list',
     group: 'Group',
     groupModalTitle: 'Add client group',
+    groupLiveHint: 'Clients are added automatically and removed when group membership changes.',
+    bind: 'Bind',
+    unbind: 'Unbind',
+    selectSquad: 'Select a user group',
+    noSquads: 'No user groups created yet',
     selectUsers: 'Select users',
 
     hostsSubtitle: 'Destination addresses, SNI values and paths',

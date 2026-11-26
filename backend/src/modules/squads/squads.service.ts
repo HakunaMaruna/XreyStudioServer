@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, Role } from '@prisma/client';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
+import { SquadBindingService } from '../inbounds/squad-binding.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
 type SquadData = {
@@ -14,7 +15,10 @@ type SquadData = {
 
 @Injectable()
 export class SquadsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly squadBindings: SquadBindingService,
+  ) {}
 
   // Глобальные (organizationId = null) сквады видимы всем тенантам, но менять
   // их может только ADMIN.
@@ -92,6 +96,7 @@ export class SquadsService {
   async remove(id: string, actor: AuthUser) {
     const found = await this.prisma.squad.findFirst({ where: { id, ...this.writeWhere(actor) } });
     if (!found) throw new NotFoundException('Squad not found');
+    await this.squadBindings.unbindAll(id);
     await this.prisma.squad.delete({ where: { id } });
     return { success: true };
   }
@@ -111,6 +116,7 @@ export class SquadsService {
       this.prisma.user.updateMany({ where: { squadId: id, ...userScope }, data: { squadId: null } }),
       this.prisma.user.updateMany({ where: { id: { in: allowed }, ...userScope }, data: { squadId: id } }),
     ]);
+    await this.squadBindings.syncSquad(id);
     return this.find(id, actor);
   }
 }

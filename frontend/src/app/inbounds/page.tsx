@@ -128,6 +128,7 @@ export default function InboundsPage() {
   const [inbounds, setInbounds] = useState<InboundRow[]>([]);
   const [nodes, setNodes] = useState<{ id: string; name: string }[]>([]);
   const [users, setUsers] = useState<{ id: string; email: string }[]>([]);
+  const [squads, setSquads] = useState<Array<{ id: string; name: string; _count?: { users: number }; userCount?: number }>>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [recipeId, setRecipeId] = useState('');
   const [loading, setLoading] = useState(true);
@@ -144,21 +145,24 @@ export default function InboundsPage() {
   // Group modal (bulk-add users as clients of a single inbound).
   const [groupOpen, setGroupOpen] = useState(false);
   const [groupInboundId, setGroupInboundId] = useState<string | null>(null);
-  const [groupSelected, setGroupSelected] = useState<string[]>([]);
+  const [groupSquadId, setGroupSquadId] = useState('');
+  const [groupBindings, setGroupBindings] = useState<Array<{ squadId: string; squadName: string; memberCount: number }>>([]);
 
   const load = async () => {
     setLoading(true);
     try {
-      const [ib, nd, us, rc] = await Promise.all([
+      const [ib, nd, us, rc, sq] = await Promise.all([
         api.get('/api/inbounds'),
         api.get('/api/nodes'),
         api.get('/api/users?limit=100').catch(() => ({ data: [] })),
         api.get('/api/inbounds/recipes').catch(() => ({ data: [] })),
+        api.get('/api/squads').catch(() => []),
       ]);
       setInbounds(Array.isArray(ib) ? ib : ib.data || []);
       setNodes(Array.isArray(nd) ? nd : nd.data || []);
       setUsers(us.data || []);
       setRecipes(Array.isArray(rc) ? rc : rc.data || []);
+      setSquads(Array.isArray(sq) ? sq : sq.data || []);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -311,30 +315,45 @@ export default function InboundsPage() {
     }
   };
 
-  const closeGroup = () => { setGroupOpen(false); setGroupInboundId(null); setGroupSelected([]); setError(''); };
+  const closeGroup = () => { setGroupOpen(false); setGroupInboundId(null); setGroupSquadId(''); setGroupBindings([]); setError(''); };
+
+  const refreshGroupBindings = async (inboundId: string) => {
+    const data: any = await api.get(`/api/inbounds/${inboundId}/squads`);
+    setGroupBindings(Array.isArray(data) ? data : data.items || []);
+  };
 
   const openGroup = (row: InboundRow) => {
     setForm(formFromRow(row));
     setGroupInboundId(row.id);
-    setGroupSelected([]);
+    setGroupSquadId('');
+    setGroupBindings([]);
     setError('');
     setGroupOpen(true);
+    refreshGroupBindings(row.id).catch((e: any) => setError(e.message));
   };
 
-  const saveGroup = async () => {
+  const bindGroup = async (squadId: string) => {
     if (!groupInboundId) return;
     setError('');
     setBusy(true);
     try {
-      const existing = form.clients.filter((c) => c.userId);
-      const present = new Set(existing.map((c) => c.userId));
-      const added = groupSelected
-        .filter((id) => !present.has(id))
-        .map((id, index) => ({ ...emptyClient(existing.length + index), userId: id }));
-      await api.patch(`/api/inbounds/${groupInboundId}`, {
-        clients: [...existing, ...added].map(clientPayload),
-      });
-      closeGroup();
+      await api.post(`/api/inbounds/${groupInboundId}/squads`, { squadId });
+      await refreshGroupBindings(groupInboundId);
+      await load();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const unbindGroup = async (squadId: string) => {
+    if (!groupInboundId) return;
+    setError('');
+    setBusy(true);
+    try {
+      await api.delete(`/api/inbounds/${groupInboundId}/squads/${encodeURIComponent(squadId)}`);
+      await refreshGroupBindings(groupInboundId);
       await load();
     } catch (e: any) {
       setError(e.message);
@@ -597,7 +616,7 @@ export default function InboundsPage() {
         subtitle={groupInbound?.tag}
         icon={<Icon name="users" size={16} />}
         size="lg"
-        footer={<><Button onClick={closeGroup}>{t.cancel}</Button><Button variant="primary" icon="plus" onClick={saveGroup} loading={busy}>{t.addClient}</Button></>}
+        footer={<Button onClick={closeGroup}>{t.close}</Button>}
       >
         <div className="space-y-3">
           {error && (
@@ -605,20 +624,24 @@ export default function InboundsPage() {
               <Icon name="alert" size={14} /> {error}
             </div>
           )}
-          <p className="text-xs text-muted">{t.selectUsers}</p>
+          <p className="text-xs text-muted">{t.selectSquad}</p>
+          <p className="text-[11px] text-subtle">{t.groupLiveHint}</p>
           <div className="grid gap-2 sm:grid-cols-2">
-            {users.map((u) => (
-              <label key={u.id} className="flex cursor-pointer items-center gap-2 rounded-lg border border-line bg-surface-2/40 px-3 py-2 text-xs text-fg">
-                <input
-                  type="checkbox"
-                  checked={groupSelected.includes(u.id)}
-                  onChange={(e) => setGroupSelected((prev) => e.target.checked ? [...prev, u.id] : prev.filter((id) => id !== u.id))}
-                  className="h-4 w-4"
-                />
-                <span className="truncate">{u.email}</span>
-              </label>
-            ))}
-            {users.length === 0 && <p className="text-xs text-subtle">{t.noData}</p>}
+            {squads.map((squad) => {
+              const bound = groupBindings.some((binding) => binding.squadId === squad.id);
+              return (
+                <div key={squad.id} className="flex items-center gap-2 rounded-lg border border-line bg-surface-2/40 px-3 py-2 text-xs text-fg">
+                  <span className="min-w-0 flex-1 truncate">{squad.name}</span>
+                  <span className="shrink-0 text-[11px] text-subtle">{squad._count?.users ?? squad.userCount ?? 0}</span>
+                  {bound ? (
+                    <Button size="sm" variant="danger" disabled={busy} onClick={() => unbindGroup(squad.id)}>{t.unbind}</Button>
+                  ) : (
+                    <Button size="sm" variant="ghost" icon="plus" disabled={busy} onClick={() => bindGroup(squad.id)}>{t.bind}</Button>
+                  )}
+                </div>
+              );
+            })}
+            {squads.length === 0 && <p className="text-xs text-subtle">{t.noSquads}</p>}
           </div>
         </div>
       </Modal>

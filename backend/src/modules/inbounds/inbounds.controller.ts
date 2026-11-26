@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -19,6 +20,7 @@ import { AuditService } from '../audit/audit.service';
 import { BulkInboundUsersDto, CreateInboundDto, UpdateInboundDto } from './dto/inbound.dto';
 import { InboundsService } from './inbounds.service';
 import { InboundRecipesService } from './inbound-recipes.service';
+import { SquadBindingService } from './squad-binding.service';
 
 @Controller('inbounds')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -28,6 +30,7 @@ export class InboundsController {
     private service: InboundsService,
     private audit: AuditService,
     private recipes: InboundRecipesService,
+    private squadBindings: SquadBindingService,
   ) {}
 
   @Get()
@@ -72,6 +75,42 @@ export class InboundsController {
       entityId: id,
       ip: req.ip,
       metadata: { scope: body.scope, squadId: body.squadId, ...result },
+    });
+    return result;
+  }
+
+  @Get(':id/squads')
+  listSquads(@Param('id') id: string) {
+    return { items: this.squadBindings.list(id) };
+  }
+
+  @Post(':id/squads')
+  async bindSquad(
+    @Param('id') id: string,
+    @Body() body: { squadId?: string },
+    @CurrentUser() user: AuthUser,
+    @Req() req: any,
+  ) {
+    if (!body?.squadId) throw new BadRequestException('squadId is required');
+    const result = await this.squadBindings.bind(id, body.squadId);
+    await this.audit.log({
+      userId: user.userId, action: 'inbound.squad.bind', entity: 'Inbound', entityId: id,
+      ip: req.ip, metadata: { squadId: body.squadId },
+    });
+    return result;
+  }
+
+  @Delete(':id/squads/:squadId')
+  async unbindSquad(
+    @Param('id') id: string,
+    @Param('squadId') squadId: string,
+    @CurrentUser() user: AuthUser,
+    @Req() req: any,
+  ) {
+    const result = await this.squadBindings.unbind(id, squadId);
+    await this.audit.log({
+      userId: user.userId, action: 'inbound.squad.unbind', entity: 'Inbound', entityId: id,
+      ip: req.ip, metadata: { squadId },
     });
     return result;
   }

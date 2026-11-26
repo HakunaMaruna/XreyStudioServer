@@ -3,6 +3,7 @@ import { Prisma, Role, UserStatus } from '@prisma/client';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PasswordService } from '../../common/password.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SquadBindingService } from '../inbounds/squad-binding.service';
 import { BulkUsersDto, CreateUserDto, UpdateUserDto, UsersQueryDto } from './dto/user.dto';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class UsersService implements OnModuleInit {
   constructor(
     private prisma: PrismaService,
     private passwords: PasswordService,
+    private squadBindings: SquadBindingService,
   ) {}
 
   onModuleInit() {
@@ -175,6 +177,7 @@ export class UsersService implements OnModuleInit {
 
   async update(id: string, dto: UpdateUserDto, actor: AuthUser) {
     const target = await this.findOne(id, actor);
+    const previousSquadId = target.squadId;
     if (dto.role === Role.ADMIN && actor.role !== Role.ADMIN) {
       throw new ForbiddenException('Only admin can promote to admin');
     }
@@ -219,7 +222,7 @@ export class UsersService implements OnModuleInit {
         ? { connect: { id: dto.squadId } }
         : { disconnect: true };
     }
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id },
       data,
       select: {
@@ -238,11 +241,14 @@ export class UsersService implements OnModuleInit {
         updatedAt: true,
       },
     });
+    await this.squadBindings.syncUser(id, previousSquadId, dto.squadId);
+    return updated;
   }
 
   async remove(id: string, actor: AuthUser) {
-    await this.findOne(id, actor);
+    const target = await this.findOne(id, actor);
     await this.prisma.user.delete({ where: { id } });
+    await this.squadBindings.syncUser(id, target.squadId, null);
     return { success: true };
   }
 

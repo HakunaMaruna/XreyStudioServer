@@ -4,11 +4,12 @@ import { PluginsModule } from '../plugins/plugins.module';
 import { InboundRecipesService } from './inbound-recipes.service';
 import { InboundsController } from './inbounds.controller';
 import { InboundsService } from './inbounds.service';
+import { SquadBindingService } from './squad-binding.service';
 
 @Module({
   imports: [AuditModule, PluginsModule],
   controllers: [InboundsController],
-  providers: [InboundsService, InboundRecipesService],
-  exports: [InboundsService],
+  providers: [InboundsService, InboundRecipesService, SquadBindingService],
+  exports: [InboundsService, SquadBindingService],
 })
 export class InboundsModule {}
