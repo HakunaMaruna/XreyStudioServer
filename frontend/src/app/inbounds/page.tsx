@@ -27,6 +27,7 @@ type InboundRow = {
   enabled?: boolean;
   settings?: Record<string, unknown>;
   node?: { name: string } | null;
+  clients?: Array<{ userId: string }>;
 };
 
 type Recipe = {
@@ -136,6 +137,7 @@ export default function InboundsPage() {
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<InboundForm>(emptyForm);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
 
   // Client-list modal (edits the clients of a single inbound).
@@ -178,7 +180,7 @@ export default function InboundsPage() {
     load();
   }, []);
 
-  const startCreate = () => { setEditing(null); setForm(emptyForm); setRecipeId(''); setError(''); setOpen(true); };
+  const startCreate = () => { setEditing(null); setForm(emptyForm); setRecipeId(''); setError(''); setNotice(''); setOpen(true); };
 
   const startEdit = (row: InboundRow) => {
     setEditing(row.id);
@@ -323,6 +325,7 @@ export default function InboundsPage() {
   };
 
   const openGroup = (row: InboundRow) => {
+    setNotice('');
     setForm(formFromRow(row));
     setGroupInboundId(row.id);
     setGroupSquadId('');
@@ -338,7 +341,8 @@ export default function InboundsPage() {
     setBusy(true);
     try {
       await api.post(`/api/inbounds/${groupInboundId}/squads`, { squadId });
-      await refreshGroupBindings(groupInboundId);
+      closeGroup();
+      setNotice(t.groupBound);
       await load();
     } catch (e: any) {
       setError(e.message);
@@ -353,7 +357,8 @@ export default function InboundsPage() {
     setBusy(true);
     try {
       await api.delete(`/api/inbounds/${groupInboundId}/squads/${encodeURIComponent(squadId)}`);
-      await refreshGroupBindings(groupInboundId);
+      closeGroup();
+      setNotice(t.groupUnbound);
       await load();
     } catch (e: any) {
       setError(e.message);
@@ -383,6 +388,10 @@ export default function InboundsPage() {
         ),
       },
       { accessorKey: 'protocol', size: 90, header: t.protocol, cell: ({ row }) => <Badge tone="brand">{row.original.protocol.toUpperCase()}</Badge> },
+      {
+        id: 'clients', size: 80, header: t.users,
+        cell: ({ row }) => <span className="text-xs text-muted tabular-nums">{row.original.clients?.length || 0}</span>,
+      },
       {
         id: 'transport', size: 110, header: `${t.transport} / ${t.security}`,
         cell: ({ row }) => <span className="text-xs text-muted">{row.original.transport} / {row.original.security}</span>,
@@ -429,6 +438,11 @@ export default function InboundsPage() {
         actions={<Button icon="plus" variant="primary" onClick={startCreate}>{t.newInbound}</Button>}
       />
 
+      {notice && !open && !clientsOpen && !groupOpen && (
+        <div className="mb-5 flex items-center gap-2 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-xs text-success" role="status">
+          <Icon name="checkCircle" size={15} /> {notice}
+        </div>
+      )}
       {error && !open && !clientsOpen && !groupOpen && (
         <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
