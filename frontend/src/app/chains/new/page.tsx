@@ -399,7 +399,7 @@ export default function ChainsPage() {
       {loading ? (
         <div className="grid gap-3" aria-busy="true" aria-label={t.loading}>
           {Array.from({ length: 6 }).map((_, index) => (
-            <div key={index} className="panel animate-pulse p-5">
+            <div key={index} className="panel ui-card-pad animate-pulse">
               <div className="h-4 w-1/2 rounded bg-surface-3" />
               <div className="mt-3 h-3 w-2/3 rounded bg-surface-3/70" />
               <div className="mt-6 grid grid-cols-3 gap-2">
@@ -441,7 +441,7 @@ export default function ChainsPage() {
                 <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-subtle">
                   {t.chainSchemaHint}
                 </p>
-                <div className="panel @container rounded-xl bg-app/40 p-3">
+                <div className="panel @container rounded-[var(--radius-lg)] bg-app/40 p-3">
                   <div className="flex flex-col items-stretch gap-1 @lg:flex-row @lg:flex-wrap">
                     <SchemaBlock
                       icon="users"
