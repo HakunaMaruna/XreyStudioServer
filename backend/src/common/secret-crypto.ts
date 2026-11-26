@@ -2,11 +2,13 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypt
 
 // Шифрование секретов мастера (SSH-пароли, ключи) в БД.
 // Ключ: PANEL_MASTER_KEY (base64, 32 байта) или дериват JWT_SECRET.
+const AES_256_KEY_BYTES = 32;
+
 function masterKey(): Buffer {
   const raw = process.env.PANEL_MASTER_KEY;
   if (raw) {
     const key = Buffer.from(raw.trim(), 'base64');
-    if (key.length === 32) return key;
+    if (key.length === AES_256_KEY_BYTES) return key;
   }
   return createHash('sha256').update(process.env.JWT_SECRET || 'xrey-master-key').digest();
 }
