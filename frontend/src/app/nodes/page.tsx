@@ -21,6 +21,7 @@ type NodeRow = {
   location?: string | null; geo?: NodeGeo | null; metrics?: NodeMetricRow[];
   agentVersion?: string | null;
   agentOutdated?: boolean;
+  domain?: string | null;
 };
 type AgentForm = {
   host: string;
@@ -433,6 +434,14 @@ export default function NodesPage() {
                     <p className="mono mt-0.5 truncate text-[10px] text-subtle">
                       {node.address}:{node.port} · {t.idLabel} {node.id.slice(0, 8)}
                     </p>
+                    {node.domain && (
+                      <p className="mt-0.5 flex min-w-0 items-center gap-1 text-[10px] text-brand">
+                        <Icon name="globe" size={12} className="shrink-0" />
+                        <a href={`https://${node.domain}`} target="_blank" rel="noreferrer" className="truncate hover:underline">
+                          {node.domain}
+                        </a>
+                      </p>
+                    )}
                     {(node.geo?.city || node.geo?.ip || node.geo?.asn) && (
                       <p className="mt-0.5 truncate text-[10px] text-muted">
                         {[node.geo?.city, node.geo?.ip, node.geo?.asn].filter(Boolean).join(' · ')}

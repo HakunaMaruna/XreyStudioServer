@@ -52,12 +52,22 @@ export class NodesService {
         _count: { select: { inbounds: true, revisions: true } },
       },
     });
+    const domains = await this.prisma.nodeDomain.findMany({
+      where: { nodeId: { in: nodes.map((node) => node.id) }, releasedAt: null },
+      select: { nodeId: true, fqdn: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    const domainByNode = new Map<string, string>();
+    for (const domain of domains) {
+      if (domain.nodeId && !domainByNode.has(domain.nodeId)) domainByNode.set(domain.nodeId, domain.fqdn);
+    }
     return nodes.map((n) => ({
       ...n,
       tokenHash: undefined,
       status: this.displayStatus(n),
       online: this.isOnline(n),
       agentOutdated: isAgentOutdated(n.agentVersion),
+      domain: domainByNode.get(n.id) || null,
     }));
   }
 

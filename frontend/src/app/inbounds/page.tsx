@@ -375,7 +375,7 @@ export default function InboundsPage() {
     () => [
       {
         accessorKey: 'tag',
-        size: 160,
+        size: 260,
         header: t.name,
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
@@ -387,9 +387,9 @@ export default function InboundsPage() {
           </div>
         ),
       },
-      { accessorKey: 'protocol', size: 70, header: t.protocol, cell: ({ row }) => <Badge tone="brand">{row.original.protocol.toUpperCase()}</Badge> },
+      { accessorKey: 'protocol', size: 90, header: t.protocol, cell: ({ row }) => <Badge tone="brand">{row.original.protocol.toUpperCase()}</Badge> },
       {
-        id: 'clients', size: 60, header: t.users,
+        id: 'clients', size: 70, header: t.users,
         cell: ({ row }) => <span className="text-xs text-muted tabular-nums">{row.original.clients?.length || 0}</span>,
       },
       {
@@ -405,7 +405,7 @@ export default function InboundsPage() {
         ),
       },
       {
-        accessorKey: 'expiresAt', size: 80, header: t.expiresAt,
+        accessorKey: 'expiresAt', size: 90, header: t.expiresAt,
         cell: ({ row }) => row.original.expiresAt ? <span className="text-xs text-muted">{new Date(row.original.expiresAt).toLocaleDateString()}</span> : <span className="text-subtle">—</span>,
       },
       {
@@ -413,7 +413,7 @@ export default function InboundsPage() {
         cell: ({ row }) => row.original.enabled ? <Badge tone="success" dot>{t.enabled}</Badge> : <Badge tone="neutral" dot>{t.disabled}</Badge>,
       },
       {
-        id: 'actions', size: 150, header: t.actions, enableSorting: false,
+        id: 'actions', size: 140, header: t.actions, enableSorting: false,
         cell: ({ row }) => (
           <div className="flex flex-wrap items-center justify-end gap-1">
             <Button size="sm" variant="ghost" icon="list" title={t.clientList} onClick={() => openClients(row.original)}><span className="hidden xl:inline">{t.clientList}</span></Button>

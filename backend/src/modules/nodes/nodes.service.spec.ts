@@ -35,7 +35,7 @@ describe('NodesService stale status', () => {
       id: 'n1', status: NodeStatus.ONLINE, lastSeenAt: stale, agentVersion: null,
       metrics: [], geo: null, _count: { inbounds: 0, revisions: 0 },
     }]);
-    const service = new NodesService({ node: { findMany } } as any, {} as any, {} as any);
+    const service = new NodesService({ node: { findMany }, nodeDomain: { findMany: jest.fn(async () => []) } } as any, {} as any, {} as any);
     const rows = await service.findAll(actor);
     expect(rows[0]).toMatchObject({ status: NodeStatus.OFFLINE, online: false });
   });
