@@ -8,6 +8,8 @@ const UA_RULES: Array<{ pattern: RegExp; format: SubscriptionFormat }> = [
   { pattern: /clash/, format: 'clash' },
   // Clients that consume base64-encoded proxy URI lists.
   { pattern: /(shadowrocket|quantumult|loon|stash| surge|surge\/)/, format: 'base64' },
+  // INCY accepts base64 link lists and full Xray JSON, but not our custom panel JSON.
+  { pattern: /incy/, format: 'base64' },
 ];
 
 export function detectSubscriptionFormat(userAgent: string | undefined): SubscriptionFormat {

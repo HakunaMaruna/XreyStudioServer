@@ -195,6 +195,18 @@ export class SubscriptionsService {
     return data;
   }
 
+  /** Headers consumed by VPN clients (INCY, v2rayNG, Clash, sing-box). */
+  async subscriptionHeaders(token: string) {
+    const data = await this.getStatus(token);
+    const title = String(data.template?.title || 'XSS Subscription').slice(0, 25);
+    const expire = data.expiresAt ? Math.floor(new Date(data.expiresAt).getTime() / 1000) : 0;
+    return {
+      'profile-title': `base64:${Buffer.from(title).toString('base64')}`,
+      'subscription-userinfo': `upload=0;download=${data.trafficUsed};total=${data.trafficLimit};expire=${expire}`,
+      'content-disposition': `attachment; filename="${token}.txt"`,
+    };
+  }
+
   async raw(token: string) {
     const data = await this.assertUsable(token);
     return data.links.map((l: any) => l.link).join('\n');

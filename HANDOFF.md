@@ -78,6 +78,13 @@ backend `tsc --noEmit` 0, `eslint` 0 errors, `nest build` rc=0, unit jest 42 sui
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## INCY subscription format (v2.42.6, 2026-11-26)
+
+INCY отправляет `User-Agent: INCY/<version>/<platform>` и `x-client: INCY` и ожидает
+base64-список ссылок или полный Xray JSON; наш кастомный JSON давал «no valid configuration».
+Добавлено правило `incy → base64` и заголовки `profile-title`, `subscription-userinfo`,
+`content-disposition` для всех машинных форматов подписки.
+
 ## Subscription 404 and node cleanup (v2.42.5, 2026-11-26)
 
 - `frontend/src/middleware.ts`: реврайт `/sub/<token>` для не-браузерных UA теперь даёт

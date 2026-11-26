@@ -7,6 +7,8 @@ describe('subscription format detection', () => {
     ['Happ/1.0', 'clash'],
     ['ClashforWindows/0.20', 'clash'],
     ['sing-box/1.10.0', 'singbox'],
+    ['INCY/1.2.3/Android', 'base64'],
+    ['INCY/2.0/iOS', 'base64'],
     ['Shadowrocket/2.2.7', 'base64'],
     ['Quantumult%20X/1.0', 'base64'],
     ['Loon/2.5', 'base64'],
