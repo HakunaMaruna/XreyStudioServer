@@ -82,6 +82,13 @@ function backupCurrent() {
   const target = path.join(BACKUP_DIR, `config-${Date.now()}.json`);
   fs.copyFileSync(CONFIG_PATH, target);
   lastGood = target;
+  try {
+    const old = fs.readdirSync(BACKUP_DIR)
+      .filter((name) => /^config-\d+\.json$/.test(name))
+      .sort()
+      .slice(0, -10);
+    for (const name of old) fs.unlinkSync(path.join(BACKUP_DIR, name));
+  } catch {}
   return target;
 }
 
@@ -159,6 +166,13 @@ async function startManagedXray() {
     if (code && code !== 0) xrayStatus = 'error';
     else if (signal) xrayStatus = 'stopped';
     xrayProcess = null;
+  });
+  proc.on('error', (error) => {
+    console.error(`xray spawn failed: ${error.message}`);
+    if (xrayProcess === proc) {
+      xrayStatus = 'error';
+      xrayProcess = null;
+    }
   });
   await new Promise((resolve) => setTimeout(resolve, 800));
   const ok = Boolean(xrayProcess === proc && proc.exitCode === null);
@@ -498,9 +512,15 @@ app.post('/certificate', auth, (req, res) => {
 });
 
 function startServer(tlsOptions) {
-  if (activeServer) activeServer.close();
-  activeServer = tlsOptions ? https.createServer(tlsOptions, app) : http.createServer(app);
-  activeServer.listen(PORT, () => console.log(`XSS agent listening on ${PORT}${tlsOptions ? ' (https)' : ''}`));
+  if (activeServer) {
+    try { activeServer.close(); } catch {}
+  }
+  const server = tlsOptions ? https.createServer(tlsOptions, app) : http.createServer(app);
+  server.on('error', (error) => {
+    console.error(`agent server error: ${error.message}`);
+  });
+  activeServer = server;
+  server.listen(PORT, () => console.log(`XSS agent listening on ${PORT}${tlsOptions ? ' (https)' : ''}`));
 }
 
 register();
@@ -517,20 +537,21 @@ setInterval(checkGeo, GEOCHECK_INTERVAL);
 
 const tlsCert = process.env.AGENT_TLS_CERT;
 const tlsKey = process.env.AGENT_TLS_KEY;
-const server = tlsCert && tlsKey
-  ? https.createServer(
-      {
-        cert: fs.readFileSync(tlsCert),
-        key: fs.readFileSync(tlsKey),
-        ca: process.env.AGENT_TLS_CA ? fs.readFileSync(process.env.AGENT_TLS_CA) : undefined,
-        requestCert: Boolean(process.env.AGENT_TLS_CA),
-        rejectUnauthorized: Boolean(process.env.AGENT_TLS_CA),
-      },
-      app,
-    )
-  : app;
-
-server.listen(PORT, () => console.log(`XSS agent listening on ${PORT}`));
+let tlsOptions = null;
+if (tlsCert && tlsKey) {
+  try {
+    tlsOptions = {
+      cert: fs.readFileSync(tlsCert),
+      key: fs.readFileSync(tlsKey),
+      ca: process.env.AGENT_TLS_CA ? fs.readFileSync(process.env.AGENT_TLS_CA) : undefined,
+      requestCert: Boolean(process.env.AGENT_TLS_CA),
+      rejectUnauthorized: Boolean(process.env.AGENT_TLS_CA),
+    };
+  } catch (error) {
+    console.error(`agent TLS setup failed, falling back to HTTP: ${error.message}`);
+  }
+}
+startServer(tlsOptions);
 
 // Loopback decoy site for Xray fallbacks. It is never exposed on a public
 // interface; only Xray's local fallback can reach it.
