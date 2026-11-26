@@ -155,15 +155,17 @@ export class SubscriptionPageService {
     const where: Prisma.VpnAppWhereInput = actor && actor.role !== Role.ADMIN
       ? { OR: [{ organizationId: null }, { organizationId: actor.organizationId || '__none__' }] }
       : {};
-    const rows = await this.prisma.vpnApp.findMany({ where, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] });
+    const existing = await this.prisma.vpnApp.findMany({ where, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] });
     const config = await this.config();
-    if (!rows.length && !config.appsSeeded && (!actor || actor.role === Role.ADMIN)) {
+    if (!existing.length && !config.appsSeeded && (!actor || actor.role === Role.ADMIN)) {
+      const seeded = [...existing];
       for (const app of DEFAULT_APPS) {
-        rows.push(await this.prisma.vpnApp.create({ data: { ...app, instructions: (app.instructions || null) as any } }));
+        seeded.push(await this.prisma.vpnApp.create({ data: { ...app, instructions: (app.instructions || null) as any } }));
       }
       await this.updateSettings({ appsSeeded: true });
+      return seeded;
     }
-    return rows;
+    return existing;
   }
 
   async createApp(data: AppInput, actor: AuthUser) {
