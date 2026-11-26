@@ -62,6 +62,11 @@ backend `tsc --noEmit` 0, `eslint` 0 errors, `nest build` rc=0, unit jest 42 sui
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Node port mapping fix (v2.42.1, 2026-11-26)
+
+В `docker-compose.node.yml` добавлен проброс `443:443/tcp` — без него Reality-инбаунд
+слушал внутри контейнера, но был недоступен клиенту снаружи.
+
 ## Default Reality inbound + decoy site (v2.42.0, 2026-11-26)
 
 Мастер теперь создаёт для новой ноды VLESS + Reality + xtls-rprx-vision на порту 443.

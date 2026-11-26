@@ -16,6 +16,8 @@ services:
       ACME_WEBROOT: ${ACME_WEBROOT:-/var/www/certbot}
       WIZARD_DECOY_PORT: ${DECOY_PORT:-8443}
     ports:
+      # Default wizard inbound (VLESS Reality) listens on 443 inside the agent container.
+      - "443:443/tcp"
       - "80:80/tcp"
       - "2053:2053/tcp"
       - "2053:2053/udp"
