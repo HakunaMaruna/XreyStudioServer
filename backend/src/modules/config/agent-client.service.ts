@@ -180,7 +180,18 @@ export class AgentClientService {
 
   async applyRelays(
     node: { address: string; agentUrl?: string | null },
-    relays: Array<{ id: string; listenPort: number; targetHost: string; targetPort: number; enabled: boolean }>,
+    relays: Array<{
+      id: string;
+      listenPort?: number;
+      targetHost?: string;
+      targetPort?: number;
+      enabled: boolean;
+      mode?: 'direct' | 'bridge-entry' | 'bridge-exit';
+      bridgePort?: number;
+      bridgeHost?: string;
+      replicas?: number;
+      targets?: Array<{ host: string; port: number; priority?: number }>;
+    }>,
   ) {
     return this.request(`${this.base(node, true)}/relays`, { relays }, 15000, 'POST', true);
   }

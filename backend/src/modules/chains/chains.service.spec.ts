@@ -106,4 +106,25 @@ describe('ChainsService', () => {
     const servers = await service.subscriptionServers('user-1');
     expect(servers).toEqual([expect.objectContaining({ host: 'n1.example', port: 10000, publicKey: 'pbk' })]);
   });
+
+  it('applies reverse bridge relays on entry and exit nodes', async () => {
+    prisma.proxyChain.findFirst.mockResolvedValueOnce({
+      id: 'c1', name: 'Bridge', status: 'active', routingMode: 'all', bridgeMode: 'bridge',
+      hops: [
+        { id: 'h0', role: 'entry', nodeId: 'n1', port: 10000, node: { id: 'n1', name: 'n1', address: '10.0.0.1', status: 'ONLINE' } },
+        { id: 'h1', role: 'exit', nodeId: 'n2', port: 443, priority: 0, enabled: true, node: { id: 'n2', name: 'n2', address: '10.0.0.2', status: 'ONLINE' } },
+      ],
+      bindings: [],
+    });
+    const result: any = await service.apply('c1', admin);
+    expect(result.bridge).toBe(true);
+    expect(agent.applyRelays).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'n1' }),
+      expect.arrayContaining([expect.objectContaining({ mode: 'bridge-entry', bridgePort: expect.any(Number) })]),
+    );
+    expect(agent.applyRelays).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'n2' }),
+      expect.arrayContaining([expect.objectContaining({ mode: 'bridge-exit', bridgeHost: '10.0.0.1' })]),
+    );
+  });
 });

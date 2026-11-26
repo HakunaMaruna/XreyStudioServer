@@ -980,6 +980,7 @@ model ProxyChain {
   name           String
   status         String          @default("active")
   routingMode    String          @default("all")
+  bridgeMode     String          @default("auto")
   routingRules   Json?
   organizationId String?
   organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)

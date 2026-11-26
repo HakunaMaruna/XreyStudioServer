@@ -50,6 +50,7 @@ export class ChainsService {
       name: row.name,
       status: row.status,
       routingMode: row.routingMode,
+      bridgeMode: row.bridgeMode || 'auto',
       routingRules: row.routingRules || [],
       entryNode: entry?.node ? { id: entry.node.id, name: entry.node.name } : null,
       entryPort: entry?.port ?? null,
@@ -201,6 +202,7 @@ export class ChainsService {
         name: dto.name,
         status: 'active',
         routingMode: dto.routingMode || 'all',
+        bridgeMode: dto.bridgeMode || 'auto',
         routingRules: dto.routingRules ? dto.routingRules as any : null,
         organizationId: orgId,
         hops: {
@@ -275,7 +277,8 @@ export class ChainsService {
       }
       await this.assertNoCycle(current.hops.find((h) => h.role === 'entry')?.nodeId || '', dto.exits);
       // Rebuild exit hops and their inbounds.
-      const entry = current.hops.find((hop) => hop.role === 'entry');
+      const oldExits = current.hops.filter((hop) => hop.role === 'exit');
+      const nextNodeIds = new Set(dto.exits.map((exit) => exit.nodeId));
       await this.prisma.proxyChainHop.deleteMany({ where: { chainId: id, role: 'exit' } });
       await this.prisma.inbound.deleteMany({
         where: { settings: { path: ['chainId'], equals: id } },
@@ -308,7 +311,11 @@ export class ChainsService {
           },
         });
       }
-      void entry;
+      for (const oldExit of oldExits) {
+        if (nextNodeIds.has(oldExit.nodeId)) continue;
+        const node = await this.prisma.node.findUnique({ where: { id: oldExit.nodeId } });
+        if (node) await this.clearRelaysForChain(node as any, id);
+      }
     }
     await this.prisma.proxyChain.update({
       where: { id },
@@ -316,6 +323,7 @@ export class ChainsService {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
         ...(dto.status !== undefined ? { status: dto.status } : {}),
         ...(dto.routingMode !== undefined ? { routingMode: dto.routingMode } : {}),
+        ...(dto.bridgeMode !== undefined ? { bridgeMode: dto.bridgeMode } : {}),
         ...(dto.routingRules !== undefined ? { routingRules: dto.routingRules as any } : {}),
         ...(dto.organizationId !== undefined ? { organizationId: dto.organizationId } : {}),
       },
@@ -324,13 +332,25 @@ export class ChainsService {
     return this.get(id, user);
   }
 
+  private async clearRelaysForChain(node: any, chainId: string) {
+    const current = await this.agent.relayStatus(node).catch(() => ({ relays: [] }));
+    const relays = ((current as any)?.relays || []).filter(
+      (relay: any) => relay.id !== chainId && !String(relay.id).startsWith(`${chainId}:`),
+    );
+    await this.agent.applyRelays(node, relays).catch((error: any) => {
+      this.logger.warn(`Failed to clear relays: ${error.message}`);
+    });
+  }
+
   async remove(id: string, user: AuthUser) {
     const chain = await this.findOwned(id, user);
     const entry = chain.hops.find((hop) => hop.role === 'entry');
     if (entry) {
-      await this.agent.applyRelays(entry.node as any, []).catch((error) => {
-        this.logger.warn(`Failed to clear relays: ${error.message}`);
-      });
+      await this.clearRelaysForChain(entry.node as any, id);
+    }
+    for (const hop of chain.hops.filter((item) => item.role === 'exit')) {
+      if (!hop.node) continue;
+      await this.clearRelaysForChain(hop.node as any, id);
     }
     await this.prisma.inbound.deleteMany({ where: { settings: { path: ['chainId'], equals: id } } });
     await this.prisma.proxyChain.delete({ where: { id } });
@@ -448,18 +468,36 @@ export class ChainsService {
     const targets = chain.hops.filter((hop) => hop.role === 'exit' && hop.enabled)
       .sort((a, b) => a.priority - b.priority)
       .map((hop) => ({ host: hop.node.address, port: hop.port, priority: hop.priority }));
+    const entryNode = await this.prisma.node.findUnique({ where: { id: entry.nodeId } });
+    if (!entryNode) throw new NotFoundException('Entry node not found');
+    const bridge = chain.bridgeMode === 'bridge';
+    const bridgePort = bridge ? await this.pickPort(entryNode.id, entry.port + 1) : null;
     const relays = [{
       id: chain.id,
       listenPort: entry.port,
       targets,
       targetHost: targets[0]?.host || '',
       targetPort: targets[0]?.port || 1,
+      mode: (bridge ? 'bridge-entry' : 'direct') as 'bridge-entry' | 'direct',
+      ...(bridgePort ? { bridgePort } : {}),
       enabled: chain.status === 'active' && targets.length > 0,
     }];
-    const entryNode = await this.prisma.node.findUnique({ where: { id: entry.nodeId } });
-    if (!entryNode) throw new NotFoundException('Entry node not found');
 
+    const exitRelays = bridge
+      ? chain.hops.filter((hop) => hop.role === 'exit').map((hop) => ({
+          id: `${chain.id}:bridge:${hop.id}`,
+          mode: 'bridge-exit' as const,
+          bridgeHost: entryNode.address,
+          bridgePort: bridgePort as number,
+          targetHost: '127.0.0.1',
+          targetPort: hop.port,
+          replicas: 2,
+          enabled: hop.enabled && chain.status === 'active',
+        }))
+      : [];
     const before = await this.agent.relayStatus(entryNode as any).catch(() => ({ relays: [] }));
+    const beforeByNode = new Map<string, any[]>();
+    beforeByNode.set(entryNode.id, (before as any)?.relays || []);
     const applied: string[] = [];
     try {
       await this.agent.applyRelays(entryNode as any, relays);
@@ -467,13 +505,24 @@ export class ChainsService {
       for (const exit of chain.hops.filter((hop) => hop.role === 'exit')) {
         const node = await this.prisma.node.findUnique({ where: { id: exit.nodeId } });
         if (!node) continue;
+        if (bridge) {
+          const prev = await this.agent.relayStatus(node as any).catch(() => ({ relays: [] }));
+          beforeByNode.set(node.id, (prev as any)?.relays || []);
+          const own = exitRelays.filter((relay) => relay.id.endsWith(`:${exit.id}`));
+          await this.agent.applyRelays(node as any, own);
+        }
         await this.agent.applyConfig(node as any, { version: Date.now() }, 1);
         applied.push(node.id);
       }
-      return { applied: true, relays: relays.length, nodes: applied.length };
+      return { applied: true, relays: relays.length, bridge: bridge || undefined, nodes: applied.length };
     } catch (error: any) {
-      const previous = (before as any)?.relays || [];
-      await this.agent.applyRelays(entryNode as any, previous).catch((e) => this.logger.warn(`Rollback failed: ${e.message}`));
+      for (const [nodeId, previous] of beforeByNode) {
+        const node = await this.prisma.node.findUnique({ where: { id: nodeId } });
+        if (node) {
+          await this.agent.applyRelays(node as any, previous)
+            .catch((e) => this.logger.warn(`Rollback failed for ${nodeId}: ${e.message}`));
+        }
+      }
       throw new BadRequestException(`Chain apply failed and was rolled back: ${error.message}`);
     }
   }

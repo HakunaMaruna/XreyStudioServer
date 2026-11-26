@@ -2,8 +2,8 @@ import {
   ArrayMaxSize,
   IsArray,
   IsBoolean,
-  IsInt,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
   Max,
@@ -55,6 +55,10 @@ export class CreateChainDto {
   routingMode?: 'all' | 'rules';
 
   @IsOptional()
+  @IsIn(['auto', 'direct', 'bridge'])
+  bridgeMode?: 'auto' | 'direct' | 'bridge';
+
+  @IsOptional()
   @IsString()
   organizationId?: string | null;
 
@@ -77,6 +81,10 @@ export class UpdateChainDto {
   @IsOptional()
   @IsIn(['all', 'rules'])
   routingMode?: 'all' | 'rules';
+
+  @IsOptional()
+  @IsIn(['auto', 'direct', 'bridge'])
+  bridgeMode?: 'auto' | 'direct' | 'bridge';
 
   @IsOptional()
   @IsString()

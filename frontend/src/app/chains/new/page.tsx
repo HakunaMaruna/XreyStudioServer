@@ -30,6 +30,7 @@ type ChainRow = {
   status?: string | null;
   routingMode: 'all' | 'rules';
   routingRules?: Record<string, unknown>[];
+  bridgeMode?: 'auto' | 'direct' | 'bridge';
   entryNode?: { id: string; name: string } | null;
   exits: ChainExit[];
   bindings: ChainBinding[];
@@ -45,6 +46,7 @@ type ChainDraft = {
   name: string;
   entryNodeId: string;
   routingMode: 'all' | 'rules';
+  bridgeMode: 'auto' | 'direct' | 'bridge';
   routingRulesText: string;
   exits: ExitDraft[];
 };
@@ -67,6 +69,7 @@ const emptyDraft = (): ChainDraft => ({
   name: '',
   entryNodeId: '',
   routingMode: 'all',
+  bridgeMode: 'auto',
   routingRulesText: '[]',
   exits: [newExit()],
 });
@@ -223,6 +226,7 @@ export default function ChainsPage() {
       name: chain.name || '',
       entryNodeId: chain.entryNode?.id || '',
       routingMode: chain.routingMode === 'rules' ? 'rules' : 'all',
+      bridgeMode: chain.bridgeMode || 'auto',
       routingRulesText: JSON.stringify(chain.routingRules || [], null, 2),
       exits: chain.exits?.length
         ? chain.exits.map((exit) => ({
@@ -271,6 +275,7 @@ export default function ChainsPage() {
         name: draft.name.trim(),
         entryNodeId: draft.entryNodeId,
         routingMode: draft.routingMode,
+        bridgeMode: draft.bridgeMode,
         exits: draft.exits.map((exit) => ({
           nodeId: exit.nodeId,
           ...(exit.port ? { port: Number(exit.port) } : {}),
@@ -422,6 +427,7 @@ export default function ChainsPage() {
                     <Badge tone="cyan">
                       {chain.routingMode === 'rules' ? t.chainRoutingRules : t.chainRoutingAll}
                     </Badge>
+                    {chain.bridgeMode === 'bridge' && <Badge tone="brand">{t.chainBridgeReverse}</Badge>}
                   </div>
                   <p className="mono mt-1 truncate text-[10px] text-subtle">{chain.id}</p>
                 </div>
@@ -551,6 +557,17 @@ export default function ChainsPage() {
               </Field>
               {errors.entryNodeId && <p className="mt-1 text-[11px] text-danger">{errors.entryNodeId}</p>}
             </div>
+            <Field label={t.chainBridgeMode}>
+              <select
+                className="field"
+                value={draft.bridgeMode}
+                onChange={(event) => setDraft({ ...draft, bridgeMode: event.target.value as 'auto' | 'direct' | 'bridge' })}
+              >
+                <option value="auto">{t.chainBridgeAuto}</option>
+                <option value="direct">{t.chainBridgeDirect}</option>
+                <option value="bridge">{t.chainBridgeReverse}</option>
+              </select>
+            </Field>
             <Field label={t.chainRoutingMode}>
               <select
                 className="field"
