@@ -80,8 +80,8 @@ export class InboundsController {
   }
 
   @Get(':id/squads')
-  listSquads(@Param('id') id: string) {
-    return { items: this.squadBindings.list(id) };
+  async listSquads(@Param('id') id: string) {
+    return { items: await this.squadBindings.list(id) };
   }
 
   @Post(':id/squads')
