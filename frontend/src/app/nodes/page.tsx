@@ -81,6 +81,7 @@ export default function NodesPage() {
   const [checkBusy, setCheckBusy] = useState(false);
   const [checkStep, setCheckStep] = useState(0);
   const [search, setSearch] = useState('');
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [agentNode, setAgentNode] = useState<NodeRow | null>(null);
   const [agentForm, setAgentForm] = useState<AgentForm | null>(null);
   const [agentBusy, setAgentBusy] = useState(false);
@@ -92,20 +93,25 @@ export default function NodesPage() {
   );
   const flagFor = (code?: string | null) => COUNTRIES.find((c) => c.code === code)?.flag || '';
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
-      const [data, latency] = await Promise.all([
-        api.get('/api/nodes'),
-        api.get('/api/nodes/pings').catch(() => ({})),
-      ]);
+      const data = await api.get('/api/nodes');
       setNodes(Array.isArray(data) ? data : data.data || []);
-      setPings(latency && typeof latency === 'object' ? latency as Record<string, number | null> : {});
+      setLastUpdated(Date.now());
+      if (!silent) setError('');
     } catch (e: any) {
-      setError(e.message);
+      if (!silent) setError(e.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
+    // Пинг до агента может ждать таймаут, поэтому не задерживаем показ списка.
+    api.get('/api/nodes/pings')
+      .then((latency) => {
+        setPings(latency && typeof latency === 'object' ? latency as Record<string, number | null> : {});
+        setLastUpdated(Date.now());
+      })
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -114,6 +120,12 @@ export default function NodesPage() {
       return;
     }
     load();
+    // Метрики и пинг обновляем каждые 15 секунд, как их присылает агент.
+    const timer = window.setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      load(true);
+    }, 15000);
+    return () => window.clearInterval(timer);
   }, []);
 
   const openAgentUpdate = (node: NodeRow) => {
@@ -167,6 +179,16 @@ export default function NodesPage() {
   const restart = async (id: string) => {
     await api.post(`/api/nodes/${id}/restart`, {});
     await load();
+  };
+
+  const remove = async (node: NodeRow) => {
+    if (!confirm(`${node.name}\n\n${t.nodeDeleteConfirm}`)) return;
+    try {
+      await api.delete(`/api/nodes/${node.id}`);
+      await load();
+    } catch (e: any) {
+      setError(e.message);
+    }
   };
 
   const openRevisions = async (node: NodeRow) => {
@@ -371,6 +393,12 @@ export default function NodesPage() {
           />
         </div>
         <Badge tone="neutral">{filteredNodes.length} / {nodes.length}</Badge>
+        {lastUpdated && (
+          <span className="inline-flex items-center gap-1.5 text-[10px] text-subtle">
+            <span className="animate-soft-pulse h-1.5 w-1.5 rounded-full bg-success" />
+            {t.lastUpdated} {new Date(lastUpdated).toLocaleTimeString()}
+          </span>
+        )}
       </div>
 
       {loading ? (
@@ -414,10 +442,12 @@ export default function NodesPage() {
                 </div>
 
                 {(() => {
+                  const hasPing = Object.prototype.hasOwnProperty.call(pings, node.id);
                   const latency = pings[node.id];
-                  const level = latency == null ? 'idle' : latency <= 100 ? 'good' : latency <= 300 ? 'fair' : 'poor';
+                  const level = !hasPing ? 'idle' : latency == null ? 'down' : latency <= 100 ? 'good' : latency <= 300 ? 'fair' : 'poor';
                   const palette = {
-                    idle: { text: 'text-subtle', bg: 'bg-surface-2', border: 'border-line', bar: 'bg-subtle' },
+                    idle: { text: 'text-subtle', bg: 'bg-surface-2/60', border: 'border-line', bar: 'bg-subtle' },
+                    down: { text: 'text-danger', bg: 'bg-danger/10', border: 'border-danger/25', bar: 'bg-danger' },
                     good: { text: 'text-success', bg: 'bg-success/10', border: 'border-success/25', bar: 'bg-success' },
                     fair: { text: 'text-warning', bg: 'bg-warning/10', border: 'border-warning/25', bar: 'bg-warning' },
                     poor: { text: 'text-danger', bg: 'bg-danger/10', border: 'border-danger/25', bar: 'bg-danger' },
@@ -425,15 +455,18 @@ export default function NodesPage() {
                   const quality = level === 'good' ? (lang === 'ru' ? 'Отлично' : 'Excellent')
                     : level === 'fair' ? (lang === 'ru' ? 'Нормально' : 'Fair')
                     : level === 'poor' ? (lang === 'ru' ? 'Плохо' : 'Poor')
+                    : level === 'down' ? t.unreachable
                     : (lang === 'ru' ? 'Нет данных' : 'No data');
+                  const display = level === 'down' ? t.unreachable : latency == null ? '—' : `${latency} ms`;
                   return (
                     <div className={`mt-3 rounded-xl border px-3 py-2.5 ${palette.bg} ${palette.border}`}>
                       <div className="flex items-center justify-between gap-2">
                         <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-subtle">
                           <Icon name="activity" size={13} /> {t.ping}
                         </span>
-                        <span className={`text-base font-bold tabular-nums ${palette.text}`}>
-                          {latency == null ? '—' : latency} {latency != null && 'ms'}
+                        <span className={`flex items-center gap-1.5 text-base font-bold tabular-nums ${palette.text}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${palette.bar} ${level === 'good' ? 'animate-soft-pulse' : ''}`} />
+                          {display}
                         </span>
                       </div>
                       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-2">
@@ -478,6 +511,9 @@ export default function NodesPage() {
                   <IconButton icon="refresh" label={t.restart} onClick={() => restart(node.id)} />
                   <IconButton icon="history" label={t.revisions} onClick={() => openRevisions(node)} />
                   <IconButton icon="terminal" label={t.logs} onClick={() => openLogs(node)} />
+                  <Button size="sm" variant="danger" icon="trash" className="ml-auto" onClick={() => remove(node)}>
+                    {t.deleteNode}
+                  </Button>
                 </div>
               </Card>
             );
