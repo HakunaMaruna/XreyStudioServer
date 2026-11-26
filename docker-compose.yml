@@ -42,6 +42,7 @@ services:
       UPDATER_TOKEN: ${UPDATER_TOKEN:-}
     volumes:
       - ./backups:/app/backups
+      - letsencrypt:/etc/letsencrypt
       - certbot_webroot:/var/www/certbot
       - node_certs:/app/certs
     depends_on:
@@ -153,4 +154,5 @@ volumes:
   certbot_webroot:
   node_certs:
   prometheus_data:
+  letsencrypt:
   grafana_data:

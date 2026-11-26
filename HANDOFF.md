@@ -78,6 +78,11 @@ backend `tsc --noEmit` 0, `eslint` 0 errors, `nest build` rc=0, unit jest 42 sui
 возможности отката пакета, без обещания автоматического отката данных, двойная
 запись ledger, сага покупки нод, серверная проверка entitlements.
 
+## Persistent ACME state (v2.42.4, 2026-11-26)
+
+`/etc/letsencrypt` в backend теперь volumes (`letsencrypt`) и не теряется при пересоздании
+контейнера — иначе выданные сертификаты доменов нод исчезали после деплоя.
+
 ## Node setup speed and agent reachability (v2.42.3, 2026-11-26)
 
 Замер установки: ~5м54с, из них ~5м18с — подготовка (git clone + установка Docker через
