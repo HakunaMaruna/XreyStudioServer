@@ -13,6 +13,27 @@ or `trail skeleton <file> /work/XreyStudioServer` (code map already built in `gr
 > pg_dump 16 vs PGlite 19 (в CI проходит). `/work` чистый; proot блокирует запись объектов
 > git — синхронизируйте копированием loose objects из `/tmp/opencode/xss-work-225`.
 
+## Handoff continuation (2026-11-26, v2.41.0)
+
+Активный `/work/XreyStudioServer` был рассинхронизирован с рабочим каталогом другого
+агента (`/tmp/opencode/xss-work-fresh`, clean at `fff8ed4`): 47 файлов отставали, версии
+были 2.40.9. Синхронизация завершена — теперь `/work` совпадает с `fff8ed4` целиком.
+Поверх сохранены правки страницы нод: подписанная красная кнопка удаления с `confirm()`,
+автообновление списка/метрик/пинга раз в 15 с с меткой «Обновлено», пинг над CPU/RAM с
+красным статусом для недоступной ноды. i18n-ключи (`deleteNode`, `nodeDeleteConfirm`,
+`lastUpdated`) перебазированы на актуальный словарь v2.41.0.
+
+Доделано по ошибкам, которые остались после предыдущего агента:
+- `prisma generate` — сгенерирован клиент с `TelemetrySetting.declined` (без этого tsc падал).
+- ESLint errors → 0: `Date.now()` в рендере подписки заменён на `now`-state с тиком раз в
+  1 с; в мастере fallback `Date.now()` заменён на «—»; async Promise executor в
+  `AgentClientService.request` обёрнут в async IIFE с `.catch(reject)`; убраны
+  бесполезная инициализация `valid` и `let rows` → `const rows`.
+
+Проверено: frontend `tsc --noEmit` 0, `eslint` 0 errors, `next build --webpack` rc=0;
+backend `tsc --noEmit` 0, `eslint` 0 errors, `nest build` rc=0, unit jest 42 suites /
+210 tests зелёные. pg e2e по-прежнему пропущен локально (pg_dump 16 vs PGlite 19).
+
 ## Postponed: plugin system + store + cloud account (2026-11-25)
 
 Задача отложена пользователем до дополнительных уточнений. Реализация не начиналась.
