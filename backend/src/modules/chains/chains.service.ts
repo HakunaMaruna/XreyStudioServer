@@ -404,36 +404,37 @@ export class ChainsService {
       include: { hops: { include: { node: true } } },
     });
     if (!chain) return [];
-    return chain.hops.filter((hop) => hop.role === 'exit' && hop.enabled)
-      .sort((a, b) => a.priority - b.priority)
-      .map((hop) => ({
+    const primary = chain.hops.filter((hop) => hop.role === 'exit' && hop.enabled)
+      .sort((a, b) => a.priority - b.priority)[0];
+    return primary ? [{
         host: binding.host,
         port: binding.port,
         uuid: userId,
-        publicKey: hop.publicKey || '',
-        shortId: hop.shortId || '',
-        sni: hop.sni || '',
+        publicKey: primary.publicKey || '',
+        shortId: primary.shortId || '',
+        sni: primary.sni || '',
         flow: 'xtls-rprx-vision',
-        name: `${name} · ${hop.node?.name || 'exit'}`,
-      }));
+      name: `${name} · ${primary.node?.name || 'exit'}`,
+    }] : [];
   }
 
   async apply(id: string, user: AuthUser) {
     const chain = await this.findOwned(id, user);
     const entry = chain.hops.find((hop) => hop.role === 'entry');
     if (!entry) throw new BadRequestException('Chain has no entry node');
-    const relays = chain.hops.filter((hop) => hop.role === 'exit').map((hop) => ({
-      id: `${chain.id}:${hop.id}`,
+    const targets = chain.hops.filter((hop) => hop.role === 'exit' && hop.enabled)
+      .sort((a, b) => a.priority - b.priority)
+      .map((hop) => ({ host: hop.node.address, port: hop.port, priority: hop.priority }));
+    const relays = [{
+      id: chain.id,
       listenPort: entry.port,
-      targetHost: hop.node.address,
-      targetPort: hop.port,
-      enabled: hop.enabled && chain.status === 'active',
-    }));
-    // Same listen port for multiple exits is not possible; assign sequential ports on entry.
+      targets,
+      targetHost: targets[0]?.host || '',
+      targetPort: targets[0]?.port || 1,
+      enabled: chain.status === 'active' && targets.length > 0,
+    }];
     const entryNode = await this.prisma.node.findUnique({ where: { id: entry.nodeId } });
     if (!entryNode) throw new NotFoundException('Entry node not found');
-    const available = await this.pickPort(entryNode.id);
-    relays.forEach((relay, index) => { relay.listenPort = index === 0 ? entry.port : available + index; });
 
     const before = await this.agent.relayStatus(entryNode as any).catch(() => ({ relays: [] }));
     const applied: string[] = [];

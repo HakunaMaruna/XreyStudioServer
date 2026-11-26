@@ -12,6 +12,7 @@ describe('ConfigGeneratorService scoped routing', () => {
       ]) },
       routingProfile: { findMany: jest.fn(async () => []) },
       reverseTunnel: { findMany: jest.fn(async () => []) },
+      proxyChainHop: { findMany: jest.fn(async () => []) },
     };
     const service = new ConfigGeneratorService(prisma, {} as any, { emit: jest.fn() } as any,
       { buildForConfig: jest.fn(async () => ({ outbounds: [], balancers: [], rules: [], observerSelectors: [] })) } as any,
@@ -29,6 +30,7 @@ describe('ConfigGeneratorService external protocols', () => {
     node: { findUnique: jest.fn() },
     user: { findMany: jest.fn() },
     rule: { findMany: jest.fn() },
+      proxyChainHop: { findMany: jest.fn(async () => []) },
     routingProfile: { findMany: jest.fn() },
     reverseTunnel: { findMany: jest.fn(async () => []) },
   };

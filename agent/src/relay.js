@@ -61,20 +61,31 @@ function normalizeRelays(config) {
     }
     const id = normalizeId(entry.id);
     const listenPort = normalizePort(entry.listenPort);
-    const targetPort = normalizePort(entry.targetPort);
-    const targetHost = normalizeHost(entry.targetHost);
+    const targetsSource = Array.isArray(entry.targets) && entry.targets.length
+      ? [...entry.targets].sort((a, b) => Number(a?.priority || 0) - Number(b?.priority || 0))
+      : [{ host: entry.targetHost, port: entry.targetPort, priority: 0 }];
+    const targets = [];
+    for (const target of targetsSource) {
+      const host = normalizeHost(target?.host ?? target?.targetHost);
+      const port = normalizePort(target?.port ?? target?.targetPort);
+      if (!host) throw new Error(`relay ${id}: targetHost must be a hostname or IP`);
+      if (port === null) throw new Error(`relay ${id}: targetPort must be 1..65535`);
+      if (isLoopbackHost(host) && listenPort === port) {
+        throw new Error(`relay ${id}: refusing loopback self-relay on port ${listenPort}`);
+      }
+      targets.push({ host, port, priority: Number(target?.priority || 0) });
+    }
     if (!id) throw new Error('relay id is invalid');
     if (ids.has(id)) throw new Error(`relay ${id}: duplicate id`);
     if (listenPort === null) throw new Error(`relay ${id}: listenPort must be 1..65535`);
-    if (targetPort === null) throw new Error(`relay ${id}: targetPort must be 1..65535`);
-    if (!targetHost) throw new Error(`relay ${id}: targetHost must be a hostname or IP`);
     if (ports.has(listenPort)) throw new Error(`relay ${id}: duplicate listenPort ${listenPort}`);
-    if (isLoopbackHost(targetHost) && listenPort === targetPort) {
-      throw new Error(`relay ${id}: refusing loopback self-relay on port ${listenPort}`);
-    }
     ids.add(id);
     ports.add(listenPort);
-    result.push({ id, listenPort, targetHost, targetPort, enabled: entry.enabled !== false });
+    result.push({
+      id, listenPort,
+      targetHost: targets[0].host, targetPort: targets[0].port,
+      targets, enabled: entry.enabled !== false,
+    });
   }
   return result;
 }
@@ -91,29 +102,61 @@ function startRelay(relay) {
   const sockets = new Set();
   const server = net.createServer((client) => {
     sockets.add(client);
+    client.pause();
+    let settled = false;
     let upstream;
-    try {
-      upstream = net.createConnection({ host: relay.targetHost, port: relay.targetPort });
-    } catch {
-      client.destroy();
-      return;
-    }
-    sockets.add(upstream);
+    let index = 0;
+    const targets = relay.targets && relay.targets.length
+      ? relay.targets
+      : [{ host: relay.targetHost, port: relay.targetPort, priority: 0 }];
 
-    // Either side closing tears down the pair so sockets never leak.
-    client.once('close', () => {
-      sockets.delete(client);
-      try { upstream.destroy(); } catch {}
-    });
-    upstream.once('close', () => {
-      sockets.delete(upstream);
-      try { client.destroy(); } catch {}
-    });
-    client.on('error', () => { try { client.destroy(); } catch {} });
-    upstream.on('error', () => { try { upstream.destroy(); } catch {} });
-
-    client.pipe(upstream);
-    upstream.pipe(client);
+    const next = () => {
+      if (settled || index >= targets.length) {
+        if (!settled) client.destroy();
+        return;
+      }
+      const target = targets[index++];
+      let socket;
+      try {
+        socket = net.createConnection({ host: target.host, port: target.port });
+      } catch {
+        next();
+        return;
+      }
+      const timer = setTimeout(() => {
+        try { socket.destroy(); } catch {}
+        next();
+      }, 3000);
+      socket.setTimeout(3000, () => {
+        try { socket.destroy(); } catch {}
+        next();
+      });
+      socket.once('connect', () => {
+        if (settled) { socket.destroy(); return; }
+        settled = true;
+        clearTimeout(timer);
+        upstream = socket;
+        sockets.add(upstream);
+        client.once('close', () => {
+          sockets.delete(client);
+          try { upstream.destroy(); } catch {}
+        });
+        upstream.once('close', () => {
+          sockets.delete(upstream);
+          try { client.destroy(); } catch {}
+        });
+        client.on('error', () => { try { client.destroy(); } catch {} });
+        upstream.on('error', () => { try { upstream.destroy(); } catch {} });
+        client.pipe(upstream);
+        upstream.pipe(client);
+        client.resume();
+      });
+      socket.once('error', () => {
+        clearTimeout(timer);
+        if (!settled) next();
+      });
+    };
+    next();
   });
   server.on('error', (error) => {
     // Only the error code/message and the non-secret relay id are logged.
@@ -148,7 +191,8 @@ function applyRelays(config) {
     if (!relay.enabled) continue;
     const existing = active.get(relay.id);
     if (existing && existing.listenPort === relay.listenPort &&
-        existing.targetHost === relay.targetHost && existing.targetPort === relay.targetPort) {
+        existing.targetHost === relay.targetHost && existing.targetPort === relay.targetPort &&
+        JSON.stringify(existing.targets || []) === JSON.stringify(relay.targets || [])) {
       continue;
     }
     if (existing) {
@@ -176,6 +220,7 @@ function getRelayStatus() {
       listenPort: relay.listenPort,
       targetHost: relay.targetHost,
       targetPort: relay.targetPort,
+      targets: relay.targets || [],
       enabled: relay.enabled,
       listening: Boolean(state && state.server.listening),
     };

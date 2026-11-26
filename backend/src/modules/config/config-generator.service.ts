@@ -244,6 +244,20 @@ export class ConfigGeneratorService {
       }
     }
 
+    const chainHops = await this.prisma.proxyChainHop.findMany({
+      where: { nodeId, role: 'exit' },
+      include: { chain: true },
+    });
+    const chainRules: Record<string, unknown>[] = [];
+    for (const hop of chainHops) {
+      const chain = hop.chain as any;
+      if (chain?.status !== 'active' || chain.routingMode !== 'rules' || !Array.isArray(chain.routingRules)) continue;
+      const tag = `chain-${chain.id.slice(0, 8)}-${hop.id.slice(0, 8)}`;
+      for (const rule of chain.routingRules as Record<string, unknown>[]) {
+        chainRules.push({ ...rule, inboundTag: [tag] });
+      }
+    }
+
     const externalInbounds = node.inbounds.filter((i) => EXTERNAL_PROTOCOLS.includes(i.protocol));
     const xrayInbounds = node.inbounds.filter((i) => !EXTERNAL_PROTOCOLS.includes(i.protocol));
 
@@ -386,6 +400,7 @@ export class ConfigGeneratorService {
               return tag ? { ...(r.payload || {}), inboundTag: [tag] } : r.payload;
             }),
           ...profileRules,
+          ...chainRules,
           { type: 'field', network: 'tcp,udp', outboundTag: 'direct' },
         ],
       },
