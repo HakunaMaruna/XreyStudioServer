@@ -172,7 +172,7 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3 2xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-2 sm:gap-3 md:grid-cols-3 2xl:grid-cols-6">
         <StatCard delay={0} label={t.totalUsers} value={stats?.total ?? '—'} icon="users" tone="brand" hint={t.registeredAccounts} />
         <StatCard delay={60} label={t.activeUsers} value={stats?.active ?? '—'} icon="checkCircle" tone="success" hint={totalUsers ? `${Math.round(((stats?.active || 0) / totalUsers) * 100)}${t.percentOfUsers}` : undefined} />
         <StatCard delay={120} label={t.totalNodes} value={nodeStats?.total ?? '—'} icon="server" tone="cyan" hint={t.configuredNodes} />
@@ -213,12 +213,12 @@ export default function DashboardPage() {
             <div className="flex-1 space-y-3">
               {userStatus.map((item, index) => (
                 <div key={item.name}>
-                  <div className="mb-1.5 flex items-center justify-between text-xs">
-                    <span className="flex items-center gap-2 text-muted">
-                      <span className="h-2 w-2 rounded-full" style={{ background: CHART_COLORS[index] }} />
-                      {item.name}
+                  <div className="mb-1.5 flex items-center justify-between gap-2 text-xs">
+                    <span className="flex min-w-0 items-center gap-2 text-muted">
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: CHART_COLORS[index] }} />
+                      <span className="truncate">{item.name}</span>
                     </span>
-                    <span className="font-medium text-fg tabular-nums">{item.value}</span>
+                    <span className="shrink-0 font-medium text-fg tabular-nums">{item.value}</span>
                   </div>
                   <ProgressBar value={totalUsers ? (item.value / totalUsers) * 100 : 0} tone={index === 0 ? 'success' : index === 1 ? 'warning' : 'danger'} />
                 </div>

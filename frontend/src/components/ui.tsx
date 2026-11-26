@@ -219,7 +219,7 @@ export function StatCard({
       <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-brand via-brand-2 to-transparent opacity-50" />
       <div className="relative flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate text-[10px] font-semibold uppercase tracking-[0.1em] text-subtle">{label}</p>
+          <p className="text-[10px] font-semibold uppercase leading-tight tracking-[0.1em] text-subtle">{label}</p>
           <p className="mt-2 text-[23px] font-semibold leading-none tracking-tight text-fg tabular-nums">{value}</p>
           {hint && <p className="mt-1.5 truncate text-[10px] text-muted">{hint}</p>}
         </div>
