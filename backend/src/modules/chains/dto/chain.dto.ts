@@ -57,6 +57,11 @@ export class CreateChainDto {
   @IsOptional()
   @IsString()
   organizationId?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(64)
+  routingRules?: Record<string, unknown>[];
 }
 
 export class UpdateChainDto {
@@ -83,6 +88,11 @@ export class UpdateChainDto {
   @ValidateNested({ each: true })
   @Type(() => ChainExitDto)
   exits?: ChainExitDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(64)
+  routingRules?: Record<string, unknown>[];
 }
 
 export class BindChainDto {

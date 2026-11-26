@@ -50,6 +50,7 @@ export class ChainsService {
       name: row.name,
       status: row.status,
       routingMode: row.routingMode,
+      routingRules: row.routingRules || [],
       entryNode: entry?.node ? { id: entry.node.id, name: entry.node.name } : null,
       entryPort: entry?.port ?? null,
       exits: row.hops.filter((hop: any) => hop.role === 'exit').map((hop: any) => ({
@@ -161,8 +162,27 @@ export class ChainsService {
     }
   }
 
+  private validateRoutingRules(rules?: Record<string, unknown>[]) {
+    if (!rules) return;
+    if (!Array.isArray(rules) || rules.length > 64) throw new BadRequestException('Invalid routingRules');
+    const matchers = ['domain', 'ip', 'protocol', 'port', 'source', 'network'];
+    for (const rule of rules) {
+      if (!rule || typeof rule !== 'object') throw new BadRequestException('Invalid routing rule');
+      if (!matchers.some((key) => rule[key] !== undefined)) {
+        throw new BadRequestException('Each routing rule needs at least one matcher');
+      }
+      if (rule.outboundTag !== undefined && !['direct', 'blocked'].includes(String(rule.outboundTag))) {
+        throw new BadRequestException('Unknown routing outboundTag');
+      }
+    }
+  }
+
   async create(dto: CreateChainDto, user: AuthUser) {
     if (!dto.exits?.length) throw new BadRequestException('At least one exit node is required');
+    this.validateRoutingRules(dto.routingRules);
+    if (dto.routingMode === 'rules' && !dto.routingRules?.length) {
+      throw new BadRequestException('routingRules are required when routingMode is rules');
+    }
     if (user.role !== Role.ADMIN && !user.organizationId) throw new ForbiddenException('Organization is required');
     const orgId = user.role === Role.ADMIN ? dto.organizationId || null : user.organizationId;
     const entry = await this.node(dto.entryNodeId, user);
@@ -181,6 +201,7 @@ export class ChainsService {
         name: dto.name,
         status: 'active',
         routingMode: dto.routingMode || 'all',
+        routingRules: dto.routingRules ? dto.routingRules as any : null,
         organizationId: orgId,
         hops: {
           create: [
@@ -245,6 +266,7 @@ export class ChainsService {
 
   async update(id: string, dto: UpdateChainDto, user: AuthUser) {
     const current = await this.findOwned(id, user);
+    this.validateRoutingRules(dto.routingRules);
     if (dto.exits !== undefined) {
       if (!dto.exits.length) throw new BadRequestException('At least one exit node is required');
       for (const exit of dto.exits) {
@@ -294,6 +316,7 @@ export class ChainsService {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
         ...(dto.status !== undefined ? { status: dto.status } : {}),
         ...(dto.routingMode !== undefined ? { routingMode: dto.routingMode } : {}),
+        ...(dto.routingRules !== undefined ? { routingRules: dto.routingRules as any } : {}),
         ...(dto.organizationId !== undefined ? { organizationId: dto.organizationId } : {}),
       },
     });

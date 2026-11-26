@@ -29,6 +29,7 @@ type ChainRow = {
   name: string;
   status?: string | null;
   routingMode: 'all' | 'rules';
+  routingRules?: Record<string, unknown>[];
   entryNode?: { id: string; name: string } | null;
   exits: ChainExit[];
   bindings: ChainBinding[];
@@ -44,6 +45,7 @@ type ChainDraft = {
   name: string;
   entryNodeId: string;
   routingMode: 'all' | 'rules';
+  routingRulesText: string;
   exits: ExitDraft[];
 };
 type FormErrors = Record<string, string>;
@@ -65,6 +67,7 @@ const emptyDraft = (): ChainDraft => ({
   name: '',
   entryNodeId: '',
   routingMode: 'all',
+  routingRulesText: '[]',
   exits: [newExit()],
 });
 
@@ -220,6 +223,7 @@ export default function ChainsPage() {
       name: chain.name || '',
       entryNodeId: chain.entryNode?.id || '',
       routingMode: chain.routingMode === 'rules' ? 'rules' : 'all',
+      routingRulesText: JSON.stringify(chain.routingRules || [], null, 2),
       exits: chain.exits?.length
         ? chain.exits.map((exit) => ({
             key: newKey(),
@@ -246,6 +250,14 @@ export default function ChainsPage() {
         next[`exit-${exit.key}-priority`] = t.chainPriorityInvalid;
       }
     });
+    if (draft.routingMode === 'rules') {
+      try {
+        const parsed = JSON.parse(draft.routingRulesText || '[]');
+        if (!Array.isArray(parsed)) next.routingRules = t.chainRoutingRulesInvalid;
+      } catch {
+        next.routingRules = t.chainRoutingRulesInvalid;
+      }
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -265,6 +277,9 @@ export default function ChainsPage() {
           ...(exit.priority !== '' ? { priority: Number(exit.priority) } : {}),
         })),
       };
+      if (draft.routingMode === 'rules') {
+        body.routingRules = JSON.parse(draft.routingRulesText || '[]');
+      }
       if (editing) {
         await api.patch(`/api/chains/${encodeURIComponent(editing.id)}`, body);
       } else {
@@ -546,6 +561,18 @@ export default function ChainsPage() {
                 <option value="rules">{t.chainRoutingRules}</option>
               </select>
             </Field>
+            {draft.routingMode === 'rules' && (
+              <div className="sm:col-span-2">
+                <Field label={t.chainRoutingRulesJson} hint={t.chainRoutingRulesHint}>
+                  <textarea
+                    className="field mono min-h-32 text-[11px]"
+                    value={draft.routingRulesText}
+                    onChange={(event) => setDraft({ ...draft, routingRulesText: event.target.value })}
+                  />
+                </Field>
+                {errors.routingRules && <p className="mt-1 text-[11px] text-danger">{errors.routingRules}</p>}
+              </div>
+            )}
           </div>
 
           <div>
