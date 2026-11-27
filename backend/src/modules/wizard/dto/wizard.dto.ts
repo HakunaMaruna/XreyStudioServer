@@ -56,6 +56,11 @@ export class CreateNodeWizardDto {
   @Matches(/^SHA256:[A-Za-z0-9+/]{43}=?$/, { message: 'invalid SSH host key fingerprint' })
   hostKeyFingerprint?: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  jumpNodeId?: string;
+
   @Matches(/^[A-Z]{2}$/, { message: 'location must be an ISO alpha-2 country code' })
   location: string;
 

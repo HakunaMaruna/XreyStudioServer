@@ -101,6 +101,7 @@ model Node {
   agentUrl             String?
   tokenHash            String
   agentSecret          String?
+  jumpNodeId           String?
   status               NodeStatus       @default(OFFLINE)
   lastSeenAt           DateTime?
   lastError            String?

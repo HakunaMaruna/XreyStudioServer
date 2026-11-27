@@ -46,6 +46,11 @@ export class UpdateNodeAgentDto {
   hostKeyFingerprint?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  jumpNodeId?: string;
+
+  @IsOptional()
   @Matches(/^\/[A-Za-z0-9._/-]{1,200}$/)
   repoDir?: string;
 

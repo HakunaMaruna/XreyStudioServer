@@ -63,8 +63,9 @@ export class NodeProvisionService {
     }
   }
 
-  private connect(dto: SshTarget): Promise<Client> {
+  private connect(dto: SshTarget, sock?: any): Promise<Client> {
     const config: ConnectConfig = {
+      ...(sock ? { sock: sock as any } : {}),
       host: dto.host,
       port: dto.port || 22,
       username: dto.username,
@@ -98,6 +99,49 @@ export class NodeProvisionService {
       });
       conn.connect(config);
     });
+  }
+
+  /** Connect to a target through an already-installed node via SSH forwardOut. */
+  private async connectWithJump(dto: SshTarget, jumpNodeId: string): Promise<{ conn: Client; jump: Client | null }> {
+    const jumpNode = await this.prisma.node.findUnique({ where: { id: jumpNodeId }, select: { id: true, address: true, organizationId: true } });
+    if (!jumpNode) throw new BadRequestException('Jump node not found');
+    const credential = await this.prisma.wizardCredential.findUnique({ where: { nodeId: jumpNodeId } });
+    if (!credential) throw new BadRequestException('Jump node has no saved SSH credentials');
+    const jumpTarget: SshTarget = {
+      host: credential.sshHost || jumpNode.address,
+      port: credential.sshPort || 22,
+      username: credential.sshUser || 'root',
+      hostKeyFingerprint: undefined,
+    };
+    if (credential.password) jumpTarget.password = decryptSecret(credential.password);
+    if (credential.privateKey) {
+      jumpTarget.privateKey = decryptSecret(credential.privateKey);
+      if (credential.passphrase) jumpTarget.passphrase = decryptSecret(credential.passphrase);
+    }
+    const jump = await this.connect(jumpTarget);
+    const sock = await new Promise<any>((resolve, reject) => {
+      jump.forwardOut('127.0.0.1', 0, dto.host, dto.port || 22, (error, stream) => {
+        if (error || !stream) reject(error || new Error('Jump forwardOut failed'));
+        else resolve(stream);
+      });
+    });
+    try {
+      const conn = await this.connect(dto, sock);
+      return { conn, jump };
+    } catch (error) {
+      jump.end();
+      throw error;
+    }
+  }
+
+  private async openConnection(dto: SshTarget & { jumpNodeId?: string }) {
+    if (dto.jumpNodeId) return this.connectWithJump(dto, dto.jumpNodeId);
+    return { conn: await this.connect(dto), jump: null };
+  }
+
+  private closeAll(conn: Client, jump: Client | null) {
+    this.close(conn);
+    if (jump) this.close(jump);
   }
 
   private commandTimeout() {
@@ -256,14 +300,15 @@ export class NodeProvisionService {
         agentUrl: `http://${dto.host}:9090`,
         tokenHash,
         agentSecret: encryptSecret(agentToken),
+        jumpNodeId: dto.jumpNodeId || null,
         location: dto.location || null,
         organizationId: actor.organizationId || null,
       },
     });
 
     await this.emit(progress, 'ssh', `Connecting to ${dto.host}:${dto.port} as ${dto.username}…`);
-    const conn = await this.connect(dto);
-    await this.emit(progress, 'ssh', 'SSH connection established');
+    const { conn, jump } = await this.openConnection(dto);
+    await this.emit(progress, 'ssh', `SSH connection established${dto.jumpNodeId ? ' via jump node' : ''}`);
     try {
       const repo = shellQuote(process.env.NODE_PROVISION_REPO || DEFAULT_REPO);
       const sudo = this.sudoPrefix(dto);
@@ -313,7 +358,7 @@ export class NodeProvisionService {
       await this.prisma.node.delete({ where: { id: node.id } }).catch(() => undefined);
       throw error;
     } finally {
-      this.close(conn);
+      this.closeAll(conn, jump);
     }
 
     return {
@@ -329,7 +374,7 @@ export class NodeProvisionService {
   private async assertTenantNode(nodeId: string, actor: AuthUser) {
     const node = await this.prisma.node.findFirst({
       where: { id: nodeId, ...(actor.role === Role.ADMIN ? {} : { organizationId: actor.organizationId || null }) },
-      select: { id: true, address: true },
+      select: { id: true, address: true, jumpNodeId: true },
     });
     if (!node) throw new ForbiddenException('Node not found in your organization');
     return node;
@@ -347,6 +392,7 @@ export class NodeProvisionService {
       port: credential.sshPort || 22,
       username: credential.sshUser || 'root',
       useSudo: (credential.sshUser || 'root') !== 'root',
+      jumpNodeId: node.jumpNodeId || undefined,
       targetVersion: APP_VERSION,
       // The wizard does not persist the host key fingerprint; ssh2 falls back to TOFU.
     };
@@ -379,7 +425,7 @@ export class NodeProvisionService {
       `${sudo}docker compose $COMPOSE build agent; ` +
       `${sudo}docker compose $COMPOSE up -d --no-deps agent`;
 
-    const conn = await this.connect(dto);
+    const { conn, jump } = await this.openConnection(dto);
     try {
       const result = await this.runRemoteCommand(conn, command, UPDATE_TIMEOUT_MS);
       if (result.code !== 0) {
@@ -398,7 +444,7 @@ export class NodeProvisionService {
         output: result.output.slice(-4000),
       };
     } finally {
-      this.close(conn);
+      this.closeAll(conn, jump);
     }
   }
 }

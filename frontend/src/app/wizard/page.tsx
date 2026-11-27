@@ -51,6 +51,8 @@ export default function WizardPage() {
   const [error, setError] = useState('');
   const [result, setResult] = useState<WizardResult | null>(null);
   const [applied, setApplied] = useState(false);
+  const [jumpNodeId, setJumpNodeId] = useState('');
+  const [nodes, setNodes] = useState<Array<{ id: string; name: string; status?: string }>>([]);
 
   const names = useMemo(
     () => new Intl.DisplayNames([lang === 'ru' ? 'ru' : 'en'], { type: 'region' }),
@@ -59,6 +61,7 @@ export default function WizardPage() {
 
   useEffect(() => {
     if (!isLoggedIn()) window.location.href = '/login';
+    api.get('/api/nodes').then((data: any) => setNodes(Array.isArray(data) ? data : data?.data || [])).catch(() => undefined);
     return () => {
       if (pollRef.current !== null) window.clearInterval(pollRef.current);
       if (redirectRef.current !== null) window.clearTimeout(redirectRef.current);
@@ -89,6 +92,7 @@ export default function WizardPage() {
         sshPort: Number(form.sshPort) || 22,
         authMode,
         location: form.location,
+        jumpNodeId: jumpNodeId || undefined,
         nodeName: form.nodeName || undefined,
         ipv4: form.ipv4 || undefined,
         ipv6: form.ipv6 || undefined,
@@ -227,6 +231,12 @@ export default function WizardPage() {
             )}
           </div>
           <div className="mt-5 flex justify-end">
+            <Field label={t.wizardJumpNode} hint={t.wizardJumpNodeHint}>
+              <select className={inputClass} value={jumpNodeId} onChange={(e) => setJumpNodeId(e.target.value)}>
+                <option value="">{t.none}</option>
+                {nodes.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}
+              </select>
+            </Field>
             <Button variant="primary" icon="chevronRight" onClick={() => setStep(1)} disabled={!form.host || (authMode !== 'password' && !form.hostKeyFingerprint)}>
               {t.next}
             </Button>

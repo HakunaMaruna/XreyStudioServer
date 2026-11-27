@@ -48,6 +48,11 @@ export class ProvisionNodeDto {
   hostKeyFingerprint?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  jumpNodeId?: string;
+
+  @IsOptional()
   @Matches(/^[A-Z]{2}$/)
   location?: string;
 

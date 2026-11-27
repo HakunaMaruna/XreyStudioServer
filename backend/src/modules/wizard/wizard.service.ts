@@ -209,6 +209,14 @@ export class WizardService {
       throw error;
     }
 
+    if (dto.jumpNodeId) {
+      const jumpNode = await this.prisma.node.findFirst({
+        where: { id: dto.jumpNodeId, ...(user.role === Role.ADMIN ? {} : { organizationId: user.organizationId || null }) },
+        select: { id: true, name: true },
+      });
+      if (!jumpNode) throw new BadRequestException('Jump node not found in your organization');
+      await report('ssh', `Using jump node: ${jumpNode.name}`, 28);
+    }
     let provisioned: any;
     await report('ssh', 'Starting SSH provisioning…', 28);
     try {
@@ -223,6 +231,7 @@ export class WizardService {
           password: dto.password,
           hostKeyFingerprint: dto.hostKeyFingerprint,
           location: dto.location,
+          jumpNodeId: dto.jumpNodeId,
           useSudo: Boolean(dto.sshUser && dto.sshUser !== 'root'),
         } as any,
         user,
