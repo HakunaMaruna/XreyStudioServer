@@ -143,11 +143,44 @@ export class NotificationsService {
         const parsed = JSON.parse(res.text || '');
         if (parsed?.description) detail = `: ${String(parsed.description).slice(0, 160)}`;
       } catch {}
+      if (!detail && res.text) detail = `: ${res.text.slice(0, 160)}`;
       return { sent: false, error: `Telegram HTTP ${res.status}${detail}` };
     } catch (e: any) {
       this.logger.warn(`Telegram failed: ${e.message}`);
       return { sent: false, error: e.message };
     }
+  }
+
+  /** Sanitized Telegram diagnostics: no token or response body is returned. */
+  async diagnoseTelegram() {
+    const token = await this.settings.value('TELEGRAM_BOT_TOKEN');
+    const chatId = await this.settings.value('TELEGRAM_CHAT_ID');
+    if (!token) return { configured: false };
+    const describe = (res: { ok: boolean; status: number; text: string }) => {
+      let description = '';
+      try {
+        const parsed = JSON.parse(res.text || '');
+        if (parsed?.description) description = String(parsed.description).slice(0, 200);
+      } catch {}
+      return { ok: res.ok, status: res.status, description: description || null };
+    };
+    const getMe = describe(await this.outboundRequest(`https://api.telegram.org/bot${token}/getMe`, 'GET', {}));
+    const updatesRaw = await this.outboundRequest(`https://api.telegram.org/bot${token}/getUpdates?limit=10`, 'GET', {});
+    let firstChatId: string | null = null;
+    try {
+      const parsed = JSON.parse(updatesRaw.text || '');
+      const update = Array.isArray(parsed?.result) ? parsed.result[0] : null;
+      const chat = update?.message?.chat || update?.channel_post?.chat || update?.edited_message?.chat;
+      if (chat?.id !== undefined) firstChatId = String(chat.id);
+    } catch {}
+    return {
+      configured: true,
+      chatId: chatId || null,
+      chatIdLooksNumeric: Boolean(chatId && /^-?\d+$/.test(chatId.trim())),
+      bot: getMe,
+      updates: describe(updatesRaw),
+      firstChatId,
+    };
   }
 
   async sendWebhook(payload: Record<string, unknown>): Promise<ChannelResult> {

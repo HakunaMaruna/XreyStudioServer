@@ -31,6 +31,11 @@ export class NotificationsController {
     }, body.channel);
   }
 
+  @Get('telegram/diagnose')
+  telegramDiagnose() {
+    return this.service.diagnoseTelegram();
+  }
+
   @Get('channels')
   async channels() {
     return this.service.channels();
