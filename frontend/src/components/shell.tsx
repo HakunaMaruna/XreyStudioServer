@@ -147,7 +147,17 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     applyTheme(next);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    // Revoke both tokens server-side before dropping them locally. A failed
+    // request must not keep the user trapped in the UI.
+    try {
+      await api.post('/api/auth/logout', {
+        refreshToken: localStorage.getItem('xss_refresh') || '',
+        accessToken: localStorage.getItem('xss_access') || '',
+      });
+    } catch {
+      // offline / expired session — local logout still proceeds
+    }
     clearTokens();
     setAuthed(false);
     router.push('/login');

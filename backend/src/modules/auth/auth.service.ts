@@ -4,6 +4,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes } from 'crypto';
 import { PasswordService } from '../../common/password.service';
+import { TokenRevocationService } from './token-revocation.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 
@@ -13,6 +14,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
     private passwords: PasswordService,
+    private revocation: TokenRevocationService,
   ) {}
 
   async hashPassword(password: string) {
@@ -35,11 +37,11 @@ export class AuthService {
   }) {
     const payload = {
       sub: user.id,
-      email: user.email,
       role: user.role,
       orgId: user.organizationId,
     };
-    const accessToken = await this.jwt.signAsync(payload, { expiresIn: '15m' });
+    const accessJti = randomBytes(16).toString('hex');
+    const accessToken = await this.jwt.signAsync({ ...payload, jti: accessJti }, { expiresIn: '5m' });
     const refreshToken = await this.jwt.signAsync(
       { ...payload, type: 'refresh', jti: randomBytes(16).toString('hex') },
       { expiresIn: '7d' },
@@ -101,9 +103,15 @@ export class AuthService {
     return this.issueTokens(user);
   }
 
-  async logout(refreshToken: string) {
+  async logout(refreshToken: string, accessToken?: string) {
     const hash = this.hashToken(refreshToken);
     await this.prisma.refreshToken.deleteMany({ where: { tokenHash: hash } });
+    if (accessToken) {
+      const decoded: any = this.jwt.decode(accessToken);
+      if (decoded && typeof decoded.jti === 'string' && Number.isFinite(decoded.exp)) {
+        await this.revocation.revoke(decoded.jti, Number(decoded.exp) * 1000);
+      }
+    }
     return { success: true };
   }
 

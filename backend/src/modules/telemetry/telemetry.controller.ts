@@ -2,6 +2,7 @@
 // Copyright (C) 2026 HakunaMaruna
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { Throttle } from '@nestjs/throttler';
 import { Role } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -15,7 +16,8 @@ export class TelemetryController {
 
   /** Public consent state for the first-run modal (requires login). */
   @Get('status')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
   status() {
     return this.service.status();
   }
@@ -29,6 +31,7 @@ export class TelemetryController {
   }
 
   @Post('consent')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN, Role.OPERATOR)
   consent(@Body() body: { accepted: boolean; enabled: boolean }) {
@@ -36,6 +39,7 @@ export class TelemetryController {
   }
 
   @Post('send')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN, Role.OPERATOR)
   send() {
@@ -44,6 +48,7 @@ export class TelemetryController {
 
   /** MAIN SERVER: receives anonymized installation statistics. */
   @Post('ingest')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @UseGuards(ApiTokenGuard)
   @RequireScope('TELEMETRY' as any)
   ingest(@Body() body: TelemetryPayload, @ApiTokenUser() token: ApiTokenContext) {

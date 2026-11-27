@@ -6,7 +6,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 import { AuthService } from './auth.service';
-import { LoginDto, RefreshDto } from './dto/login.dto';
+import { LoginDto, LogoutDto, RefreshDto } from './dto/login.dto';
 
 // This cookie is only a routing marker for the optional decoy page. Authorization
 // is still performed by JWT on every /api request; the cookie grants no access.
@@ -48,9 +48,9 @@ export class AuthController {
   }
 
   @Post('logout')
-  logout(@Body() dto: RefreshDto, @Res({ passthrough: true }) res: Response) {
+  logout(@Body() dto: LogoutDto, @Res({ passthrough: true }) res: Response) {
     clearUiCookie(res);
-    return this.auth.logout(dto.refreshToken);
+    return this.auth.logout(dto.refreshToken, dto.accessToken);
   }
 
   @Get('me')

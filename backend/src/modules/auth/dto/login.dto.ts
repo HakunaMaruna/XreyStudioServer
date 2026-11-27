@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 HakunaMaruna
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class LoginDto {
   @IsEmail()
@@ -14,4 +14,10 @@ export class LoginDto {
 export class RefreshDto {
   @IsString()
   refreshToken: string;
+}
+
+export class LogoutDto extends RefreshDto {
+  @IsOptional()
+  @IsString()
+  accessToken?: string;
 }

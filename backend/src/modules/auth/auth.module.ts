@@ -7,17 +7,19 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { getJwtSecret } from '../../common/env';
+import { TokenRevocationService } from './token-revocation.service';
 
 @Module({
   imports: [
     PassportModule,
     JwtModule.register({
       secret: getJwtSecret(),
-      signOptions: { expiresIn: '15m' },
+      signOptions: { expiresIn: '5m', issuer: 'xreystudio', audience: 'xrey-panel' },
+      verifyOptions: { issuer: 'xreystudio', audience: 'xrey-panel', algorithms: ['HS256'] },
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService],
+  providers: [AuthService, JwtStrategy, TokenRevocationService],
+  exports: [AuthService, TokenRevocationService],
 })
 export class AuthModule {}
