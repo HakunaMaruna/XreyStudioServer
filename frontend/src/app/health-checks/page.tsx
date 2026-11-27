@@ -7,7 +7,11 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
-import { Badge, Button, Card, PageHeader, StatCard } from '../../components/ui';
+import { Badge, Button, Card, PageHeader, SectionTitle, StatCard } from '../../components/ui';
+
+type QuarantineRow = {
+  id: string; address: string; nodeId: string | null; reason: string; until: string; createdAt: string;
+};
 
 type Check = {
   id: string;
@@ -20,27 +24,52 @@ type Check = {
   port: number;
   success: boolean;
   latencyMs: number | null;
+  bytes?: number | null;
   error: string | null;
   checkedAt: string;
 };
 
 export default function HealthChecksPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [rows, setRows] = useState<Check[]>([]);
   const [nodes, setNodes] = useState<{ id: string; name: string }[]>([]);
   const [nodeId, setNodeId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [quarantine, setQuarantine] = useState<QuarantineRow[]>([]);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ limit: '500' });
       if (nodeId) params.set('nodeId', nodeId);
-      const data = await api.get(`/api/health-checks?${params.toString()}`);
+      const [data, quarantined] = await Promise.all([
+        api.get(`/api/health-checks?${params.toString()}`),
+        api.get<QuarantineRow[]>('/api/resilience/quarantine').catch(() => []),
+      ]);
       setRows(Array.isArray(data) ? data : data.data || []);
+      setQuarantine(Array.isArray(quarantined) ? quarantined : (quarantined as any).data || []);
     } catch { setRows([]); }
     finally { setLoading(false); }
   }, [nodeId]);
+
+  const autoQuarantine = async () => {
+    setBusy(true);
+    try {
+      await api.post('/api/resilience/auto-quarantine', {});
+      await load();
+    } catch { /* keep current view */ }
+    finally { setBusy(false); }
+  };
+
+  const release = async (address: string) => {
+    setBusy(true);
+    try {
+      await api.delete(`/api/resilience/quarantine/${encodeURIComponent(address)}`);
+      await load();
+    } catch { /* keep current view */ }
+    finally { setBusy(false); }
+  };
 
   useEffect(() => {
     if (!isLoggedIn()) { window.location.href = '/login'; return; }
@@ -70,6 +99,7 @@ export default function HealthChecksPage() {
       { id: 'target', header: t.address, cell: ({ row }) => <code className="mono text-xs text-muted">{row.original.host}:{row.original.port}</code> },
       { accessorKey: 'success', header: t.status, cell: ({ row }) => row.original.success ? <Badge tone="success" dot>OK</Badge> : <Badge tone="danger" dot>{row.original.error || 'FAIL'}</Badge> },
       { accessorKey: 'latencyMs', header: t.latency, cell: ({ row }) => <span className="text-xs text-fg tabular-nums">{row.original.latencyMs ?? '—'} ms</span> },
+      { accessorKey: 'bytes', header: lang === 'ru' ? 'Байты' : 'Bytes', cell: ({ row }) => <span className="text-xs text-fg tabular-nums">{row.original.bytes ?? '—'}</span> },
       { accessorKey: 'checkedAt', header: t.createdAt, cell: ({ row }) => <span className="text-xs text-muted">{new Date(row.original.checkedAt).toLocaleString()}</span> },
     ],
     [t],
@@ -78,7 +108,10 @@ export default function HealthChecksPage() {
   return (
     <>
       <PageHeader eyebrow={t.infrastructure} title={t.healthChecks} subtitle={t.healthChecksSubtitle} icon="pulse"
-        actions={<Button icon="refresh" onClick={load} loading={loading}>{t.refresh}</Button>} />
+        actions={<>
+          <Button icon="shield" onClick={autoQuarantine} loading={busy}>{lang === 'ru' ? 'Автокарантин' : 'Auto quarantine'}</Button>
+          <Button icon="refresh" onClick={load} loading={loading}>{t.refresh}</Button>
+        </>} />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label={t.healthChecks} value={latest.length} icon="activity" tone="brand" />
@@ -92,6 +125,24 @@ export default function HealthChecksPage() {
           {nodes.map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}
         </select>
       </Card>
+
+      {quarantine.length > 0 && (
+        <Card className="mb-5 p-4">
+          <SectionTitle title={lang === 'ru' ? 'Карантин выходов' : 'Exit quarantine'} subtitle={lang === 'ru' ? 'Адрес выведен из балансировки до истечения срока' : 'Address excluded from balancers until cooldown expires'} />
+          <div className="space-y-2">
+            {quarantine.map((row) => (
+              <div key={row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line px-3 py-2 text-xs">
+                <div className="min-w-0">
+                  <code className="mono text-fg">{row.address}</code>
+                  <span className="ml-2 text-muted">{row.reason}</span>
+                  <span className="ml-2 text-subtle">→ {new Date(row.until).toLocaleString()}</span>
+                </div>
+                <Button size="sm" variant="subtle" loading={busy} onClick={() => release(row.address)}>{lang === 'ru' ? 'Вернуть' : 'Release'}</Button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <DataTable data={latest} columns={columns} loading={loading} getRowId={(row) => row.id} />
     </>

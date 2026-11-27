@@ -2,6 +2,7 @@
 // Copyright (C) 2026 HakunaMaruna
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { connect } from 'net';
+import * as tls from 'tls';
 import { NotificationEvent } from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -26,21 +27,42 @@ export class HealthChecksService implements OnModuleInit, OnModuleDestroy {
     if (this.timer) clearInterval(this.timer);
   }
 
-  private probe(host: string, port: number, timeout = 3000): Promise<{ success: boolean; latencyMs?: number; error?: string }> {
+  /** TLS-eye probe for Reality inbounds: a browser-like handshake to the camouflage SNI. */
+  private tlsProbe(host: string, port: number, servername: string, timeout = 3000): Promise<{ success: boolean; latencyMs?: number; bytes: number; error?: string }> {
     return new Promise((resolve) => {
       const start = Date.now();
-      const socket = connect({ host, port });
+      let bytes = 0;
       let done = false;
-      const finish = (result: { success: boolean; latencyMs?: number; error?: string }) => {
+      const socket = tls.connect({ host, port, servername, rejectUnauthorized: false });
+      const finish = (result: { success: boolean; latencyMs?: number; bytes: number; error?: string }) => {
         if (done) return;
         done = true;
         socket.destroy();
         resolve(result);
       };
       socket.setTimeout(timeout);
-      socket.on('connect', () => finish({ success: true, latencyMs: Date.now() - start }));
-      socket.on('timeout', () => finish({ success: false, error: 'timeout' }));
-      socket.on('error', (err) => finish({ success: false, error: err.message }));
+      socket.on('secureConnect', () => finish({ success: true, latencyMs: Date.now() - start, bytes }));
+      socket.on('data', (chunk) => { bytes += chunk.length; });
+      socket.on('timeout', () => finish({ success: false, bytes, error: 'tls-stall' }));
+      socket.on('error', (error) => finish({ success: false, bytes, error: error.message }));
+    });
+  }
+
+  private probe(host: string, port: number, timeout = 3000): Promise<{ success: boolean; latencyMs?: number; bytes: number; error?: string }> {
+    return new Promise((resolve) => {
+      const start = Date.now();
+      const socket = connect({ host, port });
+      let done = false;
+      const finish = (result: { success: boolean; latencyMs?: number; bytes: number; error?: string }) => {
+        if (done) return;
+        done = true;
+        socket.destroy();
+        resolve(result);
+      };
+      socket.setTimeout(timeout);
+      socket.on('connect', () => finish({ success: true, latencyMs: Date.now() - start, bytes: 0 }));
+      socket.on('timeout', () => finish({ success: false, error: 'timeout', bytes: 0 }));
+      socket.on('error', (err) => finish({ success: false, error: err.message, bytes: 0 }));
     });
   }
 
@@ -68,7 +90,12 @@ export class HealthChecksService implements OnModuleInit, OnModuleDestroy {
         // Проверяем только адрес самой ноды: `settings.publicHost` задаётся
         // тенантом и превращал фоновый пробер в SSRF/сканер портов.
         const host = inbound.node.address;
-        const result = await this.probe(host, inbound.port);
+        const settings: any = inbound.settings;
+        const realityNames: string[] = Array.isArray(settings?.realityServerNames) ? settings.realityServerNames : [];
+        const sni = realityNames[0] || inbound.sni || undefined;
+        const result = inbound.security === 'reality' && sni
+          ? await this.tlsProbe(host, inbound.port, sni)
+          : await this.probe(host, inbound.port);
         const last = previous.get(inbound.id);
         previous.set(inbound.id, result.success);
         if (last !== undefined && last !== result.success) {
@@ -83,6 +110,7 @@ export class HealthChecksService implements OnModuleInit, OnModuleDestroy {
           port: inbound.port,
           success: result.success,
           latencyMs: result.latencyMs ?? null,
+          bytes: result.bytes ?? 0,
           error: result.error ?? null,
         });
       }

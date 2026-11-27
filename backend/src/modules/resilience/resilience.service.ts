@@ -17,6 +17,60 @@ export class ResilienceService {
     private configGenerator: ConfigGeneratorService,
   ) {}
 
+  /** Put an exit address out of rotation for a cooldown period. */
+  async quarantine(input: { address: string; nodeId?: string; reason?: string; hours?: number }) {
+    const address = String(input.address || '').trim();
+    if (!address) throw new Error('address is required');
+    const hours = Math.min(720, Math.max(1, Number(input.hours) || 48));
+    const until = new Date(Date.now() + hours * 3600_000);
+    const row = await this.prisma.nodeQuarantine.upsert({
+      where: { address },
+      create: { address, nodeId: input.nodeId || null, reason: input.reason || 'manual', until },
+      update: { nodeId: input.nodeId || null, reason: input.reason || 'manual', until },
+    });
+    const nodeId = input.nodeId || (await this.prisma.node.findFirst({ where: { address }, select: { id: true } }))?.id;
+    if (nodeId) await this.configGenerator.createRevision(nodeId);
+    return row;
+  }
+
+  async releaseQuarantine(address: string) {
+    const row = await this.prisma.nodeQuarantine.deleteMany({ where: { address } });
+    return { released: row.count };
+  }
+
+  listQuarantine() {
+    return this.prisma.nodeQuarantine.findMany({
+      orderBy: { until: 'desc' },
+      take: 100,
+    });
+  }
+
+  /**
+   * Failover helper: addresses with repeated recent health-check failures
+   * (including TCP stalls) are quarantined and their configs are regenerated.
+   */
+  async autoQuarantine(hours = 48) {
+    const since = new Date(Date.now() - 30 * 60_000);
+    const failed = await this.prisma.healthCheck.findMany({
+      where: { checkedAt: { gte: since }, success: false },
+      select: { host: true, nodeId: true, error: true, checkedAt: true },
+      orderBy: { checkedAt: 'desc' },
+    });
+    const counts = new Map<string, { nodeId: string | null; error: string | null; count: number }>();
+    for (const row of failed) {
+      const current = counts.get(row.host) || { nodeId: row.nodeId, error: row.error, count: 0 };
+      current.count += 1;
+      counts.set(row.host, current);
+    }
+    const quarantined: string[] = [];
+    for (const [address, info] of counts) {
+      if (info.count < 2) continue;
+      await this.quarantine({ address, nodeId: info.nodeId || undefined, reason: `health-check: ${info.error || 'failed'} x${info.count}`, hours });
+      quarantined.push(address);
+    }
+    return { quarantined, checked: counts.size };
+  }
+
   async rotateSni(nodeId?: string) {
     const inbounds = await this.prisma.inbound.findMany({
       where: { enabled: true, security: 'reality', ...(nodeId ? { nodeId } : {}) },

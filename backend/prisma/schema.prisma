@@ -438,6 +438,17 @@ model NodeGeo {
   @@index([checkedAt])
 }
 
+model NodeQuarantine {
+  id        String   @id @default(uuid())
+  address   String   @unique
+  nodeId    String?
+  reason    String
+  until     DateTime
+  createdAt DateTime @default(now())
+
+  @@index([until])
+}
+
 model HealthCheck {
   id        String   @id @default(uuid())
   nodeId    String
@@ -449,6 +460,7 @@ model HealthCheck {
   port      Int
   success   Boolean
   latencyMs Int?
+  bytes     Int?
   error     String?
   checkedAt DateTime @default(now())
 

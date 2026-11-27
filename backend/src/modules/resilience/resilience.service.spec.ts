@@ -23,4 +23,16 @@ describe('ResilienceService', () => {
     expect(settings.realityShortIds[0]).not.toBe('oldid');
     expect(configGenerator.createRevision).toHaveBeenCalledWith('n1');
   });
+
+  it('quarantines an exit address and regenerates the node config', async () => {
+    const prisma: any = {
+      nodeQuarantine: { upsert: jest.fn(async () => ({ address: '1.2.3.4' })) },
+      node: { findFirst: jest.fn(async () => ({ id: 'n1' })) },
+    };
+    const configGenerator: any = { createRevision: jest.fn(async () => ({})) };
+    const service = new ResilienceService(prisma, configGenerator);
+    const result = await service.quarantine({ address: '1.2.3.4', reason: 'test', hours: 48 });
+    expect(result.address).toBe('1.2.3.4');
+    expect(configGenerator.createRevision).toHaveBeenCalledWith('n1');
+  });
 });

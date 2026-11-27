@@ -281,12 +281,20 @@ export class BalancersService {
       where: { enabled: true, ...(actor && actor.role !== Role.ADMIN ? { organizationId: actor.organizationId || '__none__' } : {}) },
       include: { members: true },
     });
-    return buildBalancers(rows);
+    const active = await this.prisma.nodeQuarantine.findMany({
+      where: { until: { gt: new Date() } },
+      select: { address: true },
+    });
+    return buildBalancers(rows, new Set(active.map((item) => item.address)));
   }
 
   async preview(id: string, actor: AuthUser) {
     const row = await this.findOwned(id, actor);
-    return buildBalancers([{ ...row, enabled: true }]);
+    const active = await this.prisma.nodeQuarantine.findMany({
+      where: { until: { gt: new Date() } },
+      select: { address: true },
+    });
+    return buildBalancers([{ ...row, enabled: true }], new Set(active.map((item) => item.address)));
   }
 }
 

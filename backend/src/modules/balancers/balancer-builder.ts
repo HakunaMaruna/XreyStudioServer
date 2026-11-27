@@ -55,7 +55,7 @@ function normalizeRule(raw: unknown): Record<string, unknown> | null {
   return Object.keys(rule).some((key) => MATCHERS.includes(key)) ? rule : null;
 }
 
-export function buildBalancers(list: BalancerInput[]): BuiltBalancers {
+export function buildBalancers(list: BalancerInput[], quarantined?: ReadonlySet<string>): BuiltBalancers {
   const result: BuiltBalancers = { outbounds: [], balancers: [], rules: [], observerSelectors: [] };
   let burstSource: BalancerInput | null = null;
   for (const balancer of list) {
@@ -73,6 +73,11 @@ export function buildBalancers(list: BalancerInput[]): BuiltBalancers {
       } catch {
         return;
       }
+      // Quarantined exit addresses are excluded from generated configs until
+      // their cooldown expires. This is how a blocked subnet is taken out of
+      // rotation without deleting the balancer member.
+      const address = String(parsed?.settings?.address || parsed?.address || '');
+      if (quarantined?.has(address)) return;
       const tag = `${prefix}${index + 1}`;
       result.outbounds.push({
         tag,
