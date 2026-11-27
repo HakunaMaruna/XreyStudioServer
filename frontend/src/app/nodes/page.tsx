@@ -117,7 +117,7 @@ export default function NodesPage() {
       const data = await api.get('/api/nodes');
       setNodes(Array.isArray(data) ? data : data.data || []);
       setLastUpdated(Date.now());
-      setError('');
+      if (!silent) setError('');
     } catch (e: any) {
       if (!silent) setError(e.message);
     } finally {
@@ -263,12 +263,12 @@ export default function NodesPage() {
     setNotice('');
     try {
       const result = await api.post<any>(`/api/node-provision/${node.id}/update-latest`, {});
+      await load(true);
       if (result?.updated) {
         setNotice(`${t.updateAgentDone}: ${node.name} → ${result.targetVersion || ''}`);
       } else {
         setError(result?.output || result?.error || t.updateAgentFailed);
       }
-      await load();
     } catch (e: any) {
       setError(e.message || t.updateAgentFailed);
     } finally {
@@ -472,8 +472,12 @@ export default function NodesPage() {
         </div>
       )}
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
-          <Icon name="alert" size={15} /> {error}
+        <div role="alert" className="mb-4 flex items-start gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+          <Icon name="alert" size={15} className="mt-0.5 shrink-0" />
+          <pre className="min-w-0 flex-1 select-text whitespace-pre-wrap break-words font-sans leading-relaxed text-danger">{error}</pre>
+          <button type="button" className="shrink-0 rounded p-1 text-danger hover:bg-danger/10" aria-label={t.close} onClick={() => setError('')}>
+            <Icon name="close" size={14} />
+          </button>
         </div>
       )}
 

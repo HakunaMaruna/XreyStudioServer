@@ -226,24 +226,24 @@ export class NodeProvisionService {
     // Wizard provisioning keeps deployment-specific relay ports/volumes in
     // docker-compose.node.yml. Preserve that file verbatim across the update;
     // a git stash/pop conflicts here because upstream also edits the file.
-    const backup = `${sudo}cp docker-compose.node.yml /tmp/xss-agent-compose-backup 2>/dev/null || true;`;
-    const clean = `${git} reset --hard HEAD >/dev/null 2>&1 || true;`;
-    const restore = `${sudo}cp /tmp/xss-agent-compose-backup docker-compose.node.yml 2>/dev/null || true;`;
+    const backup = `${sudo}cp docker-compose.node.yml /tmp/xss-agent-compose-backup 2>/dev/null || true`;
+    const clean = `${git} reset --hard HEAD >/dev/null 2>&1 || true`;
+    const restore = `${sudo}cp /tmp/xss-agent-compose-backup docker-compose.node.yml 2>/dev/null || true`;
+    const parts = [backup, clean];
     if (targetVersion) {
-      return (
-        `${backup} ${clean} ` +
+      parts.push(
         `( ${git} rev-parse -q --verify "refs/tags/${targetVersion}" >/dev/null && tag=${targetVersion} || tag=v${targetVersion}; ` +
-        `${git} checkout -q "$tag" ); ${restore}`
+        `${git} checkout -q "$tag" )`,
+      );
+    } else {
+      parts.push(
+        `branch=$(${git} symbolic-ref -q --short HEAD || ${git} for-each-ref --format='%(refname:short)' refs/heads | head -n 1)`,
+        `${git} checkout -q "\${branch:-main}"`,
+        `${git} pull -q --ff-only`,
       );
     }
-    return [
-      backup,
-      clean,
-      `branch=$(${git} symbolic-ref -q --short HEAD || ${git} for-each-ref --format='%(refname:short)' refs/heads | head -n 1)`,
-      `${git} checkout -q "\${branch:-main}"`,
-      `${git} pull -q --ff-only`,
-      restore,
-    ].join('; ');
+    parts.push(restore);
+    return parts.join('; ');
   }
 
   private async writeEnv(conn: Client, content: string, dto: ProvisionNodeDto) {
