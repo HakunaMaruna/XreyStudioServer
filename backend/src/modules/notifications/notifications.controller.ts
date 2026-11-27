@@ -8,6 +8,7 @@ import { SnapshotBefore } from '../snapshots/snapshot-before.decorator';
 import { TestNotificationDto, UpdateNotificationSettingsDto, DeliveryQueryDto } from './dto/notification-settings.dto';
 import { NotificationsService } from './notifications.service';
 import { NotificationSettingsService } from './notification-settings.service';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Controller('notifications')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -16,7 +17,7 @@ export class NotificationsController {
   constructor(
     private service: NotificationsService,
     private settings: NotificationSettingsService,
-    private prisma: import('../../prisma/prisma.service').PrismaService,
+    private prisma: PrismaService,
   ) {}
 
   @Post('test')
