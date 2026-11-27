@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
 import { readFileSync } from 'fs';
 import * as http from 'http';

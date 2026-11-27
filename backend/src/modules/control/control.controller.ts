@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiTokenGuard, ApiTokenUser, RequireScope } from '../api-tokens/api-token.guard';
 import type { ApiTokenContext } from '../api-tokens/api-tokens.service';

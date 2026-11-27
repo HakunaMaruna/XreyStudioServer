@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 'use client';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 /* eslint-disable @typescript-eslint/no-var-requires */
 // Plugin worker: isolated process, JSON-lines IPC. No direct DB/env access.
 type Pending = { resolve: (value: any) => void; reject: (error: Error) => void };

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { CallHandler, ExecutionContext } from '@nestjs/common';
 import { firstValueFrom, of } from 'rxjs';
 import { SnapshotBeforeInterceptor } from './snapshot-before.interceptor';

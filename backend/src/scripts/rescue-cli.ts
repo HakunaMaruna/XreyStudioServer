@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
+
 /**
  * Local rescue CLI for databases without HTTP/API access.
  * Run it on the host that can reach PostgreSQL (with DATABASE_URL set).

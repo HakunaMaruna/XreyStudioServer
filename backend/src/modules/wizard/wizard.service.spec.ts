@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { resolveCname } from 'dns/promises';
 import { WizardService } from './wizard.service';
 

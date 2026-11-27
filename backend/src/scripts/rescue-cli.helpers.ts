@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 /** Pure helpers for the rescue CLI. No database, no I/O, no secrets in results. */
 
 export const MIN_RESCUE_PASSWORD_LENGTH = 12;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 'use client';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';

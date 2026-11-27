@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { ChainsService } from './chains.service';
 
 const admin = { userId: 'u', email: 'a@b.c', role: 'ADMIN' } as any;

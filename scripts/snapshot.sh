@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 HakunaMaruna
+
 # XreyStudioServer — system snapshots CLI.
 # POSIX sh compatible: no arrays, no [[ ]], no pipefail. Secrets are never printed.
 # Online mode: curl + JWT from XSS_ADMIN_TOKEN against /api/snapshots.

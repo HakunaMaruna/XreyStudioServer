@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { createReadStream } from 'fs';
 import { stat } from 'fs/promises';

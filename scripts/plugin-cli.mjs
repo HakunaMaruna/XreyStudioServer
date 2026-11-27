@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
+
 // No external dependencies. Usage:
 //   node scripts/plugin-cli.mjs create <dir> <id> <name>
 //   node scripts/plugin-cli.mjs keygen <private.pem> <public.pem>

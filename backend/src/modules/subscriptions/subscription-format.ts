@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 export const SUBSCRIPTION_FORMATS = ['raw', 'base64', 'clash', 'singbox', 'json'] as const;
 export type SubscriptionFormat = (typeof SUBSCRIPTION_FORMATS)[number];
 

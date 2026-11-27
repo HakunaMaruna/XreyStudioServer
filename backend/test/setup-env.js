@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 process.env.JWT_SECRET ||= 'e2e-test-jwt-secret';
 process.env.JWT_REFRESH_SECRET ||= 'e2e-test-refresh-secret';
 process.env.NODE_ENV = 'test';

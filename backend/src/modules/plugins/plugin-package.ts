@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { BadRequestException } from '@nestjs/common';
 import { createHash, verify as ed25519Verify } from 'crypto';
 import { APP_VERSION } from '../../version';

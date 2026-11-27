@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { IsBoolean, IsObject, IsOptional, IsString, MaxLength, Matches } from 'class-validator';
 
 const NAME_PATTERN = /^[\p{L}\p{N} ._-]{1,120}$/u;

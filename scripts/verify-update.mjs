@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
+
 // Usage: node scripts/verify-update.mjs <bundle.tar.gz> <bundle.tar.gz.sig> <update_public.pem>
 import { readFileSync } from 'node:fs';
 import { verify } from 'node:crypto';

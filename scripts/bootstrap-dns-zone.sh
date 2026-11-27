@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 HakunaMaruna
+
 # Создаёт зону node.h2onetwork.pro в PowerDNS Authoritative.
 # Запускать на CONTROL-сервере после delegation зоны у регистратора.
 set -euo pipefail

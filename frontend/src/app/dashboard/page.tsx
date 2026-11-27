@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { ForbiddenException } from '@nestjs/common';
 import { DnsAdminService } from './dns-admin.service';
 import { DnsSettingsService } from './dns-settings.service';

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL =
   process.env.DATABASE_URL || 'postgres://xss:xss@127.0.0.1:5432/xss_e2e';

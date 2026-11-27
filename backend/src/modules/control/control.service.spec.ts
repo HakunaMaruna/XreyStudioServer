@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { ControlService } from './control.service';
 
 const ctx = { tokenId: 't', userId: 'u', role: 'ADMIN' as any, organizationId: 'org-1', scopes: [] as any[] };

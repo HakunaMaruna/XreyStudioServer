@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 'use client';
 import { useSyncExternalStore, type SVGProps } from 'react';
 import { Icon as DefaultIcon, type IconName } from './icons-default';

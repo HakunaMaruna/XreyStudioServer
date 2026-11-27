@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { Role } from '@prisma/client';
 import { SubscriptionTemplatesService } from './subscription-templates.service';
 

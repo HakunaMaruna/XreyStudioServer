@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { PluginStatus } from '@prisma/client';
 import { PluginManagerService } from './plugin-manager.service';
 import { PluginPackage } from './plugin-package';

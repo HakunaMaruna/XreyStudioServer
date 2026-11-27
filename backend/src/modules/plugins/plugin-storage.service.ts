@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { promises as fs } from 'fs';
 import * as path from 'path';

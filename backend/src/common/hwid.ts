@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { BadRequestException } from '@nestjs/common';
 
 const HWID_PATTERN = /^[A-Za-z0-9_.:-]{8,128}$/;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { NotificationEvent } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';

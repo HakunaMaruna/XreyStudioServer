@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import { Suspense } from 'react';

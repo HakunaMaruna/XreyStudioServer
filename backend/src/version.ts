@@ -1,4 +1,6 @@
-export const APP_VERSION = '2.50.4';
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
+export const APP_VERSION = '2.50.5';
 
 // Панель и агент релизятся вместе, поэтому устаревший агент — тот, чья версия
 // не совпадает с версией панели.

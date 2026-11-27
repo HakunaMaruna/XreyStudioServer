@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 /**
  * Public origin used in canonical links, Open Graph tags, robots.txt and sitemap.xml.
  * Set NEXT_PUBLIC_SITE_URL to the externally visible URL of the panel, e.g.

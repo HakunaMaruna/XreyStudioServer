@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 const DEV_SECRET = 'dev-only-insecure-secret-change-me';
 
 /** JWT signing secret: production requires an explicit, sufficiently long value. */

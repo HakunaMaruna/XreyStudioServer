@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { SetMetadata } from '@nestjs/common';
 
 export const SNAPSHOT_BEFORE_KEY = 'xss.snapshot-before';

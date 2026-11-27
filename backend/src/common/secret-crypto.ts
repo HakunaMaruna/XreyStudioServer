@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
 
 // Шифрование секретов мастера (SSH-пароли, ключи) в БД.

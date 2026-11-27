@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 /**
  * Plugin SDK helpers. The runtime always passes a versioned `sdk` object into hooks;
  * these helpers are for authoring and validation only.

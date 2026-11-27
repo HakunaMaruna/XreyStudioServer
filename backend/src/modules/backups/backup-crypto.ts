@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 import { createReadStream, createWriteStream, openSync, readSync, closeSync, statSync, writeSync, writeFileSync } from 'fs';
 import { pipeline } from 'stream/promises';

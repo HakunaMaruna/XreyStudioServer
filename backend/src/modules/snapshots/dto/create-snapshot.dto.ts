@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import { SnapshotScope } from '@prisma/client';
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import {
   IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Matches, Max, Min,
 } from 'class-validator';

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { SNAPSHOT_BEFORE_KEY } from '../snapshots/snapshot-before.decorator';
 import { UpdatesController } from './updates.controller';
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 'use strict';
 
 // Transparent TCP relays (Mistgate style): plain byte streams in both

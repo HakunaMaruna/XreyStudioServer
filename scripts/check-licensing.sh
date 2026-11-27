@@ -30,7 +30,8 @@ while IFS= read -r file; do
     echo "NO SPDX HEADER: $file"
     fail=1
   fi
-  if grep -q 'SPDX-License-Identifier: MIT' "$file"; then
+  stale="SPDX-License-Identifier: ""MIT"
+  if grep -q "$stale" "$file"; then
     echo "STALE MIT HEADER: $file"
     fail=1
   fi

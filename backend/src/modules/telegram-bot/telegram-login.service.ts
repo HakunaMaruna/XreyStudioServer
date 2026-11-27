@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { getJwtSecret } from '../../common/env';

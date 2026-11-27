@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 // ISO 3166-1 alpha-2: код + флаг. Название получаем через Intl.DisplayNames.
 export type Country = { code: string; flag: string };
 

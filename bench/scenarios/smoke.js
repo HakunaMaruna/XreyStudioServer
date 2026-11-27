@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 'use strict';
 
 const BASE_URL = (process.env.SMOKE_BASE_URL || 'https://msc.h2onetwork.pro').replace(/\/$/, '');

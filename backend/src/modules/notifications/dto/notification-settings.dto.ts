@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { IsObject, IsOptional, IsString, Matches } from 'class-validator';
 
 export class UpdateNotificationSettingsDto {

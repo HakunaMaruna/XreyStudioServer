@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { Injectable, Logger } from '@nestjs/common';
 import { TelegramLoginService } from './telegram-login.service';
 

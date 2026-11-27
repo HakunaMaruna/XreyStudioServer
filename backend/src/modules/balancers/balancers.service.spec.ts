@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { BadRequestException } from '@nestjs/common';
 import { encryptSecret } from '../../common/secret-crypto';
 import { BalancersService } from './balancers.service';

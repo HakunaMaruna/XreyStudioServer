@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { createHmac } from 'crypto';
 import { NotificationEvent } from '@prisma/client';

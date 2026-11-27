@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 HakunaMaruna
+
 # Deploy XreyStudioServer to a remote host over SSH for a quick IP:80 test.
 # Usage: ./scripts/deploy-remote.sh <host> [user] [ssh-port]
 set -euo pipefail

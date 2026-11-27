@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 import { NextRequest, NextResponse } from 'next/server';
 
 // Клиенты подписок (v2rayNG, Shadowrocket, Clash, sing-box и др.) часто получают

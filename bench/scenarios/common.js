@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 const fs = require('fs');
 const path = require('path');
 const autocannon = require('autocannon');

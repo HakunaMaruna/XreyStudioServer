@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 HakunaMaruna
 // AES-256-GCM helper for scripts/xss. The CLI passes this file to `node -e`
 // inside the backend container, so it does not require a rebuilt image.
 //

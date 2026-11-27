@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 HakunaMaruna
+
 # Инициализирует SQLite-базу PowerDNS в именованном volume (только CONTROL-режим).
 # Запускать один раз перед первым стартом powerdns.
 set -euo pipefail
