@@ -427,4 +427,9 @@ Open Graph. Укажите `NEXT_PUBLIC_SITE_URL` равным внешнему 
 
 ## Лицензия
 
-MIT
+[GNU Affero General Public License v3.0 или позднее](LICENSE) (`SPDX-License-Identifier: AGPL-3.0-or-later`).
+
+XreyStudioServer — свободное ПО. Если вы модифицируете панель и предоставляете
+её пользователям по сети, пункт 13 AGPL обязывает предложить им исходный код
+вашей версии. Подробности, сторонние компоненты и проверку подписи релизов
+смотрите в [NOTICE](NOTICE) и [docs/IP-POLICY.md](docs/IP-POLICY.md).

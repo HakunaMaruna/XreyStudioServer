@@ -1,8 +1,8 @@
 {
   "name": "@xss/plugin-sdk",
   "version": "1.0.0",
+  "license": "MIT",
   "description": "Development helpers for XreyStudioServer plugins",
   "main": "index.js",
-  "license": "MIT",
   "private": true
 }

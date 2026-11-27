@@ -1,6 +1,7 @@
 {
   "name": "xss-bench",
   "version": "1.8.3",
+  "license": "AGPL-3.0-or-later",
   "private": true,
   "description": "HTTP load scenarios for XreyStudioServer (issues #40/#42)",
   "scripts": {

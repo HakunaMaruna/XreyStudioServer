@@ -431,4 +431,10 @@ canonical links and Open Graph metadata. Set `NEXT_PUBLIC_SITE_URL` to your exte
 
 ## License
 
-MIT
+[GNU Affero General Public License v3.0 or later](LICENSE) (`SPDX-License-Identifier: AGPL-3.0-or-later`).
+
+XreyStudioServer is free software. If you modify it and make the modified
+version available to users over a network, AGPL section 13 requires you to
+offer those users the Corresponding Source of your version. See [NOTICE](NOTICE)
+and [docs/IP-POLICY.md](docs/IP-POLICY.md) for the full policy, third-party
+components and instructions for verifying signed release bundles.
