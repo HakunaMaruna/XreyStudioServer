@@ -76,17 +76,19 @@ export default function TelemetryPage() {
       {notice && <div className="mb-4 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
 
       <div className="grid gap-3 md:grid-cols-2">
-        <Card className="p-4">
+        <Card className="p-3">
           <SectionTitle title={t.telemetry} subtitle={status?.mode} />
-          <div className="space-y-2 text-xs">
-            <div className="flex justify-between"><span className="text-muted">{t.telemetryInstallId}</span><span className="mono text-fg">{status?.installId || '—'}</span></div>
-            <div className="flex justify-between"><span className="text-muted">{t.telemetryEnabled}</span><Toggle checked={Boolean(status?.enabled)} onChange={setEnabled} /></div>
-            <div className="flex justify-between"><span className="text-muted">{t.telemetryConfigured}</span><Badge tone={status?.configured ? 'success' : 'warning'} dot>{status?.configured ? (lang === 'ru' ? 'да' : 'yes') : (lang === 'ru' ? 'нет' : 'no')}</Badge></div>
-            <div className="flex justify-between"><span className="text-muted">{t.telemetryLastSeen}</span><span className="text-fg">{status?.lastSentAt ? new Date(status.lastSentAt).toLocaleString() : '—'}</span></div>
-            {status?.licenseUrl && <a className="text-brand underline" href={status.licenseUrl} target="_blank" rel="noopener noreferrer">{t.telemetryLicense}</a>}
+          <div className="mt-2 grid gap-x-3 gap-y-1 text-[11px] sm:grid-cols-2">
+            <div className="flex min-w-0 items-center justify-between gap-2"><span className="shrink-0 text-muted">{t.telemetryInstallId}</span><span className="mono truncate text-fg">{status?.installId || '—'}</span></div>
+            <div className="flex items-center justify-between gap-2"><span className="text-muted">{t.telemetryConfigured}</span><Badge tone={status?.configured ? 'success' : 'warning'} dot>{status?.configured ? (lang === 'ru' ? 'да' : 'yes') : (lang === 'ru' ? 'нет' : 'no')}</Badge></div>
+            <div className="flex items-center justify-between gap-2 sm:col-span-2"><span className="text-muted">{t.telemetryLastSeen}</span><span className="text-fg">{status?.lastSentAt ? new Date(status.lastSentAt).toLocaleString() : '—'}</span></div>
           </div>
-          <Button variant="primary" icon="upload" size="sm" className="mt-4" loading={busy} disabled={!status?.configured || !status?.accepted} onClick={sendNow}>{t.telemetrySendNow}</Button>
-          {!status?.configured && <p className="mt-2 text-xs text-warning">{t.telemetryNoConfig}</p>}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Toggle checked={Boolean(status?.enabled)} onChange={setEnabled} label={t.telemetryEnabled} />
+            <Button variant="primary" icon="upload" size="sm" loading={busy} disabled={!status?.configured || !status?.accepted} onClick={sendNow}>{t.telemetrySendNow}</Button>
+            {status?.licenseUrl && <a className="text-[11px] text-brand underline" href={status.licenseUrl} target="_blank" rel="noopener noreferrer">{t.telemetryLicense}</a>}
+          </div>
+          {!status?.configured && <p className="mt-2 text-[11px] text-warning">{t.telemetryNoConfig}</p>}
         </Card>
 
         <Card className="p-4">
@@ -128,12 +130,13 @@ export default function TelemetryPage() {
       </div>
 
       {logs.length > 0 && <div className="mt-4">
-        <SectionTitle title={t.telemetryLogs} />
-        <Card className="divide-y divide-line/40 p-0">
+        <SectionTitle title={t.telemetryLogs} subtitle={t.telemetryLogsHint} />
+        <Card className="max-h-64 divide-y divide-line/40 overflow-auto p-0">
           {logs.map((row) => (
-            <div key={row.id} className="flex flex-wrap items-center gap-2 px-4 py-2 text-[11px]">
+            <div key={row.id} className="flex flex-wrap items-center gap-2 px-4 py-1.5 text-[11px]">
               <span className="mono text-subtle">{new Date(row.createdAt).toLocaleString()}</span>
               <Badge tone="neutral">{row.installation.installId.slice(0, 8)}</Badge>
+              <Badge tone="warning">{row.source}</Badge>
               <span className="text-muted">{row.message}</span>
             </div>
           ))}
