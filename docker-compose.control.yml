@@ -140,6 +140,10 @@ services:
     environment:
       PANEL_URL: ${PANEL_URL:-http://backend:3000}
       XRAY_MANAGED: "true"
+      RELAY_CONFIG_PATH: /etc/xss-agent/relays.json
+    volumes:
+      - xss_agent_decoy:/etc/xss-agent/decoy
+      - xss_agent_relays:/etc/xss-agent
     depends_on:
       - backend
     # Тестовые inbound'ы; 443 занят Caddy, поэтому используем 2053/2054.
@@ -206,3 +210,5 @@ volumes:
   prometheus_data:
   letsencrypt:
   grafana_data:
+  xss_agent_decoy:
+  xss_agent_relays:

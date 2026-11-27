@@ -142,11 +142,14 @@ export class SubscriptionsService {
   async getStatus(token: string) {
     const user = await this.loadUser(token);
     const directIds = new Set(user.inbounds.map((i: any) => i.id));
+    // Chain exit inbounds are only a transport target for the entry relay —
+    // exposing them here would bypass the chain entirely.
+    const isChainExit = (i: any) => Boolean((i?.settings as any)?.chainId);
     const allInbounds: any[] = [
-      ...user.inbounds,
+      ...user.inbounds.filter((i: any) => !isChainExit(i)),
       ...(user.inboundClients || [])
         .map((c: any) => c.inbound)
-        .filter((i: any) => i && i.enabled && !directIds.has(i.id)),
+        .filter((i: any) => i && i.enabled && !directIds.has(i.id) && !isChainExit(i)),
     ];
     const links = allInbounds
       .map((inbound) => {
@@ -196,7 +199,7 @@ export class SubscriptionsService {
       nodes: Array.from(
         new Map(
           user.inbounds
-            .filter((i) => i.node)
+            .filter((i) => i.node && !(i.settings as any)?.chainId)
             .map((i) => [i.node!.id, { id: i.node!.id, name: i.node!.name, address: i.node!.address }]),
         ).values(),
       ),

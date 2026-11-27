@@ -15,6 +15,7 @@ services:
       DECOY_TLS_DIR: ${DECOY_TLS_DIR:-/etc/xss-agent/decoy}
       ACME_WEBROOT: ${ACME_WEBROOT:-/var/www/certbot}
       WIZARD_DECOY_PORT: ${DECOY_PORT:-8443}
+      RELAY_CONFIG_PATH: /etc/xss-agent/relays.json
     ports:
       # Default wizard inbound (VLESS Reality) listens on 443 inside the agent container.
       - "443:443/tcp"
@@ -27,6 +28,7 @@ services:
       - "2054:2054/tcp"
     volumes:
       - xss_agent_decoy:/etc/xss-agent/decoy
+      - xss_agent_relays:/etc/xss-agent
     restart: unless-stopped
 
 volumes:

@@ -374,8 +374,10 @@ export class NodeProvisionService {
       `set -e; cd ${repoDir}; ` +
       `${sudo}git fetch --tags --force origin; ` +
       `${this.gitUpdate(sudo, targetVersion)}; ` +
-      `${sudo}docker compose build agent; ` +
-      `${sudo}docker compose up -d --no-deps agent`;
+      // Wizard nodes use docker-compose.node.yml which publishes Reality ports.
+      'COMPOSE=$(test -f docker-compose.node.yml && echo "-f docker-compose.node.yml" || true); ' +
+      `${sudo}docker compose $COMPOSE build agent; ` +
+      `${sudo}docker compose $COMPOSE up -d --no-deps agent`;
 
     const conn = await this.connect(dto);
     try {
