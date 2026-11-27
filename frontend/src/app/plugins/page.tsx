@@ -6,7 +6,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import { Icon } from '../../components/icons';
 import {
-  Badge, Button, Card, Field, HelpButton, IconButton, Modal, PageHeader, SectionTitle, Segmented, Toggle,
+  Badge, Button, Card, Field, HelpButton, IconButton, Modal, PageHeader, SectionTitle, Segmented, Toggle, cn,
 } from '../../components/ui';
 
 type Installed = {
@@ -16,7 +16,8 @@ type Installed = {
 };
 type CatalogPlugin = {
   id: string; name: string; author: string; description: string; category: string;
-  latestVersion: string | null; versionId?: string | null; manifest?: { permissions?: string[] }; iconUrl?: string | null; revoked?: boolean;
+  latestVersion: string | null; versionId?: string | null; manifest?: { permissions?: string[] }; iconUrl?: string | null;
+  revoked?: boolean; tags?: string[]; authorUrl?: string | null;
 };
 type Catalog = { plugins: CatalogPlugin[]; categories?: string[]; offline?: boolean; cached?: boolean; error?: string };
 type Policy = { whitelist?: string[]; blacklist?: string[]; mandatory?: string[]; forcedUpdates?: string[] };
@@ -34,6 +35,7 @@ export default function PluginsPage() {
   const [settingsFor, setSettingsFor] = useState<Installed | null>(null);
   const [settingsDraft, setSettingsDraft] = useState<Record<string, unknown>>({});
   const [logsFor, setLogsFor] = useState<string | null>(null);
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
   const [logs, setLogs] = useState<any[]>([]);
 
   const load = useCallback(async () => {
@@ -161,20 +163,59 @@ export default function PluginsPage() {
         <div className="space-y-3">
           {catalog?.offline && <div className="rounded-lg border border-warning/25 bg-warning/10 px-3 py-2 text-xs text-warning">{t.pluginsOffline}</div>}
           {!catalog?.plugins.length ? <Card className="py-16 text-center text-xs text-subtle">{t.noData}</Card> : (
-            <div className="grid gap-3 md:grid-cols-2">
-              {catalog.plugins.map((plugin) => (
-                <Card key={plugin.id} className="p-4">
-                  <div className="flex items-center gap-3">
-                    {plugin.iconUrl ? <img src={plugin.iconUrl} alt="" className="h-9 w-9 rounded-lg object-contain" /> : <div className="grid h-9 w-9 place-items-center rounded-lg bg-brand/10 text-brand"><Icon name="box" size={17} /></div>}
-                    <div><p className="text-sm font-semibold text-fg">{plugin.name}</p><p className="text-[10px] text-subtle">{plugin.author} · {plugin.latestVersion || '—'}</p></div>
-                  </div>
-                  <p className="mt-2 text-xs text-muted">{plugin.description}</p>
-                  <div className="mt-2 flex flex-wrap gap-1">{(plugin.manifest?.permissions || []).map((p) => <Badge key={p} tone="brand">{p}</Badge>)}</div>
-                  {plugin.revoked && <Badge tone="danger">revoked</Badge>}
-                  <Button size="sm" variant="primary" icon="download" className="mt-3" disabled={!plugin.latestVersion || plugin.revoked || busy}
-                    onClick={() => installFromCatalog(plugin)}>{t.pluginsInstall}</Button>
-                </Card>
-              ))}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
+              {catalog.plugins.map((plugin) => {
+                const installed = rows.find((row) => row.pluginId === plugin.id);
+                const ours = ['XreyStudio', 'XreyStudioServer', 'DEV XSS'].includes(plugin.author);
+                const authorUrl = plugin.authorUrl || (ours ? 'https://t.me/matatadmitry' : null);
+                const tags = (plugin.tags?.length ? plugin.tags : [plugin.category, ...(plugin.manifest?.permissions || [])]).filter(Boolean) as string[];
+                const expanded = Boolean(expandedDescriptions[plugin.id]);
+                const longDescription = plugin.description.length > 100;
+                return (
+                  <Card key={plugin.id} className="flex min-w-0 flex-col p-3">
+                    <div className="flex min-w-0 items-start gap-2.5">
+                      {plugin.iconUrl ? (
+                        <img src={plugin.iconUrl} alt="" className="h-9 w-9 shrink-0 rounded-lg object-contain" />
+                      ) : (
+                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand/10 text-sm font-bold text-brand">
+                          {plugin.name.slice(0, 1).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <p className="truncate text-[13px] font-semibold text-fg">{plugin.name}</p>
+                          {plugin.revoked && <Badge tone="danger">revoked</Badge>}
+                        </div>
+                        <div className="flex min-w-0 items-center gap-1.5 text-[10px]">
+                          <span className={cn('truncate', ours ? 'font-semibold text-success' : 'text-subtle')}>{plugin.author}</span>
+                          {authorUrl && <a href={authorUrl} target="_blank" rel="noopener noreferrer" title={t.pluginAuthorTelegram} className="shrink-0 text-brand hover:underline"><Icon name="external" size={11} /></a>}
+                          <span className="shrink-0 text-subtle">· {plugin.latestVersion || '—'}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {tags.slice(0, 5).map((tag) => <Badge key={tag} tone="brand">{tag}</Badge>)}
+                      {tags.length > 5 && <Badge tone="neutral">+{tags.length - 5}</Badge>}
+                    </div>
+                    <p className={cn('mt-2 text-[11px] leading-relaxed text-muted', !expanded && 'line-clamp-3')}>{plugin.description}</p>
+                    {longDescription && (
+                      <button type="button" className="mt-1 self-start text-[10px] font-medium text-brand hover:underline"
+                        onClick={() => setExpandedDescriptions((prev) => ({ ...prev, [plugin.id]: !expanded }))}>
+                        {expanded ? t.hideExtraFields : t.pluginExpand}
+                      </button>
+                    )}
+                    <div className="mt-auto flex items-center justify-between gap-2 pt-3">
+                      <Badge tone="neutral">{plugin.category || 'plugin'}</Badge>
+                      {installed ? (
+                        <Button size="sm" variant="subtle" icon="sliders" disabled={busy} onClick={() => openSettings(installed)}>{t.pluginOpen}</Button>
+                      ) : (
+                        <Button size="sm" variant="primary" icon="download" disabled={!plugin.latestVersion || plugin.revoked || busy}
+                          onClick={() => installFromCatalog(plugin)}>{t.pluginsInstall}</Button>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>

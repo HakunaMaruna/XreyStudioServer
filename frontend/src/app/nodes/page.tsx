@@ -73,6 +73,7 @@ export default function NodesPage() {
   const [notice, setNotice] = useState('');
   const [uiSettings, setUiSettings] = useState<{ autoRefresh?: boolean; metricsEnabled?: boolean }>({});
   const [updatingAgentId, setUpdatingAgentId] = useState<string | null>(null);
+  const [busyNode, setBusyNode] = useState<{ id: string; label: string } | null>(null);
   const [ipv6Node, setIpv6Node] = useState<NodeRow | null>(null);
   const [ipv6Addresses, setIpv6Addresses] = useState<string[]>([]);
   const [ipv6Selected, setIpv6Selected] = useState('');
@@ -273,6 +274,20 @@ export default function NodesPage() {
       setError(e.message || t.updateAgentFailed);
     } finally {
       setUpdatingAgentId(null);
+    }
+  };
+
+  const runNodeAction = async (node: NodeRow, label: string, action: () => Promise<unknown>) => {
+    setBusyNode({ id: node.id, label });
+    setError('');
+    setNotice('');
+    try {
+      await action();
+      setNotice(`${label}: ${node.name} — OK`);
+    } catch (e: any) {
+      setError(e.message || `${label}: ${node.name}`);
+    } finally {
+      setBusyNode(null);
     }
   };
 
@@ -521,7 +536,7 @@ export default function NodesPage() {
       ) : filteredNodes.length === 0 ? (
         <Card className="py-16 text-center text-xs text-subtle">{t.noData}</Card>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {filteredNodes.map((node) => {
             const metric = node.metrics?.[0];
             const upMbps = metric ? Number((Number(metric.trafficUp) * 8 / 15 / 1_000_000).toFixed(3)) : 0;
@@ -538,6 +553,11 @@ export default function NodesPage() {
                       {flag && <span title={node.geo?.countryCode || node.location || ''}>{flag}</span>}
                       <p className="truncate font-semibold text-fg">{node.name}</p>
                       <StatusBadge status={node.status} />
+                      {busyNode?.id === node.id && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-brand">
+                          <Icon name="refresh" size={11} className="animate-spin" /> {busyNode.label}…
+                        </span>
+                      )}
                       {node.geo?.countryCode && <Badge tone="neutral">{node.geo.countryCode}</Badge>}
                       {node.agentVersion && (
                         <Badge tone={node.agentOutdated ? 'warning' : 'success'} dot>
@@ -594,11 +614,11 @@ export default function NodesPage() {
                 })()}
 
                 {uiSettings.metricsEnabled !== false && <div className="mt-3 grid grid-cols-2 gap-3">
-                  <div>
+                  <div title={metric ? `CPU ${Number(metric.cpu).toFixed(1)}%` : undefined}>
                     <div className="mb-1 flex justify-between text-[10px] text-subtle"><span>CPU</span><span className="tabular-nums text-fg">{metric ? Number(metric.cpu).toFixed(0) : '—'}%</span></div>
                     <ProgressBar value={metric ? Number(metric.cpu) : 0} tone={metric && Number(metric.cpu) > 85 ? 'danger' : metric && Number(metric.cpu) > 65 ? 'warning' : 'success'} />
                   </div>
-                  <div>
+                  <div title={metric ? `RAM ${Number(metric.ram).toFixed(1)}%` : undefined}>
                     <div className="mb-1 flex justify-between text-[10px] text-subtle"><span>RAM</span><span className="tabular-nums text-fg">{metric ? Number(metric.ram).toFixed(0) : '—'}%</span></div>
                     <ProgressBar value={metric ? Number(metric.ram) : 0} tone={metric && Number(metric.ram) > 85 ? 'danger' : metric && Number(metric.ram) > 65 ? 'warning' : 'cyan'} />
                   </div>
@@ -614,9 +634,9 @@ export default function NodesPage() {
                 <div className="mt-3 flex flex-wrap gap-1 border-t border-line pt-3">
                   <IconButton icon="gauge" label={t.metrics} tone="brand" onClick={() => openMetrics(node)} />
                   <IconButton icon="activity" label={t.health} onClick={() => openHealth(node)} />
-                  <IconButton icon="shield" label={t.cheburcheckCheck} tone="brand" onClick={() => runCheburcheck(node)} />
+                  <IconButton icon="shield" label={t.cheburcheckCheck} tone="brand" disabled={Boolean(busyNode)} onClick={() => runNodeAction(node, t.cheburcheckCheck, async () => { await runCheburcheck(node); })} />
                   <IconButton icon="edit" label={t.edit} onClick={() => openEdit(node)} />
-                  <IconButton icon="play" label={t.apply} tone="brand" onClick={() => apply(node.id)} />
+                  <IconButton icon="play" label={t.apply} tone="brand" disabled={Boolean(busyNode)} onClick={() => runNodeAction(node, t.apply, () => apply(node.id))} />
                   <IconButton icon="download" label={t.updateAgent} tone="brand" onClick={() => openAgentUpdate(node)} />
                   <IconButton icon="network" label={t.ipv6Entry} tone={node.ipv6Enabled ? 'brand' : 'default'} onClick={() => openIpv6(node)} />
                   {node.agentOutdated && (
@@ -625,7 +645,7 @@ export default function NodesPage() {
                       {t.updateAgentLatest}
                     </Button>
                   )}
-                  <IconButton icon="refresh" label={t.restart} onClick={() => restart(node.id)} />
+                  <IconButton icon="refresh" label={t.restart} disabled={Boolean(busyNode)} onClick={() => runNodeAction(node, t.restart, () => restart(node.id))} />
                   <IconButton icon="history" label={t.revisions} onClick={() => openRevisions(node)} />
                   <IconButton icon="terminal" label={t.logs} onClick={() => openLogs(node)} />
                   <Button size="sm" variant="danger" icon="trash" className="ml-auto" onClick={() => remove(node)}>

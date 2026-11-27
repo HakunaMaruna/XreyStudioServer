@@ -17,7 +17,7 @@ type Check = {
 };
 
 export default function DoctorPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [checks, setChecks] = useState<Check[]>([]);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -57,6 +57,11 @@ export default function DoctorPage() {
   return (
     <>
       <PageHeader eyebrow="Infrastructure" title={t.doctor} subtitle={t.doctorSubtitle} icon="activity" />
+      <Card className="mb-4 p-3 text-[11px] leading-relaxed text-muted">
+        {lang === 'ru'
+          ? 'Сейчас раздел проверяет базу данных, доступность нод, результаты client-eye проверок, срок сертификатов и свежесть ревизий конфига. Для 중요한 проверок доступна кнопка «Применить исправление» — она создаёт и применяет новую ревизию. Журнал событий и расширенная диагностика планируются.'
+          : 'Currently checks the database, node availability, client-eye results, certificate expiry and config revision freshness. Fixable items get an "Apply fix" button that creates and applies a new revision. Extended diagnostics and an event log are planned.'}
+      </Card>
       {error && (
         <div role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}

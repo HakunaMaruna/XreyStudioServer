@@ -270,34 +270,53 @@ export default function DnsPage() {
 
       {tab === 'overview' && status && (
         <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Card className="p-4">
-              <p className="text-[11px] text-subtle">{t.status}</p>
-              <p className="mt-2 text-lg font-semibold text-fg">{status.available ? 'OK' : '—'}</p>
-              <p className="mt-1 text-[10px] text-muted">PowerDNS {status.version || ''}</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
+            <Card className="p-3">
+              <p className="text-[10px] uppercase text-subtle">{t.status}</p>
+              <p className="mt-1 text-base font-semibold text-fg">{status.available ? 'OK' : '—'}</p>
+              <p className="truncate text-[10px] text-muted">PowerDNS {status.version || ''}</p>
             </Card>
-            <Card className="p-4">
-              <p className="text-[11px] text-subtle">{t.dnsZones}</p>
-              <p className="mt-2 text-lg font-semibold text-fg tabular-nums">{status.zones ?? '—'}</p>
-              <p className="mt-1 text-[10px] text-muted">{status.zone}</p>
+            <Card className="p-3">
+              <p className="text-[10px] uppercase text-subtle">{t.dnsZones}</p>
+              <p className="mt-1 text-base font-semibold text-fg tabular-nums">{status.zones ?? '—'}</p>
+              <p className="truncate text-[10px] text-muted">{status.zone}</p>
             </Card>
-            <Card className="p-4">
-              <p className="text-[11px] text-subtle">{t.dnsQueries}</p>
-              <p className="mt-2 text-lg font-semibold text-fg tabular-nums">{status.queries ?? '—'}</p>
-              <p className="mt-1 text-[10px] text-muted">servfail: {status.servfail ?? 0}</p>
+            <Card className="p-3">
+              <p className="text-[10px] uppercase text-subtle">{t.dnsQueries}</p>
+              <p className="mt-1 text-base font-semibold text-fg tabular-nums">{status.queries ?? '—'}</p>
+              <p className="truncate text-[10px] text-muted">servfail: {status.servfail ?? 0}</p>
             </Card>
-            <Card className="p-4">
-              <p className="text-[11px] text-subtle">{t.dnsUptime}</p>
-              <p className="mt-2 text-lg font-semibold text-fg tabular-nums">{status.uptime ? uptime(status.uptime) : '—'}</p>
-              <p className="mt-1 text-[10px] text-muted">{t.dnsLatency}: {status.latency ?? 0} µs</p>
+            <Card className="p-3">
+              <p className="text-[10px] uppercase text-subtle">{t.dnsUptime}</p>
+              <p className="mt-1 text-base font-semibold text-fg tabular-nums">{status.uptime ? uptime(status.uptime) : '—'}</p>
+              <p className="truncate text-[10px] text-muted">{t.dnsLatency}: {status.latency ?? 0} µs</p>
             </Card>
           </div>
-          <Card className="mt-4">
-            <SectionTitle title={t.dnsDelegation} subtitle={lang === 'ru' ? 'Записи в родительской зоне у регистратора' : 'Records at your registrar'} />
-            <pre className="mono overflow-x-auto rounded-lg border border-line bg-surface-2/60 p-3 text-[11px] leading-relaxed text-muted">{`${status.zone}.\tNS\tns1.h2onetwork.pro.
-${status.zone}.\tNS\tns2.h2onetwork.pro.
-ns1.h2onetwork.pro.\tA\t<IP CONTROL>
-ns2.h2onetwork.pro.\tA\t<IP CONTROL>`}</pre>
+          <Card className="mt-3">
+            <SectionTitle title={t.dnsDelegation} subtitle={lang === 'ru' ? 'Записи в родительской зоне у регистратора' : 'Records at your registrar'}
+              action={<Button size="sm" icon="refresh" onClick={load}>{t.check}</Button>} />
+            <div className="max-h-44 overflow-auto rounded-lg border border-line">
+              <table className="w-full table-fixed text-left text-[11px]">
+                <thead className="sticky top-0 bg-surface-2 text-[10px] uppercase text-subtle">
+                  <tr><th className="w-2/5 px-2 py-1.5">Домен</th><th className="w-1/5 px-2 py-1.5">Тип</th><th className="w-1/5 px-2 py-1.5">Запись</th><th className="w-1/5 px-2 py-1.5">TTL</th></tr>
+                </thead>
+                <tbody className="divide-y divide-line/40">
+                  {[
+                    [`${status.zone}.`, 'NS', 'ns1.h2onetwork.pro.', 3600],
+                    [`${status.zone}.`, 'NS', 'ns2.h2onetwork.pro.', 3600],
+                    ['ns1.h2onetwork.pro.', 'A', 'CONTROL IP', 3600],
+                    ['ns2.h2onetwork.pro.', 'A', 'CONTROL IP', 3600],
+                  ].map((row, index) => (
+                    <tr key={index} className="text-fg">
+                      <td className="mono truncate px-2 py-1.5">{String(row[0])}</td>
+                      <td className="px-2 py-1.5"><Badge tone="brand">{String(row[1])}</Badge></td>
+                      <td className="mono truncate px-2 py-1.5 text-muted">{String(row[2])}</td>
+                      <td className="px-2 py-1.5 tabular-nums text-subtle">{String(row[3])}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </Card>
         </>
       )}
