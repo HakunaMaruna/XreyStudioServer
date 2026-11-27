@@ -164,7 +164,13 @@ export class NotificationsService {
       } catch {}
       return { ok: res.ok, status: res.status, description: description || null };
     };
-    const getMe = describe(await this.outboundRequest(`https://api.telegram.org/bot${token}/getMe`, 'GET', {}));
+    const getMeRaw = await this.outboundRequest(`https://api.telegram.org/bot${token}/getMe`, 'GET', {});
+    const getMe = describe(getMeRaw);
+    try {
+      const parsed = JSON.parse(getMeRaw.text || '');
+      if (parsed?.result?.id !== undefined) getMe.id = String(parsed.result.id);
+      if (parsed?.result?.username) getMe.username = String(parsed.result.username);
+    } catch {}
     const updatesRaw = await this.outboundRequest(`https://api.telegram.org/bot${token}/getUpdates?limit=10`, 'GET', {});
     let firstChatId: string | null = null;
     try {
