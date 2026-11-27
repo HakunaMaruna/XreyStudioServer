@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 HakunaMaruna
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { NotificationEvent, Role } from '@prisma/client';
 import { isIP } from 'net';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
@@ -39,15 +39,77 @@ type ProbeEvent = { event: string; data: Record<string, any> };
 const VERDICT_PRIORITY = ['tspu_block', 'dns_spoofing', 'cdn_block', 'sni_block', 'uncertain', 'ok'];
 
 @Injectable()
-export class CheburcheckService {
+export class CheburcheckService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(CheburcheckService.name);
   private readonly probeTimeoutMs = Number(process.env.CHEBURCHECK_PROBE_TIMEOUT_MS || 45_000);
+  private readonly scheduleMs = Math.max(3_600_000, Number(process.env.CHEBURCHECK_SCHEDULE_MS || 21_600_000));
+  private timer?: NodeJS.Timeout;
+  private running = false;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly settings: NotificationSettingsService,
     private readonly notifications: NotificationsService,
   ) {}
+
+  onModuleInit() {
+    this.timer = setInterval(() => this.runScheduled(), this.scheduleMs);
+    this.timer.unref?.();
+    setTimeout(() => this.runScheduled(), 60_000).unref?.();
+  }
+
+  onModuleDestroy() {
+    if (this.timer) clearInterval(this.timer);
+  }
+
+  /** Periodic Cheburcheck run with a Telegram digest of every target. */
+  async runScheduled() {
+    if (this.running) return;
+    this.running = true;
+    try {
+      const configured = (process.env.CHEBURCHECK_TARGETS || '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const domains = configured.length
+        ? configured
+        : (await this.prisma.nodeDomain.findMany({
+            where: { releasedAt: null },
+            select: { fqdn: true },
+            take: 20,
+          })).map((row) => row.fqdn);
+      const targets = domains.length
+        ? domains
+        : (await this.prisma.node.findMany({ select: { address: true }, take: 20 })).map((row) => row.address);
+      if (!targets.length) return;
+
+      const system: AuthUser = { userId: 'system', email: 'system', role: Role.ADMIN, organizationId: null };
+      const lines: string[] = [];
+      for (const target of targets) {
+        try {
+          const result = await this.check({ target }, system);
+          lines.push(`• <code>${this.esc(target)}</code> — ${result.blocked ? '⛔' : '✅'} ${this.esc(result.verdict)}`);
+        } catch (error: any) {
+          lines.push(`• <code>${this.esc(target)}</code> — ⚠️ error ${this.esc(error.message)}`);
+        }
+      }
+      const text = [
+        '<b>🔎 CHEBURCHECK: ДАЙДЖЕСТ</b>',
+        `<b>Целей:</b> ${targets.length} · <b>Время:</b> <code>${new Date().toISOString()}</code>`,
+        '',
+        ...lines,
+      ].join('\n');
+      await this.notifications.broadcast({ text, plainText: text, subject: 'XSS: cheburcheck digest' }, 'telegram');
+    } catch (error: any) {
+      this.logger.warn(`Scheduled cheburcheck failed: ${error.message}`);
+    } finally {
+      this.running = false;
+    }
+  }
+
+  private esc(value: unknown) {
+    return String(value ?? '').replace(/[&<>]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[char] || char));
+  }
 
   // Admin may point the panel to a self-hosted Cheburcheck API. SSRF-safe: HTTPS only
   // in production and no private/metadata destinations.
@@ -227,7 +289,13 @@ export class CheburcheckService {
 
     if (stored.blocked) {
       await this.notifications.emit(NotificationEvent.CHEBURCHECK_BLOCKED, {
-        text: `⚠️ Cheburcheck: <b>${target}</b> — ${verdict}`,
+        text: [
+          '<b>⛔ CHEBURCHECK: БЛОКИРОВКА</b>',
+          `<b>Цель:</b> <code>${this.esc(target)}</code>`,
+          `<b>Вердикт:</b> ${this.esc(verdict)}`,
+          ...(nodeId ? [`<b>Узел:</b> <code>${this.esc(nodeId)}</code>`] : []),
+          `<b>Время:</b> <code>${new Date().toISOString()}</code>`,
+        ].join('\n'),
         plainText: `Cheburcheck: ${target} — ${verdict}`,
         subject: `XSS: cheburcheck ${target}`,
         webhook: { event: NotificationEvent.CHEBURCHECK_BLOCKED, target, verdict, nodeId },

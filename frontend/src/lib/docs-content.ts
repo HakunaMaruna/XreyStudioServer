@@ -694,6 +694,17 @@ curl -sS -X POST https://panel.example.com/api/nodes/<id>/ipv6 \\
   -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{"enabled":true,"address":"2001:db8::1"}'
 ` + "```" + `
 
+## Бот мониторинга
+
+После включения маршрутов \`NODE_OFFLINE\`, \`NODE_ONLINE\` и \`CHEBURCHECK_BLOCKED\` на канал **TELEGRAM** бот присылает:
+
+- мгновенные алерты о смене доступности инбаундов (результат TLS-eye проверки с SNI маскировки);
+- тревоги Cheburcheck, когда домен или IP признан заблокированным;
+- периодический дайджест доступности всех нод (\`NODE_DIGEST_INTERVAL_MS\`, по умолчанию 6 часов);
+- периодический дайджест Cheburcheck по всем целям (\`CHEBURCHECK_SCHEDULE_MS\`, по умолчанию 6 часов).
+
+Цели для Cheburcheck задаются в \`CHEBURCHECK_TARGETS\` — через запятую. Если список пуст, панель берёт свободные домены нод из PowerDNS (\`NodeDomain\`), а при их отсутствии — IP-адреса нод. Результаты сохраняются в разделе «Cheburcheck» и попадают в отчёты.
+
 ## Ограничения
 
 - В подписке дублируются только VLESS и Hysteria2; AmneziaWG-статические ключи (.conf, vpn://) не меняются.

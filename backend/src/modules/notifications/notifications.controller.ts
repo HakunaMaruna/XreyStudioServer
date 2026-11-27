@@ -24,9 +24,17 @@ export class NotificationsController {
 
   @Post('test')
   test(@Body() body: TestNotificationDto) {
+    const text = body.text || [
+      '<b>🔔 ТЕСТ УВЕДОМЛЕНИЙ</b>',
+      '<b>Источник:</b> XreyStudioServer',
+      `<b>Канал:</b> <code>${body.channel || 'все'}</code>`,
+      `<b>Время:</b> <code>${new Date().toISOString()}</code>`,
+      '<i>Если вы видите это сообщение — доставка настроена правильно.</i>',
+    ].join('\n');
     return this.service.broadcast({
-      text: body.text || 'XSS test notification',
-      subject: 'XSS test notification',
+      text,
+      plainText: text.replace(/<[^>]*>/g, ''),
+      subject: 'XSS: test notification',
       webhook: { event: 'test' },
     }, body.channel);
   }
