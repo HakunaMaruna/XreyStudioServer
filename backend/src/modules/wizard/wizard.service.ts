@@ -330,7 +330,9 @@ export class WizardService {
       this.logger.warn(`Certificate issuance pending: ${error.message}`);
       await report('cert', `Certificate pending: ${error.message}`, 95, 'warn');
     }
-    if (certificate && security === 'reality') {
+    if (certificate && security === 'reality' && dto.jumpNodeId) {
+      await report('cert', 'Jump node used — agent will use its bundled decoy certificate', 97, 'warn');
+    } else if (certificate && security === 'reality') {
       await report('cert', 'Waiting for the agent before installing the decoy certificate', 97);
       let agentReady = false;
       const agentNode = await this.prisma.node.findUnique({ where: { id: provisioned.nodeId } });
