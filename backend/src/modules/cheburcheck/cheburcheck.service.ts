@@ -43,6 +43,8 @@ export class CheburcheckService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(CheburcheckService.name);
   private readonly probeTimeoutMs = Number(process.env.CHEBURCHECK_PROBE_TIMEOUT_MS || 45_000);
   private readonly requestDelayMs = Math.max(0, Number(process.env.CHEBURCHECK_REQUEST_DELAY_MS || 1200));
+  private readonly probeCache = new Map<string, { at: number; results: ProbeResult[] }>();
+  private readonly probeCacheMs = Math.max(60_000, Number(process.env.CHEBURCHECK_PROBE_CACHE_MS || 1_800_000));
   private readonly scheduleMs = Math.max(3_600_000, Number(process.env.CHEBURCHECK_SCHEDULE_MS || 21_600_000));
   private timer?: NodeJS.Timeout;
   private running = false;
@@ -209,60 +211,92 @@ export class CheburcheckService implements OnModuleInit, OnModuleDestroy {
     throw new BadRequestException('Cheburcheck check failed');
   }
 
-  // Читаем SSE до события done; token уходит только в заголовке, не в URL и не в логи.
-  private async collectProbe(id: string, token: string): Promise<{ results: ProbeResult[]; error?: string }> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.probeTimeoutMs);
-    const results: ProbeResult[] = [];
-    let started: Record<string, any> | undefined;
-    let done: Record<string, any> | undefined;
-    try {
-      const response = await fetch(`${await this.base()}/probe/${encodeURIComponent(id)}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'User-Agent': 'XreyStudioServer/cheburcheck',
-          Accept: 'text/event-stream',
-        },
-        signal: controller.signal,
-      });
-      if (!response.ok || !response.body) {
-        return { results, error: `Probe stream HTTP ${response.status}` };
-      }
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let bytes = 0;
-      while (true) {
-        const { done: eof, value } = await reader.read();
-        if (eof) break;
-        bytes += value.byteLength;
-        if (bytes > 1_000_000) break;
-        buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
-        const parts = buffer.split('\n\n');
-        buffer = parts.pop() || '';
-        for (const part of parts) {
-          const event: ProbeEvent = { event: 'message', data: {} };
-          for (const line of part.split('\n')) {
-            if (line.startsWith('event:')) event.event = line.slice(6).trim();
-            else if (line.startsWith('data:')) {
-              const raw = line.slice(5).trim();
-              try { event.data = JSON.parse(raw); } catch { /* ignore malformed frame */ }
-            }
-          }
-          if (event.event === 'started') started = event.data;
-          if (event.event === 'result' && results.length < 100) results.push(event.data as ProbeResult);
-          if (event.event === 'done') { done = event.data; break; }
-        }
-        if (done) break;
-      }
-      void reader.cancel().catch(() => undefined);
-      if (!done) return { results, error: 'Probe stream timed out' };
-      return { results };
-    } catch (error: any) {
-      return { results, error: error?.name === 'AbortError' ? 'Probe timeout' : 'Probe request failed' };
-    } finally {
-      clearTimeout(timer);
+  // SSE probe stream. Results are cached briefly so a 429 from the provider
+  // degrades to the last good verdict instead of turning every target into
+  // "unknown" and hammering the rate-limited endpoint.
+  private async collectProbe(id: string, token: string): Promise<{ results: ProbeResult[]; error?: string; cached?: boolean }> {
+    const cached = this.probeCache.get(id);
+    if (cached && Date.now() - cached.at < this.probeCacheMs) {
+      return { results: cached.results, cached: true };
     }
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), this.probeTimeoutMs);
+      const results: ProbeResult[] = [];
+      let started: Record<string, any> | undefined;
+      let done: Record<string, any> | undefined;
+      try {
+        const response = await fetch(`${await this.base()}/probe/${encodeURIComponent(id)}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'User-Agent': 'XreyStudioServer/cheburcheck',
+            Accept: 'text/event-stream',
+          },
+          signal: controller.signal,
+        });
+        if (response.status === 429 && attempt < 2) {
+          const header = Number(response.headers.get('retry-after'));
+          const wait = Number.isFinite(header) && header > 0 ? Math.min(header * 1000, 10_000) : 2000 * (attempt + 1);
+          this.logger.warn(`Cheburcheck probe rate limited for ${id}, retry in ${wait}ms`);
+          await new Promise((resolve) => setTimeout(resolve, wait));
+          continue;
+        }
+        if (response.status === 429) {
+          return cached
+            ? { results: cached.results, error: 'Probe stream HTTP 429 (cached)', cached: true }
+            : { results, error: 'Probe stream HTTP 429' };
+        }
+        if (!response.ok || !response.body) {
+          return cached
+            ? { results: cached.results, error: `Probe stream HTTP ${response.status} (cached)`, cached: true }
+            : { results, error: `Probe stream HTTP ${response.status}` };
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let bytes = 0;
+        while (true) {
+          const { done: eof, value } = await reader.read();
+          if (eof) break;
+          bytes += value.byteLength;
+          if (bytes > 1_000_000) break;
+          buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
+          const parts = buffer.split('\n\n');
+          buffer = parts.pop() || '';
+          for (const part of parts) {
+            const event: ProbeEvent = { event: 'message', data: {} };
+            for (const line of part.split('\n')) {
+              if (line.startsWith('event:')) event.event = line.slice(6).trim();
+              else if (line.startsWith('data:')) {
+                const raw = line.slice(5).trim();
+                try { event.data = JSON.parse(raw); } catch { /* ignore malformed frame */ }
+              }
+            }
+            if (event.event === 'started') started = event.data;
+            if (event.event === 'result' && results.length < 100) results.push(event.data as ProbeResult);
+            if (event.event === 'done') { done = event.data; break; }
+          }
+          if (done) break;
+        }
+        void reader.cancel().catch(() => undefined);
+        void started;
+        if (!done) {
+          return cached
+            ? { results: cached.results, error: 'Probe stream timed out (cached)', cached: true }
+            : { results, error: 'Probe stream timed out' };
+        }
+        this.probeCache.set(id, { at: Date.now(), results });
+        return { results };
+      } catch (error: any) {
+        const message = error?.name === 'AbortError' ? 'Probe timeout' : 'Probe request failed';
+        return cached ? { results: cached.results, error: `${message} (cached)`, cached: true } : { results, error: message };
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    return cached
+      ? { results: cached.results, error: 'Probe rate limited (cached)', cached: true }
+      : { results: [], error: 'Probe rate limited' };
   }
 
   private verdictFor(check: CheckResponse, results: ProbeResult[]) {
@@ -287,7 +321,18 @@ export class CheburcheckService implements OnModuleInit, OnModuleDestroy {
       probeError = 'CHEBURCHECK_API_TOKEN is not configured';
     }
 
-    const verdict = this.verdictFor(check, results);
+    let verdict = this.verdictFor(check, results);
+    if (probeError && /429/i.test(probeError) && !results.length) {
+      const cachedRow = await this.prisma.cheburcheckResult.findFirst({
+        where: { target },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (cachedRow) {
+        verdict = cachedRow.verdict;
+        const cachedProbes = (cachedRow.payload as any)?.probes;
+        if (Array.isArray(cachedProbes)) results = cachedProbes as ProbeResult[];
+      }
+    }
     const payload = {
       id: check.id || null,
       target,
