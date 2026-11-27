@@ -6,6 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { Client } from 'ssh2';
 import * as http from 'http';
 import * as https from 'https';
+import * as tls from 'tls';
 import { URL } from 'url';
 
 export type NodeHttpResult = { ok: boolean; status: number; text: string };
@@ -94,10 +95,12 @@ export class NodeHttpService {
         method,
         path: `${url.pathname}${url.search}`,
         headers: { ...headers, Host: url.host },
-        createConnection: () => socket,
+        // A forwarded SSH socket is raw TCP. HTTPS requests must be wrapped in
+        // TLS explicitly; passing the raw socket to https.request skips the
+        // handshake and sends plaintext to port 443.
+        createConnection: () => isHttps ? tls.connect({ socket, servername: url.hostname }) : socket,
         timeout: 8000,
       };
-      if (isHttps) options.servername = url.hostname;
       return await new Promise<NodeHttpResult>((resolve, reject) => {
         const req = (isHttps ? https : http).request(options, (res) => {
           let data = '';
