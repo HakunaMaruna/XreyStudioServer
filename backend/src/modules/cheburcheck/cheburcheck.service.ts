@@ -42,6 +42,7 @@ const VERDICT_PRIORITY = ['tspu_block', 'dns_spoofing', 'cdn_block', 'sni_block'
 export class CheburcheckService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(CheburcheckService.name);
   private readonly probeTimeoutMs = Number(process.env.CHEBURCHECK_PROBE_TIMEOUT_MS || 45_000);
+  private readonly requestDelayMs = Math.max(0, Number(process.env.CHEBURCHECK_REQUEST_DELAY_MS || 1200));
   private readonly scheduleMs = Math.max(3_600_000, Number(process.env.CHEBURCHECK_SCHEDULE_MS || 21_600_000));
   private timer?: NodeJS.Timeout;
   private running = false;
@@ -90,18 +91,32 @@ export class CheburcheckService implements OnModuleInit, OnModuleDestroy {
       const system: AuthUser = { userId: 'system', email: 'system', role: Role.ADMIN, organizationId: null };
       const lines: string[] = [];
       let blocked = 0;
-      for (const target of targets) {
+      let limited = 0;
+      for (const [index, target] of targets.entries()) {
+        if (index > 0 && this.requestDelayMs) {
+          await new Promise((resolve) => setTimeout(resolve, this.requestDelayMs));
+        }
         try {
           const result = await this.check({ target }, system);
           if (result.blocked) blocked += 1;
           const resultIps: string[] = Array.isArray(result.ips) ? result.ips.slice(0, 2).map(String) : [];
           lines.push(`• <code>${this.esc(target)}</code>${resultIps.length ? ` [${this.esc(resultIps.join(', '))}]` : ''} — ${result.blocked ? '⛔' : '✅'} ${this.esc(result.verdict)}`);
         } catch (error: any) {
-          lines.push(`• <code>${this.esc(target)}</code> — ⚠️ error ${this.esc(error.message)}`);
+          if (/429|rate limited/i.test(error.message || '')) {
+            limited += 1;
+            const cached = await this.prisma.cheburcheckResult.findFirst({
+              where: { target },
+              orderBy: { createdAt: 'desc' },
+            });
+            const cachedIps: string[] = Array.isArray((cached?.payload as any)?.ips) ? (cached?.payload as any).ips.slice(0, 2).map(String) : [];
+            lines.push(`• <code>${this.esc(target)}</code>${cachedIps.length ? ` [${this.esc(cachedIps.join(', '))}]` : ''} — ⏳ лимит API${cached ? ` · последний вердикт: ${this.esc(cached.verdict)}` : ''}`);
+          } else {
+            lines.push(`• <code>${this.esc(target)}</code> — ⚠️ error ${this.esc(error.message)}`);
+          }
         }
       }
       const text = [
-        `<b>🔎 CHEBURCHECK · ${targets.length} целей · ${blocked} блокировок</b>`,
+        `<b>🔎 CHEBURCHECK · ${targets.length} целей · ${blocked} блокировок${limited ? ` · ${limited} лимитов API` : ''}</b>`,
         `<blockquote expandable>${lines.join('\n')}</blockquote>`,
         `<i>Проверка: ${this.tgTime(Date.now())}</i>`,
       ].join('\n');
@@ -174,14 +189,24 @@ export class CheburcheckService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async fetchCheck(target: string): Promise<CheckResponse> {
-    const response = await fetch(`${await this.base()}/check?target=${encodeURIComponent(target)}`, {
-      headers: { 'User-Agent': 'XreyStudioServer/cheburcheck' },
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (!response.ok) {
+    const url = `${await this.base()}/check?target=${encodeURIComponent(target)}`;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const response = await fetch(url, {
+        headers: { 'User-Agent': 'XreyStudioServer/cheburcheck' },
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (response.ok) return response.json() as Promise<CheckResponse>;
+      if (response.status === 429 && attempt < 2) {
+        const header = Number(response.headers.get('retry-after'));
+        const wait = Number.isFinite(header) && header > 0 ? Math.min(header * 1000, 10_000) : 2000 * (attempt + 1);
+        this.logger.warn(`Cheburcheck rate limited for ${target}, retry in ${wait}ms`);
+        await new Promise((resolve) => setTimeout(resolve, wait));
+        continue;
+      }
+      if (response.status === 429) throw new BadRequestException('Cheburcheck rate limited (HTTP 429)');
       throw new BadRequestException(`Cheburcheck check failed: HTTP ${response.status}`);
     }
-    return response.json() as Promise<CheckResponse>;
+    throw new BadRequestException('Cheburcheck check failed');
   }
 
   // Читаем SSE до события done; token уходит только в заголовке, не в URL и не в логи.
