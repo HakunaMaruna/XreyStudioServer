@@ -96,6 +96,16 @@ a:focus-visible,
 }
 
 /* Card padding used by pages that do not go through <Card>. */
+/* Компактный режим из настроек: tighten shared tokens without touching page markup. */
+html.compact {
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 20px;
+  --input-h: 32px;
+  --row-h: 30px;
+  --control-h-md: 30px;
+}
+
 .ui-card-pad {
   padding: var(--space-4);
 }

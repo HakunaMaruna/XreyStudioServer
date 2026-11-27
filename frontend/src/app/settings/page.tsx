@@ -259,6 +259,7 @@ export default function SettingsPage() {
   useEffect(() => {
     applyTheme(settings.theme);
     document.documentElement.lang = settings.language;
+    document.documentElement.classList.toggle('compact', Boolean(settings.compactMode));
     localStorage.setItem('xss_settings', JSON.stringify(settings));
   }, [settings]);
 

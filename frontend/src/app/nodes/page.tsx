@@ -63,6 +63,7 @@ export default function NodesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [uiSettings, setUiSettings] = useState<{ autoRefresh?: boolean; metricsEnabled?: boolean }>({});
   const [updatingAgentId, setUpdatingAgentId] = useState<string | null>(null);
   const [revisionsNode, setRevisionsNode] = useState<NodeRow | null>(null);
   const [revisions, setRevisions] = useState<RevisionRow[]>([]);
@@ -118,18 +119,26 @@ export default function NodesPage() {
   };
 
   useEffect(() => {
+    try {
+      const stored = localStorage.getItem('xss_settings');
+      if (stored) setUiSettings(JSON.parse(stored));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
     if (!isLoggedIn()) {
       window.location.href = '/login';
       return;
     }
     load();
     // Метрики и пинг обновляем каждые 15 секунд, как их присылает агент.
+    if (uiSettings.autoRefresh === false) return () => {};
     const timer = window.setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       load(true);
     }, 15000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [uiSettings.autoRefresh]);
 
   const openAgentUpdate = (node: NodeRow) => {
     setAgentNode(node);
@@ -499,7 +508,7 @@ export default function NodesPage() {
                   );
                 })()}
 
-                <div className="mt-3 grid grid-cols-2 gap-3">
+                {uiSettings.metricsEnabled !== false && <div className="mt-3 grid grid-cols-2 gap-3">
                   <div>
                     <div className="mb-1 flex justify-between text-[10px] text-subtle"><span>CPU</span><span className="tabular-nums text-fg">{metric ? Number(metric.cpu).toFixed(0) : '—'}%</span></div>
                     <ProgressBar value={metric ? Number(metric.cpu) : 0} tone={metric && Number(metric.cpu) > 85 ? 'danger' : metric && Number(metric.cpu) > 65 ? 'warning' : 'success'} />
@@ -508,7 +517,7 @@ export default function NodesPage() {
                     <div className="mb-1 flex justify-between text-[10px] text-subtle"><span>RAM</span><span className="tabular-nums text-fg">{metric ? Number(metric.ram).toFixed(0) : '—'}%</span></div>
                     <ProgressBar value={metric ? Number(metric.ram) : 0} tone={metric && Number(metric.ram) > 85 ? 'danger' : metric && Number(metric.ram) > 65 ? 'warning' : 'cyan'} />
                   </div>
-                </div>
+                </div>}
 
                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-subtle">
                   <span className="flex items-center gap-1"><Icon name="upload" size={13} className="text-brand" /> ↑ {upMbps} Mbps</span>
