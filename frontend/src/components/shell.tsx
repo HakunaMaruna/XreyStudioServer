@@ -12,7 +12,17 @@ import { Icon, toggleIconSet, type IconName } from './icons';
 import { Avatar, Badge, IconButton, cn } from './ui';
 
 type NavItem = { href: string; label: string; icon: IconName };
-type NavSection = { title: string; items: NavItem[] };
+// Сворачиваемая подгруппа внутри секции (максимум 2 уровня).
+type NavGroup = { key: string; title: string; icon: IconName; items: NavItem[] };
+type NavEntry = NavItem | NavGroup;
+type NavSection = { title: string; items: NavEntry[] };
+
+const isNavGroup = (entry: NavEntry): entry is NavGroup => 'items' in entry;
+
+const NAV_GROUPS_STORAGE_KEY = 'xss_nav_groups';
+
+const flattenNav = (entries: NavEntry[]): NavItem[] =>
+  entries.flatMap((entry) => (isNavGroup(entry) ? entry.items : [entry]));
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   const { t, lang, toggle } = useLang();
@@ -24,6 +34,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [query, setQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [controlMode, setControlMode] = useState(false);
+  // Состояние свёрнутости подгрупп (явный выбор пользователя, перекрывает автораскрытие).
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -41,6 +53,16 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     setSearchOpen(false);
     setQuery('');
   }, [pathname]);
+
+  // Гидрируем сохранённое состояние групп после монтирования (SSR рендерит дефолт).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(NAV_GROUPS_STORAGE_KEY);
+      if (raw) setOpenGroups(JSON.parse(raw));
+    } catch {
+      // повреждённое/недоступное хранилище — игнорируем
+    }
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -82,19 +104,47 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       {
         title: t.infrastructure,
         items: [
-          { href: '/nodes', label: t.nodes, icon: 'server' },
-          { href: '/chains', label: t.chains, icon: 'route' },
-          { href: '/wizard', label: t.wizard, icon: 'plus' },
-      { href: '/health-checks', label: t.healthChecks, icon: 'pulse' },
-          { href: '/inbounds', label: t.inbounds, icon: 'plug' },
-          { href: '/hosts', label: t.hosts, icon: 'globe' },
-          { href: '/rules', label: t.rules, icon: 'route' },
-      { href: '/routing', label: t.routing, icon: 'sliders' },
-      { href: '/geodata', label: t.geodata, icon: 'globe' },
-          { href: '/balancers', label: t.balancers, icon: 'zap' },
-          { href: '/dns-profiles', label: t.dnsProfiles, icon: 'globe' },
-          { href: '/reverse', label: t.reverse, icon: 'network' },
-          ...(controlMode ? [{ href: '/dns', label: t.dnsSection, icon: 'network' as IconName }] : []),
+          {
+            key: 'nodesChains',
+            title: t.navGroupNodes,
+            icon: 'server',
+            items: [
+              { href: '/nodes', label: t.nodes, icon: 'server' },
+              { href: '/chains', label: t.chains, icon: 'route' },
+              { href: '/wizard', label: t.wizard, icon: 'plus' },
+              { href: '/health-checks', label: t.healthChecks, icon: 'pulse' },
+              { href: '/reverse', label: t.reverse, icon: 'network' },
+            ],
+          },
+          {
+            key: 'inboundsHosts',
+            title: t.navGroupInbounds,
+            icon: 'plug',
+            items: [
+              { href: '/inbounds', label: t.inbounds, icon: 'plug' },
+              { href: '/hosts', label: t.hosts, icon: 'globe' },
+            ],
+          },
+          {
+            key: 'routing',
+            title: t.navGroupRouting,
+            icon: 'sliders',
+            items: [
+              { href: '/rules', label: t.rules, icon: 'route' },
+              { href: '/routing', label: t.routing, icon: 'sliders' },
+              { href: '/balancers', label: t.balancers, icon: 'zap' },
+              { href: '/geodata', label: t.geodata, icon: 'globe' },
+            ],
+          },
+          {
+            key: 'dns',
+            title: t.navGroupDns,
+            icon: 'network',
+            items: [
+              ...(controlMode ? [{ href: '/dns', label: t.dnsSection, icon: 'network' as IconName }] : []),
+              { href: '/dns-profiles', label: t.dnsProfiles, icon: 'globe' },
+            ],
+          },
         ],
       },
       {
@@ -133,11 +183,73 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     [t, controlMode],
   );
 
-  const allItems = useMemo(() => sections.flatMap((section) => section.items), [sections]);
+  const allItems = useMemo(() => sections.flatMap((section) => flattenNav(section.items)), [sections]);
   const current = allItems.find((item) => item.href === pathname);
   const results = query.trim()
     ? allItems.filter((item) => item.label.toLowerCase().includes(query.trim().toLowerCase()))
     : [];
+
+  const toggleGroup = (key: string, currentlyOpen: boolean) => {
+    setOpenGroups((prev) => {
+      const next = { ...prev, [key]: !currentlyOpen };
+      try {
+        localStorage.setItem(NAV_GROUPS_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // недоступное хранилище — состояние живёт только в памяти
+      }
+      return next;
+    });
+  };
+
+  const renderNavLink = (item: NavItem) => {
+    const active = pathname === item.href;
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        aria-current={active ? 'page' : undefined}
+        className={cn(
+          'group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors',
+          active
+            ? 'bg-brand/10 font-medium text-brand'
+            : 'text-muted hover:bg-surface-2 hover:text-fg',
+        )}
+      >
+        <Icon name={item.icon} size={16} className={active ? 'text-brand' : 'text-subtle group-hover:text-fg'} />
+        {item.label}
+      </Link>
+    );
+  };
+
+  const renderNavGroup = (group: NavGroup) => {
+    const containsActive = group.items.some((item) => item.href === pathname);
+    // Явный выбор пользователя перекрывает автораскрытие активной группы.
+    const open = openGroups[group.key] ?? containsActive;
+    const groupId = `nav-group-${group.key}`;
+    return (
+      <div key={group.key}>
+        <button
+          type="button"
+          onClick={() => toggleGroup(group.key, open)}
+          aria-expanded={open}
+          aria-controls={groupId}
+          className={cn(
+            'group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors',
+            open || containsActive ? 'text-fg' : 'text-muted hover:bg-surface-2 hover:text-fg',
+          )}
+        >
+          <Icon name={group.icon} size={16} className={containsActive ? 'text-brand' : 'text-subtle group-hover:text-fg'} />
+          <span className="flex-1 truncate text-left">{group.title}</span>
+          <Icon name="chevronDown" size={14} className={cn('shrink-0 text-subtle transition-transform', open && 'rotate-180')} />
+        </button>
+        {open && (
+          <div id={groupId} role="group" aria-label={group.title} className="ml-3 mt-0.5 space-y-0.5 border-l border-line pl-2">
+            {group.items.map(renderNavLink)}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   if (pathname === '/login' || pathname.startsWith('/sub/')) return <>{children}</>;
 
@@ -180,25 +292,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <div key={section.title}>
             <p className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-subtle">{section.title}</p>
             <div className="space-y-0.5">
-              {section.items.map((item) => {
-                const active = pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      'group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors',
-                      active
-                        ? 'bg-brand/10 font-medium text-brand'
-                        : 'text-muted hover:bg-surface-2 hover:text-fg',
-                    )}
-                  >
-                    <Icon name={item.icon} size={16} className={active ? 'text-brand' : 'text-subtle group-hover:text-fg'} />
-                    {item.label}
-
-                  </Link>
-                );
-              })}
+              {section.items.map((entry) => (isNavGroup(entry) ? renderNavGroup(entry) : renderNavLink(entry)))}
             </div>
           </div>
         ))}
