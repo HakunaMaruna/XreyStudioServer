@@ -165,6 +165,7 @@ export class NotificationSettingsService {
 
   async withinCooldown(dedupeKey?: string, minutes = 0): Promise<boolean> {
     if (!dedupeKey || minutes <= 0) return false;
+    if (!this.prisma.notificationDelivery?.findFirst) return false;
     const since = new Date(Date.now() - minutes * 60_000);
     const last = await this.prisma.notificationDelivery.findFirst({
       where: { dedupeKey, status: 'sent', createdAt: { gte: since } },
