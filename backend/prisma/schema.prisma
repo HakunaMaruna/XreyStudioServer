@@ -41,6 +41,7 @@ model User {
   trafficUsed            BigInt                @default(0)
   deviceLimit            Int                   @default(0)
   devices                Device[]
+  externalLinks          UserExternalLink[]
   expiresAt              DateTime?
   subscriptionToken      String                @unique @default(uuid())
   telegramId             String?               @unique @map("telegram_id")
@@ -1050,5 +1051,22 @@ model InboundSquad {
 
   @@unique([inboundId, squadId])
   @@index([squadId])
+}
+
+model UserExternalLink {
+  id             String      @id @default(uuid())
+  userId         String
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind           String      @default("link")
+  value          String
+  remark         String?
+  enabled        Boolean     @default(true)
+  sortIndex      Int         @default(0)
+  lastFetchAt    DateTime?
+  lastFetchError String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([userId])
 }
 

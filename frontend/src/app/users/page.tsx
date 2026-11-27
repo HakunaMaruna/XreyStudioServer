@@ -20,6 +20,17 @@ type UserRow = {
   telegramId?: string | null;
 };
 
+type ExternalLinkRow = {
+  id: string;
+  kind: 'link' | 'subscription';
+  value: string;
+  remark: string | null;
+  enabled: boolean;
+  lastFetchAt: string | null;
+  lastFetchError: string | null;
+  createdAt: string;
+};
+
 export default function UsersPage() {
   const { t } = useLang();
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -47,6 +58,12 @@ export default function UsersPage() {
   const [subTemplates, setSubTemplates] = useState<{ id: string; name: string }[]>([]);
   const [devices, setDevices] = useState<{ id: string; hwid: string; name: string | null; lastSeenAt: string | null }[]>([]);
   const [hwidInput, setHwidInput] = useState('');
+  const [externalLinks, setExternalLinks] = useState<ExternalLinkRow[]>([]);
+  const [externalLinkForm, setExternalLinkForm] = useState<{ kind: 'link' | 'subscription'; value: string; remark: string }>({
+    kind: 'link', value: '', remark: '',
+  });
+  const [externalLinkError, setExternalLinkError] = useState('');
+  const [externalLinkSaving, setExternalLinkSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [squads, setSquads] = useState<{ id: string; name: string }[]>([]);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -74,6 +91,16 @@ export default function UsersPage() {
       setLoading(false);
     }
   }, [appliedSearch, status, role, pageIndex, pageSize, sorting]);
+
+  const loadExternalLinks = useCallback(async (userId: string) => {
+    try {
+      const data = await api.get(`/api/users/${userId}/external-links`);
+      const rows = Array.isArray(data) ? data : data.items || [];
+      setExternalLinks(Array.isArray(rows) ? rows : []);
+    } catch (e: any) {
+      setExternalLinkError(e.message);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -204,6 +231,9 @@ export default function UsersPage() {
       const data = await api.get(`/api/users/${user.id}`);
       setConnection(data);
       setAttachId('');
+      setExternalLinkError('');
+      setExternalLinkForm({ kind: 'link', value: '', remark: '' });
+      setExternalLinks([]);
       const list = await api.get('/api/inbounds');
       const rows = Array.isArray(list) ? list : list.data || [];
       setInbounds(rows.map((i: any) => ({ id: i.id, tag: i.tag })));
@@ -216,8 +246,45 @@ export default function UsersPage() {
       const deviceList = await api.get(`/api/devices?userId=${user.id}`).catch(() => []);
       const deviceRows = Array.isArray(deviceList) ? deviceList : deviceList.data || [];
       setDevices(deviceRows);
+      await loadExternalLinks(user.id);
     } catch (e: any) {
       setError(e.message);
+    }
+  };
+
+  const addExternalLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!connection) return;
+    const value = externalLinkForm.value.trim();
+    if (!value) {
+      setExternalLinkError(t.externalLinkNoValue);
+      return;
+    }
+    setExternalLinkSaving(true);
+    setExternalLinkError('');
+    try {
+      await api.post(`/api/users/${connection.id}/external-links`, {
+        kind: externalLinkForm.kind,
+        value,
+        remark: externalLinkForm.remark.trim() || undefined,
+      });
+      setExternalLinkForm((form) => ({ ...form, value: '', remark: '' }));
+      await loadExternalLinks(connection.id);
+    } catch (e: any) {
+      setExternalLinkError(e.message);
+    } finally {
+      setExternalLinkSaving(false);
+    }
+  };
+
+  const deleteExternalLink = async (id: string) => {
+    if (!connection) return;
+    setExternalLinkError('');
+    try {
+      await api.delete(`/api/users/${connection.id}/external-links/${id}`);
+      await loadExternalLinks(connection.id);
+    } catch (e: any) {
+      setExternalLinkError(e.message);
     }
   };
 
@@ -748,6 +815,64 @@ export default function UsersPage() {
                 </select>
                 <Button icon="plus" onClick={attach} loading={saving} disabled={!attachId}>{t.attachToInbound}</Button>
               </div>
+            </div>
+            <div className="border-t border-line pt-4">
+              <p className="text-xs font-semibold text-subtle">{t.externalLinks}</p>
+              <p className="mb-2 text-[10px] text-muted">{t.externalLinksSubtitle}</p>
+              {externalLinkError && (
+                <div className="mb-2 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+                  <Icon name="alert" size={14} /> {externalLinkError}
+                </div>
+              )}
+              <div className="space-y-1">
+                {externalLinks.length === 0 && <p className="text-xs text-subtle">{t.externalLinkEmpty}</p>}
+                {externalLinks.map((link) => (
+                  <div key={link.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-line bg-surface-2/50 px-3 py-2">
+                    <Badge tone={link.kind === 'subscription' ? 'cyan' : 'brand'}>
+                      {link.kind === 'subscription' ? t.externalLinkSubscription : t.externalLinkLink}
+                    </Badge>
+                    <span className="max-w-[140px] truncate text-xs text-fg" title={link.remark || ''}>
+                      {link.remark || '—'}
+                    </span>
+                    <code className="mono min-w-0 flex-1 truncate text-xs text-muted" title={link.value}>{link.value}</code>
+                    <Badge tone={link.enabled ? 'success' : 'neutral'}>{link.enabled ? t.enabled : t.disabled}</Badge>
+                    <IconButton icon="trash" label={t.externalLinkDelete} tone="danger" onClick={() => deleteExternalLink(link.id)} />
+                    {link.lastFetchError && (
+                      <p className="w-full text-[10px] text-danger">{t.externalLinkError}: {link.lastFetchError}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <form onSubmit={addExternalLink} className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-[140px_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+                <Field label={t.externalLinkKind}>
+                  <select
+                    className="field"
+                    value={externalLinkForm.kind}
+                    onChange={(e) => setExternalLinkForm((form) => ({ ...form, kind: e.target.value as 'link' | 'subscription' }))}
+                  >
+                    <option value="link">{t.externalLinkLink}</option>
+                    <option value="subscription">{t.externalLinkSubscription}</option>
+                  </select>
+                </Field>
+                <Field label={t.externalLinkValue}>
+                  <input
+                    className="field"
+                    value={externalLinkForm.value}
+                    placeholder={externalLinkForm.kind === 'link' ? 'vless://…' : 'https://provider/sub/...'}
+                    onChange={(e) => setExternalLinkForm((form) => ({ ...form, value: e.target.value }))}
+                  />
+                </Field>
+                <Field label={t.externalLinkRemark}>
+                  <input
+                    className="field"
+                    value={externalLinkForm.remark}
+                    onChange={(e) => setExternalLinkForm((form) => ({ ...form, remark: e.target.value }))}
+                  />
+                </Field>
+                <Button type="submit" icon="plus" loading={externalLinkSaving} disabled={!externalLinkForm.value.trim()}>
+                  {t.externalLinkAdd}
+                </Button>
+              </form>
             </div>
           </div>
         )}

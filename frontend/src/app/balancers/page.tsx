@@ -93,6 +93,7 @@ export default function BalancersPage() {
   const [preview, setPreview] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [recipes, setRecipes] = useState<Array<{ id: string; name: string; description: string; payload: any }>>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -105,6 +106,7 @@ export default function BalancersPage() {
   useEffect(() => {
     if (!isLoggedIn()) { window.location.href = '/login'; return; }
     load();
+    api.get('/api/balancers/recipes').then((data: any) => setRecipes(Array.isArray(data) ? data : data.items || [])).catch(() => undefined);
   }, [load]);
 
   const memberToForm = (member: BalancerRow['members'][number]): MemberForm => {
@@ -149,6 +151,40 @@ export default function BalancersPage() {
       port: String(row.rule?.port || ''),
       network: String(row.rule?.network || ''),
       members: row.members.map(memberToForm),
+    });
+    setPreview(null); setError(''); setOpen(true);
+  };
+
+  const applyRecipe = (recipe: any) => {
+    const payload = recipe.payload || {};
+    setEditing(null);
+    setForm({
+      name: String(payload.name || ''),
+      strategy: String(payload.strategy || 'roundRobin'),
+      enabled: Boolean(payload.enabled),
+      fallbackTag: String(payload.fallbackTag || 'direct'),
+      probeUrl: String(payload.probeUrl || 'https://www.google.com/generate_204'),
+      probeIntervalSec: String(payload.probeIntervalSec || 30),
+      observatoryMode: String(payload.observatoryMode || 'observatory'),
+      burstDestination: String(payload.burstDestination || ''),
+      burstIntervalSec: String(payload.burstIntervalSec || 60),
+      burstSampling: String(payload.burstSampling || 10),
+      burstTimeoutSec: String(payload.burstTimeoutSec || 5),
+      domains: ((payload.rule?.domain as string[]) || []).join(', '),
+      ips: ((payload.rule?.ip as string[]) || []).join(', '),
+      port: String(payload.rule?.port || ''),
+      network: String(payload.rule?.network || ''),
+      members: (payload.members || []).map((m: any) => ({
+        ...emptyMember(),
+        protocol: String(m.protocol || 'vless'),
+        address: String(m.address || ''),
+        port: String(m.port || 443),
+        uuid: String(m.uuid || ''),
+        password: String(m.password || ''),
+        security: String(m.security || 'none'),
+        sni: String(m.sni || ''),
+        enabled: m.enabled !== false,
+      })),
     });
     setPreview(null); setError(''); setOpen(true);
   };
@@ -223,6 +259,8 @@ export default function BalancersPage() {
 
   const updateMember = (index: number, patch: Partial<MemberForm>) =>
     setForm((current) => ({ ...current, members: current.members.map((item, i) => i === index ? { ...item, ...patch } : item) }));
+
+  const hint = (ru: string, en: string) => (lang === 'ru' ? ru : en);
 
   const strategyHint = (strategy: string) => {
     const key: Record<string, string> = {
@@ -306,10 +344,24 @@ export default function BalancersPage() {
           </>
         }
       >
+        {recipes.length > 0 && (
+          <div className="mb-4 rounded-lg border border-line bg-surface-2/40 p-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">{lang === 'ru' ? 'Готовые рецепты' : 'Ready recipes'}</p>
+            <div className="flex flex-wrap gap-2">
+              {recipes.map((recipe) => (
+                <button type="button" key={recipe.id} onClick={() => applyRecipe(recipe)}
+                  title={recipe.description}
+                  className="rounded-lg border border-line px-3 py-1.5 text-xs text-muted transition hover:border-brand/40 hover:text-fg">
+                  {recipe.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t.name}><input className="field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-            <Field label={t.balancerFallback}>
+            <Field label={t.name} hint={hint('Имя балансировщика, видно в конфиге Xray','Balancer name shown in the Xray config')}><input className="field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+            <Field label={t.balancerFallback} hint={hint('Куда направить трафик, если все участники недоступны','Where to send traffic when no member is healthy')}>
               <select className="field" value={form.fallbackTag} onChange={(e) => setForm({ ...form, fallbackTag: e.target.value })}>
                 <option value="direct">direct</option><option value="blocked">blocked</option>
               </select>
@@ -330,9 +382,9 @@ export default function BalancersPage() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t.balancerProbe}><input className="field" value={form.probeUrl} onChange={(e) => setForm({ ...form, probeUrl: e.target.value })} /></Field>
-            <Field label={t.balancerProbeInterval}><input className="field" type="number" min={10} max={3600} value={form.probeIntervalSec} onChange={(e) => setForm({ ...form, probeIntervalSec: e.target.value })} /></Field>
-            <Field label={t.balancerObservatoryMode}>
+            <Field label={t.balancerProbe} hint={hint('URL для проверки доступности участников','URL used to probe member availability')}><input className="field" value={form.probeUrl} onChange={(e) => setForm({ ...form, probeUrl: e.target.value })} /></Field>
+            <Field label={t.balancerProbeInterval} hint={hint('Как часто проверять участников, секунды','How often to probe members, seconds')}><input className="field" type="number" min={10} max={3600} value={form.probeIntervalSec} onChange={(e) => setForm({ ...form, probeIntervalSec: e.target.value })} /></Field>
+            <Field label={t.balancerObservatoryMode} hint={hint('Обычные пробы или короткие пакетные замеры','Regular probing or short burst measurements')}>
               <select className="field" value={form.observatoryMode} onChange={(e) => setForm({ ...form, observatoryMode: e.target.value })}>
                 <option value="observatory">observatory</option>
                 <option value="burstObservatory">burstObservatory</option>
@@ -340,16 +392,16 @@ export default function BalancersPage() {
             </Field>
             {form.observatoryMode === 'burstObservatory' && (
               <>
-                <Field label={t.balancerBurstDestination}><input className="field" value={form.burstDestination} onChange={(e) => setForm({ ...form, burstDestination: e.target.value })} /></Field>
-                <Field label={t.balancerBurstInterval}><input className="field" type="number" min={10} max={3600} value={form.burstIntervalSec} onChange={(e) => setForm({ ...form, burstIntervalSec: e.target.value })} /></Field>
-                <Field label={t.balancerBurstSampling}><input className="field" type="number" min={1} max={50} value={form.burstSampling} onChange={(e) => setForm({ ...form, burstSampling: e.target.value })} /></Field>
-                <Field label={t.balancerBurstTimeout}><input className="field" type="number" min={1} max={60} value={form.burstTimeoutSec} onChange={(e) => setForm({ ...form, burstTimeoutSec: e.target.value })} /></Field>
+                <Field label={t.balancerBurstDestination} hint={hint('Цель для burst-проб','Destination for burst probes')}><input className="field" value={form.burstDestination} onChange={(e) => setForm({ ...form, burstDestination: e.target.value })} /></Field>
+                <Field label={t.balancerBurstInterval} hint={hint('Интервал burst-проб, секунды','Burst probe interval, seconds')}><input className="field" type="number" min={10} max={3600} value={form.burstIntervalSec} onChange={(e) => setForm({ ...form, burstIntervalSec: e.target.value })} /></Field>
+                <Field label={t.balancerBurstSampling} hint={hint('Сколько замеров в одной серии','Samples per burst')}><input className="field" type="number" min={1} max={50} value={form.burstSampling} onChange={(e) => setForm({ ...form, burstSampling: e.target.value })} /></Field>
+                <Field label={t.balancerBurstTimeout} hint={hint('Таймаут одного замера, секунды','Single probe timeout, seconds')}><input className="field" type="number" min={1} max={60} value={form.burstTimeoutSec} onChange={(e) => setForm({ ...form, burstTimeoutSec: e.target.value })} /></Field>
               </>
             )}
-            <Field label="Domains" hint={t.balancerRule}><input className="field" placeholder="example.com, geosite:google" value={form.domains} onChange={(e) => setForm({ ...form, domains: e.target.value })} /></Field>
-            <Field label="IP / CIDR"><input className="field" placeholder="0.0.0.0/0" value={form.ips} onChange={(e) => setForm({ ...form, ips: e.target.value })} /></Field>
-            <Field label={t.port}><input className="field" placeholder="443,1000-2000" value={form.port} onChange={(e) => setForm({ ...form, port: e.target.value })} /></Field>
-            <Field label="Network"><input className="field" placeholder="tcp,udp" value={form.network} onChange={(e) => setForm({ ...form, network: e.target.value })} /></Field>
+            <Field label="Domains" hint={hint('Домены, которые пойдут через балансировщик; geosite:* поддерживается','Domains routed through the balancer; geosite:* supported')}><input className="field" placeholder="example.com, geosite:google" value={form.domains} onChange={(e) => setForm({ ...form, domains: e.target.value })} /></Field>
+            <Field label="IP / CIDR" hint={hint('IP и подсети для правила маршрутизации','IPs and CIDRs for the routing rule')}><input className="field" placeholder="0.0.0.0/0" value={form.ips} onChange={(e) => setForm({ ...form, ips: e.target.value })} /></Field>
+            <Field label={t.port} hint={hint('Порты через запятую или диапазон','Comma-separated ports or a range')}><input className="field" placeholder="443,1000-2000" value={form.port} onChange={(e) => setForm({ ...form, port: e.target.value })} /></Field>
+            <Field label="Network" hint={hint('tcp, udp или tcp,udp','tcp, udp or tcp,udp')}><input className="field" placeholder="tcp,udp" value={form.network} onChange={(e) => setForm({ ...form, network: e.target.value })} /></Field>
           </div>
 
           <div>

@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { PrismaService } from '../../prisma/prisma.service';
 import { SubscriptionPageService } from '../subscription-page/subscription-page.service';
 import { ChainsService } from '../chains/chains.service';
+import { ExternalLinksService } from '../users/external-links.service';
 
 @Injectable()
 export class SubscriptionsService {
@@ -9,6 +10,7 @@ export class SubscriptionsService {
     private prisma: PrismaService,
     private page: SubscriptionPageService,
     private chains: ChainsService,
+    private externalLinks: ExternalLinksService,
   ) {}
 
   private encodeBase64(value: string) {
@@ -259,7 +261,8 @@ export class SubscriptionsService {
     const direct = data.links.map((l: any) => l.link);
     const chains = (data.chainServers || []).map((server: any) =>
       this.buildChainLink(data.user, server));
-    return [...direct, ...chains].join('\n');
+    const external = await this.externalLinks.resolve(data.user.id);
+    return [...direct, ...chains, ...external].join('\n');
   }
 
   async base64(token: string) {
@@ -270,7 +273,17 @@ export class SubscriptionsService {
     const data = await this.getStatus(token);
     const page = await this.page.publicPayload((data.template as any)?.pageSettings || null);
     if (data.status !== 'active') return { ...data, links: [], page };
-    return { ...data, page };
+    const external = await this.externalLinks.resolve(data.user.id);
+    const externalLinks = external.map((link, index) => ({
+      id: `external-${index}`,
+      tag: `external-${index}`,
+      protocol: link.split('://')[0],
+      transport: 'tcp',
+      security: null,
+      node: null,
+      link,
+    }));
+    return { ...data, links: [...data.links, ...externalLinks], page };
   }
 
   async preview() {

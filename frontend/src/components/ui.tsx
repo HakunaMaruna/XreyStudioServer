@@ -228,6 +228,21 @@ export function StatCard({
   );
 }
 
+/** Discreet round `?` marker whose native tooltip carries the full help text. */
+export function HelpTip({ text }: { text: string }) {
+  return (
+    <button
+      type="button"
+      title={text}
+      aria-label={text}
+      onClick={(event) => event.preventDefault()}
+      className="inline-grid h-4 w-4 shrink-0 place-items-center rounded-full border border-line text-[10px] font-semibold leading-none text-subtle transition-colors hover:border-brand/40 hover:text-brand"
+    >
+      ?
+    </button>
+  );
+}
+
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   const id = useId();
   const child = Children.toArray(children)[0];
@@ -236,8 +251,15 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
     typeof child.type === 'string' &&
     ['input', 'select', 'textarea'].includes(child.type as string);
   return (
-    <label htmlFor={isControl ? id : undefined} className="block space-y-1">
-      <span className="block text-xs font-medium text-subtle">{label}</span>
+    <label htmlFor={isControl ? id : undefined} className="block min-w-0 space-y-1">
+      {hint ? (
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="min-w-0 text-xs font-medium text-subtle">{label}</span>
+          <HelpTip text={hint} />
+        </span>
+      ) : (
+        <span className="block text-xs font-medium text-subtle">{label}</span>
+      )}
       {isControl ? cloneElement(child as ReactElement<any>, { id }) : children}
       {hint && <span className="block text-[11px] text-subtle">{hint}</span>}
     </label>

@@ -18,6 +18,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { AuditService } from '../audit/audit.service';
 import { BulkUsersDto, CreateUserDto, UpdateUserDto, UsersQueryDto } from './dto/user.dto';
 import { UsersService } from './users.service';
+import { ExternalLinksService } from './external-links.service';
 
 @Controller('users')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -25,6 +26,7 @@ export class UsersController {
   constructor(
     private service: UsersService,
     private audit: AuditService,
+    private externalLinks: ExternalLinksService,
   ) {}
 
   @Get()
@@ -90,6 +92,27 @@ export class UsersController {
       ip: req.ip,
     });
     return updated;
+  }
+
+  @Get(':id/external-links')
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  async listExternalLinks(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    await this.service.findOne(id, user);
+    return { items: await this.externalLinks.list(id) };
+  }
+
+  @Post(':id/external-links')
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  async addExternalLink(@Param('id') id: string, @Body() body: any, @CurrentUser() user: AuthUser) {
+    await this.service.findOne(id, user);
+    return this.externalLinks.create(id, body);
+  }
+
+  @Delete(':id/external-links/:linkId')
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  async deleteExternalLink(@Param('id') id: string, @Param('linkId') linkId: string, @CurrentUser() user: AuthUser) {
+    await this.service.findOne(id, user);
+    return this.externalLinks.remove(id, linkId);
   }
 
   @Delete(':id')

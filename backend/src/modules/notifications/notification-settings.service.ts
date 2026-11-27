@@ -18,6 +18,7 @@ export const NOTIFICATION_CREDENTIAL_KEYS = [
   'SIGNAL_RECIPIENT',
   'CHEBURCHECK_API_TOKEN',
   'CHEBURCHECK_BASE_URL',
+  'NOTIFICATION_VIA_NODE_ID',
 ] as const;
 
 export type NotificationCredentialKey = (typeof NOTIFICATION_CREDENTIAL_KEYS)[number];

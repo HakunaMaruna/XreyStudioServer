@@ -18,6 +18,11 @@ export class BalancersController {
     return this.service.list(user);
   }
 
+  @Get('recipes')
+  recipes() {
+    return { items: this.service.recipes() };
+  }
+
   @Get(':id')
   get(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.service.get(id, user);

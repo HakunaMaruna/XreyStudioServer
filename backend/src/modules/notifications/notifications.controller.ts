@@ -16,6 +16,7 @@ export class NotificationsController {
   constructor(
     private service: NotificationsService,
     private settings: NotificationSettingsService,
+    private prisma: import('../../prisma/prisma.service').PrismaService,
   ) {}
 
   @Post('test')
@@ -30,6 +31,22 @@ export class NotificationsController {
   @Get('channels')
   async channels() {
     return this.service.channels();
+  }
+
+  @Get('relay-node')
+  async relayNodeGet() {
+    return { nodeId: (await this.settings.value('NOTIFICATION_VIA_NODE_ID')) || null };
+  }
+
+  @Patch('relay-node')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  async relayNodeSet(@Body() body: { nodeId?: string | null }) {
+    if (body.nodeId) {
+      const node = await this.prisma.node.findUnique({ where: { id: body.nodeId }, select: { id: true } });
+      if (!node) throw new BadRequestException('Node not found');
+    }
+    await this.settings.setCredentials({ NOTIFICATION_VIA_NODE_ID: body.nodeId || '' });
+    return { nodeId: body.nodeId || null };
   }
 
   @Get('settings')

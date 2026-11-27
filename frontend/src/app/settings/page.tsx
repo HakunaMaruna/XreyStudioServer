@@ -193,6 +193,8 @@ export default function SettingsPage() {
   const [hubSaved, setHubSaved] = useState(false);
   const [config, setConfig] = useState<Record<string, string>>({});
   const [dnsMode, setDnsMode] = useState('tenant');
+  const [relayNodes, setRelayNodes] = useState<Array<{ id: string; name: string }>>([]);
+  const [relayNodeId, setRelayNodeId] = useState('');
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [snapshotPolicy, setSnapshotPolicy] = useState<SnapshotPolicy>(DEFAULT_SNAPSHOT_POLICY);
   const [snapshotForm, setSnapshotForm] = useState({ label: '', reason: '', scope: 'FULL' as Snapshot['scope'] });
@@ -232,8 +234,10 @@ export default function SettingsPage() {
       api.get<Partial<BackupSettings>>('/api/backups/settings'),
       api.get<ChannelStatus>('/api/notifications/channels'),
       api.get<{ mode?: string }>('/api/dns/status').catch(() => ({ mode: 'tenant' })),
+      api.get<Array<{ id: string; name: string }>>('/api/nodes').catch(() => []),
+      api.get<{ nodeId?: string | null }>('/api/notifications/relay-node').catch(() => ({ nodeId: null })),
     ])
-      .then(([notificationData, backupData, channelData, dnsData]) => {
+      .then(([notificationData, backupData, channelData, dnsData, nodeData, relayData]) => {
         if (cancelled) return;
         if (notificationData.policy) {
           setPolicy({ ...DEFAULT_POLICY, ...notificationData.policy });
@@ -243,6 +247,8 @@ export default function SettingsPage() {
         }
         setChannels(channelData || {});
         setDnsMode(dnsData?.mode || 'tenant');
+        setRelayNodes(Array.isArray(nodeData) ? nodeData : []);
+        setRelayNodeId(relayData?.nodeId || '');
         setHubError('');
       })
       .catch((err) => {
@@ -503,6 +509,24 @@ export default function SettingsPage() {
                   onChange={(value) => setPolicy((prev) => ({ ...prev, enabled: value }))}
                   label={t.enabled}
                 />
+                <Field label={t.notifyViaNode} hint={t.notifyViaNodeHint}>
+                  <select
+                    className="field"
+                    value={relayNodeId}
+                    onChange={async (event) => {
+                      const value = event.target.value;
+                      setRelayNodeId(value);
+                      try {
+                        await api.patch('/api/notifications/relay-node', { nodeId: value || null });
+                      } catch (err: any) {
+                        setHubError(err.message);
+                      }
+                    }}
+                  >
+                    <option value="">{t.notifyDirect}</option>
+                    {relayNodes.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}
+                  </select>
+                </Field>
                 <div>
                   <label className="mb-1.5 block text-[11px] font-medium text-subtle">{t.channelsActive}</label>
                   <div className="flex flex-wrap gap-2">

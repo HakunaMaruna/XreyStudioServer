@@ -23,7 +23,7 @@ describe('NotificationsService security and routing', () => {
     prisma = {};
   });
 
-  const service = () => new NotificationsService(prisma, routes, settings);
+  const service = () => new NotificationsService(prisma, routes, settings, { request: jest.fn() } as any);
 
   it('rejects private webhook addresses in production without echoing the response', async () => {
     const previous = process.env.NODE_ENV;

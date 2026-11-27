@@ -46,6 +46,7 @@ import type { Transporter } from 'nodemailer';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationRoutesService } from './notification-routes.service';
 import { NotificationSettingsService } from './notification-settings.service';
+import { NodeHttpService } from './node-http.service';
 
 export type ChannelResult = { sent: boolean; reason?: string; error?: string };
 
@@ -77,6 +78,7 @@ export class NotificationsService {
     private prisma: PrismaService,
     private routes: NotificationRoutesService,
     private settings: NotificationSettingsService,
+    private nodeHttp: NodeHttpService,
   ) {}
 
   // Внутренние/metadata адреса запрещены для исходящего webhook в проде.
@@ -112,17 +114,24 @@ export class NotificationsService {
     return this.mailer;
   }
 
+  /** Send through a selected node's network when the panel cannot reach the provider. */
+  private async outboundRequest(target: string, method: string, headers: Record<string, string>, body?: string) {
+    const nodeId = await this.settings.value('NOTIFICATION_VIA_NODE_ID');
+    if (!nodeId) {
+      const res = await fetch(target, { method, headers, body, signal: AbortSignal.timeout(8000), redirect: 'error' });
+      return { ok: res.ok, status: res.status };
+    }
+    return this.nodeHttp.request(nodeId, target, method, headers, body);
+  }
+
   async sendTelegram(text: string): Promise<ChannelResult> {
     const token = await this.settings.value('TELEGRAM_BOT_TOKEN');
     const chatId = await this.settings.value('TELEGRAM_CHAT_ID');
     if (!token || !chatId) return { sent: false, reason: 'telegram not configured' };
     try {
-      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
-        signal: AbortSignal.timeout(8000),
-      });
+      const res = await this.outboundRequest(`https://api.telegram.org/bot${token}/sendMessage`, 'POST',
+        { 'Content-Type': 'application/json' },
+        JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }));
       return { sent: res.ok, ...(res.ok ? {} : { error: `Telegram HTTP ${res.status}` }) };
     } catch (e: any) {
       this.logger.warn(`Telegram failed: ${e.message}`);
@@ -140,13 +149,7 @@ export class NotificationsService {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (secret) headers['X-XSS-Signature'] = `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`;
       // Redirects could point a public webhook to a private address; never follow them.
-      const res = await fetch(url, {
-        method: 'POST',
-        headers,
-        body,
-        redirect: 'error',
-        signal: AbortSignal.timeout(8000),
-      });
+      const res = await this.outboundRequest(url, 'POST', headers, body);
       // Тело ответа провайдера не возвращаем и не логируем — там могут быть секреты.
       return { sent: res.ok, ...(res.ok ? {} : { error: `Webhook HTTP ${res.status}` }) };
     } catch (e: any) {
@@ -175,12 +178,9 @@ export class NotificationsService {
     const recipient = await this.settings.value('SIGNAL_RECIPIENT');
     if (!url || !number || !recipient) return { sent: false, reason: 'signal not configured' };
     try {
-      const res = await fetch(`${url.replace(/\/$/, '')}/v2/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, number, recipients: [recipient] }),
-        signal: AbortSignal.timeout(8000),
-      });
+      const res = await this.outboundRequest(`${url.replace(/\/$/, '')}/v2/send`, 'POST',
+        { 'Content-Type': 'application/json' },
+        JSON.stringify({ message: text, number, recipients: [recipient] }));
       return { sent: res.ok, ...(res.ok ? {} : { error: `Signal HTTP ${res.status}` }) };
     } catch (e: any) {
       this.logger.warn(`Signal failed: ${e.message}`);

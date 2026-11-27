@@ -415,4 +415,255 @@ Telegram-бот выдает одноразовую подписанную сс�
 Укажите \`NEXT_PUBLIC_SITE_URL\` равным внешнему адресу панели, например \`https://panel.example.com\`.
 `,
   },
+  {
+    id: 'external-links',
+    title: 'Внешние ссылки и подписки',
+    icon: 'globe',
+    markdown: `# Внешние ссылки и подписки пользователя
+
+Пользователь может добавить к **своей** подписке чужие share-ссылки и подписку провайдера. Данные хранятся отдельно и отдаются только в подписке этого пользователя.
+
+## Где добавить в UI
+
+**Пользователи** → карточка пользователя → окно подключения → блок **«Внешние ссылки и подписки»**. Там же видны тип (\`link\` / \`subscription\`), заметка, статус и ошибка последней загрузки.
+
+## API
+
+\`\`\`text
+GET    /api/users/:id/external-links
+POST   /api/users/:id/external-links
+DELETE /api/users/:id/external-links/:linkId
+\`\`\`
+
+\`\`\`bash
+curl -X POST https://panel.example.com/api/users/<id>/external-links \\
+  -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' \\
+  -d '{"kind":"link","value":"vless://uuid@host:443?security=tls#запасной","remark":"Мой канал"}'
+
+curl -X POST https://panel.example.com/api/users/<id>/external-links \\
+  -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' \\
+  -d '{"kind":"subscription","value":"https://provider.example.com/sub/token","remark":"Провайдер"}'
+\`\`\`
+
+Поля: \`kind\` (\`link\` по умолчанию или \`subscription\`), \`value\` (обязательно, до 8192 символов), \`remark\`, \`enabled\` (по умолчанию \`true\`). Порядок определяется \`sortIndex\` — новые записи добавляются в конец.
+
+## Поддерживаемые ссылки
+
+Обычная ссылка — одна строка с схемой: \`vless://\`, \`vmess://\`, \`trojan://\`, \`ss://\`, \`hysteria2://\` (\`hy2://\`), \`tuic://\`, \`wireguard://\` (\`wg://\`), а также \`ssr://\`, \`hysteria://\`, \`socks://\`/\`socks5://\`. Неизвестная схема отклоняется. Отключённая запись (\`enabled: false\`) в подписку не попадает.
+
+Удалённая подписка — URL \`http(s)://\`, который панель загружает **на стороне сервера**:
+
+- ответ до **2 MiB** и не более **1000 ссылок**;
+- поддерживается plain-текст (по строкам) и base64-тело без \`://\`; комментарии \`#...\` и строки с неподдерживаемыми схемами отбрасываются;
+- кэш в памяти на **5 минут** (до 256 URL), поэтому повторные обновления подписки не бьют по провайдеру;
+- редиректы обходятся вручную (до 4 прыжков), таймаут 6 секунд;
+- **SSRF-защита**: отклоняются \`localhost\`, \`metadata.google.internal\`, loopback/private/link-local CIDR, IPv6 \`fe80/fc/fd\`, а также домены, которые резолвятся в приватный адрес. Каждый редирект проверяется по тем же правилам.
+
+## Как попадает в подписку
+
+External-ссылки дописываются после собственных линков и цепочек: \`raw\` — строками, \`base64\` — кодируется вместе со всей подпиской, \`json\` — элементами с \`id\` и \`tag\` вида \`external-0\`, \`external-1\`, полем \`link\` и схемой из префикса.
+
+## Ошибки
+
+Если загрузка удалённой подписки не удалась, ссылки этой записи пропускаются, а причина пишется в \`lastFetchError\` (и \`lastFetchAt\`). Текст ошибки показывается прямо в карточке в UI — например, \`Subscription responded 503\` или \`Subscription body is too large\`. Ошибка не ломает всю подписку: остальные записи и собственные линки продолжают отдаваться.
+`,
+  },
+  {
+    id: 'notifications-via-node',
+    title: 'Уведомления через ноду',
+    icon: 'activity',
+    markdown: `# Отправка уведомлений через ноду
+
+Если панель стоит на хосте, до которого провайдеры уведомлений недоступны (например, блокируемый RU-хост), HTTP-запросы можно выпустить **с ноды**.
+
+## Где включить
+
+**Настройки → Уведомления** → выпадающий список **«Отправлять через ноду»**. По умолчанию выбран пункт **«Напрямую с панели»** — поведение не меняется. Выберите ноду из списка, и выбор сохранится:
+
+\`\`\`bash
+# включить ретрансляцию через ноду
+curl -X PATCH https://panel.example.com/api/notifications/relay-node \\
+  -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' \\
+  -d '{"nodeId":"<id ноды>"}'
+
+# вернуться в прямой режим
+curl -X PATCH https://panel.example.com/api/notifications/relay-node \\
+  -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' \\
+  -d '{"nodeId":null}'
+\`\`\`
+
+Настройка хранится как \`NOTIFICATION_VIA_NODE_ID\`.
+
+## Что именно идёт через ноду
+
+- **Telegram** (\`api.telegram.org\`) и **Signal** (HTTP API) — \`POST\` с ноды;
+- **Webhook** — \`POST\` с ноды, включая подпись \`X-XSS-Signature: sha256=...\` при заданном \`WEBHOOK_SECRET\`;
+- **SMTP (email)** — всегда отправляется **напрямую с панели** через \`SMTP_HOST\`/\`SMTP_PORT\`, ретрансляция его не затрагивает.
+
+Технически панель открывает SSH-соединение к выбранной ноде и делает \`forwardOut\` к API провайдера, затем выполняет обычный HTTP/HTTPS-запрос через этот сокет (SNI выставляется по имени хоста, таймаут 8 секунд). Если у ноды задан **jump node** (\`jumpNodeId\`), сначала строится цепочка: панель → jump-нода → целевая нода → провайдер.
+
+## Требования и подводные камни
+
+- у ноды должны быть сохранённые SSH-учётные данные (пароль или приватный ключ, при необходимости с passphrase) — иначе отправка вернёт ошибку;
+- при настроенном jump node должны быть данные и у jump-ноды, иначе цепочка не соберётся;
+- webhook в проде требует \`https://\` и запрещает приватные адреса; редиректы не разворачиваются — адрес провайдера не может быть подменён на локальный;
+- если запрос через ноду не удался, причина попадает в результат канала и в историю **Оповещений**; проверять каналы можно кнопками проверки в том же разделе.
+
+Режим «через ноду» полезен только для доступа к провайдеру уведомлений: он не меняет маршрутизацию трафика подписок и не делает ноду SMTP-сервером.
+`,
+  },
+  {
+    id: 'balancer-recipes',
+    title: 'Балансировщики: рецепты',
+    icon: 'route',
+    markdown: `# Балансировщики: готовые рецепты
+
+Раздел **Балансировщики** — редактор \`routing.balancers\` Xray. Доступен ADMIN и OPERATOR (OPERATOR видит только свою организацию). Формы и поля описаны в \`docs/balancers.md\`; ниже — готовые JSON-тела для \`POST /api/balancers\` (\`PATCH\` принимает те же поля).
+
+## Общая форма payload
+
+\`\`\`text
+name              имя (до 120 символов)
+strategy          random | roundRobin | leastPing | leastLoad
+enabled           включать ли балансировщик в конфиг (обязательно true для работы)
+fallbackTag       тег outbound'а при отказе участников (по умолчанию direct)
+rule              объект с matchers: domain, ip, port, network, inboundTag, protocol, source, user (+ ruleTag)
+members           от 1 до 32 участников
+probeUrl          URL проверки (http/https), по умолчанию https://www.google.com/generate_204
+probeIntervalSec  10..3600, секунды
+observatoryMode   observatory | burstObservatory
+burstDestination, burstIntervalSec (10..3600), burstSampling (1..50), burstTimeoutSec (1..60) — для burst
+organizationId    опционально, организация
+\`\`\`
+
+Поля участника: \`protocol\` (\`vless\`, \`vmess\`, \`trojan\`, \`shadowsocks\`, \`freedom\`, \`socks\`, \`http\`), \`address\`, \`port\`, \`uuid\`, \`password\`, \`method\`, \`security\` (\`none|tls|reality\`), \`transport\`, \`sni\`, \`path\`, \`enabled\`. Секреты шифруются в БД ключом \`PANEL_MASTER_KEY\` и расшифровываются только при генерации конфига. Теги участников генерируются автоматически: \`bal-<id>-out-1\`, \`bal-<id>-out-2\`, ...; тег балансировщика — \`balancer-<id>\`.
+
+## Рецепт 1. Round-robin на два исходящих
+
+\`\`\`json
+{
+  "name": "RR — два канала",
+  "strategy": "roundRobin",
+  "enabled": true,
+  "fallbackTag": "direct",
+  "rule": { "domain": ["example.com", "geosite:google"] },
+  "members": [
+    { "protocol": "vless", "address": "a.example.com", "port": 443, "uuid": "11111111-1111-1111-1111-111111111111", "security": "tls", "sni": "a.example.com", "transport": "tcp", "enabled": true },
+    { "protocol": "trojan", "address": "b.example.com", "port": 443, "password": "secret-b", "security": "tls", "sni": "b.example.com", "enabled": true }
+  ]
+}
+\`\`\`
+
+**Когда использовать:** два примерно равнозначных канала, нужно равномерно размазать нагрузку и не заботиться о проверках доступности (\`roundRobin\` работает без observatory).
+
+**Что крутить:** \`rule.domain\` / \`rule.ip\` / \`rule.port\` / \`rule.network\` — какие потоки балансировать; \`members\` — адреса, порты и учётные данные; \`fallbackTag\` — куда уйти, если оба участника недоступны.
+
+## Рецепт 2. Failover: primary + backup с observatory
+
+\`\`\`json
+{
+  "name": "Failover — primary + backup",
+  "strategy": "leastPing",
+  "observatoryMode": "observatory",
+  "probeUrl": "https://www.google.com/generate_204",
+  "probeIntervalSec": 30,
+  "enabled": true,
+  "fallbackTag": "direct",
+  "rule": { "domain": ["critical.example.com"] },
+  "members": [
+    { "protocol": "vless", "address": "primary.example.com", "port": 443, "uuid": "22222222-2222-2222-2222-222222222222", "security": "tls", "sni": "primary.example.com", "enabled": true },
+    { "protocol": "vmess", "address": "backup.example.com", "port": 443, "uuid": "33333333-3333-3333-3333-333333333333", "security": "tls", "sni": "backup.example.com", "enabled": true }
+  ]
+}
+\`\`\`
+
+**Когда использовать:** есть основной и резервный каналы; при росте задержки/отказе основного трафик уходит на запасной.
+
+**Что крутить:** \`probeUrl\` и \`probeIntervalSec\` — проверка должна быть доступна через оба участника; \`observatoryMode: "burstObservatory"\` с полями \`burstDestination\`, \`burstIntervalSec\`, \`burstSampling\`, \`burstTimeoutSec\` — менее заметные и более частые пробы, быстрее находят отказ; \`fallbackTag\`. Ограничение MVP: явного приоритета/весов нет, выбор идёт по измеренной задержке, поэтому «строго primary» гарантии нет — для критичных случаев делайте отдельное правило.
+
+## Рецепт 3. Группа least-latency / url-test
+
+\`\`\`json
+{
+  "name": "URL-test — пул из трёх",
+  "strategy": "leastPing",
+  "observatoryMode": "burstObservatory",
+  "burstDestination": "https://connectivitycheck.gstatic.com/generate_204",
+  "burstIntervalSec": 60,
+  "burstSampling": 10,
+  "burstTimeoutSec": 5,
+  "probeUrl": "https://www.google.com/generate_204",
+  "probeIntervalSec": 30,
+  "enabled": true,
+  "fallbackTag": "direct",
+  "rule": { "ip": ["0.0.0.0/0"], "network": "tcp" },
+  "members": [
+    { "protocol": "vless", "address": "n1.example.com", "port": 443, "uuid": "44444444-4444-4444-4444-444444444444", "security": "tls", "sni": "n1.example.com", "enabled": true },
+    { "protocol": "vmess", "address": "n2.example.com", "port": 443, "uuid": "55555555-5555-5555-5555-555555555555", "enabled": true },
+    { "protocol": "shadowsocks", "address": "n3.example.com", "port": 8388, "method": "aes-256-gcm", "password": "secret-ss", "enabled": true }
+  ]
+}
+\`\`\`
+
+**Когда использовать:** пул из трёх и более нод, нужно автоматически выбирать самую быструю (\`leastPing\`) или Least Load; аналог «url-test» в клиентах.
+
+**Что крутить:** \`strategy\` (\`leastPing\` / \`leastLoad\`), \`burstDestination\` и интервалы проб, \`rule\` (например, сузить \`ip\` до нужных сетей), список \`members\`. Если хотя бы один включённый балансировщик использует burst, в конфиг пишется только \`burstObservatory\` с объединённым \`subjectSelector\` — обычный \`observatory\` при этом не добавляется.
+
+## Рецепт 4. Сбалансированная цепочка с тегом \`extern\`
+
+\`\`\`json
+{
+  "name": "Chain — balanced → extern",
+  "strategy": "roundRobin",
+  "enabled": true,
+  "fallbackTag": "extern",
+  "rule": { "inboundTag": ["test-in"], "network": "tcp", "ruleTag": "extern-chain" },
+  "members": [
+    { "protocol": "vless", "address": "hop1.example.com", "port": 443, "uuid": "66666666-6666-6666-6666-666666666666", "security": "tls", "sni": "hop1.example.com", "enabled": true },
+    { "protocol": "vless", "address": "hop2.example.com", "port": 443, "uuid": "77777777-7777-7777-7777-777777777777", "security": "tls", "sni": "hop2.example.com", "enabled": true }
+  ]
+}
+\`\`\`
+
+**Когда использовать:** трафик с конкретного inbound'а (\`inboundTag\`) балансируется между хопами, а при отказе всех участников уходит в уже существующую цепочку/upstream с тегом \`extern\`.
+
+**Что крутить:** \`rule.inboundTag\` — тег исходного inbound'а; \`ruleTag\` — подпись правила; \`fallbackTag\` — имя исходящего тега; \`members\`. Важно: тег \`extern\` должен существовать в конфиге как outbound — добавьте его кастомным routing profile (**Инфраструктура → Профили маршрутизации**) в массиве \`outbounds\`, например:
+
+\`\`\`json
+{
+  "outbounds": [
+    {
+      "tag": "extern",
+      "protocol": "vless",
+      "settings": { "address": "upstream.example.com", "port": 443, "clients": [{ "id": "88888888-8888-8888-8888-888888888888" }], "decryption": "none" },
+      "streamSettings": { "network": "raw", "security": "tls", "tlsSettings": { "serverName": "upstream.example.com" } }
+    }
+  ]
+}
+\`\`\`
+
+Выпадающий список \`fallbackTag\` в UI содержит только \`direct\` и \`blocked\`; произвольное значение (\`extern\`) задаётся через API: \`PATCH /api/balancers/<id>\` с \`{"fallbackTag":"extern"}\`. DTO допускает любую строку до 80 символов, но не проверяет существование тега — несуществующий \`fallbackTag\` приведёт к ошибке Xray при запуске конфига.
+
+## Как сделать тестовый балансировщик
+
+1. На тестовой ноде поднимите два тестовых подключения/outbound'а (например, два VLESS-инбаунда на разных портах) и запомните их адрес, порт и UUID — это будут два участника. Убедитесь, что нода онлайн и конфиг применён.
+2. Создайте балансировщик через UI или API (рецепт 1), указав эти два адреса в \`members\` и \`enabled: true\`. Без \`enabled: true\` он не попадёт в генерируемый конфиг.
+3. На странице ноды нажмите **«Применить»** — иначе нода останется на старой ревизии конфига. Кнопка **«Предпросмотр конфига»** в редакторе показывает точный JSON (\`outbounds\`, \`balancers\`, \`rules\`, \`observatory\`), который уйдёт в Xray: теги должны быть \`bal-<id>-out-1/2\` и \`balancer-<id>\`.
+4. Проверьте CRUD и статус:
+
+\`\`\`bash
+curl -sS https://panel.example.com/api/balancers -H 'Authorization: Bearer <token>'
+curl -sS https://panel.example.com/api/balancers/<id> -H 'Authorization: Bearer <token>'
+curl -sS -X POST https://panel.example.com/api/balancers/<id>/preview \\
+  -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'
+curl -sS -X PATCH https://panel.example.com/api/balancers/<id> \\
+  -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{"enabled":true}'
+curl -sS -X DELETE https://panel.example.com/api/balancers/<id> -H 'Authorization: Bearer <token>'
+\`\`\`
+
+Статус: в списке должен быть \`enabled: true\`, предпросмотр — непустые \`outbounds\`/\`balancers\`/\`rules\`, на ноде — выросшая ревизия конфига и зелёный статус применённого конфига. Клиент подписки, подключённый к inbound'у из \`rule\`, должен ходить через этот балансировщик. После \`DELETE\` снова нажмите **«Применить»**, чтобы убрать balancer из рабочего конфига.
+
+Ограничения: веса участников и тонкие настройки \`strategy.settings\` пока не поддерживаются; общий observatory/burstObservatory один на все балансировщики; sing-box и внешние протоколы (Hysteria2/TUIC/WireGuard) этим механизмом не балансируются.
+`,
+  },
 ];

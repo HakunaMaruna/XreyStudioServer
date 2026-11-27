@@ -138,6 +138,69 @@ export class BalancersService {
     };
   }
 
+  /** Ready-to-use presets for the balancer form; values stay editable. */
+  recipes() {
+    return [
+      {
+        id: 'round-robin',
+        name: 'Round Robin — two exits',
+        description: 'Delivers connections evenly between two outbound nodes. No probing needed.',
+        payload: {
+          name: 'Round Robin test', strategy: 'roundRobin', enabled: true, fallbackTag: 'direct',
+          observatoryMode: 'observatory', probeUrl: 'https://www.google.com/generate_204', probeIntervalSec: 30,
+          rule: { type: 'field', domain: ['geosite:google'] },
+          members: [
+            { protocol: 'vless', address: 'exit-1.example.com', port: 443, uuid: '', security: 'reality', sni: 'exit-1.example.com', enabled: true },
+            { protocol: 'vless', address: 'exit-2.example.com', port: 443, uuid: '', security: 'reality', sni: 'exit-2.example.com', enabled: true },
+          ],
+        },
+      },
+      {
+        id: 'failover',
+        name: 'Failover — primary + backup',
+        description: 'Uses the first healthy outbound; switches to backup when probing fails.',
+        payload: {
+          name: 'Failover test', strategy: 'leastPing', enabled: true, fallbackTag: 'direct',
+          observatoryMode: 'observatory', probeUrl: 'https://www.google.com/generate_204', probeIntervalSec: 30,
+          rule: { type: 'field', network: 'tcp,udp' },
+          members: [
+            { protocol: 'vless', address: 'primary.example.com', port: 443, uuid: '', security: 'reality', sni: 'primary.example.com', enabled: true },
+            { protocol: 'vless', address: 'backup.example.com', port: 443, uuid: '', security: 'reality', sni: 'backup.example.com', enabled: true },
+          ],
+        },
+      },
+      {
+        id: 'least-load',
+        name: 'Least Load — burst observatory',
+        description: 'Chooses the least loaded outbound using short burst measurements.',
+        payload: {
+          name: 'Least Load test', strategy: 'leastLoad', enabled: true, fallbackTag: 'direct',
+          observatoryMode: 'burstObservatory', burstDestination: 'https://www.cloudflare.com/cdn-cgi/trace',
+          burstIntervalSec: 30, burstSampling: 3, burstTimeoutSec: 3,
+          rule: { type: 'field', domain: ['geosite:category-ads-all'] },
+          members: [
+            { protocol: 'vless', address: 'node-a.example.com', port: 443, uuid: '', enabled: true },
+            { protocol: 'vless', address: 'node-b.example.com', port: 443, uuid: '', enabled: true },
+          ],
+        },
+      },
+      {
+        id: 'random',
+        name: 'Random — simple test',
+        description: 'Simplest preset: picks a random outbound, no observatory required.',
+        payload: {
+          name: 'Random test', strategy: 'random', enabled: true, fallbackTag: 'direct',
+          observatoryMode: 'observatory', probeUrl: 'https://www.google.com/generate_204', probeIntervalSec: 30,
+          rule: { type: 'field', ip: ['geoip:ru'] },
+          members: [
+            { protocol: 'freedom', enabled: true },
+            { protocol: 'vless', address: 'exit.example.com', port: 443, uuid: '', security: 'reality', sni: 'exit.example.com', enabled: true },
+          ],
+        },
+      },
+    ];
+  }
+
   async create(dto: CreateBalancerDto, actor: AuthUser) {
     this.assertOrganization(dto, actor);
     this.validate(dto);
