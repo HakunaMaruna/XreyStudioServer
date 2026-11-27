@@ -223,28 +223,22 @@ export class NodeProvisionService {
   // отвязан — первую локальную ветку.
   private gitUpdate(sudo: string, targetVersion?: string) {
     const git = `${sudo}git`;
-    // Wizard provisioning locally edits docker-compose.node.yml (relay ports and
-    // volumes) and writes .env. Those are legitimate local changes: stash them
-    // around the checkout, then reapply on top of the new tag.
-    const stash = `${git} stash push -u -m "xss-agent-update" >/dev/null 2>&1 || true;`;
-    const restore = [
-      `if ${git} stash list | grep -q 'xss-agent-update'; then`,
-      `  if ! ${git} stash pop --quiet; then`,
-      `    ${git} checkout -- . >/dev/null 2>&1 || true;`,
-      `    echo 'WARNING: local agent changes were kept in git stash; inspect manually' >&2;`,
-      `  fi;`,
-      `fi`,
-    ].join(' ');
+    // Wizard provisioning keeps deployment-specific relay ports/volumes in
+    // docker-compose.node.yml. Preserve that file verbatim across the update;
+    // a git stash/pop conflicts here because upstream also edits the file.
+    const backup = `${sudo}cp docker-compose.node.yml /tmp/xss-agent-compose-backup 2>/dev/null || true;`;
+    const clean = `${git} reset --hard HEAD >/dev/null 2>&1 || true;`;
+    const restore = `${sudo}cp /tmp/xss-agent-compose-backup docker-compose.node.yml 2>/dev/null || true;`;
     if (targetVersion) {
       return (
-        `${stash} ` +
+        `${backup} ${clean} ` +
         `( ${git} rev-parse -q --verify "refs/tags/${targetVersion}" >/dev/null && tag=${targetVersion} || tag=v${targetVersion}; ` +
-        `${git} checkout -q "$tag" ); ` +
-        restore
+        `${git} checkout -q "$tag" ); ${restore}`
       );
     }
     return [
-      stash,
+      backup,
+      clean,
       `branch=$(${git} symbolic-ref -q --short HEAD || ${git} for-each-ref --format='%(refname:short)' refs/heads | head -n 1)`,
       `${git} checkout -q "\${branch:-main}"`,
       `${git} pull -q --ff-only`,
