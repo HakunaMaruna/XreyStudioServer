@@ -100,8 +100,8 @@ export default function ApiTokensPage() {
     setError('');
     try {
       const [tokenData, routeData] = await Promise.all([
-        api.get<TokenRow[]>('/api-tokens'),
-        api.get<RouteRow[]>('/notification-routes'),
+        api.get<TokenRow[]>('/api/api-tokens'),
+        api.get<RouteRow[]>('/api/notification-routes'),
       ]);
       setTokens(Array.isArray(tokenData) ? tokenData : []);
       setRoutes(Array.isArray(routeData) ? routeData : []);
@@ -141,7 +141,7 @@ export default function ApiTokensPage() {
         }
         body.expiresAt = new Date(Date.now() + days * 86_400_000).toISOString();
       }
-      const result = await api.post<{ token: string }>('/api-tokens', body);
+      const result = await api.post<{ token: string }>('/api/api-tokens', body);
       setCreatedToken(result.token || '');
       setCopied(false);
       setName('');
@@ -160,7 +160,7 @@ export default function ApiTokensPage() {
     setBusyId(id);
     setError('');
     try {
-      await api.delete(`/api-tokens/${encodeURIComponent(id)}`);
+      await api.delete(`/api/api-tokens/${encodeURIComponent(id)}`);
       await load();
     } catch (e) {
       setError(errorMessage(e, 'Failed to revoke token'));
@@ -173,7 +173,7 @@ export default function ApiTokensPage() {
     setBusyId(`${event}:${channel}`);
     setError('');
     try {
-      await api.post('/notification-routes', { event, channel, enabled: !current });
+      await api.post('/api/notification-routes', { event, channel, enabled: !current });
       await load();
     } catch (e) {
       setError(errorMessage(e, 'Failed to update route'));
