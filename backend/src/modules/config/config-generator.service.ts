@@ -431,6 +431,8 @@ export class ConfigGeneratorService {
     if (process.env.XRAY_STATS_ENABLED === 'true') {
       const apiPort = Number(process.env.XRAY_API_PORT || 8080);
       config.api = { tag: 'api', services: ['HandlerService', 'StatsService'] };
+      // Xray only records per-user counters when the top-level stats object exists.
+      config.stats = {};
       config.inbounds.unshift({
         tag: 'api-in',
         listen: '127.0.0.1',
