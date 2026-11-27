@@ -90,7 +90,8 @@ export class CheburcheckService implements OnModuleInit, OnModuleDestroy {
         try {
           const result = await this.check({ target }, system);
           if (result.blocked) blocked += 1;
-          lines.push(`• <code>${this.esc(target)}</code> — ${result.blocked ? '⛔' : '✅'} ${this.esc(result.verdict)}`);
+          const resultIps: string[] = Array.isArray(result.ips) ? result.ips.slice(0, 2).map(String) : [];
+          lines.push(`• <code>${this.esc(target)}</code>${resultIps.length ? ` [${this.esc(resultIps.join(', '))}]` : ''} — ${result.blocked ? '⛔' : '✅'} ${this.esc(result.verdict)}`);
         } catch (error: any) {
           lines.push(`• <code>${this.esc(target)}</code> — ⚠️ error ${this.esc(error.message)}`);
         }
@@ -293,21 +294,26 @@ export class CheburcheckService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (stored.blocked) {
+      const nodeInfo = nodeId
+        ? await this.prisma.node.findUnique({ where: { id: nodeId }, select: { organizationId: true, name: true, address: true } })
+        : null;
+      const ips: string[] = (Array.isArray(check.ips) && check.ips.length ? check.ips : (payload.ips || [])).slice(0, 3).map(String);
       await this.notifications.emit(NotificationEvent.CHEBURCHECK_BLOCKED, {
         text: [
           '<b>⛔ CHEBURCHECK: БЛОКИРОВКА</b>',
           `<blockquote>Цель: <code>${this.esc(target)}</code>`,
           `Вердикт: ${this.esc(verdict)}`,
-          ...(nodeId ? [`Узел: <code>${this.esc(nodeId)}</code>`] : []),
+          ...(ips.length ? [`IP: <code>${this.esc(ips.join(', '))}</code>`] : []),
+          ...(nodeInfo?.name ? [`Узел: <code>${this.esc(nodeInfo.name)}</code>`] : (nodeId ? [`Узел: <code>${this.esc(nodeId)}</code>`] : [])),
           '</blockquote>',
           `<b>Время:</b> ${this.tgTime(Date.now())}`,
         ].join('\n'),
-        plainText: `Cheburcheck: ${target} — ${verdict}`,
+        plainText: `Cheburcheck: ${target} — ${verdict}${ips.length ? ` (IP: ${ips.join(', ')})` : ''}`,
         subject: `XSS: cheburcheck ${target}`,
         webhook: { event: NotificationEvent.CHEBURCHECK_BLOCKED, target, verdict, nodeId },
         severity: verdict === 'blocked' ? 'critical' : 'warning',
         dedupeKey: `cheburcheck:${nodeId || target}:${verdict}`,
-      }, nodeId ? (await this.prisma.node.findUnique({ where: { id: nodeId }, select: { organizationId: true } }))?.organizationId : null)
+      }, nodeInfo?.organizationId ?? null)
         .catch((error) => this.logger.warn(`Cheburcheck alert failed: ${error.message}`));
     }
 
