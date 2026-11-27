@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useLang } from '../lib/i18n';
 import { api, isLoggedIn } from '../lib/api';
-import { Button, Modal, Toggle } from './ui';
+import { Button, Modal } from './ui';
 import { Icon } from './icons';
 
 type Status = {
@@ -19,7 +19,9 @@ type Status = {
 export default function TelemetryConsent() {
   const { t } = useLang();
   const [status, setStatus] = useState<Status | null>(null);
-  const [enabled, setEnabled] = useState(true);
+  // Две независимые галочки: принятие лицензии обязательно, статистика — нет.
+  const [licenseAccepted, setLicenseAccepted] = useState(false);
+  const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -34,40 +36,65 @@ export default function TelemetryConsent() {
       .catch(() => undefined);
   }, []);
 
-  const decide = async (allow: boolean) => {
-    setBusy(true); setError('');
+  const accept = async () => {
+    if (!licenseAccepted) return;
+    setBusy(true);
+    setError('');
     try {
-      await api.post('/api/telemetry/consent', allow
-        ? { accepted: true, enabled }
-        : { accepted: false, enabled: false, declined: true });
+      await api.post('/api/telemetry/consent', { accepted: true, enabled });
       setStatus(null);
     } catch (e: any) {
       setError(e.message);
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <Modal
       open={Boolean(status)}
       onClose={() => undefined}
-      title={t.telemetryConsentTitle}
-      icon={<Icon name="activity" size={16} />}
-      footer={<>
-        <Button variant="subtle" disabled={busy} onClick={() => decide(false)}>{t.telemetryDecline}</Button>
-        <Button variant="primary" icon="check" loading={busy} onClick={() => decide(true)}>{t.telemetryAllow}</Button>
-      </>}
+      title={t.licenseConsentTitle}
+      icon={<Icon name="shield" size={16} />}
+      size="lg"
+      footer={
+        <Button variant="primary" icon="check" loading={busy} disabled={!licenseAccepted} onClick={accept}>
+          {t.telemetryContinue}
+        </Button>
+      }
     >
-      <p className="text-sm leading-relaxed text-muted">{t.telemetryConsentText}</p>
-      <p className="mt-3 text-xs text-subtle">
-        <a className="text-brand underline" href={status?.licenseUrl || '#'} target="_blank" rel="noopener noreferrer">
-          {t.telemetryLicense}
-        </a>
-      </p>
-      <div className="mt-4">
-        <Toggle checked={enabled} onChange={setEnabled} label={t.telemetryEnabled} />
+      <div className="space-y-4">
+        <p className="text-sm leading-relaxed text-muted">{t.licenseConsentText}</p>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+          <a className="text-brand underline" href="/docs#license" target="_blank" rel="noopener noreferrer">
+            {t.licenseReadDocs}
+          </a>
+          <a className="text-brand underline" href={status?.licenseUrl || '#'} target="_blank" rel="noopener noreferrer">
+            {t.telemetryLicense}
+          </a>
+        </div>
+        <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-line bg-surface-2/40 px-3 py-2.5 text-[13px] text-fg">
+          <input
+            type="checkbox"
+            checked={licenseAccepted}
+            onChange={(event) => setLicenseAccepted(event.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
+          />
+          <span>{t.licenseAccept}</span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-2.5 px-3 text-[13px] text-muted">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(event) => setEnabled(event.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
+          />
+          <span>{t.telemetryConsentCheckbox}</span>
+        </label>
+        {!status?.configured && <p className="text-xs text-warning">{t.telemetryNoConfig}</p>}
+        {!licenseAccepted && <p className="text-xs text-subtle">{t.licenseAcceptRequired}</p>}
+        {error && <p className="text-xs text-danger">{error}</p>}
       </div>
-      {!status?.configured && <p className="mt-3 text-xs text-warning">{t.telemetryNoConfig}</p>}
-      {error && <p className="mt-3 text-xs text-danger">{error}</p>}
     </Modal>
   );
 }
