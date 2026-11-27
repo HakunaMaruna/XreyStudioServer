@@ -30,7 +30,7 @@ export class ChainsService {
 
   private tenantWhere(user: AuthUser) {
     if (user.role === Role.ADMIN) return {};
-    return { organizationId: user.organizationId || '__none__' };
+    return { OR: [{ organizationId: user.organizationId || null }, { organizationId: null }] };
   }
 
   private async findOwned(id: string, user: AuthUser) {
@@ -426,7 +426,9 @@ export class ChainsService {
   }
 
   async bindingForUser(userId: string, organizationId?: string | null, squadId?: string | null) {
-    const orgScope = organizationId ? { chain: { organizationId } } : {};
+    const orgScope = organizationId
+      ? { chain: { OR: [{ organizationId }, { organizationId: null }] } }
+      : {};
     const userBinding = await this.prisma.chainBinding.findFirst({
       where: { userId, ...orgScope },
       include: { chain: { include: { hops: true } } },

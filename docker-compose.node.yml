@@ -33,3 +33,4 @@ services:
 
 volumes:
   xss_agent_decoy:
+  xss_agent_relays:
