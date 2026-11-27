@@ -231,7 +231,7 @@ export class NodeProvisionService {
       `if ${git} stash list | grep -q 'xss-agent-update'; then`,
       `  if ! ${git} stash pop --quiet; then`,
       `    ${git} checkout -- . >/dev/null 2>&1 || true;`,
-      `    echo 'WARNING: local agent changes were kept in git stash; inspect manually' >&2`,
+      `    echo 'WARNING: local agent changes were kept in git stash; inspect manually' >&2;`,
       `  fi;`,
       `fi`,
     ].join(' ');
