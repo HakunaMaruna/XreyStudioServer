@@ -270,7 +270,13 @@ export class NotificationsService {
     if (this.settings.isQuietHour(policy)) {
       return { policy: { sent: false, reason: 'quiet hours' } };
     }
-    if (await this.settings.withinCooldown(options.dedupeKey, policy.cooldownMinutes)) {
+    const errorEvents = ['NODE_OFFLINE', 'BACKUP_FAILED', 'CHEBURCHECK_BLOCKED', 'TRAFFIC_ALERT'];
+    let cooldownMinutes = policy.cooldownMinutes;
+    if (event === 'CHEBURCHECK_BLOCKED') cooldownMinutes = policy.cheburcheckIntervalMinutes;
+    else if (errorEvents.includes(event)) cooldownMinutes = policy.errorRepeatMinutes === 0 ? 10080 : policy.errorRepeatMinutes;
+    else cooldownMinutes = policy.infoIntervalMinutes;
+    if (cooldownMinutes <= 0) return { policy: { sent: false, reason: 'event disabled by schedule' } };
+    if (await this.settings.withinCooldown(options.dedupeKey || event, cooldownMinutes)) {
       return { policy: { sent: false, reason: 'cooldown' } };
     }
 

@@ -22,6 +22,7 @@ export const NOTIFICATION_CREDENTIAL_KEYS = [
   'CHEBURCHECK_BASE_URL',
   'NOTIFICATION_VIA_NODE_ID',
   'TELEGRAM_REPORT_INTERVAL_MS',
+  'NODE_DIGEST_INTERVAL_MS',
 ] as const;
 
 export type NotificationCredentialKey = (typeof NOTIFICATION_CREDENTIAL_KEYS)[number];
@@ -31,7 +32,7 @@ export type NotificationCredentialKey = (typeof NOTIFICATION_CREDENTIAL_KEYS)[nu
 const NON_SECRET_KEYS: ReadonlySet<string> = new Set([
   'TELEGRAM_CHAT_ID', 'WEBHOOK_URL', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER',
   'EMAIL_FROM', 'ALERT_EMAIL_TO', 'SIGNAL_API_URL', 'SIGNAL_PHONE_NUMBER',
-  'SIGNAL_RECIPIENT', 'CHEBURCHECK_BASE_URL', 'TELEGRAM_REPORT_INTERVAL_MS',
+  'SIGNAL_RECIPIENT', 'CHEBURCHECK_BASE_URL', 'TELEGRAM_REPORT_INTERVAL_MS', 'NODE_DIGEST_INTERVAL_MS',
 ]);
 
 export type NotificationPolicyData = {
@@ -41,6 +42,9 @@ export type NotificationPolicyData = {
   cooldownMinutes?: number;
   minSeverity?: string;
   escalationChannel?: string | null;
+  infoIntervalMinutes?: number;
+  errorRepeatMinutes?: number;
+  cheburcheckIntervalMinutes?: number;
 };
 
 const SEVERITY_ORDER: Record<string, number> = { info: 0, warning: 1, critical: 2 };
@@ -105,6 +109,9 @@ export class NotificationSettingsService {
       cooldownMinutes: row?.cooldownMinutes ?? 0,
       minSeverity: row?.minSeverity ?? 'warning',
       escalationChannel: row?.escalationChannel ?? null,
+      infoIntervalMinutes: row?.infoIntervalMinutes ?? 60,
+      errorRepeatMinutes: row?.errorRepeatMinutes ?? 0,
+      cheburcheckIntervalMinutes: row?.cheburcheckIntervalMinutes ?? 360,
     };
   }
 
@@ -113,6 +120,10 @@ export class NotificationSettingsService {
     const next = { ...current, ...patch };
     if (next.cooldownMinutes < 0 || next.cooldownMinutes > 1440) {
       throw new Error('cooldownMinutes must be between 0 and 1440');
+    }
+    for (const [key, max] of [['infoIntervalMinutes', 10080], ['errorRepeatMinutes', 10080], ['cheburcheckIntervalMinutes', 10080]] as const) {
+      const value = Number((next as any)[key] ?? 0);
+      if (!Number.isFinite(value) || value < 0 || value > max) throw new Error(`${key} must be between 0 and ${max}`);
     }
     if (next.quietHoursStart && !/^([01]\d|2[0-3]):[0-5]\d$/.test(next.quietHoursStart)) {
       throw new Error('quietHoursStart must be HH:MM');
@@ -127,6 +138,9 @@ export class NotificationSettingsService {
       cooldownMinutes: next.cooldownMinutes,
       minSeverity: next.minSeverity,
       escalationChannel: next.escalationChannel || null,
+      infoIntervalMinutes: Number(next.infoIntervalMinutes ?? 60),
+      errorRepeatMinutes: Number(next.errorRepeatMinutes ?? 0),
+      cheburcheckIntervalMinutes: Number(next.cheburcheckIntervalMinutes ?? 360),
     };
     const row = await this.prisma.notificationPolicy.upsert({
       where: { id: 'default' },

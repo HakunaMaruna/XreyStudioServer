@@ -5,6 +5,7 @@ import { connect } from 'net';
 import * as tls from 'tls';
 import { NotificationEvent } from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationSettingsService } from '../notifications/notification-settings.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
 const INTERVAL = Math.max(30, Number(process.env.HEALTH_CHECK_INTERVAL || 300)) * 1000;
@@ -17,7 +18,11 @@ export class HealthChecksService implements OnModuleInit, OnModuleDestroy {
   private lastDigestAt = 0;
   private readonly digestMs = Math.max(3_600_000, Number(process.env.NODE_DIGEST_INTERVAL_MS || 21_600_000));
 
-  constructor(private prisma: PrismaService, private notifications: NotificationsService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notifications: NotificationsService,
+    private settings: NotificationSettingsService,
+  ) {}
 
   onModuleInit() {
     this.timer = setInterval(() => this.run(), INTERVAL);
@@ -134,7 +139,12 @@ export class HealthChecksService implements OnModuleInit, OnModuleDestroy {
       }
       if (results.length) await this.prisma.healthCheck.createMany({ data: results });
       this.logger.log(`Client-eye checks: ${results.filter((r) => r.success).length}/${results.length} passed`);
-      if (Date.now() - this.lastDigestAt >= this.digestMs && rows.length) {
+      const configuredDigest = await this.settings.value('NODE_DIGEST_INTERVAL_MS');
+      const digestMs = configuredDigest === undefined || configuredDigest === ''
+        ? this.digestMs
+        : Math.max(0, Number(configuredDigest));
+      if (digestMs <= 0) return;
+      if (Date.now() - this.lastDigestAt >= digestMs && rows.length) {
         this.lastDigestAt = Date.now();
         const now = Date.now();
         const okCount = results.filter((item) => item.success).length;
@@ -147,7 +157,7 @@ export class HealthChecksService implements OnModuleInit, OnModuleDestroy {
         const text = [
           `<b>🩺 ДОСТУПНОСТЬ НОД · ${okCount}/${results.length}</b>`,
           `<pre>${table}</pre>`,
-          `<i>Проверка: ${this.tgTime(now)} · следующий дайджест: ${this.tgTime(now + this.digestMs)}</i>`,
+          `<i>Проверка: ${this.tgTime(now)} · следующий дайджест: ${this.tgTime(now + digestMs)}</i>`,
         ].join('\n');
         await this.notifications.broadcast({ text, plainText: text, subject: 'XSS: node availability digest' }, 'telegram')
           .catch((error) => this.logger.warn(`Node digest failed: ${error.message}`));

@@ -715,6 +715,9 @@ model NotificationPolicy {
   cooldownMinutes    Int      @default(0)
   minSeverity        String   @default("warning")
   escalationChannel  String?
+  infoIntervalMinutes        Int @default(60)
+  errorRepeatMinutes         Int @default(0)
+  cheburcheckIntervalMinutes Int @default(360)
   updatedAt          DateTime @updatedAt
 }
 

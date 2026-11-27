@@ -76,6 +76,9 @@ type NotificationPolicy = {
   cooldownMinutes: number;
   minSeverity: 'info' | 'warning' | 'critical';
   escalationChannel: string | null;
+  infoIntervalMinutes: number;
+  errorRepeatMinutes: number;
+  cheburcheckIntervalMinutes: number;
 };
 
 type BackupSettings = {
@@ -109,6 +112,9 @@ const DEFAULT_POLICY: NotificationPolicy = {
   cooldownMinutes: 15,
   minSeverity: 'warning',
   escalationChannel: null,
+  infoIntervalMinutes: 60,
+  errorRepeatMinutes: 0,
+  cheburcheckIntervalMinutes: 360,
 };
 
 const DEFAULT_BACKUP: BackupSettings = {
@@ -189,6 +195,7 @@ export default function SettingsPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [policy, setPolicy] = useState<NotificationPolicy>(DEFAULT_POLICY);
   const [reportIntervalMs, setReportIntervalMs] = useState(86_400_000);
+  const [nodeDigestMs, setNodeDigestMs] = useState(21_600_000);
   const [backup, setBackup] = useState<BackupSettings>(DEFAULT_BACKUP);
   const [channels, setChannels] = useState<ChannelStatus>({});
   const [hubError, setHubError] = useState('');
@@ -246,6 +253,7 @@ export default function SettingsPage() {
           setPolicy({ ...DEFAULT_POLICY, ...notificationData.policy });
         }
         setReportIntervalMs(Number(notificationData.values?.TELEGRAM_REPORT_INTERVAL_MS || 86_400_000));
+        setNodeDigestMs(Number(notificationData.values?.NODE_DIGEST_INTERVAL_MS || 21_600_000));
         if (backupData.cron !== undefined) {
           setBackup({ ...DEFAULT_BACKUP, ...backupData });
         }
@@ -325,6 +333,18 @@ export default function SettingsPage() {
       setHubError(err instanceof Error ? err.message : String(err));
     }
   }, [settings]);
+
+  const changeNodeDigestInterval = async (ms: number) => {
+    setNodeDigestMs(ms);
+    setHubError('');
+    try {
+      await api.patch('/api/notifications/settings', { credentials: { NODE_DIGEST_INTERVAL_MS: String(ms) } });
+      setHubSaved(true);
+      window.setTimeout(() => setHubSaved(false), 2000);
+    } catch (err) {
+      setHubError(err instanceof Error ? err.message : String(err));
+    }
+  };
 
   const changeReportInterval = async (ms: number) => {
     setReportIntervalMs(ms);
@@ -543,6 +563,29 @@ export default function SettingsPage() {
                     {relayNodes.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}
                   </select>
                 </Field>
+                <div className="space-y-3 rounded-lg border border-line p-3">
+                  <SectionTitle title={t.notifyFrequency} />
+                  <Field label={t.notifyInfo}>
+                    <select className="field" value={policy.infoIntervalMinutes} onChange={(e) => setPolicy({ ...policy, infoIntervalMinutes: Number(e.target.value) })}>
+                      <option value={15}>{t.min15}</option><option value={30}>{t.min30}</option><option value={60}>{t.hour1}</option><option value={360}>{t.hour6}</option><option value={1440}>{t.hour24}</option>
+                    </select>
+                  </Field>
+                  <Field label={t.notifyErrors} hint={t.notifyErrorsHint}>
+                    <select className="field" value={policy.errorRepeatMinutes} onChange={(e) => setPolicy({ ...policy, errorRepeatMinutes: Number(e.target.value) })}>
+                      <option value={0}>{t.notifyNoRepeat}</option><option value={15}>{t.min15}</option><option value={60}>{t.hour1}</option><option value={360}>{t.hour6}</option>
+                    </select>
+                  </Field>
+                  <Field label={t.notifyCheburcheck}>
+                    <select className="field" value={policy.cheburcheckIntervalMinutes} onChange={(e) => setPolicy({ ...policy, cheburcheckIntervalMinutes: Number(e.target.value) })}>
+                      <option value={60}>{t.hour1}</option><option value={360}>{t.hour6}</option><option value={1440}>{t.hour24}</option>
+                    </select>
+                  </Field>
+                  <Field label={t.notifyNodeDigest}>
+                    <select className="field" value={nodeDigestMs} onChange={(e) => changeNodeDigestInterval(Number(e.target.value))}>
+                      <option value={900_000}>{t.min15}</option><option value={3_600_000}>{t.hour1}</option><option value={21_600_000}>{t.hour6}</option><option value={0}>{t.notifyOff}</option>
+                    </select>
+                  </Field>
+                </div>
                 <Field label={t.reportInterval} hint={t.reportIntervalHint}>
                   <select
                     className="field"

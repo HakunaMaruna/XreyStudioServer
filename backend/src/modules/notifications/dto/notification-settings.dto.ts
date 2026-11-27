@@ -16,6 +16,9 @@ export class UpdateNotificationSettingsDto {
     cooldownMinutes?: number;
     minSeverity?: string;
     escalationChannel?: string | null;
+    infoIntervalMinutes?: number;
+    errorRepeatMinutes?: number;
+    cheburcheckIntervalMinutes?: number;
   };
 }
 

@@ -99,7 +99,7 @@ export class CheburcheckService implements OnModuleInit, OnModuleDestroy {
           await new Promise((resolve) => setTimeout(resolve, this.requestDelayMs));
         }
         try {
-          const result = await this.check({ target }, system);
+          const result = await this.check({ target }, system, { notify: false });
           if (result.blocked) blocked += 1;
           const resultIps: string[] = Array.isArray(result.ips) ? result.ips.slice(0, 2).map(String) : [];
           const limitedProbe = Boolean(result.probeError && /429/i.test(String(result.probeError)));
@@ -307,7 +307,7 @@ export class CheburcheckService implements OnModuleInit, OnModuleDestroy {
     return VERDICT_PRIORITY.find((value) => flat.includes(value)) || 'unknown';
   }
 
-  async check(input: { nodeId?: string; target?: string }, user: AuthUser) {
+  async check(input: { nodeId?: string; target?: string }, user: AuthUser, options?: { notify?: boolean }) {
     const { nodeId, target: rawTarget } = await this.targetFor(input, user);
     const target = this.validateTarget(rawTarget);
     const check = await this.fetchCheck(target);
@@ -369,7 +369,7 @@ export class CheburcheckService implements OnModuleInit, OnModuleDestroy {
       },
     });
 
-    if (stored.blocked) {
+    if (stored.blocked && options?.notify !== false) {
       const nodeInfo = nodeId
         ? await this.prisma.node.findUnique({ where: { id: nodeId }, select: { organizationId: true, name: true, address: true } })
         : null;
