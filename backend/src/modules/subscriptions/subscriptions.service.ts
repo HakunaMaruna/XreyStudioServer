@@ -220,7 +220,13 @@ export class SubscriptionsService {
         ipv6Links.push({ ...link, id: `${link.id}-ipv6`, tag: `${link.tag} · IPv6`, link: url.toString() });
       } catch {}
     }
-    const allLinks = [...links, ...ipv6Links];
+    // UDP-first: TSPU/operator DPI stalls TCP sessions on some destination
+    // subnets while UDP keeps working. Hysteria2 therefore goes first in the
+    // subscription; VLESS+Reality remains as a fallback.
+    const priority: Record<string, number> = { hysteria2: 0, vless: 1 };
+    const allLinks = [...links, ...ipv6Links].sort(
+      (a, b) => (priority[a.protocol] ?? 2) - (priority[b.protocol] ?? 2),
+    );
 
     return {
       token,

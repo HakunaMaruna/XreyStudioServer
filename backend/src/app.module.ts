@@ -51,6 +51,7 @@ import { SnapshotsModule } from './modules/snapshots/snapshots.module';
 import { PluginsModule } from './modules/plugins/plugins.module';
 import { ChainsModule } from './modules/chains/chains.module';
 import { TelemetryModule } from './modules/telemetry/telemetry.module';
+import { ResilienceModule } from './modules/resilience/resilience.module';
 
 @Module({
   imports: [
@@ -108,6 +109,7 @@ import { TelemetryModule } from './modules/telemetry/telemetry.module';
     SnapshotsModule,
     PluginsModule,
     TelemetryModule,
+    ResilienceModule,
   ],
   providers: [
     SeedService,

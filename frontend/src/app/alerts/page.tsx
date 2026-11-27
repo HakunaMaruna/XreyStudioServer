@@ -125,6 +125,26 @@ export default function AlertsPage() {
     }
   };
 
+  const detectChatId = async () => {
+    setError('');
+    setNotice('');
+    try {
+      const result = await api.get<{ firstChatId?: string | null; bot?: { ok?: boolean; description?: string | null } }>('/api/notifications/telegram/diagnose');
+      if (!result.bot?.ok) {
+        setNotice(t.telegramBotUnavailable);
+        return;
+      }
+      if (!result.firstChatId) {
+        setNotice(t.telegramChatNotFound);
+        return;
+      }
+      setCredentialDraft((current) => ({ ...current, TELEGRAM_CHAT_ID: result.firstChatId || '' }));
+      setNotice(`${t.telegramChatFound}: ${result.firstChatId}. ${t.saveSettings}`);
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
   const testChannel = async (channel: string) => {
     try {
       const result = await api.post<Record<string, { sent: boolean; reason?: string; error?: string }>>('/api/notifications/test', { channel });
@@ -281,6 +301,9 @@ export default function AlertsPage() {
                       onChange={(e) => setCredentialDraft({ ...credentialDraft, [field.key]: e.target.value })}
                     />
                   </Field>
+                  {field.key === 'TELEGRAM_CHAT_ID' && (
+                    <Button size="sm" variant="subtle" onClick={detectChatId}>{t.telegramDetectChat}</Button>
+                  )}
                   {field.hint && <p className="break-all text-[10px] leading-relaxed text-subtle">
                     {field.hint.split(' · ').map((part) => {
                       const [label, url] = part.split(': ');
