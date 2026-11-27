@@ -20,8 +20,9 @@ services:
       # Default wizard inbound (VLESS Reality) listens on 443 inside the agent container.
       - "443:443/tcp"
       - "4436:4436/tcp"
-      # Chain entry relays (panel picks ports from 10000).
+      # Chain ports: entry relays (10000+) and explicit exit inbounds.
       - "10000-10010:10000-10010/tcp"
+      - "5050-5060:5050-5060/tcp"
       # Panel-to-agent API (certificate install, config push, health checks).
       - "9090:9090/tcp"
       - "80:80/tcp"
