@@ -244,19 +244,19 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   );
 }
 
-export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label?: string }) {
+export function Toggle({ checked, onChange, label, className }: { checked: boolean; onChange: (value: boolean) => void; label?: string; className?: string }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className="inline-flex items-center gap-2 text-[13px] text-muted"
+      className={cn('inline-flex items-center gap-2 text-[13px] text-muted', className)}
     >
       <span className={cn('relative h-4 w-7 shrink-0 rounded-full border transition-colors', checked ? 'border-brand bg-brand' : 'border-line-2 bg-surface-3')}>
         <span className={cn('absolute top-[1px] h-3 w-3 rounded-full bg-white transition-all', checked ? 'left-[14px]' : 'left-[1px]')} />
       </span>
-      {label}
+      {label && <span className="min-w-0 truncate text-left">{label}</span>}
     </button>
   );
 }

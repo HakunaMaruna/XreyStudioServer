@@ -158,10 +158,19 @@ const QUICK_LINKS = [
   { href: '/doctor', icon: 'activity' as const, labelKey: 'linkDoctor' },
 ] as const;
 
-type SettingsTab = 'general' | 'notifications' | 'backups' | 'updates' | 'environment' | 'links';
+function ToggleRow({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label: string }) {
+  return (
+    <div className="flex min-h-10 items-center rounded-lg border border-line bg-surface-2/40 px-3">
+      <Toggle checked={checked} onChange={onChange} label={label} className="w-full justify-between gap-3" />
+    </div>
+  );
+}
+
+type SettingsTab = 'general' | 'behavior' | 'notifications' | 'backups' | 'updates' | 'environment' | 'links';
 
 const SETTINGS_TABS: Array<{ value: SettingsTab; labelKey: string; icon: IconName }> = [
   { value: 'general', labelKey: 'settingsTabGeneral', icon: 'settings' },
+  { value: 'behavior', labelKey: 'behavior', icon: 'activity' },
   { value: 'notifications', labelKey: 'settingsTabNotifications', icon: 'bell' },
   { value: 'backups', labelKey: 'settingsTabBackups', icon: 'history' },
   { value: 'updates', labelKey: 'settingsTabUpdates', icon: 'download' },
@@ -865,7 +874,7 @@ export default function SettingsPage() {
                 ]}
               />
             </Field>
-            <Toggle
+            <ToggleRow
               checked={settings.compactMode}
               onChange={(compactMode) => setSettings((prev) => ({ ...prev, compactMode }))}
               label={t.compactMode}
@@ -873,38 +882,6 @@ export default function SettingsPage() {
           </div>
         </Card>
 
-        <Card>
-          <SectionTitle title={t.behavior} />
-          <div className="space-y-3">
-            <Toggle
-              checked={settings.alertsEnabled}
-              onChange={(alertsEnabled) => setSettings((prev) => ({ ...prev, alertsEnabled }))}
-              label={t.alertsEnabled}
-            />
-            <Toggle
-              checked={settings.notifyOnNodeOffline}
-              onChange={(notifyOnNodeOffline) =>
-                setSettings((prev) => ({ ...prev, notifyOnNodeOffline }))
-              }
-              label={t.notifyOnNodeOffline}
-            />
-            <Toggle
-              checked={settings.notifyOnBackup}
-              onChange={(notifyOnBackup) => setSettings((prev) => ({ ...prev, notifyOnBackup }))}
-              label={t.notifyOnBackup}
-            />
-            <Toggle
-              checked={settings.metricsEnabled}
-              onChange={(metricsEnabled) => setSettings((prev) => ({ ...prev, metricsEnabled }))}
-              label={t.metricsEnabled}
-            />
-            <Toggle
-              checked={settings.autoRefresh}
-              onChange={(autoRefresh) => setSettings((prev) => ({ ...prev, autoRefresh }))}
-              label={t.autoRefresh}
-            />
-          </div>
-        </Card>
       </div>
 
       <div className="flex items-center gap-3">
@@ -914,6 +891,46 @@ export default function SettingsPage() {
         {saved && <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-300">{t.settingsSaved}</span>}
       </div>
 
+      </>
+      )}
+      {tab === 'behavior' && (
+      <>
+        <Card>
+          <SectionTitle title={t.behavior} subtitle={t.behaviorSubtitle} />
+          <div className="grid gap-2 sm:grid-cols-2">
+            <ToggleRow
+              checked={settings.alertsEnabled}
+              onChange={(alertsEnabled) => setSettings((prev) => ({ ...prev, alertsEnabled }))}
+              label={t.alertsEnabled}
+            />
+            <ToggleRow
+              checked={settings.notifyOnNodeOffline}
+              onChange={(notifyOnNodeOffline) => setSettings((prev) => ({ ...prev, notifyOnNodeOffline }))}
+              label={t.notifyOnNodeOffline}
+            />
+            <ToggleRow
+              checked={settings.notifyOnBackup}
+              onChange={(notifyOnBackup) => setSettings((prev) => ({ ...prev, notifyOnBackup }))}
+              label={t.notifyOnBackup}
+            />
+            <ToggleRow
+              checked={settings.metricsEnabled}
+              onChange={(metricsEnabled) => setSettings((prev) => ({ ...prev, metricsEnabled }))}
+              label={t.metricsEnabled}
+            />
+            <ToggleRow
+              checked={settings.autoRefresh}
+              onChange={(autoRefresh) => setSettings((prev) => ({ ...prev, autoRefresh }))}
+              label={t.autoRefresh}
+            />
+          </div>
+        </Card>
+        <div className="flex items-center gap-3">
+          <Button onClick={saveSettings}>
+            <Icon name="check" size={14} /> {t.saveSettings}
+          </Button>
+          {saved && <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-300">{t.settingsSaved}</span>}
+        </div>
       </>
       )}
       {tab === 'updates' && (
