@@ -149,7 +149,7 @@ export class AgentClientService {
         const body = method === 'GET' ? '' : JSON.stringify(payload || {});
         const isHttps = target.protocol === 'https:';
         // Pin the connection to an address we validated: prevents DNS rebinding between base() and connect().
-        let lookup: https.RequestOptions['lookup'] | undefined;
+        let resolvedHost: string | undefined;
         const host = target.hostname.replace(/^\[|\]$/g, '');
         if (isIP(host) === 0) {
           try {
@@ -165,16 +165,16 @@ export class AgentClientService {
               }
             }
             const chosen = addresses[0];
-            lookup = (_hostname, _options, callback) => callback(null, chosen.address, chosen.family);
+            resolvedHost = chosen.address;
           } catch (error: any) {
             reject(new BadRequestException(`Unsafe agent host: ${error.message}`));
             return;
           }
         }
         const options: https.RequestOptions = {
-          lookup,
+          hostname: resolvedHost || target.hostname,
+          ...(isHttps ? { servername: target.hostname } : {}),
           method,
-          hostname: target.hostname,
           port: target.port || (isHttps ? 443 : 80),
           path: `${target.pathname}${target.search}`,
           headers: {
