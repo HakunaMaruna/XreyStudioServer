@@ -188,6 +188,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [policy, setPolicy] = useState<NotificationPolicy>(DEFAULT_POLICY);
+  const [reportIntervalMs, setReportIntervalMs] = useState(86_400_000);
   const [backup, setBackup] = useState<BackupSettings>(DEFAULT_BACKUP);
   const [channels, setChannels] = useState<ChannelStatus>({});
   const [hubError, setHubError] = useState('');
@@ -232,7 +233,7 @@ export default function SettingsPage() {
     if (!isAdmin) return;
     let cancelled = false;
     Promise.all([
-      api.get<{ policy?: Partial<NotificationPolicy> }>('/api/notifications/settings'),
+      api.get<{ policy?: Partial<NotificationPolicy>; values?: Record<string, string> }>('/api/notifications/settings'),
       api.get<Partial<BackupSettings>>('/api/backups/settings'),
       api.get<ChannelStatus>('/api/notifications/channels'),
       api.get<{ mode?: string }>('/api/dns/status').catch(() => ({ mode: 'tenant' })),
@@ -244,6 +245,7 @@ export default function SettingsPage() {
         if (notificationData.policy) {
           setPolicy({ ...DEFAULT_POLICY, ...notificationData.policy });
         }
+        setReportIntervalMs(Number(notificationData.values?.TELEGRAM_REPORT_INTERVAL_MS || 86_400_000));
         if (backupData.cron !== undefined) {
           setBackup({ ...DEFAULT_BACKUP, ...backupData });
         }
@@ -323,6 +325,18 @@ export default function SettingsPage() {
       setHubError(err instanceof Error ? err.message : String(err));
     }
   }, [settings]);
+
+  const changeReportInterval = async (ms: number) => {
+    setReportIntervalMs(ms);
+    setHubError('');
+    try {
+      await api.patch('/api/notifications/settings', { credentials: { TELEGRAM_REPORT_INTERVAL_MS: String(ms) } });
+      setHubSaved(true);
+      window.setTimeout(() => setHubSaved(false), 2000);
+    } catch (err) {
+      setHubError(err instanceof Error ? err.message : String(err));
+    }
+  };
 
   const saveNotificationPolicy = useCallback(async () => {
     setSavingHub(true);
@@ -527,6 +541,19 @@ export default function SettingsPage() {
                   >
                     <option value="">{t.notifyDirect}</option>
                     {relayNodes.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}
+                  </select>
+                </Field>
+                <Field label={t.reportInterval} hint={t.reportIntervalHint}>
+                  <select
+                    className="field"
+                    value={reportIntervalMs}
+                    onChange={(event) => changeReportInterval(Number(event.target.value))}
+                  >
+                    <option value={0}>{t.reportOff}</option>
+                    <option value={21_600_000}>{t.report6h}</option>
+                    <option value={43_200_000}>{t.report12h}</option>
+                    <option value={86_400_000}>{t.report24h}</option>
+                    <option value={604_800_000}>{t.report7d}</option>
                   </select>
                 </Field>
                 <div>

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 HakunaMaruna
-import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Role } from '@prisma/client';
 import { sendCsv } from '../../common/csv';
@@ -13,6 +13,12 @@ import { ReportsService } from './reports.service';
 @Roles(Role.ADMIN)
 export class ReportsController {
   constructor(private readonly service: ReportsService) {}
+
+  /** Trigger the full Telegram metrics report immediately. */
+  @Post('telegram')
+  telegram() {
+    return this.service.telegramDigest(true);
+  }
 
   @Get('cheburcheck')
   cheburcheck(@Query() query: { from?: string; to?: string }) {

@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 HakunaMaruna
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { toCsv } from '../../common/csv';
+import { APP_VERSION } from '../../version';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationSettingsService } from '../notifications/notification-settings.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
 type Range = { from?: string; to?: string };
@@ -12,8 +15,127 @@ const DAY_MS = 86_400_000;
 const MAX_DAYS = 366;
 
 @Injectable()
-export class ReportsService {
-  constructor(private readonly prisma: PrismaService) {}
+export class ReportsService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(ReportsService.name);
+  private timer?: NodeJS.Timeout;
+  private lastReportAt = 0;
+  private running = false;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+    private readonly settings: NotificationSettingsService,
+  ) {}
+
+  onModuleInit() {
+    // Tick hourly; the configured interval is checked inside telegramDigest().
+    this.timer = setInterval(() => this.telegramDigest(false), 3_600_000);
+    this.timer.unref?.();
+    setTimeout(() => this.telegramDigest(false), 120_000).unref?.();
+  }
+
+  onModuleDestroy() {
+    if (this.timer) clearInterval(this.timer);
+  }
+
+  private esc(value: unknown) {
+    return String(value ?? '').replace(/[&<>]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[char] || char));
+  }
+
+  private tgTime(ms: number) {
+    return `<tg-time unix="${Math.floor(ms / 1000)}" format="t">${new Date(ms).toISOString()}</tg-time>`;
+  }
+
+  private formatBytes(value: bigint | number | null | undefined) {
+    const bytes = Number(value || 0);
+    if (!Number.isFinite(bytes) || bytes <= 0) return '0';
+    const units = ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'];
+    const index = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+    return `${(bytes / 1024 ** index).toFixed(index ? 1 : 0)} ${units[index]}`;
+  }
+
+  /** Full Telegram digest: totals + per-node health, versions, connections and traffic. */
+  async telegramDigest(force = false) {
+    if (this.running) return { sent: false, reason: 'already running' };
+    const configured = await this.settings.value('TELEGRAM_REPORT_INTERVAL_MS');
+    const intervalMs = configured === undefined || configured === ''
+      ? Math.max(3_600_000, Number(process.env.TELEGRAM_REPORT_INTERVAL_MS || 86_400_000))
+      : Number(configured);
+    if (!force && intervalMs <= 0) return { sent: false, reason: 'disabled' };
+    if (!force && Date.now() - this.lastReportAt < intervalMs) return { sent: false, reason: 'interval not reached' };
+    this.running = true;
+    try {
+      const now = Date.now();
+      const since5 = new Date(now - 5 * 60_000);
+      const since24 = new Date(now - 24 * 3_600_000);
+      const [counts, recentTraffic, recentDevices, nodes, traffic24, health] = await Promise.all([
+        this.prisma.user.groupBy({ by: ['status'], _count: { _all: true } }),
+        this.prisma.userTraffic.findMany({ where: { createdAt: { gte: since5 } }, select: { userId: true }, distinct: ['userId'] }),
+        this.prisma.device.findMany({ where: { lastSeenAt: { gte: since5 } }, select: { userId: true }, distinct: ['userId'] }),
+        this.prisma.node.findMany({
+          select: { id: true, name: true, status: true, lastSeenAt: true, agentVersion: true, metrics: { orderBy: { createdAt: 'desc' }, take: 1 } },
+          orderBy: { name: 'asc' },
+        }),
+        this.prisma.userTraffic.aggregate({ where: { createdAt: { gte: since24 } }, _sum: { bytesUp: true, bytesDown: true } }),
+        this.prisma.healthCheck.findMany({ orderBy: { checkedAt: 'desc' }, take: 500, select: { nodeId: true, latencyMs: true, success: true } }),
+      ]);
+
+      const totalUsers = counts.reduce((sum, row) => sum + row._count._all, 0);
+      const activeUsers = counts.find((row) => row.status === 'ACTIVE')?._count._all || 0;
+      const inactiveUsers = totalUsers - activeUsers;
+      const onlineUsers = new Set([...recentTraffic.map((row) => row.userId), ...recentDevices.map((row) => row.userId)]).size;
+
+      const rttByNode = new Map<string, number>();
+      for (const row of health) if (!rttByNode.has(row.nodeId) && row.latencyMs !== null) rttByNode.set(row.nodeId, row.latencyMs);
+      const intervalSec = Math.max(1, Number(process.env.NODE_METRIC_INTERVAL_SECONDS || 15));
+      let connections = 0;
+      const nodeRows: string[] = [];
+      for (const node of nodes) {
+        const metric = node.metrics[0];
+        connections += metric?.connections || 0;
+        const mbps = metric
+          ? ((Number(metric.trafficUp) + Number(metric.trafficDown)) * 8) / intervalSec / 1_000_000
+          : 0;
+        const fresh = node.lastSeenAt && node.lastSeenAt.getTime() >= now - 60_000;
+        const icon = node.status === 'ONLINE' && fresh ? '🟢' : '🔴';
+        const agent = node.agentVersion
+          ? `${node.agentVersion}${node.agentVersion === APP_VERSION ? '✅' : '⚠️'}`
+          : '—';
+        const rtt = rttByNode.get(node.id);
+        nodeRows.push(
+          `${this.esc(node.name).slice(0, 14).padEnd(16, ' ')}${icon} ${agent.slice(0, 11).padEnd(13, ' ')}${String(metric?.connections ?? 0).padEnd(5, ' ')}${`${Math.round(metric?.cpu || 0)}/${Math.round(metric?.ram || 0)}%`.padEnd(8, ' ')}${`${mbps.toFixed(2)}М`.padEnd(9, ' ')}${rtt !== undefined ? `${rtt}мс` : '—'}`,
+        );
+      }
+
+      const summary = [
+        `Пользователи: ${totalUsers} · активные ${activeUsers} · неактивные ${inactiveUsers}`,
+        `Онлайн: ${onlineUsers} (трафик/устройства за 5 мин)`,
+        `Соединений: ${connections}`,
+        `Трафик 24ч: ↑ ${this.formatBytes(traffic24._sum.bytesUp)} · ↓ ${this.formatBytes(traffic24._sum.bytesDown)}`,
+      ].join('\n');
+      const header = [
+        'Узел            Статус Агент         Conn CPU/RAM  Поток    RTT',
+        '─────────────────────────────────────────────────────────────',
+        ...nodeRows,
+      ].join('\n');
+      const text = [
+        '<b>📊 СВОДКА XREYSTUDIO</b>',
+        `<pre>${this.esc(summary)}</pre>`,
+        `<b>🖥 НОДЫ (${nodes.length}):</b>`,
+        `<pre>${header}</pre>`,
+        `<i>Панель v${APP_VERSION} · отчёт ${this.tgTime(now)}</i>`,
+      ].join('\n');
+      const result = await this.notifications.broadcast({ text, plainText: text.replace(/<[^>]*>/g, ''), subject: 'XSS: daily report' }, 'telegram');
+      if ((result as any).telegram?.sent) this.lastReportAt = now;
+      return { sent: Boolean((result as any).telegram?.sent), totalUsers, activeUsers, inactiveUsers, onlineUsers, connections, nodes: nodes.length };
+    } catch (error: any) {
+      this.logger.warn(`Telegram report failed: ${error.message}`);
+      return { sent: false, error: error.message };
+    } finally {
+      this.running = false;
+    }
+  }
+
 
   private dateWhere(range: Range): Prisma.DateTimeFilter | undefined {
     const from = range.from ? new Date(range.from) : null;

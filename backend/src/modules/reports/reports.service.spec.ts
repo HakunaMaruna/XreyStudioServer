@@ -13,7 +13,7 @@ describe('ReportsService traffic timeseries', () => {
     };
   });
 
-  const service = () => new ReportsService(prisma);
+  const service = () => new ReportsService(prisma, { broadcast: jest.fn(async () => ({})) } as any, { value: jest.fn(async () => undefined) } as any);
   const day = (offset: number) => new Date(Date.UTC(2026, 10, 25 + offset));
 
   it('builds daily buckets for the requested period with totals', async () => {
