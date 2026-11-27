@@ -5,7 +5,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import { Icon } from '../../components/icons';
-import { Badge, Button, Card, PageHeader, cn } from '../../components/ui';
+import { Badge, Button, Card, PageHeader, SectionTitle, cn } from '../../components/ui';
+
+type AuditRow = { id: string; action: string; entity: string; entityId?: string | null; ip?: string | null; createdAt: string };
 
 type Check = {
   id: string;
@@ -23,11 +25,18 @@ export default function DoctorPage() {
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [audit, setAudit] = useState<AuditRow[]>([]);
+  const [auditLevel, setAuditLevel] = useState('');
 
   const load = useCallback(() => {
     if (!isLoggedIn()) return;
     api.get<Check[]>('/api/doctor').then(setChecks).catch((err: Error) => setError(err.message));
-  }, []);
+    const params = new URLSearchParams({ limit: '40' });
+    if (auditLevel) params.set('level', auditLevel);
+    api.get<any>(`/api/audit?${params.toString()}`)
+      .then((data) => setAudit(Array.isArray(data) ? data : data.data || []))
+      .catch(() => setAudit([]));
+  }, [auditLevel]);
 
   useEffect(() => {
     load();
@@ -135,6 +144,30 @@ export default function DoctorPage() {
           </div>
         </Card>
       )}
+      <div className="mt-4">
+        <SectionTitle title={lang === 'ru' ? 'Журнал действий' : 'Event log'}
+          subtitle={lang === 'ru' ? 'Последние действия в панели' : 'Recent panel actions'}
+          action={<select className="field h-7 w-auto text-[11px]" value={auditLevel} onChange={(e) => setAuditLevel(e.target.value)}>
+            <option value="">{lang === 'ru' ? 'Все' : 'All'}</option>
+            <option value="destructive">{lang === 'ru' ? 'Удаления' : 'Destructive'}</option>
+            <option value="change">{lang === 'ru' ? 'Изменения' : 'Changes'}</option>
+            <option value="info">{lang === 'ru' ? 'Информационные' : 'Info'}</option>
+          </select>} />
+        <Card padded={false} className="max-h-72 overflow-auto">
+          {audit.length === 0 ? <p className="p-4 text-center text-xs text-subtle">{t.noData}</p> : (
+            <div className="divide-y divide-line/40">
+              {audit.map((row) => (
+                <div key={row.id} className="flex flex-wrap items-center gap-2 px-3 py-1.5 text-[11px]">
+                  <span className="mono text-subtle">{new Date(row.createdAt).toLocaleString()}</span>
+                  <Badge tone="brand">{row.action}</Badge>
+                  <span className="text-muted">{row.entity}{row.entityId ? `: ${row.entityId.slice(0, 8)}` : ''}</span>
+                  {row.ip && <span className="mono text-subtle">{row.ip}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
     </>
   );
 }

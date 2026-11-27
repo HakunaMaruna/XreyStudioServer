@@ -23,9 +23,11 @@ import { BulkInboundUsersDto, CreateInboundDto, UpdateInboundDto } from './dto/i
 import { InboundsService } from './inbounds.service';
 import { InboundRecipesService } from './inbound-recipes.service';
 import { SquadBindingService } from './squad-binding.service';
+import { PermissionsGuard } from '../user-groups/permissions.guard';
+import { RequirePermission } from '../user-groups/permissions';
 
 @Controller('inbounds')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(AuthGuard('jwt'), RolesGuard, PermissionsGuard)
 @Roles(Role.ADMIN, Role.OPERATOR)
 export class InboundsController {
   constructor(
@@ -41,6 +43,7 @@ export class InboundsController {
   }
 
   @Post()
+  @RequirePermission('inbounds.create')
   async create(@Body() body: CreateInboundDto, @CurrentUser() user: AuthUser, @Req() req: any) {
     const created = await this.service.create(body, user);
     await this.audit.log({ userId: user.userId, action: 'inbound.create', entity: 'Inbound', entityId: created.id, ip: req.ip });
@@ -63,6 +66,7 @@ export class InboundsController {
   }
 
   @Post(':id/users/bulk')
+  @RequirePermission('inbounds.edit')
   async bulkUsers(
     @Param('id') id: string,
     @Body() body: BulkInboundUsersDto,
@@ -118,6 +122,7 @@ export class InboundsController {
   }
 
   @Patch(':id')
+  @RequirePermission('inbounds.edit')
   async update(@Param('id') id: string, @Body() body: UpdateInboundDto, @CurrentUser() user: AuthUser, @Req() req: any) {
     const updated = await this.service.update(id, body, user);
     await this.audit.log({ userId: user.userId, action: 'inbound.update', entity: 'Inbound', entityId: id, ip: req.ip });
@@ -125,6 +130,7 @@ export class InboundsController {
   }
 
   @Delete(':id')
+  @RequirePermission('inbounds.delete')
   async remove(@Param('id') id: string, @CurrentUser() user: AuthUser, @Req() req: any) {
     const result = await this.service.remove(id, user);
     await this.audit.log({ userId: user.userId, action: 'inbound.delete', entity: 'Inbound', entityId: id, ip: req.ip });

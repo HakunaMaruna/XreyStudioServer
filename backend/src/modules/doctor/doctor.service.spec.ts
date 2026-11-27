@@ -12,6 +12,7 @@ describe('DoctorService', () => {
     },
     healthCheck: { findMany: jest.fn().mockResolvedValue([]) },
     configRevision: { groupBy: jest.fn().mockResolvedValue([]) },
+    inbound: { findMany: jest.fn().mockResolvedValue([]) },
   };
   const config = { applyRevision: jest.fn().mockResolvedValue({ applied: true }) };
   const service = new DoctorService(prisma as never, config as never);

@@ -23,6 +23,20 @@ type Profile = {
 type TrafficRow = { nodeId: string | null; nodeName: string; period: string; bytesUp: string; bytesDown: string };
 
 const emptyForm = { name: '', description: '', payloadText: '{\n  "routingRules": []\n}', enabled: true, nodeId: '' };
+const RECIPES: Record<string, string> = {
+  base: JSON.stringify({ routingRules: [], dnsServers: ['1.1.1.1', '8.8.8.8'], outbounds: [] }, null, 2),
+  mobile: JSON.stringify({ routingRules: [], dnsServers: ['https://cloudflare-dns.com/dns-query'], outbounds: [] }, null, 2),
+  performance: JSON.stringify({ routingRules: [{ type: 'field', domain: ['geosite:category-ads-all'], outboundTag: 'blocked' }], dnsServers: ['1.1.1.1'], outbounds: [] }, null, 2),
+};
+
+const mutatePayload = (text: string, patch: (value: Record<string, unknown>) => void) => {
+  try {
+    const value = JSON.parse(text || '{}');
+    patch(value);
+    return JSON.stringify(value, null, 2);
+  } catch { return text; }
+};
+
 
 const formatBytes = (value: string) => {
   const bytes = Number(value || 0);
@@ -35,7 +49,7 @@ const formatBytes = (value: string) => {
 };
 
 export default function ConfigProfilesPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [rows, setRows] = useState<Profile[]>([]);
   const [nodes, setNodes] = useState<{ id: string; name: string }[]>([]);
   const [traffic, setTraffic] = useState<TrafficRow[]>([]);
@@ -45,6 +59,9 @@ export default function ConfigProfilesPage() {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [compareId, setCompareId] = useState<string | null>(null);
+  const [compareWith, setCompareWith] = useState<string>('');
+  const [validated, setValidated] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -126,6 +143,7 @@ export default function ConfigProfilesPage() {
           <div className="flex items-center gap-1">
             <IconButton icon="power" label={t.enabled} onClick={() => toggle(row.original)} />
             <IconButton icon="edit" label={t.edit} onClick={() => startEdit(row.original)} />
+            <IconButton icon="copy" label={lang === 'ru' ? 'Сравнить' : 'Compare'} onClick={() => { setCompareId(row.original.id); setCompareWith(''); }} />
             <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => remove(row.original.id)} />
           </div>
         ),
@@ -170,11 +188,58 @@ export default function ConfigProfilesPage() {
               {nodes.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}
             </select>
           </Field>
-          <Field label={t.payload} hint="routingRules / dnsServers / outbounds">
-            <textarea rows={12} value={form.payloadText} onChange={(e) => setForm({ ...form, payloadText: e.target.value })} className="field mono text-[11px]" />
+          <Field label={lang === 'ru' ? 'Рецепт' : 'Recipe'}>
+            <select className="field" value="" onChange={(e) => { if (e.target.value) setForm({ ...form, payloadText: RECIPES[e.target.value] }); }}>
+              <option value="">—</option>
+              <option value="base">{lang === 'ru' ? 'Базовый' : 'Basic'}</option>
+              <option value="mobile">{lang === 'ru' ? 'Для мобильных' : 'Mobile'}</option>
+              <option value="performance">{lang === 'ru' ? 'Максимальная производительность' : 'Max performance'}</option>
+            </select>
           </Field>
+          <div className="flex flex-wrap gap-4 rounded-lg border border-line p-3">
+            <Toggle checked={form.payloadText.includes('geosite:category-ads-all')}
+              onChange={(value) => setForm({ ...form, payloadText: mutatePayload(form.payloadText, (v) => {
+                const rules = Array.isArray(v.routingRules) ? v.routingRules.filter((r: any) => r.outboundTag !== 'blocked') : [];
+                if (value) rules.push({ type: 'field', domain: ['geosite:category-ads-all'], outboundTag: 'blocked' });
+                v.routingRules = rules;
+              }) })} label={lang === 'ru' ? 'Блокировать рекламу' : 'Block ads'} />
+            <Toggle checked={form.payloadText.includes('cloudflare-dns.com')}
+              onChange={(value) => setForm({ ...form, payloadText: mutatePayload(form.payloadText, (v) => {
+                v.dnsServers = value ? ['https://cloudflare-dns.com/dns-query'] : ['1.1.1.1', '8.8.8.8'];
+              }) })} label={lang === 'ru' ? 'DoH для мобильных' : 'Mobile DoH'} />
+          </div>
+          <Field label={t.payload} hint="routingRules / dnsServers / outbounds">
+            <textarea rows={12} value={form.payloadText} onChange={(e) => { setForm({ ...form, payloadText: e.target.value }); setValidated(false); }} className="field mono text-[11px]" />
+          </Field>
+          {validated && <p className="text-xs text-success">{lang === 'ru' ? 'JSON корректен' : 'Valid JSON'}</p>}
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="subtle" icon="check" onClick={() => { try { JSON.parse(form.payloadText); setValidated(true); setError(''); } catch { setError(t.invalidJson); } }}>{lang === 'ru' ? 'Проверить JSON' : 'Validate JSON'}</Button>
+            <Button size="sm" variant="subtle" icon="download" onClick={() => {
+              const blob = new Blob([form.payloadText], { type: 'application/json' });
+              const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'config-profile.json'; a.click(); URL.revokeObjectURL(url);
+            }}>{lang === 'ru' ? 'Экспорт' : 'Export'}</Button>
+            <label className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 text-xs text-muted">
+              <Icon name="upload" size={13} /> {lang === 'ru' ? 'Импорт' : 'Import'}
+              <input type="file" accept=".json,application/json" className="hidden" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; const text = await file.text(); setForm((prev) => ({ ...prev, payloadText: JSON.stringify(JSON.parse(text), null, 2) })); }} />
+            </label>
+          </div>
           <Toggle checked={form.enabled} onChange={(v) => setForm({ ...form, enabled: v })} label={t.enabled} />
         </form>
+      </Modal>
+      <Modal open={Boolean(compareId)} onClose={() => setCompareId(null)} title={lang === 'ru' ? 'Сравнение профилей' : 'Compare profiles'} size="lg"
+        footer={<Button onClick={() => setCompareId(null)}>{t.close}</Button>}>
+        <div className="space-y-3">
+          <Field label={lang === 'ru' ? 'Сравнить с' : 'Compare with'}>
+            <select className="field" value={compareWith} onChange={(e) => setCompareWith(e.target.value)}>
+              <option value="">—</option>
+              {rows.filter((row) => row.id !== compareId).map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}
+            </select>
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div><p className="mb-1 text-[11px] font-semibold text-subtle">{rows.find((row) => row.id === compareId)?.name || '—'}</p><pre className="mono max-h-72 overflow-auto rounded-lg border border-line bg-surface-2/40 p-2 text-[10px]">{JSON.stringify(rows.find((row) => row.id === compareId)?.payload || {}, null, 2)}</pre></div>
+            <div><p className="mb-1 text-[11px] font-semibold text-subtle">{rows.find((row) => row.id === compareWith)?.name || '—'}</p><pre className="mono max-h-72 overflow-auto rounded-lg border border-line bg-surface-2/40 p-2 text-[10px]">{compareWith ? JSON.stringify(rows.find((row) => row.id === compareWith)?.payload || {}, null, 2) : '—'}</pre></div>
+          </div>
+        </div>
       </Modal>
     </>
   );

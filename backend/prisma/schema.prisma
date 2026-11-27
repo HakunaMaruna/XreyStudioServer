@@ -60,6 +60,7 @@ model User {
   trafficReports         UserTraffic[]
   refreshTokens          RefreshToken[]
   apiTokens              ApiToken[]
+  groups                 UserGroupMember[]
   chainBindings          ChainBinding[]
   createdAt              DateTime              @default(now())
   updatedAt              DateTime              @updatedAt
@@ -477,6 +478,28 @@ model Device {
   lastSeenAt DateTime?
   createdAt  DateTime  @default(now())
 
+  @@index([userId])
+}
+
+model UserGroup {
+  id          String             @id @default(uuid())
+  name        String             @unique
+  description String?
+  system      Boolean            @default(false)
+  permissions Json
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  members     UserGroupMember[]
+}
+
+model UserGroupMember {
+  id      String    @id @default(uuid())
+  groupId String
+  userId  String
+  group   UserGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
   @@index([userId])
 }
 

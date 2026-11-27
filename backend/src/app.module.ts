@@ -52,6 +52,7 @@ import { PluginsModule } from './modules/plugins/plugins.module';
 import { ChainsModule } from './modules/chains/chains.module';
 import { TelemetryModule } from './modules/telemetry/telemetry.module';
 import { ResilienceModule } from './modules/resilience/resilience.module';
+import { UserGroupsModule } from './modules/user-groups/user-groups.module';
 
 @Module({
   imports: [
@@ -110,6 +111,7 @@ import { ResilienceModule } from './modules/resilience/resilience.module';
     PluginsModule,
     TelemetryModule,
     ResilienceModule,
+    UserGroupsModule,
   ],
   providers: [
     SeedService,
