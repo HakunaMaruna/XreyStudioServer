@@ -22,6 +22,11 @@ type NodeRow = {
   agentVersion?: string | null;
   agentOutdated?: boolean;
   domain?: string | null;
+  ipv6Enabled?: boolean;
+  ipv6Address?: string | null;
+  ipv6Addresses?: string[] | null;
+  ipv6VerifiedAt?: string | null;
+  ipv6LastError?: string | null;
 };
 type AgentForm = {
   host: string;
@@ -65,6 +70,11 @@ export default function NodesPage() {
   const [notice, setNotice] = useState('');
   const [uiSettings, setUiSettings] = useState<{ autoRefresh?: boolean; metricsEnabled?: boolean }>({});
   const [updatingAgentId, setUpdatingAgentId] = useState<string | null>(null);
+  const [ipv6Node, setIpv6Node] = useState<NodeRow | null>(null);
+  const [ipv6Addresses, setIpv6Addresses] = useState<string[]>([]);
+  const [ipv6Selected, setIpv6Selected] = useState('');
+  const [ipv6Check, setIpv6Check] = useState<any>(null);
+  const [ipv6Busy, setIpv6Busy] = useState(false);
   const [revisionsNode, setRevisionsNode] = useState<NodeRow | null>(null);
   const [revisions, setRevisions] = useState<RevisionRow[]>([]);
   const [revisionsLoading, setRevisionsLoading] = useState(false);
@@ -180,6 +190,49 @@ export default function NodesPage() {
       setAgentResult({ updated: false, error: e.message });
     } finally {
       setAgentBusy(false);
+    }
+  };
+
+  const openIpv6 = async (node: NodeRow) => {
+    setIpv6Node(node);
+    setIpv6Selected(node.ipv6Address || '');
+    setIpv6Check(null);
+    setIpv6Busy(true);
+    try {
+      const data: any = await api.get(`/api/nodes/${node.id}/ipv6/addresses`);
+      const addresses: string[] = Array.isArray(data) ? data : data.addresses || [];
+      setIpv6Addresses(addresses);
+      setIpv6Selected((current) => current || addresses[0] || '');
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setIpv6Busy(false);
+    }
+  };
+
+  const checkIpv6 = async () => {
+    if (!ipv6Node || !ipv6Selected) return;
+    setIpv6Busy(true);
+    try {
+      setIpv6Check(await api.post(`/api/nodes/${ipv6Node.id}/ipv6/check`, { address: ipv6Selected }));
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setIpv6Busy(false);
+    }
+  };
+
+  const saveIpv6 = async (enabled: boolean) => {
+    if (!ipv6Node) return;
+    setIpv6Busy(true);
+    try {
+      await api.post(`/api/nodes/${ipv6Node.id}/ipv6`, { enabled, address: enabled ? ipv6Selected : null });
+      setIpv6Node(null);
+      await load();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setIpv6Busy(false);
     }
   };
 
@@ -462,6 +515,9 @@ export default function NodesPage() {
                           {t.agentVersion}: {node.agentVersion}
                         </Badge>
                       )}
+                      {node.ipv6Enabled && node.ipv6Address && (
+                        <Badge tone="cyan" dot>IPv6: {node.ipv6Address}</Badge>
+                      )}
                     </div>
                     <p className="mono mt-0.5 truncate text-[10px] text-subtle">
                       {node.address}:{node.port} · {t.idLabel} {node.id.slice(0, 8)}
@@ -533,6 +589,7 @@ export default function NodesPage() {
                   <IconButton icon="edit" label={t.edit} onClick={() => openEdit(node)} />
                   <IconButton icon="play" label={t.apply} tone="brand" onClick={() => apply(node.id)} />
                   <IconButton icon="download" label={t.updateAgent} tone="brand" onClick={() => openAgentUpdate(node)} />
+                  <IconButton icon="network" label={t.ipv6Entry} tone={node.ipv6Enabled ? 'brand' : 'default'} onClick={() => openIpv6(node)} />
                   {node.agentOutdated && (
                     <Button size="sm" variant="primary" icon="refresh" loading={updatingAgentId === node.id}
                       disabled={Boolean(updatingAgentId)} onClick={() => updateAgentLatest(node)}>
@@ -914,6 +971,37 @@ export default function NodesPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal open={Boolean(ipv6Node)} onClose={() => setIpv6Node(null)} title={t.ipv6Entry}
+        subtitle={ipv6Node?.name} icon={<Icon name="network" size={16} />} size="lg"
+        footer={<>
+          <Button onClick={() => setIpv6Node(null)}>{t.close}</Button>
+          <Button onClick={checkIpv6} loading={ipv6Busy} disabled={!ipv6Selected}>{t.check}</Button>
+          {ipv6Node?.ipv6Enabled
+            ? <Button variant="danger" onClick={() => saveIpv6(false)} loading={ipv6Busy}>{t.disable}</Button>
+            : <Button variant="primary" onClick={() => saveIpv6(true)} loading={ipv6Busy} disabled={!ipv6Selected}>{t.enable}</Button>}
+        </>}>
+        <div className="space-y-4">
+          <p className="text-xs text-muted">{t.ipv6EntryHint}</p>
+          <Field label={t.ipv6Address} hint={t.ipv6AddressHint}>
+            {ipv6Addresses.length ? (
+              <select className="field" value={ipv6Selected} onChange={(e) => setIpv6Selected(e.target.value)}>
+                <option value="">—</option>
+                {ipv6Addresses.map((address) => <option key={address} value={address}>{address}</option>)}
+              </select>
+            ) : (
+              <input className="field mono" value={ipv6Selected} onChange={(e) => setIpv6Selected(e.target.value)} placeholder="2001:db8::1" />
+            )}
+          </Field>
+          {ipv6Check && (
+            <div className={`rounded-lg border px-3 py-2 text-xs ${ipv6Check.reachable ? 'border-success/30 bg-success/10 text-success' : 'border-danger/30 bg-danger/10 text-danger'}`}>
+              {ipv6Check.reachable ? t.ipv6CheckOk : t.ipv6CheckFail}
+              <span className="mono ml-2">{(ipv6Check.results || []).map((r: any) => `${r.port}:${r.reachable ? 'OK' : '—'}`).join(' ')}</span>
+            </div>
+          )}
+          {ipv6Node?.ipv6LastError && <p className="text-xs text-danger">{ipv6Node.ipv6LastError}</p>}
+        </div>
       </Modal>
 
     </>

@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const http = require('http');
+const os = require('os');
 const { execFile, spawn } = require('child_process');
 const { timingSafeEqual, createHash } = require('crypto');
 const si = require('systeminformation');
@@ -605,6 +606,20 @@ app.post('/decoy/renew', auth, async (_req, res) => {
   }
 });
 
+/** Globally routable IPv6 addresses assigned to this host (for the panel's IPv6 entry). */
+function globalIPv6Addresses() {
+  const out = [];
+  for (const addresses of Object.values(os.networkInterfaces())) {
+    for (const item of addresses || []) {
+      if (item.family !== 'IPv6' || item.internal) continue;
+      const address = item.address.split('%')[0];
+      if (!address || /^(fe80|fc|fd|::1)/i.test(address)) continue;
+      if (!out.includes(address)) out.push(address);
+    }
+  }
+  return out;
+}
+
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -614,6 +629,7 @@ app.get('/health', (req, res) => {
     version: lastConfigVersion,
     agentVersion: AGENT_VERSION,
     relays: getRelaySummary(),
+    ipv6Addresses: globalIPv6Addresses(),
   });
 });
 

@@ -103,6 +103,11 @@ model Node {
   tokenHash            String
   agentSecret          String?
   jumpNodeId           String?
+  ipv6Addresses        Json?
+  ipv6Enabled          Boolean       @default(false)
+  ipv6Address          String?
+  ipv6VerifiedAt       DateTime?
+  ipv6LastError        String?
   status               NodeStatus       @default(OFFLINE)
   lastSeenAt           DateTime?
   lastError            String?

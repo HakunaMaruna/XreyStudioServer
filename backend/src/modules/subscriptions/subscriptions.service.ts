@@ -202,6 +202,24 @@ export class SubscriptionsService {
       })
       .filter(Boolean);
 
+    // Mistgate-style IPv6 entry: one extra server per supported inbound,
+    // same credentials/SNI/keys, only the address changes.
+    const ipv6Links: any[] = [];
+    for (const link of links) {
+      const inbound = allInbounds.find((item) => item.id === link.id);
+      const node: any = inbound?.node;
+      if (!node?.ipv6Enabled || !node.ipv6Address) continue;
+      if (!['vless', 'hysteria2'].includes(link.protocol)) continue;
+      try {
+        const url = new URL(link.link);
+        url.host = `[${node.ipv6Address}]:${url.port}`;
+        const fragment = decodeURIComponent(url.hash.slice(1));
+        url.hash = encodeURIComponent(`${fragment} · IPv6`);
+        ipv6Links.push({ ...link, id: `${link.id}-ipv6`, tag: `${link.tag} · IPv6`, link: url.toString() });
+      } catch {}
+    }
+    const allLinks = [...links, ...ipv6Links];
+
     return {
       token,
       user: { id: user.id, email: user.email },
@@ -228,7 +246,7 @@ export class SubscriptionsService {
             .map((i) => [i.node!.id, { id: i.node!.id, name: i.node!.name, address: i.node!.address }]),
         ).values(),
       ),
-      links,
+      links: allLinks,
       chainServers: user.status === 'ACTIVE'
         ? await this.chains.subscriptionServers(user.id, user.organizationId || null, user.squadId || null)
         : [],

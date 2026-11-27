@@ -147,6 +147,27 @@ export class NodesController {
     return result;
   }
 
+  @Get(':id/ipv6/addresses')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  ipv6Addresses(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.ipv6Addresses(id, user);
+  }
+
+  @Post(':id/ipv6/check')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  checkIpv6(@Param('id') id: string, @Body() body: { address?: string }, @CurrentUser() user: AuthUser) {
+    return this.service.checkIpv6(id, user, body?.address);
+  }
+
+  @Post(':id/ipv6')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  setIpv6(@Param('id') id: string, @Body() body: { enabled?: boolean; address?: string | null }, @CurrentUser() user: AuthUser) {
+    return this.service.setIpv6(id, user, body);
+  }
+
   @Get(':id/health')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN, Role.OPERATOR)

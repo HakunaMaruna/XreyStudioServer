@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { NodeStatus, Prisma, Role } from '@prisma/client';
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
+import * as net from 'net';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { encryptSecret } from '../../common/secret-crypto';
@@ -268,6 +269,64 @@ export class NodesService {
         org: dto.org,
         checkedAt: new Date(),
       },
+    });
+  }
+
+  async ipv6Addresses(id: string, actor: AuthUser) {
+    const node = await this.findOne(id, actor);
+    const health: any = await this.agentClient.health(node as any);
+    const addresses: string[] = Array.isArray(health?.ipv6Addresses)
+      ? health.ipv6Addresses.filter((value: unknown) => typeof value === 'string' && /^[0-9a-fA-F:]+$/.test(value))
+      : [];
+    await this.prisma.node.update({ where: { id }, data: { ipv6Addresses: addresses } });
+    return { nodeId: id, addresses };
+  }
+
+  async checkIpv6(id: string, actor: AuthUser, address?: string) {
+    const node = await this.findOne(id, actor);
+    const addresses: string[] = Array.isArray((node as any).ipv6Addresses)
+      ? (node as any).ipv6Addresses as string[]
+      : [];
+    const target = address || (node as any).ipv6Address || addresses[0];
+    if (!target || !addresses.includes(target)) throw new BadRequestException('IPv6 address is not reported by the node');
+    const ports = (node as any).inbounds
+      ? (node as any).inbounds.filter((i: any) => i.enabled && ['tcp', 'ws', 'grpc', 'http'].includes(i.transport || 'tcp')).map((i: any) => i.port)
+      : [];
+    const results = await Promise.all(ports.slice(0, 8).map((port: number) =>
+      new Promise<{ port: number; reachable: boolean }>((resolve) => {
+        const socket = net.connect({ host: target, port, family: 6 });
+        const done = (reachable: boolean) => { socket.destroy(); resolve({ port, reachable }); };
+        socket.setTimeout(3000);
+        socket.once('connect', () => done(true));
+        socket.once('error', () => done(false));
+        socket.once('timeout', () => done(false));
+      }),
+    ));
+    const reachable = results.some((result) => result.reachable);
+    await this.prisma.node.update({
+      where: { id },
+      data: { ipv6VerifiedAt: reachable ? new Date() : null, ipv6LastError: reachable ? null : 'No IPv6 inbound port answered from the panel' },
+    });
+    return { nodeId: id, address: target, reachable, results };
+  }
+
+  async setIpv6(id: string, actor: AuthUser, dto: { enabled?: boolean; address?: string | null }) {
+    const node = await this.findOne(id, actor);
+    const addresses: string[] = Array.isArray((node as any).ipv6Addresses) ? (node as any).ipv6Addresses as string[] : [];
+    if (dto.enabled) {
+      const address = dto.address || (node as any).ipv6Address || addresses[0];
+      if (!address || net.isIP(address) !== 6) throw new BadRequestException('A valid IPv6 address is required');
+      if (addresses.length && !addresses.includes(address)) {
+        throw new BadRequestException('IPv6 address is not reported by the node');
+      }
+    }
+    return this.prisma.node.update({
+      where: { id },
+      data: {
+        ipv6Enabled: Boolean(dto.enabled),
+        ...(dto.enabled ? { ipv6Address: dto.address || (node as any).ipv6Address || addresses[0] || null } : { ipv6Address: null }),
+      },
+      select: { id: true, ipv6Enabled: true, ipv6Address: true, ipv6Addresses: true, ipv6VerifiedAt: true, ipv6LastError: true },
     });
   }
 

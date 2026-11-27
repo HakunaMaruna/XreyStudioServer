@@ -666,4 +666,37 @@ curl -sS -X DELETE https://panel.example.com/api/balancers/<id> -H 'Authorizatio
 Ограничения: веса участников и тонкие настройки \`strategy.settings\` пока не поддерживаются; общий observatory/burstObservatory один на все балансировщики; sing-box и внешние протоколы (Hysteria2/TUIC/WireGuard) этим механизмом не балансируются.
 `,
   },
+  {
+    id: 'ipv6-entry',
+    title: 'IPv6-вход ноды',
+    icon: 'globe',
+    markdown: `
+## Зачем IPv6-вход
+
+Это дополнительный способ подключения, а не IPv6-выход трафика. Клиент получает в подписке ещё одну копию сервера с IPv6-адресом ноды — полезно, когда оператор блокирует IPv4-адрес. Имя сервера получает суффикс «· IPv6».
+
+Со стороны клиента ничего не меняется: тот же UUID, тот же Reality pbk/sid/sni, тот же flow. Приложения без IPv6 просто пропускают такой сервер.
+
+## Как включить
+
+1. Обновите агент ноды: он сообщает глобальные IPv6-адреса в /health. Для старых агентов адрес можно ввести вручную.
+2. В карточке ноды нажмите кнопку «IPv6-вход» (иконка сети), выберите адрес и нажмите «Проверить». Панель попробует TCP-подключения к включённым inbound-портам по IPv6.
+3. Если порты отвечают — нажмите «Включить». Если проверка не прошла, цепочка всё равно может быть включена вручную, но в карточке останется последняя ошибка проверки.
+4. Клиенты получат IPv6-сервер при следующем обновлении подписки.
+
+` + "```bash" + `
+curl -sS https://panel.example.com/api/nodes/<id>/ipv6/addresses -H 'Authorization: Bearer <token>'
+curl -sS -X POST https://panel.example.com/api/nodes/<id>/ipv6/check \\
+  -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{"address":"2001:db8::1"}'
+curl -sS -X POST https://panel.example.com/api/nodes/<id>/ipv6 \\
+  -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{"enabled":true,"address":"2001:db8::1"}'
+` + "```" + `
+
+## Ограничения
+
+- В подписке дублируются только VLESS и Hysteria2; AmneziaWG-статические ключи (.conf, vpn://) не меняются.
+- Адрес должен быть глобальным: loopback, link-local (fe80), ULA (fc00::/7) и приватные диапазоны отклоняются.
+- Это не контроль IPv6-выхода: маршрутизация исходящего трафика через IPv6 остаётся настройкой ядра/ноды.
+`,
+  },
 ];
