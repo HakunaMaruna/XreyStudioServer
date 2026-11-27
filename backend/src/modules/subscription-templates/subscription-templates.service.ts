@@ -12,6 +12,7 @@ type TemplateData = {
   footer?: string;
   pageSettings?: unknown;
   enabled?: boolean;
+  isDefault?: boolean;
   organizationId?: string | null;
 };
 
@@ -41,7 +42,7 @@ export class SubscriptionTemplatesService {
     return this.prisma.subscriptionTemplate.findMany({
       where: this.readWhere(actor),
       orderBy: { createdAt: 'desc' },
-      include: { _count: { select: { users: true } } },
+      include: { _count: { select: { users: true, squads: true } } },
     });
   }
 
@@ -53,8 +54,9 @@ export class SubscriptionTemplatesService {
     return found;
   }
 
-  create(data: TemplateData, actor: AuthUser) {
+  async create(data: TemplateData, actor: AuthUser) {
     this.assertOrganization(data, actor);
+    if (data.isDefault) await this.clearDefault(data.organizationId || null);
     return this.prisma.subscriptionTemplate.create({
       data: {
         name: data.name,
@@ -65,6 +67,7 @@ export class SubscriptionTemplatesService {
         footer: data.footer,
         pageSettings: data.pageSettings as any,
         enabled: data.enabled ?? true,
+        isDefault: data.isDefault ?? false,
         // Шаблон без явной организации — общий дефолт панели (создаёт ADMIN).
         organizationId:
           actor.role === Role.ADMIN
@@ -74,12 +77,24 @@ export class SubscriptionTemplatesService {
     });
   }
 
+  private async clearDefault(organizationId: string | null | undefined, exceptId?: string) {
+    await this.prisma.subscriptionTemplate.updateMany({
+      where: {
+        isDefault: true,
+        OR: [{ organizationId: organizationId || null }, { organizationId: null }],
+        ...(exceptId ? { id: { not: exceptId } } : {}),
+      },
+      data: { isDefault: false },
+    });
+  }
+
   async update(id: string, data: Partial<TemplateData>, actor: AuthUser) {
     const found = await this.prisma.subscriptionTemplate.findFirst({
       where: { id, ...this.writeWhere(actor) },
     });
     if (!found) throw new NotFoundException('Subscription template not found');
     this.assertOrganization(data, actor);
+    if (data.isDefault === true) await this.clearDefault(found.organizationId, id);
     return this.prisma.subscriptionTemplate.update({
       where: { id },
       data: {
@@ -91,6 +106,7 @@ export class SubscriptionTemplatesService {
         ...(data.footer !== undefined ? { footer: data.footer } : {}),
         ...(data.pageSettings !== undefined ? { pageSettings: data.pageSettings as any } : {}),
         ...(data.enabled !== undefined ? { enabled: data.enabled } : {}),
+        ...(data.isDefault !== undefined ? { isDefault: data.isDefault } : {}),
         ...(data.organizationId !== undefined
           ? { organizationId: data.organizationId === '' ? null : data.organizationId }
           : {}),

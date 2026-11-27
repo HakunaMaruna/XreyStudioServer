@@ -111,6 +111,7 @@ export class SubscriptionsService {
       include: {
         organization: true,
         subscriptionTemplate: true,
+        squad: { include: { subscriptionTemplate: true } },
         inbounds: {
           where: { enabled: true },
           include: { node: true },
@@ -137,6 +138,37 @@ export class SubscriptionsService {
     params.set('encryption', 'none');
     if (server.flow) params.set('flow', server.flow);
     return `vless://${server.uuid}@${server.host}:${server.port}?${params.toString()}#${encodeURIComponent(server.name)}`;
+  }
+
+  private async effectiveTemplate(user: any) {
+    const pick = (template: any) => template && template.enabled
+      ? {
+          title: template.title,
+          description: template.description,
+          accent: template.accent,
+          instructions: template.instructions,
+          footer: template.footer,
+          pageSettings: template.pageSettings,
+        }
+      : null;
+    if (user.subscriptionTemplate) {
+      const own = pick(user.subscriptionTemplate);
+      if (own) return own;
+    }
+    const squadTemplate = (user as any).squad?.subscriptionTemplate;
+    if (squadTemplate) {
+      const fromSquad = pick(squadTemplate);
+      if (fromSquad) return fromSquad;
+    }
+    const fallback = await this.prisma.subscriptionTemplate.findFirst({
+      where: {
+        isDefault: true,
+        enabled: true,
+        OR: [{ organizationId: user.organizationId || null }, { organizationId: null }],
+      },
+      orderBy: [{ organizationId: 'desc' }, { createdAt: 'desc' }],
+    });
+    return pick(fallback);
   }
 
   async getStatus(token: string) {
@@ -186,16 +218,7 @@ export class SubscriptionsService {
       trafficLimit: Number(user.trafficLimit),
       trafficRemaining: Math.max(0, Number(user.trafficLimit) - Number(user.trafficUsed)),
       branding: user.organization?.branding || null,
-      template: user.subscriptionTemplate && user.subscriptionTemplate.enabled
-        ? {
-            title: user.subscriptionTemplate.title,
-            description: user.subscriptionTemplate.description,
-            accent: user.subscriptionTemplate.accent,
-            instructions: user.subscriptionTemplate.instructions,
-            footer: user.subscriptionTemplate.footer,
-            pageSettings: user.subscriptionTemplate.pageSettings,
-          }
-        : null,
+      template: await this.effectiveTemplate(user),
       nodes: Array.from(
         new Map(
           user.inbounds

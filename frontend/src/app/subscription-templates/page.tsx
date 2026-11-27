@@ -16,13 +16,14 @@ type Template = {
   instructions: Record<string, string> | null;
   footer: string | null;
   enabled: boolean;
+  isDefault?: boolean;
   createdAt: string;
-  _count?: { users: number };
+  _count?: { users: number; squads: number };
 };
 
 const emptyForm = {
   name: '', title: '', description: '', accent: '#8474ff', footer: '',
-  instructionsText: '{}', enabled: true,
+  instructionsText: '{}', enabled: true, isDefault: false,
 };
 
 export default function SubscriptionTemplatesPage() {
@@ -34,12 +35,22 @@ export default function SubscriptionTemplatesPage() {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [users, setUsers] = useState<Array<{ id: string; email: string; subscriptionTemplateId?: string | null }>>([]);
+  const [squads, setSquads] = useState<Array<{ id: string; name: string; subscriptionTemplateId?: string | null }>>([]);
+  const [assignTemplate, setAssignTemplate] = useState<Template | null>(null);
+  const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const data = await api.get('/api/subscription-templates');
+      const [data, userRows, squadRows] = await Promise.all([
+        api.get('/api/subscription-templates'),
+        api.get('/api/users?limit=500').catch(() => ({ data: [] })),
+        api.get('/api/squads').catch(() => []),
+      ]);
       setRows(Array.isArray(data) ? data : data.data || []);
+      setUsers(Array.isArray(userRows) ? userRows : userRows.data || []);
+      setSquads(Array.isArray(squadRows) ? squadRows : squadRows.data || []);
     } catch (e: any) { setError(e.message); }
     finally { setLoading(false); }
   };
@@ -54,7 +65,7 @@ export default function SubscriptionTemplatesPage() {
     setEditing(row.id);
     setForm({
       name: row.name, title: row.title, description: row.description || '', accent: row.accent,
-      footer: row.footer || '', instructionsText: JSON.stringify(row.instructions || {}, null, 2), enabled: row.enabled,
+      footer: row.footer || '', instructionsText: JSON.stringify(row.instructions || {}, null, 2), enabled: row.enabled, isDefault: Boolean(row.isDefault),
     });
     setError(''); setOpen(true);
   };
@@ -67,7 +78,7 @@ export default function SubscriptionTemplatesPage() {
     try {
       const body = {
         name: form.name, title: form.title, description: form.description || undefined,
-        accent: form.accent, footer: form.footer || undefined, instructions, enabled: form.enabled,
+        accent: form.accent, footer: form.footer || undefined, instructions, enabled: form.enabled, isDefault: form.isDefault,
       };
       if (editing) await api.patch(`/api/subscription-templates/${editing}`, body);
       else await api.post('/api/subscription-templates', body);
@@ -101,12 +112,16 @@ export default function SubscriptionTemplatesPage() {
         ),
       },
       { id: 'users', header: t.users, cell: ({ row }) => <span className="text-xs text-fg">{row.original._count?.users ?? 0}</span> },
+      { id: 'squads', header: t.templateSquads, cell: ({ row }) => <span className="text-xs text-fg">{row.original._count?.squads ?? 0}</span> },
+      { id: 'default', header: t.templateDefault, cell: ({ row }) => row.original.isDefault ? <Badge tone="brand">{t.yes}</Badge> : <span className="text-subtle">—</span> },
       { accessorKey: 'enabled', header: t.enabled, cell: ({ row }) => row.original.enabled ? <Badge tone="success" dot>{t.enabled}</Badge> : <Badge tone="neutral" dot>{t.disabled}</Badge> },
       { accessorKey: 'createdAt', header: t.createdAt, cell: ({ row }) => <span className="text-xs text-muted">{new Date(row.original.createdAt).toLocaleDateString()}</span> },
       {
         id: 'actions', header: t.actions, enableSorting: false,
         cell: ({ row }) => (
           <div className="flex items-center gap-1">
+            <IconButton icon="eye" label={t.templatePreview} onClick={() => setPreviewTemplate(row.original)} />
+            <IconButton icon="link" label={t.templateAssign} onClick={() => setAssignTemplate(row.original)} />
             <IconButton icon="power" label={t.enabled} onClick={() => toggle(row.original)} />
             <IconButton icon="edit" label={t.edit} onClick={() => startEdit(row.original)} />
             <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => remove(row.original.id)} />
@@ -139,8 +154,65 @@ export default function SubscriptionTemplatesPage() {
           <Field label={t.instructions} hint="JSON: platform → text">
             <textarea rows={8} value={form.instructionsText} onChange={(e) => setForm({ ...form, instructionsText: e.target.value })} className="field mono text-[11px]" />
           </Field>
-          <Toggle checked={form.enabled} onChange={(v) => setForm({ ...form, enabled: v })} label={t.enabled} />
+          <div className="flex flex-wrap gap-6">
+            <Toggle checked={form.enabled} onChange={(v) => setForm({ ...form, enabled: v })} label={t.enabled} />
+            <Toggle checked={form.isDefault} onChange={(v) => setForm({ ...form, isDefault: v })} label={t.templateDefault} />
+          </div>
         </form>
+      </Modal>
+
+      <Modal open={Boolean(assignTemplate)} onClose={() => setAssignTemplate(null)} title={t.templateAssign}
+        subtitle={assignTemplate?.name} icon={<Icon name="link" size={16} />} size="lg"
+        footer={<Button onClick={() => setAssignTemplate(null)}>{t.close}</Button>}>
+        <div className="space-y-4">
+          <p className="text-xs font-semibold text-subtle">{t.users}</p>
+          <div className="grid max-h-48 gap-1 overflow-auto sm:grid-cols-2">
+            {users.map((user) => (
+              <label key={user.id} className="flex items-center gap-2 rounded-lg border border-line px-2 py-1.5 text-xs">
+                <input type="checkbox" className="h-4 w-4 accent-[var(--brand)]"
+                  checked={Boolean(assignTemplate && user.subscriptionTemplateId === assignTemplate.id)}
+                  onChange={async (e) => {
+                    try {
+                      await api.patch(`/api/users/${user.id}`, { subscriptionTemplateId: e.target.checked ? assignTemplate!.id : null });
+                      setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, subscriptionTemplateId: e.target.checked ? assignTemplate!.id : null } : u));
+                    } catch (err: any) { setError(err.message); }
+                  }} />
+                <span className="truncate">{user.email}</span>
+              </label>
+            ))}
+          </div>
+          <p className="text-xs font-semibold text-subtle">{t.templateSquads}</p>
+          <div className="grid max-h-48 gap-1 overflow-auto sm:grid-cols-2">
+            {squads.map((squad) => (
+              <label key={squad.id} className="flex items-center gap-2 rounded-lg border border-line px-2 py-1.5 text-xs">
+                <input type="checkbox" className="h-4 w-4 accent-[var(--brand)]"
+                  checked={Boolean(assignTemplate && squad.subscriptionTemplateId === assignTemplate.id)}
+                  onChange={async (e) => {
+                    try {
+                      await api.patch(`/api/squads/${squad.id}`, { subscriptionTemplateId: e.target.checked ? assignTemplate!.id : null });
+                      setSquads((prev) => prev.map((sq) => sq.id === squad.id ? { ...sq, subscriptionTemplateId: e.target.checked ? assignTemplate!.id : null } : sq));
+                    } catch (err: any) { setError(err.message); }
+                  }} />
+                <span className="truncate">{squad.name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={Boolean(previewTemplate)} onClose={() => setPreviewTemplate(null)} title={t.templatePreview}
+        subtitle={previewTemplate?.name} icon={<Icon name="eye" size={16} />} size="lg"
+        footer={<Button onClick={() => setPreviewTemplate(null)}>{t.close}</Button>}>
+        {previewTemplate && (
+          <div className="space-y-3">
+            <p className="text-lg font-semibold" style={{ color: previewTemplate.accent }}>{previewTemplate.title}</p>
+            {previewTemplate.description && <p className="text-xs text-muted">{previewTemplate.description}</p>}
+            {Object.entries(previewTemplate.instructions || {}).filter(([, v]) => typeof v === 'string' && v.trim()).map(([key, value]) => (
+              <div key={key} className="rounded-lg border border-line p-3 text-xs"><span className="font-semibold">{key}:</span> {String(value)}</div>
+            ))}
+            {previewTemplate.footer && <p className="border-t border-line pt-3 text-center text-[11px] text-subtle">{previewTemplate.footer}</p>}
+          </div>
+        )}
       </Modal>
     </>
   );

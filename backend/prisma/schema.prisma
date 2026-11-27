@@ -379,9 +379,11 @@ model SubscriptionTemplate {
   footer         String?
   pageSettings   Json?
   enabled        Boolean       @default(true)
+  isDefault      Boolean       @default(false)
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   users          User[]
+  squads         Squad[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -468,6 +470,8 @@ model Squad {
   enabled        Boolean       @default(true)
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  subscriptionTemplateId String?
+  subscriptionTemplate   SubscriptionTemplate? @relation(fields: [subscriptionTemplateId], references: [id], onDelete: SetNull)
   users          User[]
   chainBindings  ChainBinding[]
   inboundLinks   InboundSquad[]

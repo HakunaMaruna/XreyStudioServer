@@ -74,13 +74,30 @@ export class SquadsService {
     });
   }
 
-  async update(id: string, data: Partial<SquadData>, actor: AuthUser) {
+  async update(id: string, data: Partial<SquadData> & { subscriptionTemplateId?: string | null }, actor: AuthUser) {
     const found = await this.prisma.squad.findFirst({ where: { id, ...this.writeWhere(actor) } });
     if (!found) throw new NotFoundException('Squad not found');
     this.assertOrganization(data, actor);
+    if (data.subscriptionTemplateId) {
+      const template = await this.prisma.subscriptionTemplate.findFirst({
+        where: {
+          id: data.subscriptionTemplateId,
+          OR: [{ organizationId: actor.organizationId || null }, { organizationId: null }],
+        },
+        select: { id: true },
+      });
+      if (!template) throw new ForbiddenException('Subscription template not found in your organization');
+    }
     return this.prisma.squad.update({
       where: { id },
       data: {
+        ...(data.subscriptionTemplateId !== undefined
+          ? {
+              subscriptionTemplate: data.subscriptionTemplateId
+                ? { connect: { id: data.subscriptionTemplateId } }
+                : { disconnect: true },
+            }
+          : {}),
         ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.description !== undefined ? { description: data.description } : {}),
         ...(data.trafficLimit !== undefined ? { trafficLimit: BigInt(data.trafficLimit) } : {}),
@@ -89,7 +106,7 @@ export class SquadsService {
         ...(data.organizationId !== undefined
           ? { organizationId: data.organizationId === '' ? null : data.organizationId }
           : {}),
-      },
+      } as any,
     });
   }
 
