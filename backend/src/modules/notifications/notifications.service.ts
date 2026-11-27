@@ -165,7 +165,7 @@ export class NotificationsService {
       return { ok: res.ok, status: res.status, description: description || null };
     };
     const getMeRaw = await this.outboundRequest(`https://api.telegram.org/bot${token}/getMe`, 'GET', {});
-    const getMe = describe(getMeRaw);
+    const getMe: any = describe(getMeRaw);
     try {
       const parsed = JSON.parse(getMeRaw.text || '');
       if (parsed?.result?.id !== undefined) getMe.id = String(parsed.result.id);
