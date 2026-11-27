@@ -310,6 +310,18 @@ export class NodesService {
     return { nodeId: id, address: target, reachable, results };
   }
 
+  async setClientIpv6(id: string, actor: AuthUser, dto: { enabled?: boolean }) {
+    await this.findOne(id, actor);
+    if (typeof dto?.enabled !== 'boolean') throw new BadRequestException('enabled must be a boolean');
+    const updated = await this.prisma.node.update({
+      where: { id },
+      data: { clientIpv6Enabled: dto.enabled },
+      select: { id: true, clientIpv6Enabled: true },
+    });
+    await this.configGenerator.createRevision(id);
+    return updated;
+  }
+
   async setIpv6(id: string, actor: AuthUser, dto: { enabled?: boolean; address?: string | null }) {
     const node = await this.findOne(id, actor);
     const addresses: string[] = Array.isArray((node as any).ipv6Addresses) ? (node as any).ipv6Addresses as string[] : [];

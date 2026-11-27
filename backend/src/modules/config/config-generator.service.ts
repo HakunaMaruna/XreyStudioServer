@@ -418,6 +418,18 @@ export class ConfigGeneratorService {
       },
     };
 
+    // Mistgate-style IPv6 exit control: when disabled, resolve only A records
+    // and send any IPv6 destination to the blackhole so clients fall back to IPv4.
+    if (node.clientIpv6Enabled === false) {
+      config.dns = { ...(config.dns || { servers: [] }), queryStrategy: 'UseIPv4' };
+      const rules: any[] = config.routing.rules || [];
+      const directIndex = rules.findIndex((rule: any) => rule?.outboundTag === 'direct' && rule?.network === 'tcp,udp');
+      const blockRule = { type: 'field', ip: ['::/0'], outboundTag: 'blocked' };
+      if (directIndex >= 0) rules.splice(directIndex, 0, blockRule);
+      else rules.unshift(blockRule);
+      config.routing.rules = rules;
+    }
+
     if (balancerConfig.observerSelectors.length) {
       config.observatory = {
         subjectSelector: [...new Set(balancerConfig.observerSelectors)],

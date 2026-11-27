@@ -154,6 +154,13 @@ export class NodesController {
     return this.service.ipv6Addresses(id, user);
   }
 
+  @Patch(':id/client-ipv6')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  setClientIpv6(@Param('id') id: string, @Body() body: { enabled?: boolean }, @CurrentUser() user: AuthUser) {
+    return this.service.setClientIpv6(id, user, body);
+  }
+
   @Post(':id/ipv6/check')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN, Role.OPERATOR)

@@ -7,7 +7,7 @@ import { APP_VERSION } from '../../lib/version';
 import { Icon } from '../../components/icons';
 import {
   Badge, Button, Card, CodeBlock, Field, HelpButton, IconButton, Modal, PageHeader,
-  ProgressBar, SectionTitle, StatusBadge, formatBytes,
+  ProgressBar, SectionTitle, StatusBadge, Toggle, formatBytes,
 } from '../../components/ui';
 
 type NodeGeo = { countryCode: string | null; city: string | null; ip: string | null; asn: string | null; checkedAt: string };
@@ -27,6 +27,7 @@ type NodeRow = {
   ipv6Addresses?: string[] | null;
   ipv6VerifiedAt?: string | null;
   ipv6LastError?: string | null;
+  clientIpv6Enabled?: boolean;
 };
 type AgentForm = {
   host: string;
@@ -75,6 +76,7 @@ export default function NodesPage() {
   const [ipv6Selected, setIpv6Selected] = useState('');
   const [ipv6Check, setIpv6Check] = useState<any>(null);
   const [ipv6Busy, setIpv6Busy] = useState(false);
+  const [clientIpv6, setClientIpv6] = useState(true);
   const [revisionsNode, setRevisionsNode] = useState<NodeRow | null>(null);
   const [revisions, setRevisions] = useState<RevisionRow[]>([]);
   const [revisionsLoading, setRevisionsLoading] = useState(false);
@@ -196,6 +198,7 @@ export default function NodesPage() {
   const openIpv6 = async (node: NodeRow) => {
     setIpv6Node(node);
     setIpv6Selected(node.ipv6Address || '');
+    setClientIpv6(node.clientIpv6Enabled !== false);
     setIpv6Check(null);
     setIpv6Busy(true);
     try {
@@ -217,6 +220,22 @@ export default function NodesPage() {
       setIpv6Check(await api.post(`/api/nodes/${ipv6Node.id}/ipv6/check`, { address: ipv6Selected }));
     } catch (e: any) {
       setError(e.message);
+    } finally {
+      setIpv6Busy(false);
+    }
+  };
+
+  const saveClientIpv6 = async (enabled: boolean) => {
+    if (!ipv6Node) return;
+    setClientIpv6(enabled);
+    setIpv6Busy(true);
+    try {
+      await api.patch(`/api/nodes/${ipv6Node.id}/client-ipv6`, { enabled });
+      setNotice(t.clientIpv6Changed);
+      await load();
+    } catch (e: any) {
+      setError(e.message);
+      setClientIpv6(!enabled);
     } finally {
       setIpv6Busy(false);
     }
@@ -984,6 +1003,10 @@ export default function NodesPage() {
         </>}>
         <div className="space-y-4">
           <p className="text-xs text-muted">{t.ipv6EntryHint}</p>
+          <div className="flex min-h-10 items-center rounded-lg border border-line bg-surface-2/40 px-3">
+            <Toggle checked={clientIpv6} onChange={saveClientIpv6} label={t.clientIpv6} className="w-full justify-between gap-3" />
+          </div>
+          <p className="text-[11px] text-subtle">{t.clientIpv6Hint}</p>
           <Field label={t.ipv6Address} hint={t.ipv6AddressHint}>
             {ipv6Addresses.length ? (
               <select className="field" value={ipv6Selected} onChange={(e) => setIpv6Selected(e.target.value)}>

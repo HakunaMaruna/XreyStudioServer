@@ -105,6 +105,7 @@ model Node {
   jumpNodeId           String?
   ipv6Addresses        Json?
   ipv6Enabled          Boolean       @default(false)
+  clientIpv6Enabled    Boolean       @default(true)
   ipv6Address          String?
   ipv6VerifiedAt       DateTime?
   ipv6LastError        String?
