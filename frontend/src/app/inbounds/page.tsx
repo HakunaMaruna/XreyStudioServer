@@ -609,34 +609,34 @@ export default function InboundsPage() {
             <Button size="sm" icon="plus" onClick={() => setForm({ ...form, clients: [...form.clients, emptyClient(form.clients.length)] })}>{t.addClient}</Button>
           </div>
           {form.clients.length === 0 && <p className="text-xs text-subtle">{t.noData}</p>}
-          {form.clients.map((c, index) => (
-            <div key={index} className="flex flex-wrap items-end gap-2 rounded-lg border border-line bg-surface-2/40 p-2">
-              <div className="min-w-[150px] flex-1">
-                <Field label={t.user}>
-                  <select value={c.userId} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, userId: e.target.value }; setForm({ ...form, clients }); }} className="field">
+          <div className="overflow-x-auto rounded-lg border border-line">
+            <div className="min-w-[720px]">
+              <div className="grid grid-cols-[minmax(170px,1.4fr)_80px_130px_60px_minmax(110px,1fr)_74px] gap-2 border-b border-line bg-surface-2 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-subtle">
+                <span>{t.user}</span>
+                <span>{t.trafficLimit}</span>
+                <span>{t.expiresAt}</span>
+                <span>{t.sortOrder}</span>
+                <span>{t.comment}</span>
+                <span>{t.actions}</span>
+              </div>
+              {form.clients.map((c, index) => (
+                <div key={index} className="grid grid-cols-[minmax(170px,1.4fr)_80px_130px_60px_minmax(110px,1fr)_74px] items-center gap-2 border-b border-line/60 px-2 py-1 last:border-b-0">
+                  <select className="field !h-8 !text-xs" value={c.userId} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, userId: e.target.value }; setForm({ ...form, clients }); }} aria-label={t.user}>
                     <option value="">—</option>
                     {users.map((u) => <option key={u.id} value={u.id}>{u.email}</option>)}
                   </select>
-                </Field>
-              </div>
-              <div className="w-20 shrink-0">
-                <Field label={t.trafficLimit} hint="GB"><input type="number" min={0} value={c.trafficLimitGb} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, trafficLimitGb: Number(e.target.value) }; setForm({ ...form, clients }); }} className="field" /></Field>
-              </div>
-              <div className="w-32 shrink-0">
-                <Field label={t.expiresAt}><input type="date" value={c.expiresAt} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, expiresAt: e.target.value }; setForm({ ...form, clients }); }} className="field" /></Field>
-              </div>
-              <div className="w-16 shrink-0">
-                <Field label={t.sortOrder}><input type="number" value={c.sortIndex} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, sortIndex: Number(e.target.value) }; setForm({ ...form, clients }); }} className="field" /></Field>
-              </div>
-              <div className="min-w-[100px] flex-1">
-                <Field label={t.comment}><input value={c.comment} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, comment: e.target.value }; setForm({ ...form, clients }); }} className="field" /></Field>
-              </div>
-              <div className="flex shrink-0 items-center gap-1 pb-1">
-                <Toggle label={t.enabled} checked={c.enabled} onChange={(v) => { const clients = [...form.clients]; clients[index] = { ...c, enabled: v }; setForm({ ...form, clients }); }} />
-                <IconButton icon="trash" label={t.delete} tone="danger" className="!h-7 !w-7" onClick={() => setForm({ ...form, clients: form.clients.filter((_, i) => i !== index) })} />
-              </div>
+                  <input className="field !h-8 !px-2 !text-xs" type="number" min={0} value={c.trafficLimitGb} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, trafficLimitGb: Number(e.target.value) }; setForm({ ...form, clients }); }} aria-label={t.trafficLimit} />
+                  <input className="field !h-8 !px-2 !text-xs" type="date" value={c.expiresAt} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, expiresAt: e.target.value }; setForm({ ...form, clients }); }} aria-label={t.expiresAt} />
+                  <input className="field !h-8 !px-2 !text-xs" type="number" value={c.sortIndex} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, sortIndex: Number(e.target.value) }; setForm({ ...form, clients }); }} aria-label={t.sortOrder} />
+                  <input className="field !h-8 !px-2 !text-xs" value={c.comment} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, comment: e.target.value }; setForm({ ...form, clients }); }} aria-label={t.comment} />
+                  <div className="flex items-center justify-end gap-1">
+                    <Toggle label={t.enabled} checked={c.enabled} onChange={(v) => { const clients = [...form.clients]; clients[index] = { ...c, enabled: v }; setForm({ ...form, clients }); }} />
+                    <IconButton icon="trash" label={t.delete} tone="danger" className="!h-7 !w-7" onClick={() => setForm({ ...form, clients: form.clients.filter((_, i) => i !== index) })} />
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </form>
       </Modal>
 
