@@ -12,7 +12,11 @@ import { Card, PageHeader, cn } from '../../components/ui';
 
 export default function DocsPage() {
   const { t } = useLang();
-  const [active, setActive] = useState(DOC_SECTIONS[0].id);
+  const [active, setActive] = useState(() => {
+    if (typeof window === 'undefined') return DOC_SECTIONS[0].id;
+    const hash = window.location.hash.slice(1);
+    return DOC_SECTIONS.some((section) => section.id === hash) ? hash : DOC_SECTIONS[0].id;
+  });
   const [query, setQuery] = useState('');
   const [version, setVersion] = useState('');
 
@@ -49,7 +53,10 @@ export default function DocsPage() {
             {sections.map((section) => (
               <button
                 key={section.id}
-                onClick={() => setActive(section.id)}
+                onClick={() => {
+                  setActive(section.id);
+                  window.history.replaceState(null, '', `#${section.id}`);
+                }}
                 className={cn(
                   'flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs transition-colors lg:w-full',
                   active === section.id

@@ -66,7 +66,7 @@ export default function TelemetryConsent() {
       <div className="space-y-4">
         <p className="text-sm leading-relaxed text-muted">{t.licenseConsentText}</p>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-          <a className="text-brand underline" href="/docs#license" target="_blank" rel="noopener noreferrer">
+          <a className="text-brand underline" href="/help#license" target="_blank" rel="noopener noreferrer">
             {t.licenseReadDocs}
           </a>
           <a className="text-brand underline" href={status?.licenseUrl || '#'} target="_blank" rel="noopener noreferrer">
