@@ -85,19 +85,20 @@ export class CheburcheckService implements OnModuleInit, OnModuleDestroy {
 
       const system: AuthUser = { userId: 'system', email: 'system', role: Role.ADMIN, organizationId: null };
       const lines: string[] = [];
+      let blocked = 0;
       for (const target of targets) {
         try {
           const result = await this.check({ target }, system);
+          if (result.blocked) blocked += 1;
           lines.push(`• <code>${this.esc(target)}</code> — ${result.blocked ? '⛔' : '✅'} ${this.esc(result.verdict)}`);
         } catch (error: any) {
           lines.push(`• <code>${this.esc(target)}</code> — ⚠️ error ${this.esc(error.message)}`);
         }
       }
       const text = [
-        '<b>🔎 CHEBURCHECK: ДАЙДЖЕСТ</b>',
-        `<b>Целей:</b> ${targets.length} · <b>Время:</b> <code>${new Date().toISOString()}</code>`,
-        '',
-        ...lines,
+        `<b>🔎 CHEBURCHECK · ${targets.length} целей · ${blocked} блокировок</b>`,
+        `<blockquote expandable>${lines.join('\n')}</blockquote>`,
+        `<i>Проверка: ${this.tgTime(Date.now())}</i>`,
       ].join('\n');
       await this.notifications.broadcast({ text, plainText: text, subject: 'XSS: cheburcheck digest' }, 'telegram');
     } catch (error: any) {
@@ -109,6 +110,10 @@ export class CheburcheckService implements OnModuleInit, OnModuleDestroy {
 
   private esc(value: unknown) {
     return String(value ?? '').replace(/[&<>]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[char] || char));
+  }
+
+  private tgTime(ms: number) {
+    return `<tg-time unix="${Math.floor(ms / 1000)}" format="t">${new Date(ms).toISOString()}</tg-time>`;
   }
 
   // Admin may point the panel to a self-hosted Cheburcheck API. SSRF-safe: HTTPS only
@@ -291,10 +296,11 @@ export class CheburcheckService implements OnModuleInit, OnModuleDestroy {
       await this.notifications.emit(NotificationEvent.CHEBURCHECK_BLOCKED, {
         text: [
           '<b>⛔ CHEBURCHECK: БЛОКИРОВКА</b>',
-          `<b>Цель:</b> <code>${this.esc(target)}</code>`,
-          `<b>Вердикт:</b> ${this.esc(verdict)}`,
-          ...(nodeId ? [`<b>Узел:</b> <code>${this.esc(nodeId)}</code>`] : []),
-          `<b>Время:</b> <code>${new Date().toISOString()}</code>`,
+          `<blockquote>Цель: <code>${this.esc(target)}</code>`,
+          `Вердикт: ${this.esc(verdict)}`,
+          ...(nodeId ? [`Узел: <code>${this.esc(nodeId)}</code>`] : []),
+          '</blockquote>',
+          `<b>Время:</b> ${this.tgTime(Date.now())}`,
         ].join('\n'),
         plainText: `Cheburcheck: ${target} — ${verdict}`,
         subject: `XSS: cheburcheck ${target}`,

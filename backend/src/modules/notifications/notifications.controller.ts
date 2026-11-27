@@ -24,12 +24,14 @@ export class NotificationsController {
 
   @Post('test')
   test(@Body() body: TestNotificationDto) {
+    const now = Date.now();
     const text = body.text || [
       '<b>🔔 ТЕСТ УВЕДОМЛЕНИЙ</b>',
-      '<b>Источник:</b> XreyStudioServer',
-      `<b>Канал:</b> <code>${body.channel || 'все'}</code>`,
-      `<b>Время:</b> <code>${new Date().toISOString()}</code>`,
-      '<i>Если вы видите это сообщение — доставка настроена правильно.</i>',
+      `<blockquote>Канал: <code>${body.channel || 'все'}</code>`,
+      'Источник: <code>XreyStudioServer</code>',
+      'Статус: ✅ доставка работает</blockquote>',
+      `<b>Время:</b> <tg-time unix="${Math.floor(now / 1000)}" format="t">${new Date(now).toISOString()}</tg-time>`,
+      '<i>Если вы видите это сообщение — всё настроено правильно.</i>',
     ].join('\n');
     return this.service.broadcast({
       text,

@@ -54,6 +54,10 @@ export class HealthChecksService implements OnModuleInit, OnModuleDestroy {
     return String(value ?? '').replace(/[&<>]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[char] || char));
   }
 
+  private tgTime(ms: number) {
+    return `<tg-time unix="${Math.floor(ms / 1000)}" format="t">${new Date(ms).toISOString()}</tg-time>`;
+  }
+
   private probe(host: string, port: number, timeout = 3000): Promise<{ success: boolean; latencyMs?: number; bytes: number; error?: string }> {
     return new Promise((resolve) => {
       const start = Date.now();
@@ -81,7 +85,7 @@ export class HealthChecksService implements OnModuleInit, OnModuleDestroy {
         include: { node: true },
       });
       const results = [];
-      const summary: string[] = [];
+      const rows: Array<{ node: string; tag: string; status: string }> = [];
       const previous = new Map<string, boolean>();
       if (results.length === 0 && inbounds.length) {
         const recent = await this.prisma.healthCheck.findMany({
@@ -106,9 +110,15 @@ export class HealthChecksService implements OnModuleInit, OnModuleDestroy {
         const last = previous.get(inbound.id);
         previous.set(inbound.id, result.success);
         if (last !== undefined && last !== result.success) {
-          await this.notifyAvailability(inbound.node, inbound as any, result.success, result.error);
+          await this.notifyAvailability(inbound.node, inbound as any, result.success, result.error, result.latencyMs, result.bytes);
         }
-        summary.push(`• <code>${this.esc(inbound.node.name || inbound.nodeId)}</code> · <code>${this.esc(inbound.tag)}</code> — ${result.success ? '🟢 OK' : `🔴 ${this.esc(result.error || 'FAIL')}`}`);
+        rows.push({
+          node: String(inbound.node.name || inbound.nodeId).slice(0, 14),
+          tag: inbound.tag.slice(0, 13),
+          status: result.success
+            ? `✅ ${result.latencyMs ?? 0}мс`
+            : `🔴 ${String(result.error || 'FAIL').slice(0, 16)}`,
+        });
         results.push({
           nodeId: inbound.nodeId!,
           inboundId: inbound.id,
@@ -124,15 +134,20 @@ export class HealthChecksService implements OnModuleInit, OnModuleDestroy {
       }
       if (results.length) await this.prisma.healthCheck.createMany({ data: results });
       this.logger.log(`Client-eye checks: ${results.filter((r) => r.success).length}/${results.length} passed`);
-      if (Date.now() - this.lastDigestAt >= this.digestMs && summary.length) {
+      if (Date.now() - this.lastDigestAt >= this.digestMs && rows.length) {
         this.lastDigestAt = Date.now();
+        const now = Date.now();
         const okCount = results.filter((item) => item.success).length;
+        const table = [
+          'Узел           Inbound        Статус',
+          '──────────────────────────────────',
+          ...rows.slice(0, 30).map((row) =>
+            `${this.esc(row.node).padEnd(15, ' ')}${this.esc(row.tag).padEnd(15, ' ')}${row.status}`),
+        ].join('\n');
         const text = [
-          '<b>🩺 ДАЙДЖЕСТ ДОСТУПНОСТИ НОД</b>',
-          `<b>Проверок:</b> ${results.length} · <b>Доступно:</b> ${okCount} · <b>Ошибок:</b> ${results.length - okCount}`,
-          `<b>Время:</b> <code>${new Date().toISOString()}</code>`,
-          '',
-          ...summary.slice(0, 30),
+          `<b>🩺 ДОСТУПНОСТЬ НОД · ${okCount}/${results.length}</b>`,
+          `<pre>${table}</pre>`,
+          `<i>Проверка: ${this.tgTime(now)} · следующий дайджест: ${this.tgTime(now + this.digestMs)}</i>`,
         ].join('\n');
         await this.notifications.broadcast({ text, plainText: text, subject: 'XSS: node availability digest' }, 'telegram')
           .catch((error) => this.logger.warn(`Node digest failed: ${error.message}`));
@@ -166,15 +181,20 @@ export class HealthChecksService implements OnModuleInit, OnModuleDestroy {
     inbound: { id: string; tag: string; protocol: string; port: number },
     success: boolean,
     error?: string | null,
+    latencyMs?: number | null,
+    bytes?: number,
   ) {
     const event = success ? NotificationEvent.NODE_ONLINE : NotificationEvent.NODE_OFFLINE;
+    const check = success
+      ? `TLS-eye ✅ · ${latencyMs ?? 0} мс · ${bytes ?? 0} Б`
+      : `⛔ ${this.esc(error || 'FAIL')}`;
     const text = [
-      `<b>${success ? '🟢 НОДА ДОСТУПНА' : '🔴 НОДА НЕДОСТУПНА'}</b>`,
-      `<b>Узел:</b> <code>${this.esc(node.name)}</code>`,
-      `<b>Inbound:</b> <code>${this.esc(inbound.tag)}</code>`,
-      `<b>Адрес:</b> <code>${this.esc(node.address)}:${inbound.port}</code> · ${this.esc(inbound.protocol.toUpperCase())}`,
-      `<b>Проверка:</b> ${success ? 'TLS-eye / TCP — OK' : this.esc(error || 'FAIL')}`,
-      `<b>Время:</b> <code>${new Date().toISOString()}</code>`,
+      `<b>${success ? '🟢 УЗЕЛ ДОСТУПЕН' : '🔴 УЗЕЛ НЕДОСТУПЕН'}</b>`,
+      `<blockquote>${this.esc(node.name)} · <code>${this.esc(inbound.tag)}</code>`,
+      `<code>${this.esc(node.address)}:${inbound.port}</code> · ${this.esc(inbound.protocol.toUpperCase())}`,
+      `${check}</blockquote>`,
+      `<b>Проверка:</b> TLS-eye / TCP handshake`,
+      `<b>Время:</b> ${this.tgTime(Date.now())}`,
     ].join('\n');
     try {
       await this.notifications.emit(event, {
