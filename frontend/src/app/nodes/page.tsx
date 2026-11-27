@@ -262,8 +262,12 @@ export default function NodesPage() {
     setError('');
     setNotice('');
     try {
-      const result = await api.post(`/api/node-provision/${node.id}/update-latest`, {});
-      setNotice(result?.message || `${t.updateAgentDone}: ${node.name}`);
+      const result = await api.post<any>(`/api/node-provision/${node.id}/update-latest`, {});
+      if (result?.updated) {
+        setNotice(`${t.updateAgentDone}: ${node.name} → ${result.targetVersion || ''}`);
+      } else {
+        setError(result?.output || result?.error || t.updateAgentFailed);
+      }
       await load();
     } catch (e: any) {
       setError(e.message || t.updateAgentFailed);

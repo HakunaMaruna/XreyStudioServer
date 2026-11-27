@@ -223,21 +223,32 @@ export class NodeProvisionService {
   // отвязан — первую локальную ветку.
   private gitUpdate(sudo: string, targetVersion?: string) {
     const git = `${sudo}git`;
+    // Wizard provisioning locally edits docker-compose.node.yml (relay ports and
+    // volumes) and writes .env. Those are legitimate local changes: stash them
+    // around the checkout, then reapply on top of the new tag.
+    const stash = `${git} stash push -u -m "xss-agent-update" >/dev/null 2>&1 || true;`;
+    const restore = [
+      `if ${git} stash list | grep -q 'xss-agent-update'; then`,
+      `  if ! ${git} stash pop --quiet; then`,
+      `    ${git} checkout -- . >/dev/null 2>&1 || true;`,
+      `    echo 'WARNING: local agent changes were kept in git stash; inspect manually' >&2`,
+      `  fi;`,
+      `fi`,
+    ].join(' ');
     if (targetVersion) {
-      // Теги — с префиксом `v`, а панель отдаёт версию без него.
       return (
-        `( test -z "$(${git} status --porcelain)" || { echo 'refusing update: working tree has uncommitted changes' >&2; exit 1; }; ` +
-        `tag=${targetVersion}; ${git} rev-parse -q --verify "refs/tags/$tag" >/dev/null || tag=v$tag; ` +
-        `${git} checkout -q "$tag" )`
+        `${stash} ` +
+        `( ${git} rev-parse -q --verify "refs/tags/$targetVersion" >/dev/null && tag=$targetVersion || tag=v$targetVersion; ` +
+        `${git} checkout -q "$tag" ); ` +
+        restore
       );
     }
     return [
-      // `for-each-ref` перечисляет только реальные ветки: `git branch` в detached
-      // HEAD выдаёт первой псевдо-запись «(HEAD detached at ...)».
-      `test -z "$(${git} status --porcelain)" || { echo 'refusing update: working tree has uncommitted changes' >&2; exit 1; }`,
+      stash,
       `branch=$(${git} symbolic-ref -q --short HEAD || ${git} for-each-ref --format='%(refname:short)' refs/heads | head -n 1)`,
       `${git} checkout -q "\${branch:-main}"`,
       `${git} pull -q --ff-only`,
+      restore,
     ].join('; ');
   }
 
@@ -439,6 +450,9 @@ export class NodeProvisionService {
           error: 'Update command failed',
           output: result.output.slice(-4000),
         };
+      }
+      if (targetVersion) {
+        await this.prisma.node.update({ where: { id: node.id }, data: { agentVersion: targetVersion } });
       }
       return {
         updated: true,
