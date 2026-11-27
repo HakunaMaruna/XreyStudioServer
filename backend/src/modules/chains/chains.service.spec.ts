@@ -56,7 +56,7 @@ describe('ChainsService', () => {
       applyConfig: jest.fn(async () => ({ applied: true })),
       ping: jest.fn(async () => ({ reachable: true })),
     };
-    service = new ChainsService(prisma, agent);
+    service = new ChainsService(prisma, agent, { applyRevision: jest.fn(async () => ({ applied: true })) } as any);
   });
 
   const dto = { name: 'Test', entryNodeId: 'n1', exits: [{ nodeId: 'n2', port: 443 }], routingMode: 'all' as const };

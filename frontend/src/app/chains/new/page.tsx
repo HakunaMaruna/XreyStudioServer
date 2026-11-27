@@ -530,6 +530,7 @@ export default function ChainsPage() {
         }
       >
         <form onSubmit={(event) => { event.preventDefault(); void save(); }} className="space-y-4">
+          {error && <p className="text-xs text-danger" role="alert">{error}</p>}
           <div>
             <Field label={t.name}>
               <input

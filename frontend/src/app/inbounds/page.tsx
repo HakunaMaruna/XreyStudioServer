@@ -286,8 +286,12 @@ export default function InboundsPage() {
 
   const remove = async (id: string) => {
     if (!confirm(t.confirmDelete)) return;
-    await api.delete(`/api/inbounds/${id}`);
-    await load();
+    try {
+      await api.delete(`/api/inbounds/${id}`);
+      await load();
+    } catch (e: any) {
+      setError(e.message);
+    }
   };
 
   const closeClients = () => { setClientsOpen(false); setClientsInboundId(null); setError(''); };
@@ -458,9 +462,9 @@ export default function InboundsPage() {
         subtitle={t.exposeProtocol}
         icon={<Icon name="plug" size={16} />}
         size="lg"
-        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="check" onClick={submit} loading={busy}>{editing ? t.save : t.create}</Button></>}
+        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="check" form="inbound-form" loading={busy}>{editing ? t.save : t.create}</Button></>}
       >
-        <form onSubmit={submit} className="space-y-5">
+        <form id="inbound-form" onSubmit={submit} className="space-y-5">
           {error && (
             <div className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
               <Icon name="alert" size={14} /> {error}
@@ -592,9 +596,9 @@ export default function InboundsPage() {
         subtitle={clientsInbound?.tag}
         icon={<Icon name="users" size={16} />}
         size="xl"
-        footer={<><Button onClick={closeClients}>{t.cancel}</Button><Button variant="primary" icon="check" onClick={saveClients} loading={busy}>{t.save}</Button></>}
+        footer={<><Button onClick={closeClients}>{t.cancel}</Button><Button variant="primary" icon="check" form="clients-form" loading={busy}>{t.save}</Button></>}
       >
-        <div className="space-y-3">
+        <form id="clients-form" onSubmit={(event) => { event.preventDefault(); void saveClients(); }} className="space-y-3">
           {error && (
             <div className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
               <Icon name="alert" size={14} /> {error}
@@ -628,12 +632,12 @@ export default function InboundsPage() {
                 <Field label={t.comment}><input value={c.comment} onChange={(e) => { const clients = [...form.clients]; clients[index] = { ...c, comment: e.target.value }; setForm({ ...form, clients }); }} className="field" /></Field>
               </div>
               <div className="flex shrink-0 items-center gap-1 pb-1">
-                <Toggle checked={c.enabled} onChange={(v) => { const clients = [...form.clients]; clients[index] = { ...c, enabled: v }; setForm({ ...form, clients }); }} />
+                <Toggle label={t.enabled} checked={c.enabled} onChange={(v) => { const clients = [...form.clients]; clients[index] = { ...c, enabled: v }; setForm({ ...form, clients }); }} />
                 <IconButton icon="trash" label={t.delete} tone="danger" className="!h-7 !w-7" onClick={() => setForm({ ...form, clients: form.clients.filter((_, i) => i !== index) })} />
               </div>
             </div>
           ))}
-        </div>
+        </form>
       </Modal>
 
       <Modal

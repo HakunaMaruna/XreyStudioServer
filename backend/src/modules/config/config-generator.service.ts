@@ -516,7 +516,10 @@ export class ConfigGeneratorService {
 
     const content = JSON.parse(revision.content);
     this.validateConfig(content);
-    const result = await this.agentClient.applyConfig(node, content, revision.version);
+    const result: any = await this.agentClient.applyConfig(node, content, revision.version);
+    if (result && result.applied === false) {
+      throw new BadRequestException(result.error || 'Agent rejected the configuration');
+    }
     await this.prisma.$transaction([
       this.prisma.configRevision.updateMany({
         where: { nodeId },

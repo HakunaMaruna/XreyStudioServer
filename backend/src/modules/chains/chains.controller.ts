@@ -20,12 +20,12 @@ export class ChainsController {
 
   @Get('binding/user/:userId')
   bindingForUser(@Param('userId') userId: string, @CurrentUser() user: AuthUser) {
-    return this.service.bindingForUser(userId, user.organizationId);
+    return this.service.bindingForUser(userId, user.role === 'ADMIN' ? null : user.organizationId, (user as any).squadId || null);
   }
 
   @Delete('binding/user/:userId')
-  unbindUser(@Param('userId') userId: string) {
-    return this.service.unbindUser(userId);
+  unbindUser(@Param('userId') userId: string, @CurrentUser() user: AuthUser) {
+    return this.service.unbindUser(userId, user);
   }
 
   @Get(':id')

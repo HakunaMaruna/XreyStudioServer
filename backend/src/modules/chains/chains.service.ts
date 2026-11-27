@@ -4,6 +4,7 @@ import { generateKeyPairSync, randomBytes, randomUUID } from 'crypto';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AgentClientService } from '../config/agent-client.service';
+import { ConfigGeneratorService } from '../config/config-generator.service';
 import { BindChainDto, ChainExitDto, CreateChainDto, UpdateChainDto } from './dto/chain.dto';
 
 export type ChainServer = {
@@ -24,6 +25,7 @@ export class ChainsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly agent: AgentClientService,
+    private readonly config: ConfigGeneratorService,
   ) {}
 
   private tenantWhere(user: AuthUser) {
@@ -132,9 +134,9 @@ export class ChainsService {
     throw new BadRequestException('No free port on the node');
   }
 
-  private async assertNoCycle(entryNodeId: string, exits: ChainExitDto[]) {
+  private async assertNoCycle(entryNodeId: string, exits: ChainExitDto[], organizationId?: string | null) {
     const chains = await this.prisma.proxyChain.findMany({
-      where: { status: 'active' },
+      where: { status: 'active', ...(organizationId ? { organizationId } : {}) },
       include: { hops: { select: { nodeId: true, role: true } } },
     });
     const edges = new Map<string, string[]>();
@@ -194,7 +196,7 @@ export class ChainsService {
       if (node.status !== 'ONLINE') throw new BadRequestException(`Exit node ${node.name} is offline`);
       exitNodes.push({ dto: exit, node });
     }
-    await this.assertNoCycle(dto.entryNodeId, dto.exits);
+    await this.assertNoCycle(dto.entryNodeId, dto.exits, orgId);
 
     const entryPort = await this.pickPort(entry.id);
     const chain = await this.prisma.proxyChain.create({
@@ -268,6 +270,9 @@ export class ChainsService {
 
   async update(id: string, dto: UpdateChainDto, user: AuthUser) {
     const current = await this.findOwned(id, user);
+    if (user.role !== Role.ADMIN && dto.organizationId !== undefined && dto.organizationId !== user.organizationId) {
+      throw new ForbiddenException('Cannot move a chain to another organization');
+    }
     this.validateRoutingRules(dto.routingRules);
     if (dto.exits !== undefined) {
       if (!dto.exits.length) throw new BadRequestException('At least one exit node is required');
@@ -275,7 +280,7 @@ export class ChainsService {
         const node = await this.node(exit.nodeId, user);
         if (node.status !== 'ONLINE') throw new BadRequestException(`Exit node ${node.name} is offline`);
       }
-      await this.assertNoCycle(current.hops.find((h) => h.role === 'entry')?.nodeId || '', dto.exits);
+      await this.assertNoCycle(current.hops.find((h) => h.role === 'entry')?.nodeId || '', dto.exits, current.organizationId);
       // Rebuild exit hops and their inbounds.
       const oldExits = current.hops.filter((hop) => hop.role === 'exit');
       const nextNodeIds = new Set(dto.exits.map((exit) => exit.nodeId));
@@ -333,7 +338,7 @@ export class ChainsService {
   }
 
   private async clearRelaysForChain(node: any, chainId: string) {
-    const current = await this.agent.relayStatus(node).catch(() => ({ relays: [] }));
+    const current = await this.agent.relayStatus(node);
     const relays = ((current as any)?.relays || []).filter(
       (relay: any) => relay.id !== chainId && !String(relay.id).startsWith(`${chainId}:`),
     );
@@ -411,23 +416,25 @@ export class ChainsService {
     return { success: true };
   }
 
-  async unbindUser(userId: string) {
-    const rows = await this.prisma.chainBinding.findMany({ where: { userId } });
+  async unbindUser(userId: string, actor: AuthUser) {
+    const scope = actor.role === Role.ADMIN ? {} : { chain: { organizationId: actor.organizationId || null } };
+    const rows = await this.prisma.chainBinding.findMany({ where: { userId, ...scope } });
     const chainIds = Array.from(new Set(rows.map((row) => row.chainId)));
     await this.prisma.chainBinding.deleteMany({ where: { userId } });
     for (const chainId of chainIds) await this.syncClients(chainId);
     return { success: true, chains: chainIds.length };
   }
 
-  async bindingForUser(userId: string, squadId?: string | null) {
+  async bindingForUser(userId: string, organizationId?: string | null, squadId?: string | null) {
+    const orgScope = organizationId ? { chain: { organizationId } } : {};
     const userBinding = await this.prisma.chainBinding.findFirst({
-      where: { userId },
+      where: { userId, ...orgScope },
       include: { chain: { include: { hops: true } } },
       orderBy: { createdAt: 'desc' },
     });
     const binding = userBinding || (squadId
       ? await this.prisma.chainBinding.findFirst({
-        where: { squadId },
+        where: { squadId, ...orgScope },
         include: { chain: { include: { hops: true } } },
         orderBy: { createdAt: 'desc' },
       })
@@ -436,11 +443,15 @@ export class ChainsService {
     const entry = binding.chain.hops.find((hop) => hop.role === 'entry');
     if (!entry) return null;
     const node = await this.prisma.node.findUnique({ where: { id: entry.nodeId } });
-    return { chainId: binding.chain.id, chainName: binding.chain.name, host: entry.sni || node?.address || '', port: entry.port };
+    const host = entry.sni || node?.address || '';
+    return {
+      chainId: binding.chain.id, chainName: binding.chain.name,
+      host, port: entry.port, entry: { host, port: entry.port },
+    };
   }
 
-  async subscriptionServers(userId: string, squadId?: string | null, name = 'Chain'): Promise<ChainServer[]> {
-    const binding = await this.bindingForUser(userId, squadId);
+  async subscriptionServers(userId: string, organizationId?: string | null, squadId?: string | null, name = 'Chain'): Promise<ChainServer[]> {
+    const binding = await this.bindingForUser(userId, organizationId, squadId);
     if (!binding) return [];
     const chain = await this.prisma.proxyChain.findUnique({
       where: { id: binding.chainId },
@@ -495,7 +506,7 @@ export class ChainsService {
           enabled: hop.enabled && chain.status === 'active',
         }))
       : [];
-    const before = await this.agent.relayStatus(entryNode as any).catch(() => ({ relays: [] }));
+    const before = await this.agent.relayStatus(entryNode as any);
     const beforeByNode = new Map<string, any[]>();
     beforeByNode.set(entryNode.id, (before as any)?.relays || []);
     const applied: string[] = [];
@@ -506,12 +517,13 @@ export class ChainsService {
         const node = await this.prisma.node.findUnique({ where: { id: exit.nodeId } });
         if (!node) continue;
         if (bridge) {
-          const prev = await this.agent.relayStatus(node as any).catch(() => ({ relays: [] }));
+          const prev = await this.agent.relayStatus(node as any);
           beforeByNode.set(node.id, (prev as any)?.relays || []);
           const own = exitRelays.filter((relay) => relay.id.endsWith(`:${exit.id}`));
           await this.agent.applyRelays(node as any, own);
         }
-        await this.agent.applyConfig(node as any, { version: Date.now() }, 1);
+                const appliedConfig = await this.config.applyRevision(node.id);
+        if (!appliedConfig?.applied) throw new Error(`Config apply failed on ${node.name}`);
         applied.push(node.id);
       }
       return { applied: true, relays: relays.length, bridge: bridge || undefined, nodes: applied.length };

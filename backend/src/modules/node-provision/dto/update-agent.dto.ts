@@ -41,8 +41,9 @@ export class UpdateNodeAgentDto {
   @IsOptional()
   useSudo?: boolean;
 
+  @IsOptional()
   @Matches(/^SHA256:[A-Za-z0-9+/]{43}=?$/)
-  hostKeyFingerprint: string;
+  hostKeyFingerprint?: string;
 
   @IsOptional()
   @Matches(/^\/[A-Za-z0-9._/-]{1,200}$/)

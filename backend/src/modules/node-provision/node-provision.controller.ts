@@ -23,6 +23,21 @@ export class NodeProvisionController {
     return this.service.provision(dto, user);
   }
 
+  @Post(':nodeId/update-latest')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  async updateAgentLatest(
+    @Param('nodeId') nodeId: string,
+    @CurrentUser() user: AuthUser,
+    @Req() req: any,
+  ) {
+    const result = await this.service.updateAgentLatest(nodeId, user);
+    await this.audit.log({
+      userId: user.userId, action: 'node.updateAgentLatest', entity: 'Node', entityId: nodeId, ip: req.ip,
+    });
+    return result;
+  }
+
   @Post(':nodeId/update')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN, Role.OPERATOR)

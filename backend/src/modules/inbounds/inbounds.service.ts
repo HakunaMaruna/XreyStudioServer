@@ -90,7 +90,37 @@ export class InboundsService {
   async update(id: string, dto: UpdateInboundDto, user?: AuthUser) {
     await this.findOne(id, user);
     await this.assertOwner(dto, user);
-    return this.prisma.inbound.update({
+    const ops: any[] = [];
+    if (dto.clients !== undefined) {
+      ops.push(this.prisma.inboundClient.deleteMany({ where: { inboundId: id } }));
+      if (dto.clients.length) {
+        ops.push(this.prisma.inboundClient.createMany({
+          data: dto.clients.map((c) => ({
+            inboundId: id,
+            userId: c.userId,
+            trafficLimit: BigInt(c.trafficLimit || 0),
+            expiresAt: c.expiresAt ? new Date(c.expiresAt) : null,
+            enabled: c.enabled ?? true,
+            comment: c.comment,
+            sortIndex: c.sortIndex || 0,
+          })),
+          skipDuplicates: true,
+        }));
+      }
+    }
+    if (dto.fallbacks !== undefined) {
+      ops.push(this.prisma.inboundFallback.deleteMany({ where: { masterId: id } }));
+      if (dto.fallbacks.length) {
+        ops.push(this.prisma.inboundFallback.createMany({
+          data: dto.fallbacks.map((f) => ({
+            masterId: id, childId: f.childId, path: f.path || '',
+            alpn: f.alpn || '', dest: f.dest || '', xver: f.xver || 0,
+          })),
+          skipDuplicates: true,
+        }));
+      }
+    }
+    ops.push(this.prisma.inbound.update({
       where: { id },
       data: {
         ...(dto.tag !== undefined ? { tag: dto.tag } : {}),
@@ -112,7 +142,9 @@ export class InboundsService {
         ...(dto.settings !== undefined ? { settings: dto.settings as any } : {}),
         ...(dto.enabled !== undefined ? { enabled: dto.enabled } : {}),
       },
-    });
+    }));
+    await this.prisma.$transaction(ops);
+    return this.findOne(id, user);
   }
 
 

@@ -324,8 +324,12 @@ export class WizardService {
     if (certificate && security === 'reality') {
       await report('cert', 'Waiting for the agent before installing the decoy certificate', 97);
       let agentReady = false;
+      const agentNode = await this.prisma.node.findUnique({ where: { id: provisioned.nodeId } });
+      const agentTarget = agentNode
+        ? { address: agentNode.address, agentUrl: agentNode.agentUrl, agentSecret: agentNode.agentSecret }
+        : { address: dto.host, agentUrl: provisioned.agentUrl };
       for (let attempt = 0; attempt < 12; attempt += 1) {
-        const ping = await this.agent.ping({ address: dto.host, agentUrl: provisioned.agentUrl });
+        const ping = await this.agent.ping(agentTarget);
         if (ping.reachable) { agentReady = true; break; }
         await new Promise((resolve) => setTimeout(resolve, 5000));
       }
@@ -335,7 +339,7 @@ export class WizardService {
         await report('cert', 'Installing decoy site certificate on the node', 97);
         try {
           await this.agent.installDecoyCertificate(
-            { address: dto.host, agentUrl: provisioned.agentUrl },
+            agentTarget,
             { certificate: certificate.certificate, privateKey: certificate.privateKey, hostname: domain.fqdn },
           );
         } catch (error: any) {

@@ -76,6 +76,8 @@ export default function RoutingPage() {
   };
 
   const validate = async () => {
+    setError('');
+    setNotice('');
     try {
       const payload = JSON.parse(form.payloadText);
       const result = await api.post('/api/routing/validate', { payload });
@@ -131,8 +133,12 @@ export default function RoutingPage() {
 
   const remove = async (id: string) => {
     if (!confirm(t.confirmDelete)) return;
-    await api.delete(`/api/routing/${id}`);
-    await load();
+    try {
+      await api.delete(`/api/routing/${id}`);
+      await load();
+    } catch (e: any) {
+      setError(e.message);
+    }
   };
 
   const columns = useMemo<ColumnDef<Profile>[]>(
@@ -182,7 +188,7 @@ export default function RoutingPage() {
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? t.edit : t.create} subtitle={t.routingSubtitle} icon={<Icon name="route" size={16} />} size="lg"
         footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button icon="shield" onClick={validate}>{t.routingValidate}</Button><Button variant="primary" icon="check" onClick={submit} loading={busy}>{t.save}</Button></>}>
-        <form onSubmit={submit} className="space-y-4">
+        <form id="routing-form" onSubmit={submit} className="space-y-4">
           <Field label={t.routingRecipe}>
             <select className="field" value={form.recipe} onChange={(e) => chooseRecipe(e.target.value)}>
               <option value="">—</option>

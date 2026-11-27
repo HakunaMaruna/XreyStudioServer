@@ -274,9 +274,6 @@ export default function SettingsPage() {
   };
 
   const saveSettings = useCallback(async () => {
-    localStorage.setItem('xss_settings', JSON.stringify(settings));
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 2000);
     try {
       const updated = await api.patch('/api/settings', {
         updateCheckEnabled: settings.updateCheckEnabled,
@@ -287,6 +284,9 @@ export default function SettingsPage() {
         updateCheckEnabled: Boolean(updated.updateCheckEnabled ?? prev.updateCheckEnabled),
         updateChannel: updated.updateChannel === 'dev' ? 'dev' : 'stable',
       }));
+      localStorage.setItem('xss_settings', JSON.stringify(settings));
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 2000);
       fetchUpdateStatus(true).then(setUpdate).catch(() => undefined);
       setHubError('');
     } catch (err) {

@@ -62,6 +62,8 @@ export default function NodesPage() {
   const [pings, setPings] = useState<Record<string, number | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [updatingAgentId, setUpdatingAgentId] = useState<string | null>(null);
   const [revisionsNode, setRevisionsNode] = useState<NodeRow | null>(null);
   const [revisions, setRevisions] = useState<RevisionRow[]>([]);
   const [revisionsLoading, setRevisionsLoading] = useState(false);
@@ -100,7 +102,7 @@ export default function NodesPage() {
       const data = await api.get('/api/nodes');
       setNodes(Array.isArray(data) ? data : data.data || []);
       setLastUpdated(Date.now());
-      if (!silent) setError('');
+      setError('');
     } catch (e: any) {
       if (!silent) setError(e.message);
     } finally {
@@ -169,6 +171,21 @@ export default function NodesPage() {
       setAgentResult({ updated: false, error: e.message });
     } finally {
       setAgentBusy(false);
+    }
+  };
+
+  const updateAgentLatest = async (node: NodeRow) => {
+    setUpdatingAgentId(node.id);
+    setError('');
+    setNotice('');
+    try {
+      const result = await api.post(`/api/node-provision/${node.id}/update-latest`, {});
+      setNotice(result?.message || `${t.updateAgentDone}: ${node.name}`);
+      await load();
+    } catch (e: any) {
+      setError(e.message || t.updateAgentFailed);
+    } finally {
+      setUpdatingAgentId(null);
     }
   };
 
@@ -265,6 +282,7 @@ export default function NodesPage() {
       const data = await api.get(`/api/wizard/nodes/${node.id}`);
       setEditData({ ...data, name: data.name || node.name, address: data.address || node.address });
     } catch (e: any) {
+      setEditNodeId(null);
       setError(e.message);
     }
   };
@@ -361,6 +379,11 @@ export default function NodesPage() {
         }
       />
 
+      {notice && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-xs text-success" role="status">
+          <Icon name="checkCircle" size={15} /> {notice}
+        </div>
+      )}
       {error && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
@@ -501,6 +524,12 @@ export default function NodesPage() {
                   <IconButton icon="edit" label={t.edit} onClick={() => openEdit(node)} />
                   <IconButton icon="play" label={t.apply} tone="brand" onClick={() => apply(node.id)} />
                   <IconButton icon="download" label={t.updateAgent} tone="brand" onClick={() => openAgentUpdate(node)} />
+                  {node.agentOutdated && (
+                    <Button size="sm" variant="primary" icon="refresh" loading={updatingAgentId === node.id}
+                      disabled={Boolean(updatingAgentId)} onClick={() => updateAgentLatest(node)}>
+                      {t.updateAgentLatest}
+                    </Button>
+                  )}
                   <IconButton icon="refresh" label={t.restart} onClick={() => restart(node.id)} />
                   <IconButton icon="history" label={t.revisions} onClick={() => openRevisions(node)} />
                   <IconButton icon="terminal" label={t.logs} onClick={() => openLogs(node)} />

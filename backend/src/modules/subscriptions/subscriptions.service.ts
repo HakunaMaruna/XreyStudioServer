@@ -201,7 +201,9 @@ export class SubscriptionsService {
         ).values(),
       ),
       links,
-      chainServers: await this.chains.subscriptionServers(user.id, user.organizationId || null),
+      chainServers: user.status === 'ACTIVE'
+        ? await this.chains.subscriptionServers(user.id, user.organizationId || null, user.squadId || null)
+        : [],
       deviceLimit: user.deviceLimit,
       deviceCount: (user as any).devices?.length ?? 0,
       deviceIds: ((user as any).devices || []).map((d: any) => d.hwid),

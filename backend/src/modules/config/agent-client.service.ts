@@ -4,6 +4,7 @@ import * as http from 'http';
 import * as https from 'https';
 import { URL } from 'url';
 import { isIP } from 'net';
+import { decryptSecret } from '../../common/secret-crypto';
 import { promises as dns } from 'dns';
 
 function isPrivateHost(host: string) {
@@ -40,7 +41,7 @@ export class AgentClientService {
   private readonly logger = new Logger(AgentClientService.name);
   private readonly lastPingError = new Map<string, string>();
 
-  private base(node: { address: string; agentUrl?: string | null }, allowPrivate = false) {
+  private base(node: { address: string; agentUrl?: string | null; agentSecret?: string | null }, allowPrivate = false) {
     const explicit = node.agentUrl;
     const raw = explicit || process.env.AGENT_BASE_URL || `http://${node.address}:9090`;
     let url: URL;
@@ -83,7 +84,17 @@ export class AgentClientService {
     return `${url.protocol}//${url.host}`.replace(/\/$/, '');
   }
 
-  private request(url: string, payload: any, timeoutMs = 5000, method = 'POST', allowPrivate = false): Promise<any> {
+  /** Agents use their own AGENT_TOKEN as the shared secret. Prefer the per-node
+   * stored value; fall back to the global env for the local/legacy agent. */
+  private secretFor(node?: { agentSecret?: string | null }): string {
+    if (node?.agentSecret) {
+      try { return decryptSecret(node.agentSecret); }
+      catch (error: any) { this.logger.warn(`Failed to decrypt agent secret: ${error.message}`); }
+    }
+    return process.env.AGENT_SECRET || process.env.AGENT_TOKEN || '';
+  }
+
+  private request(url: string, payload: any, timeoutMs = 5000, method = 'POST', allowPrivate = false, secret?: string): Promise<any> {
     return new Promise((resolve, reject) => {
       void (async () => {
         const target = new URL(url);
@@ -119,7 +130,7 @@ export class AgentClientService {
           port: target.port || (isHttps ? 443 : 80),
           path: `${target.pathname}${target.search}`,
           headers: {
-            'X-Agent-Secret': process.env.AGENT_SECRET || process.env.AGENT_TOKEN || '',
+            'X-Agent-Secret': secret || '',
             ...(method === 'GET'
               ? {}
               : { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }),
@@ -156,30 +167,30 @@ export class AgentClientService {
     });
   }
 
-  async applyConfig(node: { address: string; agentUrl?: string | null }, config: any, version: number) {
+  async applyConfig(node: { address: string; agentUrl?: string | null; agentSecret?: string | null }, config: any, version: number) {
     const base = this.base(node, true);
     try {
-      return await this.request(`${base.replace(/\/$/, '')}/config`, { version, config });
+      return await this.request(`${base.replace(/\/$/, '')}/config`, { version, config }, 5000, 'POST', true, this.secretFor(node));
     } catch (e: any) {
       this.logger.warn(`Config push failed for ${node.address}: ${e.message}`);
       return { applied: false, error: e.message };
     }
   }
 
-  async restart(node: { address: string; agentUrl?: string | null }) {
+  async restart(node: { address: string; agentUrl?: string | null; agentSecret?: string | null }) {
     const base = this.base(node, true);
-    return this.request(`${base.replace(/\/$/, '')}/restart-xray`, {}, 5000, 'POST', true);
+    return this.request(`${base.replace(/\/$/, '')}/restart-xray`, {}, 5000, 'POST', true, this.secretFor(node));
   }
 
   async installCertificate(
-    node: { address: string; agentUrl?: string | null },
+    node: { address: string; agentUrl?: string | null; agentSecret?: string | null },
     payload: { certificate: string; privateKey: string; ca?: string; hostname: string },
   ) {
-    return this.request(`${this.base(node, true)}/certificate`, { payload }, 15000, 'POST', true);
+    return this.request(`${this.base(node, true)}/certificate`, { payload }, 15000, 'POST', true, this.secretFor(node));
   }
 
   async applyRelays(
-    node: { address: string; agentUrl?: string | null },
+    node: { address: string; agentUrl?: string | null; agentSecret?: string | null },
     relays: Array<{
       id: string;
       listenPort?: number;
@@ -193,26 +204,26 @@ export class AgentClientService {
       targets?: Array<{ host: string; port: number; priority?: number }>;
     }>,
   ) {
-    return this.request(`${this.base(node, true)}/relays`, { relays }, 15000, 'POST', true);
+    return this.request(`${this.base(node, true)}/relays`, { relays }, 15000, 'POST', true, this.secretFor(node));
   }
 
-  async relayStatus(node: { address: string; agentUrl?: string | null }) {
-    return this.request(`${this.base(node, true)}/relays`, undefined, 5000, 'GET', true);
+  async relayStatus(node: { address: string; agentUrl?: string | null; agentSecret?: string | null }) {
+    return this.request(`${this.base(node, true)}/relays`, undefined, 5000, 'GET', true, this.secretFor(node));
   }
 
   async installDecoyCertificate(
-    node: { address: string; agentUrl?: string | null },
+    node: { address: string; agentUrl?: string | null; agentSecret?: string | null },
     payload: { certificate: string; privateKey: string; hostname: string },
   ) {
-    return this.request(`${this.base(node, true)}/decoy-certificate`, { payload }, 15000, 'POST', true);
+    return this.request(`${this.base(node, true)}/decoy-certificate`, { payload }, 15000, 'POST', true, this.secretFor(node));
   }
 
   // Быстрый HTTP-RTT до агента: используется как «пинг» в карточке метрик ноды.
-  async ping(node: { address: string; agentUrl?: string | null }) {
+  async ping(node: { address: string; agentUrl?: string | null; agentSecret?: string | null }) {
     const started = Date.now();
     try {
       const base = this.base(node, true);
-      await this.request(`${base.replace(/\/$/, '')}/health`, undefined, 5000, 'GET', true);
+      await this.request(`${base.replace(/\/$/, '')}/health`, undefined, 5000, 'GET', true, this.secretFor(node));
       this.lastPingError.delete(node.address);
       return { reachable: true, latencyMs: Date.now() - started };
     } catch (error: any) {
@@ -225,12 +236,12 @@ export class AgentClientService {
   }
 
   async getLogs(
-    node: { address: string; agentUrl?: string | null },
+    node: { address: string; agentUrl?: string | null; agentSecret?: string | null },
     service: 'xray' | 'singbox',
     lines: number,
   ) {
     const base = this.base(node);
     const query = new URLSearchParams({ service, lines: String(lines) });
-    return this.request(`${base.replace(/\/$/, '')}/logs?${query}`, undefined, 15000, 'GET');
+    return this.request(`${base.replace(/\/$/, '')}/logs?${query}`, undefined, 15000, 'GET', false, this.secretFor(node));
   }
 }

@@ -8,6 +8,7 @@ import { NodeStatus, Prisma, Role } from '@prisma/client';
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
+import { encryptSecret } from '../../common/secret-crypto';
 import { APP_VERSION, isAgentOutdated } from '../../version';
 import { ConfigGeneratorService } from '../config/config-generator.service';
 import { AgentClientService } from '../config/agent-client.service';
@@ -64,6 +65,7 @@ export class NodesService {
     return nodes.map((n) => ({
       ...n,
       tokenHash: undefined,
+      agentSecret: undefined,
       status: this.displayStatus(n),
       online: this.isOnline(n),
       agentOutdated: isAgentOutdated(n.agentVersion),
@@ -74,7 +76,7 @@ export class NodesService {
   async pings(actor: AuthUser) {
     const nodes = await this.prisma.node.findMany({
       where: this.tenantWhere(actor),
-      select: { id: true, address: true, agentUrl: true },
+      select: { id: true, address: true, agentUrl: true, agentSecret: true },
     });
     const entries = await Promise.all(nodes.map(async (node) => {
       const result = await this.agentClient.ping(node as any);
@@ -96,6 +98,7 @@ export class NodesService {
     return {
       ...node,
       tokenHash: undefined,
+      agentSecret: undefined,
       status: this.displayStatus(node),
       online: this.isOnline(node),
     };
@@ -113,10 +116,11 @@ export class NodesService {
         port: dto.port || 443,
         agentUrl: dto.agentUrl || null,
         tokenHash: this.hashToken(agentToken),
+        agentSecret: encryptSecret(agentToken),
         organizationId: dto.organizationId || actor.organizationId || null,
       },
     });
-    return { ...node, tokenHash: undefined, agentToken };
+    return { ...node, tokenHash: undefined, agentSecret: undefined, agentToken };
   }
 
   async update(id: string, dto: UpdateNodeDto, actor: AuthUser) {
@@ -139,6 +143,7 @@ export class NodesService {
     return {
       ...node,
       tokenHash: undefined,
+      agentSecret: undefined,
       status: this.displayStatus(node),
       online: this.isOnline(node),
     };
@@ -177,7 +182,7 @@ export class NodesService {
     const agentToken = randomBytes(32).toString('hex');
     await this.prisma.node.update({
       where: { id },
-      data: { tokenHash: this.hashToken(agentToken) },
+      data: { tokenHash: this.hashToken(agentToken), agentSecret: encryptSecret(agentToken) },
     });
     return { agentToken };
   }
@@ -201,6 +206,7 @@ export class NodesService {
         lastSeenAt: new Date(),
         lastError: null,
         xrayVersion: dto.xrayVersion || node.xrayVersion,
+        ...(node.agentSecret ? {} : { agentSecret: encryptSecret(token) }),
         ...this.agentVersionData(dto.agentVersion, node.agentVersion),
         ...(dto.address ? { address: dto.address } : {}),
       },

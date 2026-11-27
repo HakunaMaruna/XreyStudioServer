@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
+import { decryptSecret, encryptSecret } from '../../common/secret-crypto';
+import { APP_VERSION } from '../../version';
 import { Client, ConnectConfig } from 'ssh2';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -20,7 +22,7 @@ const UPDATE_TIMEOUT_MS = 600_000;
 const MAX_OUTPUT = 16_384;
 const VERSION_PATTERN = /^v?\d+(?:\.\d+){1,3}(?:-[0-9A-Za-z.-]+)?$/;
 // Remote repo path ends up in a shell command; allow only a plain absolute path.
-const REPO_DIR_PATTERN = /^\/[A-Za-z0-9._\/-]+$/;
+const REPO_DIR_PATTERN = /^\/[A-Za-z0-9._/-]+$/;
 
 const shellQuote = (value: string) => `'${String(value).replace(/'/g, `'\\''`)}'`;
 
@@ -253,6 +255,7 @@ export class NodeProvisionService {
         port: 443,
         agentUrl: `http://${dto.host}:9090`,
         tokenHash,
+        agentSecret: encryptSecret(agentToken),
         location: dto.location || null,
         organizationId: actor.organizationId || null,
       },
@@ -323,14 +326,43 @@ export class NodeProvisionService {
     };
   }
 
+  private async assertTenantNode(nodeId: string, actor: AuthUser) {
+    const node = await this.prisma.node.findFirst({
+      where: { id: nodeId, ...(actor.role === Role.ADMIN ? {} : { organizationId: actor.organizationId || null }) },
+      select: { id: true, address: true },
+    });
+    if (!node) throw new ForbiddenException('Node not found in your organization');
+    return node;
+  }
+
+  /** One-click update using credentials saved by the node wizard. */
+  async updateAgentLatest(nodeId: string, actor: AuthUser) {
+    this.enabled();
+    if (actor.role !== Role.ADMIN && actor.role !== Role.OPERATOR) throw new ForbiddenException('Admin or operator role required');
+    const node = await this.assertTenantNode(nodeId, actor);
+    const credential = await this.prisma.wizardCredential.findUnique({ where: { nodeId } });
+    if (!credential) throw new BadRequestException('No saved SSH credentials for this node; use manual update');
+    const dto: UpdateNodeAgentDto = {
+      host: credential.sshHost || node.address,
+      port: credential.sshPort || 22,
+      username: credential.sshUser || 'root',
+      useSudo: (credential.sshUser || 'root') !== 'root',
+      targetVersion: APP_VERSION,
+      // The wizard does not persist the host key fingerprint; ssh2 falls back to TOFU.
+    };
+    if (credential.password) dto.password = decryptSecret(credential.password);
+    if (credential.privateKey) dto.privateKey = decryptSecret(credential.privateKey);
+    if (credential.passphrase) dto.passphrase = decryptSecret(credential.passphrase);
+    return this.updateAgent(nodeId, dto as UpdateNodeAgentDto, actor);
+  }
+
   // Обновление агента на ноде: панель заходит по SSH в каталог репозитория
   // (его создаёт provision) и пересобирает только контейнер агента.
   async updateAgent(nodeId: string, dto: UpdateNodeAgentDto, actor: AuthUser) {
     this.enabled();
     if (actor.role !== Role.ADMIN && actor.role !== Role.OPERATOR) throw new ForbiddenException('Admin or operator role required');
 
-    const node = await this.prisma.node.findUnique({ where: { id: nodeId }, select: { id: true, name: true } });
-    if (!node) throw new BadRequestException('Node not found');
+    const node = await this.assertTenantNode(nodeId, actor);
 
     const repoDir = dto.repoDir || REMOTE_DIR;
     if (!REPO_DIR_PATTERN.test(repoDir) || repoDir.includes('..')) {
