@@ -76,7 +76,7 @@ export class NodesService {
   async pings(actor: AuthUser) {
     const nodes = await this.prisma.node.findMany({
       where: this.tenantWhere(actor),
-      select: { id: true, address: true, agentUrl: true, agentSecret: true },
+      select: { id: true, address: true, agentUrl: true, agentSecret: true, jumpNodeId: true },
     });
     const entries = await Promise.all(nodes.map(async (node) => {
       const result = await this.agentClient.ping(node as any);

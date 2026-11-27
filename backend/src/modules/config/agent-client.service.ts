@@ -1,10 +1,12 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
 import { readFileSync } from 'fs';
 import * as http from 'http';
 import * as https from 'https';
 import { URL } from 'url';
 import { isIP } from 'net';
 import { decryptSecret } from '../../common/secret-crypto';
+import { PrismaService } from '../../prisma/prisma.service';
+import { Client } from 'ssh2';
 import { promises as dns } from 'dns';
 
 function isPrivateHost(host: string) {
@@ -41,7 +43,9 @@ export class AgentClientService {
   private readonly logger = new Logger(AgentClientService.name);
   private readonly lastPingError = new Map<string, string>();
 
-  private base(node: { address: string; agentUrl?: string | null; agentSecret?: string | null }, allowPrivate = false) {
+  constructor(@Optional() private readonly prisma?: PrismaService) {}
+
+  private base(node: { address: string; agentUrl?: string | null; agentSecret?: string | null; jumpNodeId?: string | null }, allowPrivate = false) {
     const explicit = node.agentUrl;
     const raw = explicit || process.env.AGENT_BASE_URL || `http://${node.address}:9090`;
     let url: URL;
@@ -84,9 +88,51 @@ export class AgentClientService {
     return `${url.protocol}//${url.host}`.replace(/\/$/, '');
   }
 
+  /** Open a TCP stream to the agent through an installed jump node (SSH forwardOut). */
+  private async jumpSocket(node: { address: string; jumpNodeId?: string | null }): Promise<{ socket: any; close: () => void } | null> {
+    if (!node.jumpNodeId || !this.prisma) return null;
+    const jumpNode = await this.prisma.node.findUnique({
+      where: { id: node.jumpNodeId }, select: { address: true },
+    });
+    const credential = await this.prisma.wizardCredential.findUnique({ where: { nodeId: node.jumpNodeId } });
+    if (!jumpNode || !credential) {
+      throw new BadRequestException('Jump node is not configured for agent access');
+    }
+    const config: any = {
+      host: credential.sshHost || jumpNode.address,
+      port: credential.sshPort || 22,
+      username: credential.sshUser || 'root',
+      readyTimeout: 15_000,
+    };
+    if (credential.password) config.password = decryptSecret(credential.password);
+    if (credential.privateKey) {
+      config.privateKey = decryptSecret(credential.privateKey);
+      if (credential.passphrase) config.passphrase = decryptSecret(credential.passphrase);
+    }
+    if (!config.password && !config.privateKey) throw new BadRequestException('Jump node has no usable SSH credentials');
+    const ssh = new Client();
+    await new Promise<void>((resolve, reject) => {
+      ssh.once('ready', () => resolve());
+      ssh.once('error', reject);
+      ssh.connect(config);
+    });
+    try {
+      const socket = await new Promise<any>((resolve, reject) => {
+        ssh.forwardOut('127.0.0.1', 0, node.address, 9090, (error, stream) => {
+          if (error || !stream) reject(error || new Error('Jump forwardOut failed'));
+          else resolve(stream);
+        });
+      });
+      return { socket, close: () => { try { ssh.end(); } catch {} } };
+    } catch (error) {
+      ssh.end();
+      throw error;
+    }
+  }
+
   /** Agents use their own AGENT_TOKEN as the shared secret. Prefer the per-node
    * stored value; fall back to the global env for the local/legacy agent. */
-  private secretFor(node?: { agentSecret?: string | null }): string {
+  private secretFor(node?: { agentSecret?: string | null; jumpNodeId?: string | null }): string {
     if (node?.agentSecret) {
       try { return decryptSecret(node.agentSecret); }
       catch (error: any) { this.logger.warn(`Failed to decrypt agent secret: ${error.message}`); }
@@ -94,10 +140,12 @@ export class AgentClientService {
     return process.env.AGENT_SECRET || process.env.AGENT_TOKEN || '';
   }
 
-  private request(url: string, payload: any, timeoutMs = 5000, method = 'POST', allowPrivate = false, secret?: string): Promise<any> {
+  private request(url: string, payload: any, timeoutMs = 5000, method = 'POST', allowPrivate = false, secret?: string, node?: { address: string; jumpNodeId?: string | null }): Promise<any> {
     return new Promise((resolve, reject) => {
+      let jump: { socket: any; close: () => void } | null = null;
       void (async () => {
         const target = new URL(url);
+        if (node?.jumpNodeId) jump = await this.jumpSocket(node);
         const body = method === 'GET' ? '' : JSON.stringify(payload || {});
         const isHttps = target.protocol === 'https:';
         // Pin the connection to an address we validated: prevents DNS rebinding between base() and connect().
@@ -136,6 +184,7 @@ export class AgentClientService {
               : { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }),
           },
           timeout: timeoutMs,
+          ...(jump ? { createConnection: () => jump!.socket, lookup: undefined } : {}),
           ...(isHttps
             ? {
                 ca: process.env.AGENT_CA ? readFileSync(process.env.AGENT_CA) : undefined,
@@ -157,40 +206,41 @@ export class AgentClientService {
             } else {
               reject(new Error(`Agent responded ${res.statusCode}: ${data}`));
             }
+            jump?.close();
           });
         });
         req.on('timeout', () => req.destroy(new Error('Agent request timeout')));
-        req.on('error', reject);
+        req.on('error', (error) => { jump?.close(); reject(error); });
         if (method !== 'GET') req.write(body);
         req.end();
-      })().catch(reject);
+      })().catch((error) => { jump?.close(); reject(error); });
     });
   }
 
-  async applyConfig(node: { address: string; agentUrl?: string | null; agentSecret?: string | null }, config: any, version: number) {
+  async applyConfig(node: { address: string; agentUrl?: string | null; agentSecret?: string | null; jumpNodeId?: string | null }, config: any, version: number) {
     const base = this.base(node, true);
     try {
-      return await this.request(`${base.replace(/\/$/, '')}/config`, { version, config }, 5000, 'POST', true, this.secretFor(node));
+      return await this.request(`${base.replace(/\/$/, '')}/config`, { version, config }, 5000, 'POST', true, this.secretFor(node), node);
     } catch (e: any) {
       this.logger.warn(`Config push failed for ${node.address}: ${e.message}`);
       return { applied: false, error: e.message };
     }
   }
 
-  async restart(node: { address: string; agentUrl?: string | null; agentSecret?: string | null }) {
+  async restart(node: { address: string; agentUrl?: string | null; agentSecret?: string | null; jumpNodeId?: string | null }) {
     const base = this.base(node, true);
-    return this.request(`${base.replace(/\/$/, '')}/restart-xray`, {}, 5000, 'POST', true, this.secretFor(node));
+    return this.request(`${base.replace(/\/$/, '')}/restart-xray`, {}, 5000, 'POST', true, this.secretFor(node), node);
   }
 
   async installCertificate(
-    node: { address: string; agentUrl?: string | null; agentSecret?: string | null },
+    node: { address: string; agentUrl?: string | null; agentSecret?: string | null; jumpNodeId?: string | null },
     payload: { certificate: string; privateKey: string; ca?: string; hostname: string },
   ) {
-    return this.request(`${this.base(node, true)}/certificate`, { payload }, 15000, 'POST', true, this.secretFor(node));
+    return this.request(`${this.base(node, true)}/certificate`, { payload }, 15000, 'POST', true, this.secretFor(node), node);
   }
 
   async applyRelays(
-    node: { address: string; agentUrl?: string | null; agentSecret?: string | null },
+    node: { address: string; agentUrl?: string | null; agentSecret?: string | null; jumpNodeId?: string | null },
     relays: Array<{
       id: string;
       listenPort?: number;
@@ -204,26 +254,26 @@ export class AgentClientService {
       targets?: Array<{ host: string; port: number; priority?: number }>;
     }>,
   ) {
-    return this.request(`${this.base(node, true)}/relays`, { relays }, 15000, 'POST', true, this.secretFor(node));
+    return this.request(`${this.base(node, true)}/relays`, { relays }, 15000, 'POST', true, this.secretFor(node), node);
   }
 
-  async relayStatus(node: { address: string; agentUrl?: string | null; agentSecret?: string | null }) {
-    return this.request(`${this.base(node, true)}/relays`, undefined, 5000, 'GET', true, this.secretFor(node));
+  async relayStatus(node: { address: string; agentUrl?: string | null; agentSecret?: string | null; jumpNodeId?: string | null }) {
+    return this.request(`${this.base(node, true)}/relays`, undefined, 5000, 'GET', true, this.secretFor(node), node);
   }
 
   async installDecoyCertificate(
-    node: { address: string; agentUrl?: string | null; agentSecret?: string | null },
+    node: { address: string; agentUrl?: string | null; agentSecret?: string | null; jumpNodeId?: string | null },
     payload: { certificate: string; privateKey: string; hostname: string },
   ) {
-    return this.request(`${this.base(node, true)}/decoy-certificate`, { payload }, 15000, 'POST', true, this.secretFor(node));
+    return this.request(`${this.base(node, true)}/decoy-certificate`, { payload }, 15000, 'POST', true, this.secretFor(node), node);
   }
 
   // Быстрый HTTP-RTT до агента: используется как «пинг» в карточке метрик ноды.
-  async ping(node: { address: string; agentUrl?: string | null; agentSecret?: string | null }) {
+  async ping(node: { address: string; agentUrl?: string | null; agentSecret?: string | null; jumpNodeId?: string | null }) {
     const started = Date.now();
     try {
       const base = this.base(node, true);
-      await this.request(`${base.replace(/\/$/, '')}/health`, undefined, 5000, 'GET', true, this.secretFor(node));
+      await this.request(`${base.replace(/\/$/, '')}/health`, undefined, 5000, 'GET', true, this.secretFor(node), node);
       this.lastPingError.delete(node.address);
       return { reachable: true, latencyMs: Date.now() - started };
     } catch (error: any) {
@@ -236,12 +286,12 @@ export class AgentClientService {
   }
 
   async getLogs(
-    node: { address: string; agentUrl?: string | null; agentSecret?: string | null },
+    node: { address: string; agentUrl?: string | null; agentSecret?: string | null; jumpNodeId?: string | null },
     service: 'xray' | 'singbox',
     lines: number,
   ) {
     const base = this.base(node);
     const query = new URLSearchParams({ service, lines: String(lines) });
-    return this.request(`${base.replace(/\/$/, '')}/logs?${query}`, undefined, 15000, 'GET', false, this.secretFor(node));
+    return this.request(`${base.replace(/\/$/, '')}/logs?${query}`, undefined, 15000, 'GET', false, this.secretFor(node), node);
   }
 }
