@@ -314,6 +314,7 @@ export class NodeProvisionService {
       const sudo = this.sudoPrefix(dto);
       const setup =
         `set -e; ${sudo}mkdir -p ${REMOTE_DIR}; ` +
+        `if ! command -v git >/dev/null 2>&1; then ${sudo}apt-get update -qq && ${sudo}apt-get install -y -qq git ca-certificates; fi; ` +
         `if [ ! -d ${REMOTE_DIR}/.git ]; then ${sudo}git clone --depth 1 ${repo} ${REMOTE_DIR}; fi; ` +
         `${sudo}chmod 700 ${REMOTE_DIR}; ` +
         `if ! command -v docker >/dev/null 2>&1; then curl -fsSL https://get.docker.com | ${sudo}sh; fi`;
