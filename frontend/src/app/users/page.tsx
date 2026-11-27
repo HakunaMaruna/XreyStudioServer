@@ -571,6 +571,7 @@ export default function UsersPage() {
         loading={loading}
         getRowId={(row) => row.id}
         hideSearch
+        fillHeight
         total={total}
         sorting={sorting}
         onSortingChange={handleSortingChange}

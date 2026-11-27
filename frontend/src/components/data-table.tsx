@@ -45,6 +45,8 @@ type DataTableProps<T> = {
   sorting?: SortingState;
   onSortingChange?: OnChangeFn<SortingState>;
   manualSorting?: boolean;
+  /** Stretch the scroll area to the viewport so more rows fit without page scroll. */
+  fillHeight?: boolean;
 };
 
 const DEFAULT_COLUMN_SIZE = 160;
@@ -90,6 +92,7 @@ export default function DataTable<T>({
   sorting: controlledSorting,
   onSortingChange: controlledOnSortingChange,
   manualSorting = false,
+  fillHeight = false,
 }: DataTableProps<T>) {
   const { t } = useLang();
   const [internalSorting, setInternalSorting] = useState<SortingState>([]);
@@ -206,7 +209,9 @@ export default function DataTable<T>({
         <div className="hidden md:block">
         <div
           className="overflow-auto overscroll-contain"
-          style={{ maxHeight: `min(72dvh, ${Math.max(320, rows.length * ROW_HEIGHT + 96)}px)` }}
+          style={fillHeight
+            ? { height: 'calc(100dvh - 230px)', maxHeight: 'none' }
+            : { maxHeight: `min(72dvh, ${Math.max(320, rows.length * ROW_HEIGHT + 96)}px)` }}
           tabIndex={0}
           role="region"
           aria-label="table"
