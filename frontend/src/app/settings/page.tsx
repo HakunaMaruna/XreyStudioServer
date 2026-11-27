@@ -6,7 +6,7 @@ import { getTheme, applyTheme, type Theme } from '../../lib/theme';
 import { APP_VERSION } from '../../lib/version';
 import { fetchUpdateStatus, type UpdateStatus } from '../../lib/updates';
 import { UpdateDialog } from '../../components/update-dialog';
-import { Icon } from '../../components/icons';
+import { Icon, type IconName } from '../../components/icons';
 import {
   Badge,
   Button,
@@ -158,9 +158,21 @@ const QUICK_LINKS = [
   { href: '/doctor', icon: 'activity' as const, labelKey: 'linkDoctor' },
 ] as const;
 
+type SettingsTab = 'general' | 'notifications' | 'backups' | 'updates' | 'environment' | 'links';
+
+const SETTINGS_TABS: Array<{ value: SettingsTab; labelKey: string; icon: IconName }> = [
+  { value: 'general', labelKey: 'settingsTabGeneral', icon: 'settings' },
+  { value: 'notifications', labelKey: 'settingsTabNotifications', icon: 'bell' },
+  { value: 'backups', labelKey: 'settingsTabBackups', icon: 'history' },
+  { value: 'updates', labelKey: 'settingsTabUpdates', icon: 'download' },
+  { value: 'environment', labelKey: 'settingsTabEnvironment', icon: 'server' },
+  { value: 'links', labelKey: 'settingsTabLinks', icon: 'link' },
+];
+
 export default function SettingsPage() {
   const { t } = useLang();
   const [settings, setSettings] = useState<PanelSettings>(DEFAULT_SETTINGS);
+  const [tab, setTab] = useState<SettingsTab>('general');
   const [ready, setReady] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -455,8 +467,20 @@ export default function SettingsPage() {
         actions={<span className="tag">v{APP_VERSION}</span>}
       />
 
+      <Segmented<SettingsTab>
+        value={tab}
+        onChange={setTab}
+        options={SETTINGS_TABS.map((item) => ({
+          value: item.value,
+          label: t[item.labelKey as keyof typeof t],
+          icon: item.icon,
+        }))}
+      />
+
       {isAdmin && (
         <>
+          {isAdmin && tab === 'notifications' && (
+          <>
           <SectionTitle title={t.settingsHub} subtitle={t.settingsHubSubtitle} />
           {hubError && <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{hubError}</div>}
           {hubSaved && <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{t.settingsSaved}</div>}
@@ -620,6 +644,10 @@ export default function SettingsPage() {
             </Card>
           </div>
 
+          </>
+          )}
+          {isAdmin && tab === 'backups' && (
+          <>
           <Card>
             <SectionTitle title={t.snapshotStateTitle} subtitle={t.snapshotStateSubtitle} />
             <div className="space-y-5">
@@ -782,6 +810,10 @@ export default function SettingsPage() {
             </div>
           </Card>
 
+          </>
+          )}
+          {isAdmin && tab === 'links' && (
+          <>
           <Card>
             <SectionTitle title={t.quickLinks} subtitle={t.quickLinksSubtitle} />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -801,9 +833,13 @@ export default function SettingsPage() {
               )}
             </div>
           </Card>
+          </>
+          )}
         </>
       )}
 
+      {tab === 'general' && (
+      <>
       <SectionTitle title={t.settingsTitle} subtitle={t.settingsSubtitle} />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
@@ -878,6 +914,10 @@ export default function SettingsPage() {
         {saved && <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-300">{t.settingsSaved}</span>}
       </div>
 
+      </>
+      )}
+      {tab === 'updates' && (
+      <>
       <SectionTitle
         title={t.updates}
         subtitle={t.updateCheckSubtitle}
@@ -957,6 +997,10 @@ export default function SettingsPage() {
         </div>
       </Card>
 
+      </>
+      )}
+      {tab === 'environment' && (
+      <>
       <SectionTitle title={t.environment} subtitle={t.environmentSubtitle} />
       <Card>
         <div className="table-wrap">
@@ -979,6 +1023,8 @@ export default function SettingsPage() {
         </div>
       </Card>
 
+      </>
+      )}
       <Modal
         open={snapshotModal !== null}
         onClose={() => setSnapshotModal(null)}
