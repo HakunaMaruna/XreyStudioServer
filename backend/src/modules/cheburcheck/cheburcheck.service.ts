@@ -78,9 +78,13 @@ export class CheburcheckService implements OnModuleInit, OnModuleDestroy {
             select: { fqdn: true },
             take: 20,
           })).map((row) => row.fqdn);
-      const targets = domains.length
-        ? domains
-        : (await this.prisma.node.findMany({ select: { address: true }, take: 20 })).map((row) => row.address);
+      // Check both surfaces: domains catch DNS/SNI blocking, raw node IPs catch
+      // subnet/AS blocking. Cheburcheck maintains separate domain and IPv4 bases.
+      const includeIps = process.env.CHEBURCHECK_CHECK_IPS !== 'false';
+      const ips = includeIps
+        ? (await this.prisma.node.findMany({ select: { address: true }, take: 20 })).map((row) => row.address)
+        : [];
+      const targets = [...new Set([...domains, ...ips])].filter(Boolean).slice(0, 40);
       if (!targets.length) return;
 
       const system: AuthUser = { userId: 'system', email: 'system', role: Role.ADMIN, organizationId: null };

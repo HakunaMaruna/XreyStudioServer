@@ -25,6 +25,12 @@ export class CheburcheckController {
     return this.service.check(body, user);
   }
 
+  /** Trigger the scheduled Cheburcheck digest immediately (useful for verification). */
+  @Post('digest')
+  digest() {
+    return this.service.runScheduled();
+  }
+
   @Get('results')
   results(@Query() query: { nodeId?: string; limit?: string }, @CurrentUser() user: AuthUser) {
     return this.service.results(query, user);

@@ -1,6 +1,6 @@
 {
   "name": "xss-backend",
-  "version": "2.51.8",
+  "version": "2.51.9",
   "license": "AGPL-3.0-or-later",
   "private": true,
   "scripts": {
