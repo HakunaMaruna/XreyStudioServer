@@ -19,3 +19,6 @@ dist
 
 # Next.js generated agent rules
 frontend/AGENTS.md
+# Local agent skills drop zone (not project sources)
+/.opencode/
+/skill/
