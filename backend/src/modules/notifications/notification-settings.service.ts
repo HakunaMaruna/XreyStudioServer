@@ -25,6 +25,14 @@ export const NOTIFICATION_CREDENTIAL_KEYS = [
 
 export type NotificationCredentialKey = (typeof NOTIFICATION_CREDENTIAL_KEYS)[number];
 
+// Non-secret values can be safely returned to the UI so saved settings are
+// visible when the tab is reopened. Secrets are write-only.
+const NON_SECRET_KEYS: ReadonlySet<string> = new Set([
+  'TELEGRAM_CHAT_ID', 'WEBHOOK_URL', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER',
+  'EMAIL_FROM', 'ALERT_EMAIL_TO', 'SIGNAL_API_URL', 'SIGNAL_PHONE_NUMBER',
+  'SIGNAL_RECIPIENT', 'CHEBURCHECK_BASE_URL',
+]);
+
 export type NotificationPolicyData = {
   enabled?: boolean;
   quietHoursStart?: string | null;
@@ -57,6 +65,16 @@ export class NotificationSettingsService {
     const result = {} as Record<NotificationCredentialKey, boolean>;
     for (const key of NOTIFICATION_CREDENTIAL_KEYS) {
       result[key] = Boolean(await this.value(key));
+    }
+    return result;
+  }
+
+  async readableValues(): Promise<Record<string, string>> {
+    const result: Record<string, string> = {};
+    for (const key of NOTIFICATION_CREDENTIAL_KEYS) {
+      if (!NON_SECRET_KEYS.has(key)) continue;
+      const value = await this.value(key);
+      if (value) result[key] = value;
     }
     return result;
   }

@@ -54,11 +54,12 @@ export class NotificationsController {
 
   @Get('settings')
   async settingsGet() {
-    const [configured, policy] = await Promise.all([
+    const [configured, policy, values] = await Promise.all([
       this.settings.configured(),
       this.settings.policy(),
+      this.settings.readableValues(),
     ]);
-    return { configured, policy };
+    return { configured, policy, values };
   }
 
   @Patch('settings')

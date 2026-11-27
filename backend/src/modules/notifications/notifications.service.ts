@@ -121,7 +121,8 @@ export class NotificationsService {
     const nodeId = await this.settings.value('NOTIFICATION_VIA_NODE_ID');
     if (!nodeId) {
       const res = await fetch(target, { method, headers, body, signal: AbortSignal.timeout(8000), redirect: 'error' });
-      return { ok: res.ok, status: res.status };
+      const text = await res.text().catch(() => '');
+      return { ok: res.ok, status: res.status, text: text.slice(0, 4000) };
     }
     return this.nodeHttp.request(nodeId, target, method, headers, body);
   }
@@ -134,7 +135,15 @@ export class NotificationsService {
       const res = await this.outboundRequest(`https://api.telegram.org/bot${token}/sendMessage`, 'POST',
         { 'Content-Type': 'application/json' },
         JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }));
-      return { sent: res.ok, ...(res.ok ? {} : { error: `Telegram HTTP ${res.status}` }) };
+      if (res.ok) return { sent: true };
+      // Provider errors contain a human-readable description (e.g. "chat not found").
+      // Telegram never echoes the bot token in an error body, so it is safe to surface.
+      let detail = '';
+      try {
+        const parsed = JSON.parse(res.text || '');
+        if (parsed?.description) detail = `: ${String(parsed.description).slice(0, 160)}`;
+      } catch {}
+      return { sent: false, error: `Telegram HTTP ${res.status}${detail}` };
     } catch (e: any) {
       this.logger.warn(`Telegram failed: ${e.message}`);
       return { sent: false, error: e.message };

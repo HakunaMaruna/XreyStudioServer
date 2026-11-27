@@ -16,6 +16,7 @@ type AlertRow = {
 type Channels = Record<'telegram' | 'webhook' | 'email' | 'signal', boolean>;
 type SettingsResponse = {
   configured: Record<string, boolean>;
+  values?: Record<string, string>;
   policy: {
     enabled: boolean;
     quietHoursStart: string | null;
@@ -81,7 +82,7 @@ export default function AlertsPage() {
         api.get<DeliveryRow[]>('/api/notifications/deliveries?limit=50'),
       ]);
       setSettingsData(data);
-      setCredentialDraft({});
+      setCredentialDraft(data.values || {});
       setRoutes(Array.isArray(routeData) ? routeData : (routeData as any).data || []);
       setDeliveries(Array.isArray(deliveryData) ? deliveryData : (deliveryData as any).data || []);
     } catch (e: any) {
@@ -268,7 +269,9 @@ export default function AlertsPage() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {CREDENTIAL_FIELDS.map((field) => (
                 <div key={field.key} className="space-y-1.5">
-                  <Field label={field.label} hint={settingsData?.configured[field.key] ? t.connected : undefined}>
+                  <Field label={field.label} hint={settingsData?.configured[field.key]
+                    ? (field.secret ? t.savedHidden : t.saved)
+                    : undefined}>
                     <input
                       className="field"
                       type={field.secret ? 'password' : 'text'}
