@@ -102,7 +102,9 @@ export class CheburcheckService implements OnModuleInit, OnModuleDestroy {
           const result = await this.check({ target }, system);
           if (result.blocked) blocked += 1;
           const resultIps: string[] = Array.isArray(result.ips) ? result.ips.slice(0, 2).map(String) : [];
-          lines.push(`• <code>${this.esc(target)}</code>${resultIps.length ? ` [${this.esc(resultIps.join(', '))}]` : ''} — ${result.blocked ? '⛔' : '✅'} ${this.esc(result.verdict)}`);
+          const limitedProbe = Boolean(result.probeError && /429/i.test(String(result.probeError)));
+          if (limitedProbe) limited += 1;
+          lines.push(`• <code>${this.esc(target)}</code>${resultIps.length ? ` [${this.esc(resultIps.join(', '))}]` : ''} — ${limitedProbe ? '⏳ лимит API' : (result.blocked ? '⛔' : '✅')} ${this.esc(result.verdict)}`);
         } catch (error: any) {
           if (/429|rate limited/i.test(error.message || '')) {
             limited += 1;
