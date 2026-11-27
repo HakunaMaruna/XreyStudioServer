@@ -114,7 +114,7 @@ export function Button({
         className,
       )}
       disabled={disabled || loading}
-      type={props.type ?? 'button'}
+      type={props.type ?? (props.form ? 'submit' : 'button')}
       {...props}
     >
       {loading ? <Icon name="refresh" size={15} className="animate-spin" /> : icon && <Icon name={icon} size={15} />}
