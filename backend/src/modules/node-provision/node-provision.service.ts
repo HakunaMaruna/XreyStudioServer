@@ -238,7 +238,7 @@ export class NodeProvisionService {
     if (targetVersion) {
       return (
         `${stash} ` +
-        `( ${git} rev-parse -q --verify "refs/tags/$targetVersion" >/dev/null && tag=$targetVersion || tag=v$targetVersion; ` +
+        `( ${git} rev-parse -q --verify "refs/tags/${targetVersion}" >/dev/null && tag=${targetVersion} || tag=v${targetVersion}; ` +
         `${git} checkout -q "$tag" ); ` +
         restore
       );
