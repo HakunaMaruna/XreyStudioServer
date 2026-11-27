@@ -3,10 +3,11 @@
 import { Module } from '@nestjs/common';
 import { MetricsController } from './metrics.controller';
 import { MetricsService } from './metrics.service';
+import { HostMetricsService } from './host-metrics.service';
 
 @Module({
   controllers: [MetricsController],
-  providers: [MetricsService],
+  providers: [MetricsService, HostMetricsService],
   exports: [MetricsService],
 })
 export class MetricsModule {}

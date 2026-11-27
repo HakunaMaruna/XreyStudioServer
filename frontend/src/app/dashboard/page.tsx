@@ -15,6 +15,10 @@ type Stats = { total: number; active: number; expired: number; disabled: number;
 type DoctorCheck = { id: string; severity: 'ok' | 'warning' | 'critical'; title: string };
 type NodeStats = { total: number; online: number; offline: number; error: number };
 type NodeLoad = { name: string; cpu: number; ram: number };
+type HostMetrics = {
+  cpu: number; ram: number; disk: number; networkRxBps: number; networkTxBps: number;
+  cores: number; uptimeSec: number; sampledAt: string;
+};
 
 const CHART_COLORS = ['var(--success)', 'var(--warning)', 'var(--danger)'];
 
@@ -47,12 +51,14 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [update, setUpdate] = useState<UpdateStatus | null>(null);
   const [updateOpen, setUpdateOpen] = useState(false);
+  const [host, setHost] = useState<HostMetrics | null>(null);
 
   const load = useCallback(async () => {
     setRefreshing(true);
     await Promise.all([
       api.get<Stats>('/api/users/stats').then(setStats).catch(() => setStats(null)),
       api.get<NodeStats>('/api/nodes/stats').then(setNodeStats).catch(() => setNodeStats(null)),
+      api.get<HostMetrics>('/api/metrics/host').then(setHost).catch(() => setHost(null)),
       api.get<any[]>('/api/inbounds')
         .then((rows) => setInboundCount((Array.isArray(rows) ? rows : (rows as any).data || []).length))
         .catch(() => setInboundCount(null)),
@@ -189,6 +195,16 @@ export default function DashboardPage() {
             hint={problems.length ? problems[0].title : t.noProblems}
           />
         </Link>
+      </div>
+
+      <div className="mt-3">
+        <SectionTitle title={t.panelHost} subtitle={t.panelHostSubtitle} />
+        <div className="grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-2 sm:gap-3 md:grid-cols-4">
+          <StatCard delay={0} label={t.panelCpu} value={`${host?.cpu ?? '—'}${host ? '%' : ''}`} icon="activity" tone="brand" hint={host ? `${host.cores} ${t.cores}` : undefined} />
+          <StatCard delay={60} label={t.panelRam} value={`${host?.ram ?? '—'}${host ? '%' : ''}`} icon="box" tone="cyan" />
+          <StatCard delay={120} label={t.panelDisk} value={`${host?.disk ?? '—'}${host ? '%' : ''}`} icon="server" tone="warning" />
+          <StatCard delay={180} label={t.panelNetwork} value={host ? `${formatBytes(host.networkRxBps)}/s ↓ · ${formatBytes(host.networkTxBps)}/s ↑` : '—'} icon="globe" tone="success" />
+        </div>
       </div>
 
       <div className="mt-3 grid gap-3 lg:grid-cols-2">

@@ -7,10 +7,11 @@ import { timingSafeEqual } from 'crypto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { MetricsService } from './metrics.service';
+import { HostMetricsService } from './host-metrics.service';
 
 @Controller('metrics')
 export class MetricsController {
-  constructor(private service: MetricsService) {}
+  constructor(private service: MetricsService, private host: HostMetricsService) {}
 
   @Get()
   async metrics(@Headers('x-metrics-token') token: string, @Res() res: any) {
@@ -28,6 +29,13 @@ export class MetricsController {
       }
     }
     res.type('text/plain').send(await this.service.render());
+  }
+
+  @Get('host')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  hostMetrics() {
+    return this.host.read();
   }
 
   @Get('traffic/nodes')
