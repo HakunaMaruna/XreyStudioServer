@@ -15,7 +15,6 @@ export class HealthChecksService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(HealthChecksService.name);
   private timer?: NodeJS.Timeout;
   private running = false;
-  private lastDigestAt = 0;
   private readonly digestMs = Math.max(3_600_000, Number(process.env.NODE_DIGEST_INTERVAL_MS || 21_600_000));
 
   constructor(
@@ -144,8 +143,7 @@ export class HealthChecksService implements OnModuleInit, OnModuleDestroy {
         ? this.digestMs
         : Math.max(0, Number(configuredDigest));
       if (digestMs <= 0) return;
-      if (Date.now() - this.lastDigestAt >= digestMs && rows.length) {
-        this.lastDigestAt = Date.now();
+      if (rows.length) {
         const now = Date.now();
         const okCount = results.filter((item) => item.success).length;
         const table = [
@@ -159,7 +157,8 @@ export class HealthChecksService implements OnModuleInit, OnModuleDestroy {
           `<pre>${table}</pre>`,
           `<i>Проверка: ${this.tgTime(now)} · следующий дайджест: ${this.tgTime(now + digestMs)}</i>`,
         ].join('\n');
-        await this.notifications.broadcast({ text, plainText: text, subject: 'XSS: node availability digest' }, 'telegram')
+        await this.notifications.sendDigestOnce('node-availability', digestMs, () =>
+          this.notifications.broadcast({ text, plainText: text, subject: 'XSS: node availability digest' }, 'telegram'))
           .catch((error) => this.logger.warn(`Node digest failed: ${error.message}`));
       }
     } catch (error: any) {

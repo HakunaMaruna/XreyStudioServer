@@ -70,4 +70,38 @@ describe('NotificationsService security and routing', () => {
     expect(result.policy?.reason).toBe('quiet hours');
     expect(routes.enabledChannels).not.toHaveBeenCalled();
   });
+
+  describe('sendDigestOnce', () => {
+    const hour = 3_600_000;
+
+    it('does not resend a digest after a restart while the interval has not passed', async () => {
+      settings.withinCooldown.mockResolvedValue(true);
+      const send = jest.fn(async () => ({ telegram: { sent: true } }));
+      const result = await service().sendDigestOnce('telegram-report', 86_400_000, send);
+      expect(result).toMatchObject({ sent: false, reason: 'interval not reached' });
+      expect(send).not.toHaveBeenCalled();
+      expect(settings.withinCooldown).toHaveBeenCalledWith('digest:telegram-report', 1440);
+    });
+
+    it('records a successful digest for the next restart', async () => {
+      const send = jest.fn(async () => ({ telegram: { sent: true } }));
+      const result = await service().sendDigestOnce('cheburcheck', hour, send);
+      expect(result).toEqual({ sent: true });
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(settings.recordDelivery).toHaveBeenCalledWith({
+        event: 'DIGEST_SENT', channel: 'telegram', status: 'sent', dedupeKey: 'digest:cheburcheck',
+      });
+    });
+
+    it('does not mark a failed digest as sent and honours force', async () => {
+      const send = jest.fn(async () => ({ telegram: { sent: false, error: 'chat not found' } }));
+      const svc = service();
+      expect(await svc.sendDigestOnce('node-availability', hour, send)).toMatchObject({ sent: false });
+      expect(settings.recordDelivery).not.toHaveBeenCalled();
+      settings.withinCooldown.mockResolvedValue(true);
+      send.mockResolvedValue({ telegram: { sent: true, error: '' } });
+      expect(await svc.sendDigestOnce('node-availability', hour, send, true)).toMatchObject({ sent: true });
+      expect(send).toHaveBeenCalledTimes(2);
+    });
+  });
 });

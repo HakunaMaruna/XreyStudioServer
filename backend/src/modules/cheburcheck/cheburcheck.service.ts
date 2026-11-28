@@ -124,7 +124,8 @@ export class CheburcheckService implements OnModuleInit, OnModuleDestroy {
         `<blockquote expandable>${lines.join('\n')}</blockquote>`,
         `<i>Проверка: ${this.tgTime(Date.now())}</i>`,
       ].join('\n');
-      await this.notifications.broadcast({ text, plainText: text, subject: 'XSS: cheburcheck digest' }, 'telegram');
+      await this.notifications.sendDigestOnce('cheburcheck', this.scheduleMs, () =>
+        this.notifications.broadcast({ text, plainText: text, subject: 'XSS: cheburcheck digest' }, 'telegram'));
     } catch (error: any) {
       this.logger.warn(`Scheduled cheburcheck failed: ${error.message}`);
     } finally {

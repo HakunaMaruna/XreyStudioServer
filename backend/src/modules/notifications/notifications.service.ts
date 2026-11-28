@@ -260,6 +260,32 @@ export class NotificationsService {
   }
 
   /**
+   * Scheduled digests must not be repeated after a restart or a new deploy:
+   * the last successful send is stored in NotificationDelivery, not in memory.
+   */
+  async sendDigestOnce(
+    key: string,
+    intervalMs: number,
+    send: () => Promise<Record<string, ChannelResult>>,
+    force = false,
+  ): Promise<ChannelResult> {
+    const dedupeKey = `digest:${key}`;
+    if (!force) {
+      if (intervalMs <= 0) return { sent: false, reason: 'disabled' };
+      if (await this.settings.withinCooldown(dedupeKey, intervalMs / 60_000)) {
+        return { sent: false, reason: 'interval not reached' };
+      }
+    }
+    const result = await send();
+    if (result?.telegram?.sent) {
+      await this.settings.recordDelivery({
+        event: 'DIGEST_SENT', channel: 'telegram', status: 'sent', dedupeKey,
+      }).catch((error) => this.logger.warn(`Digest delivery log failed: ${error.message}`));
+    }
+    return result?.telegram || { sent: false, reason: 'telegram not configured' };
+  }
+
+  /**
    * Event-level routing: unlike broadcast() which hits every configured channel,
    * emit() delivers only to channels explicitly enabled for the given event.
    * This is the integration point for fine-grained notification rules.

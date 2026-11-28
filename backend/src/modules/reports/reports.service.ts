@@ -18,7 +18,6 @@ const MAX_DAYS = 366;
 export class ReportsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ReportsService.name);
   private timer?: NodeJS.Timeout;
-  private lastReportAt = 0;
   private running = false;
 
   constructor(
@@ -62,7 +61,6 @@ export class ReportsService implements OnModuleInit, OnModuleDestroy {
       ? Math.max(3_600_000, Number(process.env.TELEGRAM_REPORT_INTERVAL_MS || 86_400_000))
       : Number(configured);
     if (!force && intervalMs <= 0) return { sent: false, reason: 'disabled' };
-    if (!force && Date.now() - this.lastReportAt < intervalMs) return { sent: false, reason: 'interval not reached' };
     this.running = true;
     try {
       const now = Date.now();
@@ -125,9 +123,12 @@ export class ReportsService implements OnModuleInit, OnModuleDestroy {
         `<pre>${header}</pre>`,
         `<i>Панель v${APP_VERSION} · отчёт ${this.tgTime(now)}</i>`,
       ].join('\n');
-      const result = await this.notifications.broadcast({ text, plainText: text.replace(/<[^>]*>/g, ''), subject: 'XSS: daily report' }, 'telegram');
-      if ((result as any).telegram?.sent) this.lastReportAt = now;
-      return { sent: Boolean((result as any).telegram?.sent), totalUsers, activeUsers, inactiveUsers, onlineUsers, connections, nodes: nodes.length };
+      const result = await this.notifications.sendDigestOnce(
+        'telegram-report', intervalMs,
+        () => this.notifications.broadcast({ text, plainText: text.replace(/<[^>]*>/g, ''), subject: 'XSS: daily report' }, 'telegram'),
+        force,
+      );
+      return { sent: result.sent, reason: result.reason, totalUsers, activeUsers, inactiveUsers, onlineUsers, connections, nodes: nodes.length };
     } catch (error: any) {
       this.logger.warn(`Telegram report failed: ${error.message}`);
       return { sent: false, error: error.message };
