@@ -268,14 +268,16 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   );
 }
 
-export function Toggle({ checked, onChange, label, className }: { checked: boolean; onChange: (value: boolean) => void; label?: string; className?: string }) {
+export function Toggle({ checked, onChange, label, className, ariaLabel, disabled }: { checked: boolean; onChange: (value: boolean) => void; label?: string; className?: string; ariaLabel?: string; disabled?: boolean }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={label ? undefined : ariaLabel}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={cn('inline-flex items-center gap-2 text-[13px] text-muted', className)}
+      className={cn('inline-flex items-center gap-2 text-[13px] text-muted disabled:cursor-not-allowed disabled:opacity-50', className)}
     >
       <span className={cn('relative h-4 w-7 shrink-0 rounded-full border transition-colors', checked ? 'border-brand bg-brand' : 'border-line-2 bg-surface-3')}>
         <span className={cn('absolute top-[1px] h-3 w-3 rounded-full bg-white transition-all', checked ? 'left-[14px]' : 'left-[1px]')} />
@@ -310,6 +312,25 @@ export function EmptyState({ icon = 'box', title, description }: { icon?: IconNa
       </div>
       <p className="text-[13px] font-medium text-fg">{title}</p>
       {description && <p className="mt-1 max-w-sm text-xs text-muted">{description}</p>}
+    </div>
+  );
+}
+
+/** Inline error/success banner; use inside modals so messages are not hidden behind the overlay. */
+export function Alert({ tone = 'danger', children, className }: { tone?: 'danger' | 'success'; children: ReactNode; className?: string }) {
+  if (!children) return null;
+  const danger = tone === 'danger';
+  return (
+    <div
+      role={danger ? 'alert' : 'status'}
+      className={cn(
+        'flex items-center gap-2 rounded-lg border px-3 py-2 text-xs',
+        danger ? 'border-danger/25 bg-danger/10 text-danger' : 'border-success/25 bg-success/10 text-success',
+        className,
+      )}
+    >
+      <Icon name={danger ? 'alert' : 'checkCircle'} size={15} className="shrink-0" />
+      <span className="min-w-0 break-words">{children}</span>
     </div>
   );
 }
@@ -349,6 +370,8 @@ export function Modal({
   footer?: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
 }) {
+  const { t } = useLang();
+  const closeLabel = t.close;
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
@@ -423,7 +446,7 @@ export function Modal({
               {subtitle && <p className="mt-0.5 truncate text-xs text-muted">{subtitle}</p>}
             </div>
           </div>
-          <IconButton icon="close" label="Close" onClick={onClose} />
+          <IconButton icon="close" label={closeLabel} onClick={onClose} />
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">{children}</div>
         {footer && <div className="ui-safe-bottom flex flex-wrap items-center justify-end gap-2 border-t border-line px-5 py-3">{footer}</div>}
@@ -447,6 +470,8 @@ export function Segmented<T extends string>({
       {options.map((option) => (
         <button
           key={option.value}
+          type="button"
+          aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
           className={cn(
             'inline-flex h-7 max-w-full items-center gap-1.5 whitespace-nowrap rounded px-2.5 text-xs font-medium transition-colors',

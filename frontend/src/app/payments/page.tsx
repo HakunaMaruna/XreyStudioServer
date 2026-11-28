@@ -7,7 +7,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
-import { Badge, Button, Card, Field, Modal, PageHeader, Segmented } from '../../components/ui';
+import { Alert, Badge, Button, Card, Field, Modal, PageHeader, Segmented } from '../../components/ui';
 
 type Payment = {
   id: string;
@@ -33,8 +33,10 @@ type Plan = {
 
 type Tab = 'payments' | 'plans';
 
-const emptyPayment = { userId: '', amount: 10, currency: 'USD', provider: 'manual' };
-const emptyPlan = { name: '', price: 9.99, trafficGb: 100, durationDays: 30 };
+type NumInput = number | '';
+const toNum = (value: string): NumInput => (value === '' ? '' : Number(value));
+const emptyPayment: { userId: string; amount: NumInput; currency: string; provider: string } = { userId: '', amount: 10, currency: 'USD', provider: 'manual' };
+const emptyPlan: { name: string; price: NumInput; trafficGb: NumInput; durationDays: NumInput } = { name: '', price: 9.99, trafficGb: 100, durationDays: 30 };
 
 export default function PaymentsPage() {
   const { t } = useLang();
@@ -44,6 +46,8 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [modalError, setModalError] = useState('');
+  const [notice, setNotice] = useState('');
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
   const [paymentForm, setPaymentForm] = useState(emptyPayment);
@@ -87,15 +91,17 @@ export default function PaymentsPage() {
 
   const createPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setModalError('');
     setBusy(true);
     try {
       await api.post('/api/payments', paymentForm);
       setPaymentForm(emptyPayment);
       setPaymentOpen(false);
+      setNotice(t.saved);
+      setTimeout(() => setNotice(''), 3000);
       await load();
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
     } finally {
       setBusy(false);
     }
@@ -103,15 +109,17 @@ export default function PaymentsPage() {
 
   const createPlan = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setModalError('');
     setBusy(true);
     try {
       await api.post('/api/payments/plans', planForm);
       setPlanForm(emptyPlan);
       setPlanOpen(false);
+      setNotice(t.saved);
+      setTimeout(() => setNotice(''), 3000);
       await load();
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
     } finally {
       setBusy(false);
     }
@@ -202,8 +210,9 @@ export default function PaymentsPage() {
         }
       />
 
+      {notice && <Alert tone="success" className="mb-4">{notice}</Alert>}
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+        <div role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
         </div>
       )}
@@ -227,7 +236,7 @@ export default function PaymentsPage() {
         <>
           <div className="mb-4 flex items-center justify-between">
             <p className="text-xs text-muted">{payments.length} {t.payments}</p>
-            <Button icon="plus" variant="primary" onClick={() => setPaymentOpen(true)}>{t.createPayment}</Button>
+            <Button icon="plus" variant="primary" onClick={() => { setPaymentForm(emptyPayment); setModalError(''); setPaymentOpen(true); }}>{t.createPayment}</Button>
           </div>
           {loading ? (
             <Card className="py-16 text-center text-xs text-muted">{t.loading}</Card>
@@ -241,7 +250,7 @@ export default function PaymentsPage() {
         <>
           <div className="mb-4 flex items-center justify-between">
             <p className="text-xs text-muted">{plans.length} {t.plans}</p>
-            <Button icon="plus" variant="primary" onClick={() => setPlanOpen(true)}>{t.createPlan}</Button>
+            <Button icon="plus" variant="primary" onClick={() => { setPlanForm(emptyPlan); setModalError(''); setPlanOpen(true); }}>{t.createPlan}</Button>
           </div>
           {loading ? (
             <Card className="py-16 text-center text-xs text-muted">{t.loading}</Card>
@@ -259,12 +268,13 @@ export default function PaymentsPage() {
         title={t.createPayment}
         subtitle={t.paymentsSubtitle}
         icon={<Icon name="download" size={16} />}
-        footer={<><Button onClick={() => setPaymentOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="plus" onClick={createPayment} loading={busy}>{t.create}</Button></>}
+        footer={<><Button onClick={() => setPaymentOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="plus" form="payment-form" loading={busy}>{t.create}</Button></>}
       >
-        <form onSubmit={createPayment} className="space-y-4">
+        <form id="payment-form" onSubmit={createPayment} className="space-y-4">
+          <Alert>{modalError}</Alert>
           <Field label={`${t.user} ID`}><input value={paymentForm.userId} onChange={(e) => setPaymentForm({ ...paymentForm, userId: e.target.value })} className="field" required /></Field>
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label={t.amount}><input type="number" min={0} step="0.01" value={paymentForm.amount} onChange={(e) => setPaymentForm({ ...paymentForm, amount: Number(e.target.value) })} className="field" required /></Field>
+            <Field label={t.amount}><input type="number" min={0} step="0.01" value={paymentForm.amount} onChange={(e) => setPaymentForm({ ...paymentForm, amount: toNum(e.target.value) })} className="field" required /></Field>
             <Field label={t.currency}><input value={paymentForm.currency} onChange={(e) => setPaymentForm({ ...paymentForm, currency: e.target.value.toUpperCase() })} className="field" required /></Field>
             <Field label={t.provider}><input value={paymentForm.provider} onChange={(e) => setPaymentForm({ ...paymentForm, provider: e.target.value })} className="field" required /></Field>
           </div>
@@ -277,14 +287,15 @@ export default function PaymentsPage() {
         title={t.createPlan}
         subtitle={t.paymentPlans}
         icon={<Icon name="list" size={16} />}
-        footer={<><Button onClick={() => setPlanOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="plus" onClick={createPlan} loading={busy}>{t.create}</Button></>}
+        footer={<><Button onClick={() => setPlanOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="plus" form="payment-plan-form" loading={busy}>{t.create}</Button></>}
       >
-        <form onSubmit={createPlan} className="space-y-4">
+        <form id="payment-plan-form" onSubmit={createPlan} className="space-y-4">
+          <Alert>{modalError}</Alert>
           <Field label={t.name}><input value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} className="field" required /></Field>
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label={t.price}><input type="number" min={0} step="0.01" value={planForm.price} onChange={(e) => setPlanForm({ ...planForm, price: Number(e.target.value) })} className="field" required /></Field>
-            <Field label={t.trafficGb}><input type="number" min={1} value={planForm.trafficGb} onChange={(e) => setPlanForm({ ...planForm, trafficGb: Number(e.target.value) })} className="field" required /></Field>
-            <Field label={t.durationDays}><input type="number" min={1} value={planForm.durationDays} onChange={(e) => setPlanForm({ ...planForm, durationDays: Number(e.target.value) })} className="field" required /></Field>
+            <Field label={t.price}><input type="number" min={0} step="0.01" value={planForm.price} onChange={(e) => setPlanForm({ ...planForm, price: toNum(e.target.value) })} className="field" required /></Field>
+            <Field label={t.trafficGb}><input type="number" min={1} value={planForm.trafficGb} onChange={(e) => setPlanForm({ ...planForm, trafficGb: toNum(e.target.value) })} className="field" required /></Field>
+            <Field label={t.durationDays}><input type="number" min={1} value={planForm.durationDays} onChange={(e) => setPlanForm({ ...planForm, durationDays: toNum(e.target.value) })} className="field" required /></Field>
           </div>
         </form>
       </Modal>

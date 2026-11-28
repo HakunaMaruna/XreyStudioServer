@@ -35,7 +35,7 @@ export class SubscriptionTemplatesService {
 
   private assertOrganization(data: { organizationId?: string | null }, actor: AuthUser) {
     if (actor.role === Role.ADMIN) return;
-    if (data.organizationId && data.organizationId !== actor.organizationId) {
+    if (data.organizationId !== undefined && data.organizationId !== actor.organizationId) {
       throw new ForbiddenException('Cannot assign a template to another organization');
     }
   }

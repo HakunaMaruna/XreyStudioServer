@@ -6,7 +6,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import { Icon } from '../../components/icons';
 import {
-  Badge, Button, Card, Field, HelpButton, IconButton, Modal, PageHeader,
+  Alert, Badge, Button, Card, Field, HelpButton, IconButton, Modal, PageHeader,
   SectionTitle, Segmented, Toggle,
 } from '../../components/ui';
 
@@ -46,6 +46,7 @@ export default function SubscriptionPageAdmin() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [modalError, setModalError] = useState('');
 
   const load = useCallback(async () => {
     setError('');
@@ -75,8 +76,9 @@ export default function SubscriptionPageAdmin() {
     } catch (e: any) { setError(e.message); } finally { setBusy(false); }
   };
 
-  const saveApp = async () => {
-    setBusy(true); setError('');
+  const saveApp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true); setModalError(''); setNotice('');
     try {
       const payload = {
         ...appForm,
@@ -88,8 +90,9 @@ export default function SubscriptionPageAdmin() {
       if (editing) await api.patch(`/api/subscription-page/apps/${editing}`, payload);
       else await api.post('/api/subscription-page/apps', payload);
       setAppOpen(false);
+      setNotice(t.saved);
       await load();
-    } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+    } catch (e: any) { setModalError(e.message); } finally { setBusy(false); }
   };
 
   const toggleApp = async (row: AppRow) => {
@@ -150,11 +153,11 @@ export default function SubscriptionPageAdmin() {
               <Field label={t.name}><input className="field" value={settings.brand} onChange={(e) => patch('brand', e.target.value)} /></Field>
               <Field label={t.title}><input className="field" value={settings.title} onChange={(e) => patch('title', e.target.value)} /></Field>
               <Field label={t.description}><input className="field" value={settings.description} onChange={(e) => patch('description', e.target.value)} /></Field>
-              <Field label="Logo URL"><input className="field" value={settings.logoUrl} onChange={(e) => patch('logoUrl', e.target.value)} /></Field>
-              <Field label="Favicon URL"><input className="field" value={settings.faviconUrl} onChange={(e) => patch('faviconUrl', e.target.value)} /></Field>
-              <Field label="Announcement"><input className="field" value={settings.announcement} onChange={(e) => patch('announcement', e.target.value)} /></Field>
-              <Field label="Accent"><input type="color" className="field h-8 p-1" value={settings.accent} onChange={(e) => patch('accent', e.target.value)} /></Field>
-              <Field label="Background"><input type="color" className="field h-8 p-1" value={settings.background || '#0d1117'} onChange={(e) => patch('background', e.target.value)} /></Field>
+              <Field label={t.subAdminLogoUrl}><input className="field" value={settings.logoUrl} onChange={(e) => patch('logoUrl', e.target.value)} /></Field>
+              <Field label={t.subAdminFaviconUrl}><input className="field" value={settings.faviconUrl} onChange={(e) => patch('faviconUrl', e.target.value)} /></Field>
+              <Field label={t.subAdminAnnouncement}><input className="field" value={settings.announcement} onChange={(e) => patch('announcement', e.target.value)} /></Field>
+              <Field label={t.templateAccent}><input type="color" className="field h-8 p-1" value={settings.accent} onChange={(e) => patch('accent', e.target.value)} /></Field>
+              <Field label={t.subAdminBackground}><input type="color" className="field h-8 p-1" value={settings.background || '#0d1117'} onChange={(e) => patch('background', e.target.value)} /></Field>
               <Field label={t.subAdminDefaultTheme}>
                 <select className="field" value={settings.defaultTheme} onChange={(e) => patch('defaultTheme', e.target.value)}>
                   <option value="auto">auto</option><option value="dark">dark</option><option value="light">light</option>
@@ -190,7 +193,7 @@ export default function SubscriptionPageAdmin() {
             <SectionTitle title={t.subAdminSupport} />
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label="Telegram"><input className="field" value={settings.support.telegram} onChange={(e) => patch('support', { ...settings.support, telegram: e.target.value })} /></Field>
-              <Field label="Website"><input className="field" value={settings.support.website} onChange={(e) => patch('support', { ...settings.support, website: e.target.value })} /></Field>
+              <Field label={t.website}><input className="field" value={settings.support.website} onChange={(e) => patch('support', { ...settings.support, website: e.target.value })} /></Field>
               <Field label="Email"><input className="field" value={settings.support.email} onChange={(e) => patch('support', { ...settings.support, email: e.target.value })} /></Field>
             </div>
           </Card>
@@ -199,17 +202,17 @@ export default function SubscriptionPageAdmin() {
 
       {tab === 'apps' && (
         <Card>
-          <SectionTitle title={t.subAdminApps} action={<Button size="sm" icon="plus" variant="primary" onClick={() => { setEditing(null); setAppForm(emptyApp()); setAppOpen(true); }}>{t.subAdminAppNew}</Button>} />
+          <SectionTitle title={t.subAdminApps} action={<Button size="sm" icon="plus" variant="primary" onClick={() => { setEditing(null); setAppForm(emptyApp()); setModalError(''); setAppOpen(true); }}>{t.subAdminAppNew}</Button>} />
           <div className="space-y-2">
             {apps.map((app) => (
               <div key={app.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface-2/40 px-3 py-2 text-xs">
                 <Badge tone="brand">{app.sortOrder}</Badge>
-                <span className="font-medium text-fg">{app.name}</span>
+                <span className="min-w-0 truncate font-medium text-fg">{app.name}</span>
                 <Badge tone="neutral">{app.platform}</Badge>
-                <span className="mono text-[10px] text-subtle">{app.deepLinkTemplate || '—'}</span>
+                <span className="mono min-w-0 break-all text-[10px] text-subtle">{app.deepLinkTemplate || '—'}</span>
                 <div className="ml-auto flex gap-1">
-                  <IconButton icon="power" label={t.enabled} onClick={() => toggleApp(app)} />
-                  <IconButton icon="edit" label={t.edit} onClick={() => { setEditing(app.id); setAppForm({ ...app }); setAppOpen(true); }} />
+                  <IconButton icon="power" label={app.enabled ? t.disable : t.enable} onClick={() => toggleApp(app)} />
+                  <IconButton icon="edit" label={t.edit} onClick={() => { setEditing(app.id); setAppForm({ ...app }); setModalError(''); setAppOpen(true); }} />
                   <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => removeApp(app)} />
                 </div>
               </div>
@@ -226,9 +229,10 @@ export default function SubscriptionPageAdmin() {
       )}
 
       <Modal open={appOpen} onClose={() => setAppOpen(false)} title={editing ? t.edit : t.subAdminAppNew} icon={<Icon name="list" size={16} />} size="lg"
-        footer={<><Button onClick={() => setAppOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="check" loading={busy} onClick={saveApp}>{t.save}</Button></>}>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={t.name}><input className="field" value={appForm.name || ''} onChange={(e) => setAppForm({ ...appForm, name: e.target.value })} /></Field>
+        footer={<><Button onClick={() => setAppOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="check" loading={busy} form="sub-app-form">{t.save}</Button></>}>
+        <form id="sub-app-form" onSubmit={saveApp} className="grid gap-4 sm:grid-cols-2">
+          <Alert className="sm:col-span-2">{modalError}</Alert>
+          <Field label={t.name}><input className="field" value={appForm.name || ''} onChange={(e) => setAppForm({ ...appForm, name: e.target.value })} required /></Field>
           <Field label={t.subAdminPlatform}>
             <select className="field" value={appForm.platform} onChange={(e) => setAppForm({ ...appForm, platform: e.target.value })}>
               {PLATFORMS.map((platform) => <option key={platform}>{platform}</option>)}
@@ -237,10 +241,10 @@ export default function SubscriptionPageAdmin() {
           <Field label={t.subAdminIconUrl}><input className="field" value={appForm.iconUrl || ''} onChange={(e) => setAppForm({ ...appForm, iconUrl: e.target.value })} /></Field>
           <Field label={t.subAdminDownloadUrl}><input className="field" value={appForm.downloadUrl || ''} onChange={(e) => setAppForm({ ...appForm, downloadUrl: e.target.value })} /></Field>
           <Field label={t.subAdminDeepLink}><input className="field mono text-[11px]" value={appForm.deepLinkTemplate || ''} onChange={(e) => setAppForm({ ...appForm, deepLinkTemplate: e.target.value })} /></Field>
-          <Field label={t.subAdminSortOrder}><input className="field" type="number" value={appForm.sortOrder ?? 100} onChange={(e) => setAppForm({ ...appForm, sortOrder: Number(e.target.value) })} /></Field>
+          <Field label={t.subAdminSortOrder}><input className="field" type="number" value={appForm.sortOrder ?? ''} onChange={(e) => setAppForm({ ...appForm, sortOrder: e.target.value === '' ? undefined : Number(e.target.value) })} /></Field>
           <Field label={t.subAdminInstructionRu}><textarea className="field min-h-20" value={appForm.instructions?.ru || ''} onChange={(e) => setAppForm({ ...appForm, instructions: { ...(appForm.instructions || {}), ru: e.target.value } })} /></Field>
           <Field label={t.subAdminInstructionEn}><textarea className="field min-h-20" value={appForm.instructions?.en || ''} onChange={(e) => setAppForm({ ...appForm, instructions: { ...(appForm.instructions || {}), en: e.target.value } })} /></Field>
-        </div>
+        </form>
       </Modal>
     </>
   );

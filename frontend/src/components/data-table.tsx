@@ -233,6 +233,7 @@ export default function DataTable<T>({
                     >
                       {header.column.getCanSort() ? (
                         <button
+                          type="button"
                           onClick={header.column.getToggleSortingHandler()}
                           className="inline-flex max-w-full items-center gap-1.5 truncate transition-colors hover:text-fg"
                         >

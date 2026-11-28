@@ -294,7 +294,7 @@ export default function ApiTokensPage() {
               <Button icon={copied ? 'check' : 'copy'} onClick={() => void copyToken()}>
                 {copied ? t.save : t.tokenCopy}
               </Button>
-              <Button variant="ghost" icon="close" onClick={() => setCreatedToken('')} aria-label="Close" />
+              <Button variant="ghost" icon="close" onClick={() => setCreatedToken('')} aria-label={t.close} />
             </div>
           </div>
         </Card>
@@ -337,6 +337,8 @@ export default function ApiTokensPage() {
                             checked={enabled}
                             onChange={() => void toggleRoute(event, channel, enabled)}
                             label={busyId === key ? '...' : undefined}
+                            ariaLabel={`${event} → ${channel}`}
+                            disabled={busyId === key}
                           />
                         </td>
                       );

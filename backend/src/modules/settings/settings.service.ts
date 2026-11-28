@@ -45,8 +45,18 @@ export class SettingsService {
     }
   }
 
-  async update(patch: Partial<PanelSettings>): Promise<PanelSettings> {
+  async update(input: Partial<PanelSettings>): Promise<PanelSettings> {
     const current = await this.get();
+    // Только известные ключи с типом как у дефолта: тело запроса не валидируется DTO.
+    const patch: Partial<PanelSettings> = {};
+    for (const key of Object.keys(DEFAULTS) as Array<keyof PanelSettings>) {
+      const value = (input as any)?.[key];
+      if (value === undefined || typeof value !== typeof DEFAULTS[key]) continue;
+      if (typeof value === 'string' && value.length > 512) continue;
+      (patch as any)[key] = value;
+    }
+    if (patch.language && !['ru', 'en'].includes(patch.language)) delete patch.language;
+    if (patch.theme && !['dark', 'light'].includes(patch.theme)) delete patch.theme;
     const channel = patch.updateChannel ?? current.updateChannel;
     const next: PanelSettings = {
       ...current,

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 HakunaMaruna
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { timingSafeEqual } from 'crypto';
 import { StorePluginStatus, StoreReviewStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PluginPackage, sha256Package, validatePackage } from '../plugins/plugin-package';
@@ -11,7 +12,11 @@ export class StoreService {
 
   private assertAdmin(token: string | undefined) {
     const expected = process.env.STORE_ADMIN_TOKEN || '';
-    if (!expected || token !== expected) throw new UnauthorizedException('Invalid store admin token');
+    const a = Buffer.from(String(token || ''));
+    const b = Buffer.from(expected);
+    if (!expected || a.length !== b.length || !timingSafeEqual(a, b)) {
+      throw new UnauthorizedException('Invalid store admin token');
+    }
   }
 
   async adminList() {
@@ -61,7 +66,7 @@ export class StoreService {
       where: { slug },
       include: { versions: { orderBy: { createdAt: 'desc' } } },
     });
-    if (!plugin) throw new NotFoundException('Plugin not found');
+    if (!plugin || plugin.status !== StorePluginStatus.PUBLISHED) throw new NotFoundException('Plugin not found');
     return {
       id: plugin.slug,
       name: plugin.name,
@@ -89,6 +94,7 @@ export class StoreService {
     const version = await this.prisma.storeVersion.findUnique({ where: { id: versionId } });
     if (!version) throw new NotFoundException('Version not found');
     const plugin = await this.prisma.storePlugin.findUnique({ where: { id: version.pluginId } });
+    if (!plugin || plugin.status !== StorePluginStatus.PUBLISHED) throw new NotFoundException('Version not found');
     const revoked = await this.prisma.storeRevocation.findFirst({
       where: {
         pluginId: { in: [version.pluginId, plugin?.slug || ''] },
@@ -101,8 +107,12 @@ export class StoreService {
 
   async checkUpdates(versions: Record<string, string>) {
     const result: Record<string, { version: string; url: string } | null> = {};
-    for (const [slug, current] of Object.entries(versions)) {
-      const plugin = await this.prisma.storePlugin.findUnique({ where: { slug }, include: { versions: { orderBy: { createdAt: 'desc' }, take: 1 } } });
+    // Публичный эндпоинт: ограничиваем объём запроса и не раскрываем неопубликованные плагины.
+    const entries = Object.entries(versions && typeof versions === 'object' ? versions : {});
+    if (entries.length > 200) throw new BadRequestException('Too many plugins');
+    for (const [slug, current] of entries) {
+      if (slug.length > 128) continue;
+      const plugin = await this.prisma.storePlugin.findFirst({ where: { slug, status: StorePluginStatus.PUBLISHED }, include: { versions: { orderBy: { createdAt: 'desc' }, take: 1 } } });
       const latest = plugin?.versions[0];
       result[slug] = latest && latest.version !== current
         ? { version: latest.version, url: `/api/store/versions/${latest.id}/download` }
@@ -168,6 +178,7 @@ export class StoreService {
 
   async setStatus(slug: string, status: StorePluginStatus, adminToken?: string) {
     this.assertAdmin(adminToken);
+    if (!Object.values(StorePluginStatus).includes(status)) throw new BadRequestException('Invalid status');
     return this.prisma.storePlugin.update({ where: { slug }, data: { status } });
   }
 

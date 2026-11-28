@@ -9,7 +9,7 @@ describe('SquadBindingService', () => {
   beforeEach(() => {
     prisma = {
       inbound: { findUnique: jest.fn(async () => ({ id: 'i1' })) },
-      squad: { findUnique: jest.fn(async () => ({ id: 's1' })) },
+      squad: { findUnique: jest.fn(async () => ({ id: 's1' })), findFirst: jest.fn(async () => ({ id: 's1' })) },
       inboundSquad: {
         findMany: jest.fn(async () => [{ inboundId: 'i1', squadId: 's1' }]),
         upsert: jest.fn(async () => ({})),
@@ -35,6 +35,16 @@ describe('SquadBindingService', () => {
       data: [{ inboundId: 'i1', userId: 'u2', sourceSquadId: 's1' }],
       skipDuplicates: true,
     });
+  });
+
+  it('scopes the squad lookup to the operator organization', async () => {
+    prisma.squad.findFirst.mockResolvedValueOnce(null);
+    const operator = { userId: 'op', email: 'op', role: 'OPERATOR', organizationId: 'o1' };
+    await expect(service.bind('i1', 's-foreign', operator)).rejects.toThrow('Squad not found');
+    expect(prisma.squad.findFirst).toHaveBeenCalledWith({
+      where: { id: 's-foreign', OR: [{ organizationId: 'o1' }, { organizationId: null }] },
+    });
+    expect(prisma.inboundSquad.upsert).not.toHaveBeenCalled();
   });
 
   it('removes only clients created by the unbound squad', async () => {

@@ -7,7 +7,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
-import { Badge, Button, CodeBlock, Field, HelpButton, IconButton, Modal, PageHeader, Toggle } from '../../components/ui';
+import { Alert, Badge, Button, CodeBlock, Field, HelpButton, IconButton, Modal, PageHeader, Toggle } from '../../components/ui';
 
 type Recipe = { id: string; title: string; description: string; type: string; payload: Record<string, unknown> };
 type RuleRow = { id: string; name: string; type: string; payload: Record<string, unknown>; recipe?: string | null; note?: string | null; enabled: boolean; inboundId?: string | null; inbound?: { id: string; tag: string; port: number } | null };
@@ -27,6 +27,8 @@ export default function RulesPage() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [inbounds, setInbounds] = useState<{ id: string; tag: string; port: number }[]>([]);
   const [notice, setNotice] = useState('');
+  const [modalError, setModalError] = useState('');
+  const [modalNotice, setModalNotice] = useState('');
 
   const chooseRecipe = (id: string) => {
     const recipe = recipes.find((r) => r.id === id);
@@ -35,13 +37,15 @@ export default function RulesPage() {
   };
 
   const validate = async () => {
+    setModalError('');
+    setModalNotice('');
     try {
       const payload = JSON.parse(form.payloadText);
       const result = await api.post('/api/rules/validate', { payload });
-      if (result.valid) setNotice(t.ruleValid);
-      else setError(result.errors?.join('; ') || t.ruleInvalid);
+      if (result.valid) setModalNotice(t.ruleValid);
+      else setModalError(result.errors?.join('; ') || t.ruleInvalid);
     } catch (e: any) {
-      setError(e.message || t.invalidJson);
+      setModalError(e.message || t.invalidJson);
     }
   };
 
@@ -69,13 +73,14 @@ export default function RulesPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setModalError('');
+    setModalNotice('');
     let payload: Record<string, unknown>;
     try {
       payload = JSON.parse(form.payloadText);
       if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error(t.invalidJson);
     } catch {
-      setError(t.invalidJson);
+      setModalError(t.invalidJson);
       return;
     }
     setBusy(true);
@@ -86,9 +91,11 @@ export default function RulesPage() {
       setForm(emptyForm);
       setEditing(null);
       setOpen(false);
+      setNotice(t.saved);
+      setTimeout(() => setNotice(''), 3000);
       await load();
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
     } finally {
       setBusy(false);
     }
@@ -97,6 +104,8 @@ export default function RulesPage() {
   const startEdit = (rule: RuleRow) => {
     setEditing(rule.id);
     setForm({ name: rule.name, type: rule.type, payloadText: JSON.stringify(rule.payload, null, 2), recipe: rule.recipe || '', note: rule.note || '', enabled: rule.enabled, inboundId: rule.inboundId || '' });
+    setModalError('');
+    setModalNotice('');
     setOpen(true);
   };
 
@@ -151,25 +160,27 @@ export default function RulesPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Infrastructure"
+        eyebrow={t.infrastructure}
         title={t.rules}
         subtitle={t.rulesSubtitle}
         icon="route"
-        actions={<><HelpButton title={t.help}><p>{lang === 'ru' ? 'Правило решает, куда уйдёт соединение: direct мимо туннеля или blocked в blackhole. geosite/geoip-коды требуют geodata на ноде. Перед сохранением нажмите «Проверить».' : 'A rule decides where a connection goes: direct bypasses the tunnel, blocked drops it. geosite/geoip codes need geodata on the node. Validate before saving.'}</p></HelpButton><Button icon="plus" variant="primary" onClick={() => { setEditing(null); setForm(emptyForm); setOpen(true); }}>{t.newRule}</Button></>}
+        actions={<><HelpButton title={t.help}><p>{lang === 'ru' ? 'Правило решает, куда уйдёт соединение: direct мимо туннеля или blocked в blackhole. geosite/geoip-коды требуют geodata на ноде. Перед сохранением нажмите «Проверить».' : 'A rule decides where a connection goes: direct bypasses the tunnel, blocked drops it. geosite/geoip codes need geodata on the node. Validate before saving.'}</p></HelpButton><Button icon="plus" variant="primary" onClick={() => { setEditing(null); setForm(emptyForm); setModalError(''); setModalNotice(''); setOpen(true); }}>{t.newRule}</Button></>}
       />
 
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+        <div role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
         </div>
       )}
-      {notice && <div className="mb-4 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
+      {notice && <div role="status" className="mb-4 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
 
       <DataTable data={rules} columns={columns} loading={loading} getRowId={(row) => row.id} />
 
       <Modal open={open} onClose={() => { setOpen(false); setEditing(null); setForm(emptyForm); }} title={editing ? t.editRule : t.newRule} subtitle={t.routingRuleJson} size="lg" icon={<Icon name="route" size={16} />}
-        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button icon="shield" onClick={validate}>{t.validateRule}</Button><Button variant="primary" icon="check" onClick={submit} loading={busy}>{editing ? t.save : t.create}</Button></>}>
-        <form onSubmit={submit} className="space-y-4">
+        footer={<><Button onClick={() => { setOpen(false); setEditing(null); setForm(emptyForm); }}>{t.cancel}</Button><Button icon="shield" onClick={validate}>{t.validateRule}</Button><Button variant="primary" icon="check" form="rule-form" loading={busy}>{editing ? t.save : t.create}</Button></>}>
+        <form id="rule-form" onSubmit={submit} className="space-y-4">
+          <Alert>{modalError}</Alert>
+          <Alert tone="success">{modalNotice}</Alert>
           <Field label={t.recipe} hint={t.recipeHint}>
             <select value={form.recipe} onChange={(e) => chooseRecipe(e.target.value)} className="field">
               <option value="">{t.customRule}</option>

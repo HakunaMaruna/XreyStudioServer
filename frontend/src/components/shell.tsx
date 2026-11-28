@@ -314,7 +314,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <p className="truncate text-xs font-medium text-fg">{t.administrator}</p>
             <p className="truncate text-[10px] text-subtle">{t.fullAccess}</p>
           </div>
-          {authed && <IconButton icon="logout" label="Logout" onClick={logout} />}
+          {authed && <IconButton icon="logout" label={t.logout} onClick={logout} />}
         </div>
       </div>
     </div>
@@ -339,7 +339,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
       <div className="lg:pl-[var(--ui-sidebar-w)]">
         <header className="ui-safe-top sticky top-0 z-sticky flex min-h-14 items-center gap-3 border-b border-line bg-surface px-4 sm:px-6">
-          <IconButton icon="menu" label="Menu" className="lg:hidden" onClick={() => setMobileOpen(true)} />
+          <IconButton icon="menu" label={t.menu} className="lg:hidden" onClick={() => setMobileOpen(true)} />
 
           <div className="hidden items-center gap-2 text-sm sm:flex">
             <span className="text-subtle">{t.workspace}</span>
@@ -389,13 +389,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <span className="text-[11px] text-muted">{t.allSystemsOperational}</span>
           </div>
           <button
+            type="button"
             onClick={toggle}
             className="rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-[11px] font-semibold text-muted transition-colors hover:text-fg"
           >
             {lang.toUpperCase()}
           </button>
-          <IconButton icon={theme === 'dark' ? 'sun' : 'moon'} label="Toggle theme" onClick={switchTheme} />
-          <IconButton icon="sparkles" label="Toggle icon set" onClick={toggleIconSet} />
+          <IconButton icon={theme === 'dark' ? 'sun' : 'moon'} label={t.toggleTheme} onClick={switchTheme} />
+          <IconButton icon="sparkles" label={t.toggleIconSet} onClick={toggleIconSet} />
         </header>
 
         <main id="main-content" className="relative z-content mx-auto w-full max-w-[var(--ui-content-max)] px-4 py-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-5">{children}</main>

@@ -58,7 +58,7 @@ export function UpdateDialog({
     >
       <div className="space-y-4">
         {error && (
-          <div className="flex items-start gap-2 rounded-xl border border-danger/25 bg-danger/10 px-3 py-2.5 text-xs text-danger">
+          <div role="alert" className="flex items-start gap-2 rounded-xl border border-danger/25 bg-danger/10 px-3 py-2.5 text-xs text-danger">
             <Icon name="alert" size={14} className="mt-0.5 shrink-0" />
             {error}
           </div>

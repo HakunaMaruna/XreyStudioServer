@@ -45,7 +45,7 @@ type Client = { userId: string; trafficLimitGb: number; expiresAt: string; enabl
 type InboundForm = {
   tag: string;
   protocol: string;
-  port: number;
+  port: number | '';
   nodeId: string;
   listen: string;
   transport: string;
@@ -54,10 +54,10 @@ type InboundForm = {
   path: string;
   sni: string;
   serviceName: string;
-  trafficLimitGb: number;
+  trafficLimitGb: number | '';
   expiresAt: string;
   resetSchedule: string;
-  resetDay: number;
+  resetDay: number | '';
   enabled: boolean;
   settingsText: string;
   fallbacks: Array<{ childId: string; path: string; alpn: string; dest: string; xver: number }>;
@@ -263,10 +263,10 @@ export default function InboundsPage() {
       path: form.path || undefined,
       sni: form.sni || undefined,
       serviceName: form.serviceName || undefined,
-      trafficLimit: Math.round(form.trafficLimitGb * 1024 ** 3),
+      trafficLimit: Math.round(Number(form.trafficLimitGb || 0) * 1024 ** 3),
       expiresAt: form.expiresAt || undefined,
       resetSchedule: form.resetSchedule,
-      resetDay: form.resetSchedule === 'monthly' ? form.resetDay : undefined,
+      resetDay: form.resetSchedule === 'monthly' ? Number(form.resetDay || 1) : undefined,
       enabled: form.enabled,
       settings,
       fallbacks: form.fallbacks.filter((f) => f.childId),
@@ -450,7 +450,7 @@ export default function InboundsPage() {
         </div>
       )}
       {error && !open && !clientsOpen && !groupOpen && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+        <div role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
         </div>
       )}
@@ -468,7 +468,7 @@ export default function InboundsPage() {
       >
         <form id="inbound-form" onSubmit={submit} className="space-y-5">
           {error && (
-            <div className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+            <div role="alert" className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
               <Icon name="alert" size={14} /> {error}
             </div>
           )}
@@ -499,7 +499,7 @@ export default function InboundsPage() {
                   {PROTOCOLS.map((p) => <option key={p} value={p}>{p.toUpperCase()}</option>)}
                 </select>
               </Field>
-              <Field label={t.port}><input type="number" min={1} max={65535} value={form.port} onChange={(e) => setForm({ ...form, port: Number(e.target.value) })} className="field" required /></Field>
+              <Field label={t.port}><input type="number" min={1} max={65535} value={form.port} onChange={(e) => setForm({ ...form, port: e.target.value === '' ? '' : Number(e.target.value) })} className="field" required /></Field>
               <Field label={t.listen}><input value={form.listen} onChange={(e) => setForm({ ...form, listen: e.target.value })} className="field" /></Field>
             </div>
             <div className="mt-4 max-w-md">
@@ -543,7 +543,7 @@ export default function InboundsPage() {
           <div className="border-t border-line pt-5">
             <p className="mb-3 text-xs font-semibold text-subtle">{t.trafficLimit} / {t.expiresAt}</p>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label={t.trafficLimit} hint="GB"><input type="number" min={0} value={form.trafficLimitGb} onChange={(e) => setForm({ ...form, trafficLimitGb: Number(e.target.value) })} className="field" /></Field>
+              <Field label={t.trafficLimit} hint="GB"><input type="number" min={0} value={form.trafficLimitGb} onChange={(e) => setForm({ ...form, trafficLimitGb: e.target.value === '' ? '' : Number(e.target.value) })} className="field" /></Field>
               <Field label={t.expiresAt}><input type="date" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} className="field" /></Field>
               <Field label={t.resetSchedule}>
                 <select value={form.resetSchedule} onChange={(e) => setForm({ ...form, resetSchedule: e.target.value })} className="field">
@@ -551,7 +551,7 @@ export default function InboundsPage() {
                 </select>
               </Field>
               {form.resetSchedule === 'monthly' && (
-                <Field label={t.resetDay}><input type="number" min={1} max={31} value={form.resetDay} onChange={(e) => setForm({ ...form, resetDay: Number(e.target.value) })} className="field" /></Field>
+                <Field label={t.resetDay}><input type="number" min={1} max={31} value={form.resetDay} onChange={(e) => setForm({ ...form, resetDay: e.target.value === '' ? '' : Number(e.target.value) })} className="field" /></Field>
               )}
             </div>
           </div>
@@ -602,7 +602,7 @@ export default function InboundsPage() {
       >
         <form id="clients-form" onSubmit={(event) => { event.preventDefault(); void saveClients(); }} className="space-y-3">
           {error && (
-            <div className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+            <div role="alert" className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
               <Icon name="alert" size={14} /> {error}
             </div>
           )}
@@ -653,7 +653,7 @@ export default function InboundsPage() {
       >
         <div className="space-y-3">
           {error && (
-            <div className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+            <div role="alert" className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
               <Icon name="alert" size={14} /> {error}
             </div>
           )}

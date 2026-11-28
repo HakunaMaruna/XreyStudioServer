@@ -53,6 +53,7 @@ export default function DocsPage() {
             {sections.map((section) => (
               <button
                 key={section.id}
+                type="button"
                 onClick={() => {
                   setActive(section.id);
                   window.history.replaceState(null, '', `#${section.id}`);

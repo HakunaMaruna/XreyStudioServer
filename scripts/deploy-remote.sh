@@ -39,6 +39,7 @@ IP="$(hostname -I | awk '{print $1}')"
 echo "== preparing .env =="
 if [ ! -f .env ]; then
   cp .env.example .env
+  chmod 600 .env
   ADMIN_PASSWORD="$(openssl rand -hex 12)"
   JWT_SECRET="$(openssl rand -hex 32)"
   JWT_REFRESH_SECRET="$(openssl rand -hex 32)"

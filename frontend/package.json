@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "2.59.1",
+  "version": "2.60.0",
   "license": "AGPL-3.0-or-later",
   "private": true,
   "scripts": {
@@ -19,7 +19,6 @@
     "jsvectormap": "^1.7.0",
     "next": "16.4.6",
     "qrcode.react": "^4.2.0",
-    "quill": "^2.0.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-markdown": "^10.1.0",

@@ -19,7 +19,7 @@ export class RulesService {
   private assertOrganization(dto: { organizationId?: string | null }, user: AuthUser) {
     if (user.role === Role.ADMIN) return;
     if (!user.organizationId) throw new ForbiddenException('Organization is required to manage rules');
-    if (dto.organizationId && dto.organizationId !== user.organizationId) {
+    if (dto.organizationId !== undefined && dto.organizationId !== user.organizationId) {
       throw new ForbiddenException('Cannot assign a rule to another organization');
     }
   }

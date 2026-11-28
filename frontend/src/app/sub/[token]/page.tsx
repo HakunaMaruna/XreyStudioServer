@@ -251,8 +251,8 @@ export default function SubscriptionPage() {
     <Card>
       <SectionTitle title={t.subSupport} />
       <div className="flex flex-wrap gap-2">
-        {settings.support.telegram && <a href={settings.support.telegram} target="_blank" rel="noreferrer" className="rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs text-fg hover:border-brand/40">Telegram</a>}
-        {settings.support.website && <a href={settings.support.website} target="_blank" rel="noreferrer" className="rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs text-fg hover:border-brand/40">Website</a>}
+        {settings.support.telegram && <a href={settings.support.telegram} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs text-fg hover:border-brand/40">Telegram</a>}
+        {settings.support.website && <a href={settings.support.website} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs text-fg hover:border-brand/40">Website</a>}
         {settings.support.email && <a href={`mailto:${settings.support.email}`} className="rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs text-fg hover:border-brand/40">{settings.support.email}</a>}
       </div>
     </Card>
@@ -364,7 +364,7 @@ export default function SubscriptionPage() {
                       <p className="text-[10px] text-subtle">{PLATFORM_LABELS[app.platform]?.[lang] || app.platform}</p>
                     </div>
                     {app.downloadUrl && (
-                      <a href={app.downloadUrl} target="_blank" rel="noreferrer" aria-label={t.subDownload}
+                      <a href={app.downloadUrl} target="_blank" rel="noopener noreferrer" aria-label={t.subDownload}
                         className="text-muted transition hover:text-brand"><Icon name="external" size={16} /></a>
                     )}
                   </div>

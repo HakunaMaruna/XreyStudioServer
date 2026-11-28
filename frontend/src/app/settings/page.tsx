@@ -10,6 +10,7 @@ import { fetchUpdateStatus, type UpdateStatus } from '../../lib/updates';
 import { UpdateDialog } from '../../components/update-dialog';
 import { Icon, type IconName } from '../../components/icons';
 import {
+  Alert,
   Badge,
   Button,
   Card,
@@ -533,8 +534,8 @@ export default function SettingsPage() {
           {isAdmin && tab === 'notifications' && (
           <>
           <SectionTitle title={t.settingsHub} subtitle={t.settingsHubSubtitle} />
-          {hubError && <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{hubError}</div>}
-          {hubSaved && <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{t.settingsSaved}</div>}
+          {hubError && !snapshotModal && <Alert>{hubError}</Alert>}
+          {hubSaved && <div role="status" className="rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-sm text-success">{t.settingsSaved}</div>}
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Card>
@@ -738,7 +739,7 @@ export default function SettingsPage() {
                     return (
                       <div className="flex min-w-0 items-center justify-between gap-3" key={item.key}>
                         <span className="min-w-0 truncate">{t[item.labelKey]}</span>
-                        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs ${readyChannel ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-line text-muted'}`}>
+                        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs ${readyChannel ? 'border-success/25 bg-success/10 text-success' : 'border-line text-muted'}`}>
                           {readyChannel ? t.configured : t.notConfigured}
                         </span>
                       </div>
@@ -853,7 +854,7 @@ export default function SettingsPage() {
               <div className="space-y-2 border-t border-line pt-5">
                 <p className="text-xs font-semibold text-subtle">{t.snapshotStateTitle}</p>
                 {snapshotNotice && (
-                  <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+                  <div className="rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">
                     {snapshotNotice}
                   </div>
                 )}
@@ -984,7 +985,7 @@ export default function SettingsPage() {
         <Button onClick={saveSettings}>
           <Icon name="check" size={14} /> {t.saveSettings}
         </Button>
-        {saved && <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-300">{t.settingsSaved}</span>}
+        {saved && <span className="rounded-full border border-success/25 bg-success/10 px-2 py-0.5 text-xs text-success">{t.settingsSaved}</span>}
       </div>
 
       </>
@@ -1025,7 +1026,7 @@ export default function SettingsPage() {
           <Button onClick={saveSettings}>
             <Icon name="check" size={14} /> {t.saveSettings}
           </Button>
-          {saved && <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-300">{t.settingsSaved}</span>}
+          {saved && <span className="rounded-full border border-success/25 bg-success/10 px-2 py-0.5 text-xs text-success">{t.settingsSaved}</span>}
         </div>
       </>
       )}
@@ -1079,7 +1080,7 @@ export default function SettingsPage() {
                 <a
                   href={update.releaseUrl}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-[11px] font-medium text-brand hover:underline"
                 >
                   {t.updateNotes}
@@ -1175,6 +1176,7 @@ export default function SettingsPage() {
           )
         }
       >
+        <Alert className="mb-3">{hubError}</Alert>
         {snapshotModal?.kind === 'delete' && <p className="text-sm text-fg">{t.snapshotDeleteConfirm}</p>}
         {snapshotModal?.kind === 'restore' && (
           <div className="space-y-3 text-sm text-fg">

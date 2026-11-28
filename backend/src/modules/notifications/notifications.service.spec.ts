@@ -36,6 +36,17 @@ describe('NotificationsService security and routing', () => {
     process.env.NODE_ENV = previous;
   });
 
+  it('rejects IPv4-mapped IPv6 webhook addresses in production', async () => {
+    const previous = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    settings.value.mockImplementation(async (key: string) =>
+      key === 'WEBHOOK_URL' ? 'https://[::ffff:127.0.0.1]/hook' : undefined);
+    const result = await service().sendWebhook({ event: 'test' });
+    expect(result.sent).toBe(false);
+    expect(result.error).toContain('Private webhook');
+    process.env.NODE_ENV = previous;
+  });
+
   it('routes SIGNAL events and logs delivery', async () => {
     settings.value.mockImplementation(async (key: string) =>
       key === 'SIGNAL_API_URL' ? 'https://signal.local' :

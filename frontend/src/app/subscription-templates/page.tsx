@@ -7,7 +7,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
-import { Badge, Button, Card, Field, IconButton, Modal, PageHeader, Toggle } from '../../components/ui';
+import { Alert, Badge, Button, Field, IconButton, Modal, PageHeader, Toggle } from '../../components/ui';
 
 type Template = {
   id: string;
@@ -37,6 +37,8 @@ export default function SubscriptionTemplatesPage() {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [modalError, setModalError] = useState('');
+  const [notice, setNotice] = useState('');
   const [users, setUsers] = useState<Array<{ id: string; email: string; subscriptionTemplateId?: string | null }>>([]);
   const [squads, setSquads] = useState<Array<{ id: string; name: string; subscriptionTemplateId?: string | null }>>([]);
   const [assignTemplate, setAssignTemplate] = useState<Template | null>(null);
@@ -62,20 +64,21 @@ export default function SubscriptionTemplatesPage() {
     load();
   }, []);
 
-  const startCreate = () => { setEditing(null); setForm(emptyForm); setError(''); setOpen(true); };
+  const startCreate = () => { setEditing(null); setForm(emptyForm); setModalError(''); setOpen(true); };
   const startEdit = (row: Template) => {
     setEditing(row.id);
     setForm({
       name: row.name, title: row.title, description: row.description || '', accent: row.accent,
       footer: row.footer || '', instructionsText: JSON.stringify(row.instructions || {}, null, 2), enabled: row.enabled, isDefault: Boolean(row.isDefault),
     });
-    setError(''); setOpen(true);
+    setModalError(''); setOpen(true);
   };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     let instructions: unknown;
-    try { instructions = JSON.parse(form.instructionsText); } catch { setError(t.invalidJson); return; }
+    setModalError('');
+    try { instructions = JSON.parse(form.instructionsText); } catch { setModalError(t.invalidJson); return; }
     setBusy(true);
     try {
       const body = {
@@ -84,8 +87,8 @@ export default function SubscriptionTemplatesPage() {
       };
       if (editing) await api.patch(`/api/subscription-templates/${editing}`, body);
       else await api.post('/api/subscription-templates', body);
-      setOpen(false); await load();
-    } catch (e: any) { setError(e.message); }
+      setOpen(false); setNotice(t.saved); await load();
+    } catch (e: any) { setModalError(e.message); }
     finally { setBusy(false); }
   };
 
@@ -96,7 +99,8 @@ export default function SubscriptionTemplatesPage() {
 
   const remove = async (id: string) => {
     if (!confirm(t.confirmDelete)) return;
-    await api.delete(`/api/subscription-templates/${id}`); await load();
+    try { await api.delete(`/api/subscription-templates/${id}`); await load(); }
+    catch (e: any) { setError(e.message); }
   };
 
   const columns = useMemo<ColumnDef<Template>[]>(
@@ -123,8 +127,8 @@ export default function SubscriptionTemplatesPage() {
         cell: ({ row }) => (
           <div className="flex items-center gap-1">
             <IconButton icon="eye" label={t.templatePreview} onClick={() => setPreviewTemplate(row.original)} />
-            <IconButton icon="link" label={t.templateAssign} onClick={() => setAssignTemplate(row.original)} />
-            <IconButton icon="power" label={t.enabled} onClick={() => toggle(row.original)} />
+            <IconButton icon="link" label={t.templateAssign} onClick={() => { setModalError(''); setAssignTemplate(row.original); }} />
+            <IconButton icon="power" label={row.original.enabled ? t.disable : t.enable} onClick={() => toggle(row.original)} />
             <IconButton icon="edit" label={t.edit} onClick={() => startEdit(row.original)} />
             <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => remove(row.original.id)} />
           </div>
@@ -138,19 +142,21 @@ export default function SubscriptionTemplatesPage() {
     <>
       <PageHeader eyebrow={t.billing} title={t.subscriptionTemplates} subtitle={t.subscriptionTemplatesSubtitle} icon="file"
         actions={<Button icon="plus" variant="primary" onClick={startCreate}>{t.create}</Button>} />
-      {error && <div className="mb-4 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>}
+      {error && <Alert className="mb-4">{error}</Alert>}
+      {notice && <Alert tone="success" className="mb-4">{notice}</Alert>}
       <DataTable data={rows} columns={columns} loading={loading} getRowId={(row) => row.id} />
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? t.edit : t.create} subtitle={t.subscriptionTemplatesSubtitle} icon={<Icon name="file" size={16} />} size="lg"
-        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="check" onClick={submit} loading={busy}>{t.save}</Button></>}>
-        <form onSubmit={submit} className="space-y-4">
+        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="check" form="subscription-template-form" loading={busy}>{t.save}</Button></>}>
+        <form id="subscription-template-form" onSubmit={submit} className="space-y-4">
+          <Alert>{modalError}</Alert>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t.name}><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="field" required /></Field>
             <Field label={t.title}><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="field" required /></Field>
           </div>
           <Field label={t.description}><input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="field" /></Field>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Accent"><input type="color" value={form.accent} onChange={(e) => setForm({ ...form, accent: e.target.value })} className="field h-10" /></Field>
+            <Field label={t.templateAccent}><input type="color" value={form.accent} onChange={(e) => setForm({ ...form, accent: e.target.value })} className="field h-10" /></Field>
             <Field label={t.footer}><input value={form.footer} onChange={(e) => setForm({ ...form, footer: e.target.value })} className="field" /></Field>
           </div>
           <Field label={t.instructions} hint="JSON: platform → text">
@@ -163,21 +169,24 @@ export default function SubscriptionTemplatesPage() {
         </form>
       </Modal>
 
-      <Modal open={Boolean(assignTemplate)} onClose={() => setAssignTemplate(null)} title={t.templateAssign}
+      <Modal open={Boolean(assignTemplate)} onClose={() => { setAssignTemplate(null); void load(); }} title={t.templateAssign}
         subtitle={assignTemplate?.name} icon={<Icon name="link" size={16} />} size="lg"
-        footer={<Button onClick={() => setAssignTemplate(null)}>{t.close}</Button>}>
+        footer={<Button onClick={() => { setAssignTemplate(null); void load(); }}>{t.close}</Button>}>
         <div className="space-y-4">
+          <Alert>{modalError}</Alert>
           <p className="text-xs font-semibold text-subtle">{t.users}</p>
           <div className="grid max-h-48 gap-1 overflow-auto sm:grid-cols-2">
+            {!users.length && <p className="text-xs text-subtle">{t.noData}</p>}
             {users.map((user) => (
               <label key={user.id} className="flex items-center gap-2 rounded-lg border border-line px-2 py-1.5 text-xs">
                 <input type="checkbox" className="h-4 w-4 accent-[var(--brand)]"
                   checked={Boolean(assignTemplate && user.subscriptionTemplateId === assignTemplate.id)}
                   onChange={async (e) => {
+                    setModalError('');
                     try {
                       await api.patch(`/api/users/${user.id}`, { subscriptionTemplateId: e.target.checked ? assignTemplate!.id : null });
                       setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, subscriptionTemplateId: e.target.checked ? assignTemplate!.id : null } : u));
-                    } catch (err: any) { setError(err.message); }
+                    } catch (err: any) { setModalError(err.message); }
                   }} />
                 <span className="truncate">{user.email}</span>
               </label>
@@ -185,15 +194,17 @@ export default function SubscriptionTemplatesPage() {
           </div>
           <p className="text-xs font-semibold text-subtle">{t.templateSquads}</p>
           <div className="grid max-h-48 gap-1 overflow-auto sm:grid-cols-2">
+            {!squads.length && <p className="text-xs text-subtle">{t.noData}</p>}
             {squads.map((squad) => (
               <label key={squad.id} className="flex items-center gap-2 rounded-lg border border-line px-2 py-1.5 text-xs">
                 <input type="checkbox" className="h-4 w-4 accent-[var(--brand)]"
                   checked={Boolean(assignTemplate && squad.subscriptionTemplateId === assignTemplate.id)}
                   onChange={async (e) => {
+                    setModalError('');
                     try {
                       await api.patch(`/api/squads/${squad.id}`, { subscriptionTemplateId: e.target.checked ? assignTemplate!.id : null });
                       setSquads((prev) => prev.map((sq) => sq.id === squad.id ? { ...sq, subscriptionTemplateId: e.target.checked ? assignTemplate!.id : null } : sq));
-                    } catch (err: any) { setError(err.message); }
+                    } catch (err: any) { setModalError(err.message); }
                   }} />
                 <span className="truncate">{squad.name}</span>
               </label>

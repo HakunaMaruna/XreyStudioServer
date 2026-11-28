@@ -7,7 +7,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
-import { Badge, Button, Card, Field, IconButton, Modal, PageHeader, Toggle, formatBytes } from '../../components/ui';
+import { Alert, Badge, Button, Field, IconButton, Modal, PageHeader, Toggle, formatBytes } from '../../components/ui';
 
 type Squad = {
   id: string;
@@ -20,7 +20,7 @@ type Squad = {
   _count?: { users: number };
 };
 
-const emptyForm = { name: '', description: '', trafficLimitGb: 0, expiresAt: '', enabled: true };
+const emptyForm: { name: string; description: string; trafficLimitGb: number | ''; expiresAt: string; enabled: boolean } = { name: '', description: '', trafficLimitGb: 0, expiresAt: '', enabled: true };
 
 export default function SquadsPage() {
   const { t } = useLang();
@@ -33,6 +33,8 @@ export default function SquadsPage() {
   const [allUsers, setAllUsers] = useState<{ id: string; email: string; telegramId?: string | null }[]>([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [modalError, setModalError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -49,7 +51,7 @@ export default function SquadsPage() {
     api.get('/api/users?limit=100').then((d) => setAllUsers(d.data || [])).catch(() => undefined);
   }, []);
 
-  const startCreate = () => { setEditing(null); setForm(emptyForm); setMembers([]); setError(''); setOpen(true); };
+  const startCreate = () => { setEditing(null); setForm(emptyForm); setMembers([]); setModalError(''); setOpen(true); };
 
   const startEdit = async (row: Squad) => {
     setEditing(row.id);
@@ -60,22 +62,24 @@ export default function SquadsPage() {
       expiresAt: row.expiresAt ? row.expiresAt.slice(0, 10) : '',
       enabled: row.enabled,
     });
+    setModalError('');
     try {
       const detail = await api.get(`/api/squads/${row.id}`);
       setMembers((detail.users || []).map((u: any) => u.id));
-    } catch { setMembers([]); }
-    setError('');
+    } catch (e: any) { setMembers([]); setModalError(e.message); }
     setOpen(true);
   };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
+    setModalError('');
+    setNotice('');
     try {
       const body = {
         name: form.name,
         description: form.description || undefined,
-        trafficLimit: Math.round(form.trafficLimitGb * 1024 ** 3),
+        trafficLimit: Math.round(Number(form.trafficLimitGb || 0) * 1024 ** 3),
         expiresAt: form.expiresAt || undefined,
         enabled: form.enabled,
       };
@@ -84,8 +88,9 @@ export default function SquadsPage() {
       else { const created = await api.post('/api/squads', body); id = created.id; }
       if (id) await api.patch(`/api/squads/${id}/members`, { userIds: members });
       setOpen(false);
+      setNotice(t.saved);
       await load();
-    } catch (e: any) { setError(e.message); }
+    } catch (e: any) { setModalError(e.message); }
     finally { setBusy(false); }
   };
 
@@ -96,8 +101,8 @@ export default function SquadsPage() {
 
   const remove = async (id: string) => {
     if (!confirm(t.confirmDelete)) return;
-    await api.delete(`/api/squads/${id}`);
-    await load();
+    try { await api.delete(`/api/squads/${id}`); await load(); }
+    catch (e: any) { setError(e.message); }
   };
 
   const columns = useMemo<ColumnDef<Squad>[]>(
@@ -122,7 +127,7 @@ export default function SquadsPage() {
         id: 'actions', header: t.actions, enableSorting: false,
         cell: ({ row }) => (
           <div className="flex items-center gap-1">
-            <IconButton icon="power" label={t.enabled} onClick={() => toggle(row.original)} />
+            <IconButton icon="power" label={row.original.enabled ? t.disable : t.enable} onClick={() => toggle(row.original)} />
             <IconButton icon="edit" label={t.edit} onClick={() => startEdit(row.original)} />
             <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => remove(row.original.id)} />
           </div>
@@ -136,32 +141,35 @@ export default function SquadsPage() {
     <>
       <PageHeader eyebrow={t.access} title={t.squads} subtitle={t.squadsSubtitle} icon="users"
         actions={<Button icon="plus" variant="primary" onClick={startCreate}>{t.create}</Button>} />
-      {error && <div className="mb-4 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>}
+      {error && <Alert className="mb-4">{error}</Alert>}
+      {notice && <Alert tone="success" className="mb-4">{notice}</Alert>}
       <DataTable data={rows} columns={columns} loading={loading} getRowId={(row) => row.id} />
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? t.edit : t.create} subtitle={t.squadsSubtitle} icon={<Icon name="users" size={16} />} size="lg"
-        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="check" onClick={submit} loading={busy}>{t.save}</Button></>}>
-        <form onSubmit={submit} className="space-y-5">
+        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="check" form="squad-form" loading={busy}>{t.save}</Button></>}>
+        <form id="squad-form" onSubmit={submit} className="space-y-5">
+          <Alert>{modalError}</Alert>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t.name}><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="field" required /></Field>
             <Field label={t.comment}><input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="field" /></Field>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t.trafficLimit} hint="GB"><input type="number" min={0} value={form.trafficLimitGb} onChange={(e) => setForm({ ...form, trafficLimitGb: Number(e.target.value) })} className="field" /></Field>
+            <Field label={t.trafficLimit} hint="GB"><input type="number" min={0} value={form.trafficLimitGb} onChange={(e) => setForm({ ...form, trafficLimitGb: e.target.value === '' ? '' : Number(e.target.value) })} className="field" /></Field>
             <Field label={t.expiresAt}><input type="date" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} className="field" /></Field>
           </div>
           <div className="border-t border-line pt-4">
             <p className="mb-2 text-xs font-semibold text-subtle">{t.users}</p>
             <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-line bg-surface-2/40 p-2">
+              {!allUsers.length && <p className="px-2 py-3 text-center text-xs text-subtle">{t.noData}</p>}
               {allUsers.map((u) => (
                 <div key={u.id} className="flex items-center gap-2 rounded px-2 py-1 text-xs text-muted hover:bg-surface-3">
-                  <label className="flex flex-1 cursor-pointer items-center gap-2">
+                  <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
                     <input
                       type="checkbox"
                       checked={members.includes(u.id)}
                       onChange={(e) => setMembers(e.target.checked ? [...members, u.id] : members.filter((id) => id !== u.id))}
                     />
-                    {u.email}
+                    <span className="truncate">{u.email}</span>
                   </label>
                   {u.telegramId && (
                     <a

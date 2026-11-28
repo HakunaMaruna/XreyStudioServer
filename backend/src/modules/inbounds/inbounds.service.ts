@@ -17,9 +17,28 @@ export class InboundsService {
     return { OR: [{ node: { organizationId: org } }, { user: { organizationId: org } }] };
   }
 
-  private async assertOwner(dto: { nodeId?: string; userId?: string }, user?: AuthUser) {
+  private async assertOwner(
+    dto: {
+      nodeId?: string;
+      userId?: string;
+      clients?: Array<{ userId: string }>;
+      fallbacks?: Array<{ childId: string }>;
+    },
+    user?: AuthUser,
+  ) {
     if (!user || user.role === Role.ADMIN) return;
     const org = user.organizationId || null;
+    // Клиенты и fallback-подключения тоже должны принадлежать организации оператора.
+    const clientIds = [...new Set((dto.clients || []).map((c) => c.userId).filter(Boolean))];
+    if (clientIds.length) {
+      const count = await this.prisma.user.count({ where: { id: { in: clientIds }, organizationId: org } });
+      if (count !== clientIds.length) throw new ForbiddenException('Client belongs to another organization');
+    }
+    const childIds = [...new Set((dto.fallbacks || []).map((f) => f.childId).filter(Boolean))];
+    if (childIds.length) {
+      const count = await this.prisma.inbound.count({ where: { id: { in: childIds }, ...this.tenantWhere(user) } });
+      if (count !== childIds.length) throw new ForbiddenException('Fallback inbound belongs to another organization');
+    }
     if (dto.nodeId) {
       const node = await this.prisma.node.findUnique({ where: { id: dto.nodeId } });
       if (!node || node.organizationId !== org) throw new ForbiddenException('Node belongs to another organization');

@@ -7,7 +7,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
-import { Badge, Button, Card, Field, IconButton, Modal, PageHeader, SectionTitle, Toggle } from '../../components/ui';
+import { Alert, Badge, Button, Card, Field, IconButton, Modal, PageHeader, SectionTitle, Toggle } from '../../components/ui';
 
 type Profile = {
   id: string;
@@ -65,6 +65,8 @@ export default function ConfigProfilesPage() {
   const [compareId, setCompareId] = useState<string | null>(null);
   const [compareWith, setCompareWith] = useState<string>('');
   const [validated, setValidated] = useState(false);
+  const [modalError, setModalError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -85,27 +87,30 @@ export default function ConfigProfilesPage() {
     api.get('/api/metrics/traffic/nodes').then((data) => setTraffic(Array.isArray(data) ? data : [])).catch(() => setTraffic([]));
   }, []);
 
-  const startCreate = () => { setEditing(null); setForm(emptyForm); setError(''); setOpen(true); };
+  const startCreate = () => { setEditing(null); setForm(emptyForm); setModalError(''); setValidated(false); setOpen(true); };
   const startEdit = (row: Profile) => {
     setEditing(row.id);
     setForm({ name: row.name, description: row.description || '', payloadText: JSON.stringify(row.payload, null, 2), enabled: row.enabled, nodeId: row.node?.id || '' });
-    setError('');
+    setModalError('');
+    setValidated(false);
     setOpen(true);
   };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     let payload: unknown;
-    try { payload = JSON.parse(form.payloadText); } catch { setError(t.invalidJson); return; }
+    setModalError('');
+    try { payload = JSON.parse(form.payloadText); } catch { setModalError(t.invalidJson); return; }
     setBusy(true);
     try {
       const body = { name: form.name, description: form.description || undefined, payload, enabled: form.enabled, nodeId: form.nodeId || null };
       if (editing) await api.patch(`/api/config-profiles/${editing}`, body);
       else await api.post('/api/config-profiles', body);
       setOpen(false);
+      setNotice(t.saved);
       await load();
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
     } finally {
       setBusy(false);
     }
@@ -118,8 +123,8 @@ export default function ConfigProfilesPage() {
 
   const remove = async (id: string) => {
     if (!confirm(t.confirmDelete)) return;
-    await api.delete(`/api/config-profiles/${id}`);
-    await load();
+    try { await api.delete(`/api/config-profiles/${id}`); await load(); }
+    catch (e: any) { setError(e.message); }
   };
 
   const columns = useMemo<ColumnDef<Profile>[]>(
@@ -144,7 +149,7 @@ export default function ConfigProfilesPage() {
         id: 'actions', header: t.actions, enableSorting: false,
         cell: ({ row }) => (
           <div className="flex items-center gap-1">
-            <IconButton icon="power" label={t.enabled} onClick={() => toggle(row.original)} />
+            <IconButton icon="power" label={row.original.enabled ? t.disable : t.enable} onClick={() => toggle(row.original)} />
             <IconButton icon="edit" label={t.edit} onClick={() => startEdit(row.original)} />
             <IconButton icon="copy" label={lang === 'ru' ? 'Сравнить' : 'Compare'} onClick={() => { setCompareId(row.original.id); setCompareWith(''); }} />
             <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => remove(row.original.id)} />
@@ -159,7 +164,8 @@ export default function ConfigProfilesPage() {
     <>
       <PageHeader eyebrow={t.access} title={t.configProfiles} subtitle={t.configProfilesSubtitle} icon="sliders"
         actions={<Button icon="plus" variant="primary" onClick={startCreate}>{t.create}</Button>} />
-      {error && <div className="mb-4 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>}
+      {error && <Alert className="mb-4">{error}</Alert>}
+      {notice && <Alert tone="success" className="mb-4">{notice}</Alert>}
 
       {traffic.length > 0 && (
         <Card className="mb-5">
@@ -179,8 +185,9 @@ export default function ConfigProfilesPage() {
       <DataTable data={rows} columns={columns} loading={loading} getRowId={(row) => row.id} />
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? t.edit : t.create} subtitle={t.configProfilesSubtitle} icon={<Icon name="sliders" size={16} />} size="lg"
-        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="check" onClick={submit} loading={busy}>{t.save}</Button></>}>
-        <form onSubmit={submit} className="space-y-4">
+        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="check" form="config-profile-form" loading={busy}>{t.save}</Button></>}>
+        <form id="config-profile-form" onSubmit={submit} className="space-y-4">
+          <Alert>{modalError}</Alert>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t.name}><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="field" required /></Field>
             <Field label={t.comment}><input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="field" /></Field>
@@ -217,16 +224,27 @@ export default function ConfigProfilesPage() {
           <Field label={t.payload} hint="routingRules / dnsServers / outbounds">
             <textarea rows={12} value={form.payloadText} onChange={(e) => { setForm({ ...form, payloadText: e.target.value }); setValidated(false); }} className="field mono text-[11px]" />
           </Field>
-          {validated && <p className="text-xs text-success">{lang === 'ru' ? 'JSON корректен' : 'Valid JSON'}</p>}
+          {validated && <p role="status" className="text-xs text-success">{lang === 'ru' ? 'JSON корректен' : 'Valid JSON'}</p>}
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="subtle" icon="check" onClick={() => { try { JSON.parse(form.payloadText); setValidated(true); setError(''); } catch { setError(t.invalidJson); } }}>{lang === 'ru' ? 'Проверить JSON' : 'Validate JSON'}</Button>
+            <Button size="sm" variant="subtle" icon="check" onClick={() => { try { JSON.parse(form.payloadText); setValidated(true); setModalError(''); } catch { setValidated(false); setModalError(t.invalidJson); } }}>{lang === 'ru' ? 'Проверить JSON' : 'Validate JSON'}</Button>
             <Button size="sm" variant="subtle" icon="download" onClick={() => {
               const blob = new Blob([form.payloadText], { type: 'application/json' });
               const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'config-profile.json'; a.click(); URL.revokeObjectURL(url);
             }}>{lang === 'ru' ? 'Экспорт' : 'Export'}</Button>
             <label className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 text-xs text-muted">
               <Icon name="upload" size={13} /> {lang === 'ru' ? 'Импорт' : 'Import'}
-              <input type="file" accept=".json,application/json" className="hidden" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; const text = await file.text(); setForm((prev) => ({ ...prev, payloadText: JSON.stringify(JSON.parse(text), null, 2) })); }} />
+              <input type="file" accept=".json,application/json" className="hidden" onChange={async (e) => {
+                const input = e.target;
+                const file = input.files?.[0];
+                if (!file) return;
+                try {
+                  const text = await file.text();
+                  setForm((prev) => ({ ...prev, payloadText: JSON.stringify(JSON.parse(text), null, 2) }));
+                  setModalError('');
+                  setValidated(false);
+                } catch { setModalError(t.invalidJson); }
+                finally { input.value = ''; }
+              }} />
             </label>
           </div>
           <Toggle checked={form.enabled} onChange={(v) => setForm({ ...form, enabled: v })} label={t.enabled} />

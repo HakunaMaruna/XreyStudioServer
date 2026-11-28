@@ -182,7 +182,7 @@ async function applySingboxConfig(config, version) {
   }
   fs.mkdirSync(path.dirname(SINGBOX_CONFIG_PATH), { recursive: true });
   const tmp = path.join(path.dirname(SINGBOX_CONFIG_PATH), `singbox-candidate-${Date.now()}.json`);
-  fs.writeFileSync(tmp, JSON.stringify(config, null, 2));
+  fs.writeFileSync(tmp, JSON.stringify(config, null, 2), { mode: 0o600 });
   const test = await run(SINGBOX_BIN, ['check', '-c', tmp], 8000);
   if (!test.ok && !test.error?.includes('ENOENT')) {
     fs.unlinkSync(tmp);
@@ -270,7 +270,7 @@ async function applyXrayConfig(config, version) {
   }
   ensureDirs();
   const tmp = path.join(BACKUP_DIR, `candidate-${Date.now()}.json`);
-  fs.writeFileSync(tmp, JSON.stringify(config, null, 2));
+  fs.writeFileSync(tmp, JSON.stringify(config, null, 2), { mode: 0o600 });
   const test = await run(XRAY_BIN, ['run', '-test', '-c', tmp], 8000);
   if (!test.ok) {
     fs.unlinkSync(tmp);
@@ -278,6 +278,8 @@ async function applyXrayConfig(config, version) {
   }
   backupCurrent();
   fs.copyFileSync(tmp, CONFIG_PATH);
+  // Config holds Reality private keys; in managed mode xray runs as the agent user.
+  if (XRAY_MANAGED) { try { fs.chmodSync(CONFIG_PATH, 0o600); } catch {} }
   fs.unlinkSync(tmp);
   lastConfigVersion = version || lastConfigVersion;
   const reload = await reloadXrayService();

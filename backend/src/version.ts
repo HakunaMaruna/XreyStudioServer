@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 HakunaMaruna
-export const APP_VERSION = '2.59.1';
+export const APP_VERSION = '2.60.0';
 
 // Агент меняется не в каждом релизе панели: frontend-only и backend-only
 // правки не требуют пересборки агента. Порог — последняя версия, в которой

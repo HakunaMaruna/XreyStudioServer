@@ -65,7 +65,7 @@ export default function DoctorPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Infrastructure" title={t.doctor} subtitle={t.doctorSubtitle} icon="activity" />
+      <PageHeader eyebrow={t.infrastructure} title={t.doctor} subtitle={t.doctorSubtitle} icon="activity" />
       <Card className="mb-4 p-3 text-[11px] leading-relaxed text-muted">
         {lang === 'ru'
           ? 'Сейчас раздел проверяет базу данных, доступность нод, результаты client-eye проверок, срок сертификатов и свежесть ревизий конфига. Для 중요한 проверок доступна кнопка «Применить исправление» — она создаёт и применяет новую ревизию. Журнал событий и расширенная диагностика планируются.'

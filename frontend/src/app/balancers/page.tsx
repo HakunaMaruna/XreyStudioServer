@@ -6,7 +6,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import { Icon } from '../../components/icons';
 import {
-  Badge, Button, Card, CodeBlock, Field, HelpButton, IconButton, Modal,
+  Alert, Badge, Button, Card, CodeBlock, Field, HelpButton, IconButton, Modal,
   PageHeader, SectionTitle, StatusBadge,
 } from '../../components/ui';
 
@@ -95,6 +95,8 @@ export default function BalancersPage() {
   const [preview, setPreview] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [modalError, setModalError] = useState('');
+  const [notice, setNotice] = useState('');
   const [recipes, setRecipes] = useState<Array<{ id: string; name: string; description: string; payload: any }>>([]);
 
   const load = useCallback(async () => {
@@ -131,7 +133,7 @@ export default function BalancersPage() {
   };
 
   const startCreate = () => {
-    setEditing(null); setForm(emptyForm()); setPreview(null); setError(''); setOpen(true);
+    setEditing(null); setForm(emptyForm()); setPreview(null); setModalError(''); setOpen(true);
   };
 
   const startEdit = (row: BalancerRow) => {
@@ -154,7 +156,7 @@ export default function BalancersPage() {
       network: String(row.rule?.network || ''),
       members: row.members.map(memberToForm),
     });
-    setPreview(null); setError(''); setOpen(true);
+    setPreview(null); setModalError(''); setOpen(true);
   };
 
   const applyRecipe = (recipe: any) => {
@@ -188,7 +190,7 @@ export default function BalancersPage() {
         enabled: m.enabled !== false,
       })),
     });
-    setPreview(null); setError(''); setOpen(true);
+    setPreview(null); setModalError(''); setOpen(true);
   };
 
   const buildPayload = () => ({
@@ -225,23 +227,25 @@ export default function BalancersPage() {
     })),
   });
 
-  const save = async () => {
-    setBusy(true); setError('');
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true); setModalError(''); setNotice('');
     try {
       const payload = buildPayload();
       if (editing) await api.patch(`/api/balancers/${editing}`, payload);
       else await api.post('/api/balancers', payload);
       setOpen(false);
+      setNotice(t.saved);
       await load();
-    } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+    } catch (e: any) { setModalError(e.message); } finally { setBusy(false); }
   };
 
   const showPreview = async () => {
-    if (!editing) { setError(t.save); return; }
-    setBusy(true); setError('');
+    if (!editing) return;
+    setBusy(true); setModalError('');
     try {
       setPreview(await api.post(`/api/balancers/${editing}/preview`, {}));
-    } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+    } catch (e: any) { setModalError(e.message); } finally { setBusy(false); }
   };
 
   const toggle = async (row: BalancerRow) => {
@@ -290,7 +294,8 @@ export default function BalancersPage() {
         }
       />
 
-      {error && <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger"><Icon name="alert" size={15} />{error}</div>}
+      {error && <Alert className="mb-4">{error}</Alert>}
+      {notice && <Alert tone="success" className="mb-4">{notice}</Alert>}
 
       {loading ? (
         <Card className="py-16 text-center text-xs text-muted">{t.loading}</Card>
@@ -301,9 +306,9 @@ export default function BalancersPage() {
           {rows.map((row) => (
             <Card key={row.id} className="node-card p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-8 w-8 place-items-center rounded-lg border border-brand/30 bg-brand/10 text-brand"><Icon name="zap" size={20} /></div>
-                  <div>
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-brand/30 bg-brand/10 text-brand"><Icon name="zap" size={16} /></div>
+                  <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold text-fg">{row.name}</p>
                       <Badge tone="brand">{row.strategy}</Badge>
@@ -313,7 +318,7 @@ export default function BalancersPage() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1">
-                  <IconButton icon="power" label={t.enabled} onClick={() => toggle(row)} />
+                  <IconButton icon="power" label={row.enabled ? t.disable : t.enable} onClick={() => toggle(row)} />
                   <IconButton icon="edit" label={t.edit} onClick={() => startEdit(row)} />
                   <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => remove(row)} />
                 </div>
@@ -342,10 +347,11 @@ export default function BalancersPage() {
           <>
             <Button onClick={() => setOpen(false)}>{t.cancel}</Button>
             {editing && <Button icon="code" onClick={showPreview} loading={busy}>{t.balancerPreview}</Button>}
-            <Button variant="primary" icon="check" onClick={save} loading={busy}>{t.save}</Button>
+            <Button variant="primary" icon="check" form="balancer-form" loading={busy}>{t.save}</Button>
           </>
         }
       >
+        <Alert className="mb-4">{modalError}</Alert>
         {recipes.length > 0 && (
           <div className="mb-4 rounded-lg border border-line bg-surface-2/40 p-3">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">{lang === 'ru' ? 'Готовые рецепты' : 'Ready recipes'}</p>
@@ -360,9 +366,9 @@ export default function BalancersPage() {
             </div>
           </div>
         )}
-        <div className="space-y-5">
+        <form id="balancer-form" onSubmit={save} className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t.name} hint={hint('Имя балансировщика, видно в конфиге Xray','Balancer name shown in the Xray config')}><input className="field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+            <Field label={t.name} hint={hint('Имя балансировщика, видно в конфиге Xray','Balancer name shown in the Xray config')}><input className="field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></Field>
             <Field label={t.balancerFallback} hint={hint('Куда направить трафик, если все участники недоступны','Where to send traffic when no member is healthy')}>
               <select className="field" value={form.fallbackTag} onChange={(e) => setForm({ ...form, fallbackTag: e.target.value })}>
                 <option value="direct">direct</option><option value="blocked">blocked</option>
@@ -374,7 +380,7 @@ export default function BalancersPage() {
             <span className="text-[11px] font-medium text-subtle">{t.balancerStrategy}</span>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {STRATEGIES.map((strategy) => (
-                <button key={strategy} type="button" onClick={() => setForm({ ...form, strategy })}
+                <button key={strategy} type="button" aria-pressed={form.strategy === strategy} onClick={() => setForm({ ...form, strategy })}
                   className={`rounded-lg border px-3 py-2 text-left transition ${form.strategy === strategy ? 'border-brand/50 bg-brand/10' : 'border-line bg-surface-2 hover:border-brand/30'}`}>
                   <span className="block text-xs font-semibold text-fg">{strategy}</span>
                   <span className="mt-0.5 block text-[10px] text-muted">{strategyHint(strategy)}</span>
@@ -426,23 +432,23 @@ export default function BalancersPage() {
                     </div>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-3">
-                    <Field label={t.protocol}>
+                    <Field label={t.protocol} hint={hint('Протокол исходящего подключения участника','Outbound protocol of the member')}>
                       <select className="field" value={member.protocol} onChange={(e) => updateMember(index, { protocol: e.target.value })}>
                         {PROTECTED_PROTOCOLS.map((protocol) => <option key={protocol}>{protocol}</option>)}
                       </select>
                     </Field>
-                    <Field label={t.balancerAddress}><input className="field" value={member.address} onChange={(e) => updateMember(index, { address: e.target.value })} /></Field>
-                    <Field label={t.balancerPort}><input className="field" type="number" value={member.port} onChange={(e) => updateMember(index, { port: e.target.value })} /></Field>
-                    <Field label={t.balancerUuid}><input className="field" value={member.uuid} onChange={(e) => updateMember(index, { uuid: e.target.value })} /></Field>
-                    <Field label={t.balancerPassword}><input className="field" type="password" value={member.password} onChange={(e) => updateMember(index, { password: e.target.value })} /></Field>
-                    <Field label={t.balancerMethod}><input className="field" value={member.method} onChange={(e) => updateMember(index, { method: e.target.value })} /></Field>
-                    <Field label={t.balancerSecurity}>
+                    <Field label={t.balancerAddress} hint={hint('Домен или IP сервера участника','Member server domain or IP')}><input className="field" value={member.address} onChange={(e) => updateMember(index, { address: e.target.value })} /></Field>
+                    <Field label={t.balancerPort} hint={hint('Порт сервера участника, 1–65535','Member server port, 1–65535')}><input className="field" type="number" min={1} max={65535} value={member.port} onChange={(e) => updateMember(index, { port: e.target.value })} /></Field>
+                    <Field label={t.balancerUuid} hint={hint('UUID клиента для VLESS/VMess','Client UUID for VLESS/VMess')}><input className="field" value={member.uuid} onChange={(e) => updateMember(index, { uuid: e.target.value })} /></Field>
+                    <Field label={t.balancerPassword} hint={hint('Пароль для Trojan/Shadowsocks','Password for Trojan/Shadowsocks')}><input className="field" type="password" value={member.password} onChange={(e) => updateMember(index, { password: e.target.value })} /></Field>
+                    <Field label={t.balancerMethod} hint={hint('Шифр Shadowsocks, например aes-256-gcm','Shadowsocks cipher, e.g. aes-256-gcm')}><input className="field" value={member.method} onChange={(e) => updateMember(index, { method: e.target.value })} /></Field>
+                    <Field label={t.balancerSecurity} hint={hint('Шифрование транспорта: none, tls или reality','Transport security: none, tls or reality')}>
                       <select className="field" value={member.security} onChange={(e) => updateMember(index, { security: e.target.value })}>
                         <option value="none">none</option><option value="tls">tls</option><option value="reality">reality</option>
                       </select>
                     </Field>
-                    <Field label={t.balancerTransport}><input className="field" value={member.transport} onChange={(e) => updateMember(index, { transport: e.target.value })} /></Field>
-                    <Field label={t.balancerSni}><input className="field" value={member.sni} onChange={(e) => updateMember(index, { sni: e.target.value })} /></Field>
+                    <Field label={t.balancerTransport} hint={hint('Транспорт: tcp, ws, grpc и т.д.','Transport: tcp, ws, grpc, etc.')}><input className="field" value={member.transport} onChange={(e) => updateMember(index, { transport: e.target.value })} /></Field>
+                    <Field label={t.balancerSni} hint={hint('Имя сервера для TLS/REALITY','Server name for TLS/REALITY')}><input className="field" value={member.sni} onChange={(e) => updateMember(index, { sni: e.target.value })} /></Field>
                   </div>
                 </div>
               ))}
@@ -450,7 +456,7 @@ export default function BalancersPage() {
           </div>
 
           {preview && <CodeBlock>{String(JSON.stringify(preview, null, 2))}</CodeBlock>}
-        </div>
+        </form>
       </Modal>
     </>
   );

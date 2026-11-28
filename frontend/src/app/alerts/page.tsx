@@ -230,7 +230,7 @@ export default function AlertsPage() {
       {tab === 'history' && (
         <>
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+        <div role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
         </div>
       )}
@@ -282,7 +282,7 @@ export default function AlertsPage() {
       {tab === 'settings' && (
         <div className="space-y-4">
           {notice && <div className="rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
-          {error && <div className="mb-2 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger"><Icon name="alert" size={15} /> {error}</div>}
+          {error && <div role="alert" className="mb-2 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger"><Icon name="alert" size={15} /> {error}</div>}
 
           <Card>
             <SectionTitle title={t.notificationChannels} subtitle={t.leaveEmptyToKeep} />
@@ -307,7 +307,7 @@ export default function AlertsPage() {
                   {field.hint && <p className="break-all text-[10px] leading-relaxed text-subtle">
                     {field.hint.split(' · ').map((part) => {
                       const [label, url] = part.split(': ');
-                      return url?.startsWith('http') ? <a key={url} href={url} target="_blank" rel="noreferrer" className="mr-2 text-brand underline">{label || url}</a> : <span key={part}>{part}</span>;
+                      return url?.startsWith('http') ? <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="mr-2 text-brand underline">{label || url}</a> : <span key={part}>{part}</span>;
                     })}
                   </p>}
                 </div>

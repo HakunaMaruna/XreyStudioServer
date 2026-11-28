@@ -396,6 +396,17 @@ export class ChainsService {
   async bind(id: string, dto: BindChainDto, user: AuthUser) {
     await this.findOwned(id, user);
     if (!dto.userId && !dto.squadId) throw new BadRequestException('userId or squadId is required');
+    if (user.role !== Role.ADMIN) {
+      const organizationId = user.organizationId || null;
+      if (dto.userId && !(await this.prisma.user.findFirst({ where: { id: dto.userId, organizationId }, select: { id: true } }))) {
+        throw new ForbiddenException('User belongs to another organization');
+      }
+      if (dto.squadId && !(await this.prisma.squad.findFirst({
+        where: { id: dto.squadId, OR: [{ organizationId }, { organizationId: null }] }, select: { id: true },
+      }))) {
+        throw new ForbiddenException('Squad belongs to another organization');
+      }
+    }
     const binding = await this.prisma.chainBinding.upsert({
       where: {
         id: (await this.prisma.chainBinding.findFirst({
@@ -422,7 +433,8 @@ export class ChainsService {
     const scope = actor.role === Role.ADMIN ? {} : { chain: { organizationId: actor.organizationId || null } };
     const rows = await this.prisma.chainBinding.findMany({ where: { userId, ...scope } });
     const chainIds = Array.from(new Set(rows.map((row) => row.chainId)));
-    await this.prisma.chainBinding.deleteMany({ where: { userId } });
+    // Удаляем только привязки к цепочкам своей организации.
+    await this.prisma.chainBinding.deleteMany({ where: { id: { in: rows.map((row) => row.id) } } });
     for (const chainId of chainIds) await this.syncClients(chainId);
     return { success: true, chains: chainIds.length };
   }

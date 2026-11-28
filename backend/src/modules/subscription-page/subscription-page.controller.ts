@@ -19,6 +19,7 @@ export class SubscriptionPageController {
   settings() { return this.service.getSettings(); }
 
   @Patch('settings')
+  @Roles(Role.ADMIN)
   updateSettings(@Body() body: UpdatePageSettingsDto) { return this.service.updateSettings(body as any); }
 
   @Get('apps')

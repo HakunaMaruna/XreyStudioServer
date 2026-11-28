@@ -158,7 +158,7 @@ export default function WizardPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title={t.wizard} subtitle={t.wizardSubtitle} icon="plus" eyebrow="AUTOMATION"
+      <PageHeader title={t.wizard} subtitle={t.wizardSubtitle} icon="plus" eyebrow={t.automation}
         actions={<HelpButton title={t.help}><p>{lang === 'ru' ? 'Мастер запрашивает домен у CONTROL, устанавливает агента по SSH и создаёт первое VLESS TLS подключение. Пароль и ключ шифруются; пустые поля в редактировании означают «оставить как было».' : 'The wizard asks CONTROL for a domain, installs the agent over SSH and creates the first VLESS TLS inbound. Passwords and keys are encrypted; empty fields in editing mean “keep current”.'}</p></HelpButton>} />
 
       <div className="flex flex-wrap gap-2">
@@ -358,7 +358,7 @@ export default function WizardPage() {
             style={{ width: `${install?.progress || 0}%` }} />
         </div>
         <p className="mt-4 text-[11px] font-medium text-subtle">{t.wizardInstallTerminal}</p>
-        <div className="mono mt-2 max-h-72 space-y-1 overflow-auto rounded-lg border border-line bg-[#07090f] p-3 text-[11px] leading-relaxed">
+        <div className="mono mt-2 max-h-72 space-y-1 overflow-auto rounded-lg border border-line bg-app/70 p-3 text-[11px] leading-relaxed">
           {(install?.logs || []).map((entry: any) => (
             <div key={entry.id} className={entry.level === 'error' ? 'text-danger'
               : entry.level === 'warn' ? 'text-warning'

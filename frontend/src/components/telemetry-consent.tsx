@@ -93,7 +93,7 @@ export default function TelemetryConsent() {
         </label>
         {!status?.configured && <p className="text-xs text-warning">{t.telemetryNoConfig}</p>}
         {!licenseAccepted && <p className="text-xs text-subtle">{t.licenseAcceptRequired}</p>}
-        {error && <p className="text-xs text-danger">{error}</p>}
+        {error && <p role="alert" className="text-xs text-danger">{error}</p>}
       </div>
     </Modal>
   );

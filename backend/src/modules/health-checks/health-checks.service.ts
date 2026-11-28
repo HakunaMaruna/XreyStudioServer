@@ -169,18 +169,25 @@ export class HealthChecksService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  list(query: { nodeId?: string; limit?: string }) {
+  // Оператор видит только проверки узлов своей организации.
+  private tenantWhere(actor?: { role: string; organizationId?: string | null }) {
+    if (!actor || actor.role === 'ADMIN') return {};
+    return { node: { organizationId: actor.organizationId || '__none__' } };
+  }
+
+  list(query: { nodeId?: string; limit?: string }, actor?: { role: string; organizationId?: string | null }) {
     const limit = Math.min(1000, Math.max(1, Number(query.limit) || 200));
     return this.prisma.healthCheck.findMany({
-      where: query.nodeId ? { nodeId: query.nodeId } : {},
+      where: { ...(query.nodeId ? { nodeId: query.nodeId } : {}), ...this.tenantWhere(actor) },
       include: { node: { select: { id: true, name: true } } },
       orderBy: { checkedAt: 'desc' },
       take: limit,
     });
   }
 
-  latest() {
+  latest(actor?: { role: string; organizationId?: string | null }) {
     return this.prisma.healthCheck.findMany({
+      where: this.tenantWhere(actor),
       orderBy: { checkedAt: 'desc' },
       take: 500,
     });

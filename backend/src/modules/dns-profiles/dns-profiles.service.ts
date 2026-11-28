@@ -36,7 +36,7 @@ export class DnsProfilesService {
   private assertOrganization(dto: { organizationId?: string | null }, actor: AuthUser) {
     if (actor.role === Role.ADMIN) return;
     if (!actor.organizationId) throw new ForbiddenException('Organization is required to manage DNS profiles');
-    if (dto.organizationId && dto.organizationId !== actor.organizationId) {
+    if (dto.organizationId !== undefined && dto.organizationId !== actor.organizationId) {
       throw new ForbiddenException('Cannot assign a DNS profile to another organization');
     }
   }

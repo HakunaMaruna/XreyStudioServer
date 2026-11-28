@@ -6,7 +6,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import { Icon } from '../../components/icons';
 import {
-  Badge, Button, Card, Field, HelpButton, IconButton, Modal, PageHeader, Toggle,
+  Alert, Badge, Button, Card, Field, HelpButton, IconButton, Modal, PageHeader, Toggle,
 } from '../../components/ui';
 
 type Recipe = { id: string; title: string; description: string; hosts: Record<string, unknown>; servers: unknown[]; options: Record<string, unknown> };
@@ -36,6 +36,8 @@ export default function DnsProfilesPage() {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [modalError, setModalError] = useState('');
+  const [modalNotice, setModalNotice] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -65,10 +67,10 @@ export default function DnsProfilesPage() {
       serversText: JSON.stringify(recipe.servers, null, 2),
       optionsText: JSON.stringify(recipe.options, null, 2),
     });
-    setError(''); setNotice('');
+    setModalError(''); setModalNotice('');
   };
 
-  const startCreate = () => { setEditing(null); setForm(emptyForm()); setError(''); setNotice(''); setOpen(true); };
+  const startCreate = () => { setEditing(null); setForm(emptyForm()); setModalError(''); setModalNotice(''); setOpen(true); };
   const startEdit = (row: Profile) => {
     setEditing(row.id);
     setForm({
@@ -78,7 +80,7 @@ export default function DnsProfilesPage() {
       serversText: JSON.stringify(row.servers, null, 2),
       optionsText: JSON.stringify(row.options || {}, null, 2),
     });
-    setError(''); setNotice(''); setOpen(true);
+    setModalError(''); setModalNotice(''); setOpen(true);
   };
 
   const parseForm = () => {
@@ -92,25 +94,27 @@ export default function DnsProfilesPage() {
   };
 
   const validate = async () => {
-    setError(''); setNotice('');
+    setModalError(''); setModalNotice('');
     try {
       const payload = parseForm();
       const result = await api.post<{ valid: boolean; errors?: string[] }>('/api/dns-profiles/validate', { payload });
-      if (result.valid) setNotice(t.dnsProfileValid);
-      else setError(result.errors?.join('; ') || t.dnsProfileInvalid);
-    } catch (e: any) { setError(e.message || t.invalidJson); }
+      if (result.valid) setModalNotice(t.dnsProfileValid);
+      else setModalError(result.errors?.join('; ') || t.dnsProfileInvalid);
+    } catch (e: any) { setModalError(e.message || t.invalidJson); }
   };
 
-  const save = async () => {
-    setBusy(true); setError('');
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true); setModalError(''); setModalNotice(''); setNotice('');
     try {
       const payload = { ...parseForm(), name: form.name, description: form.description || undefined,
         enabled: form.enabled, priority: Number(form.priority) || 0, recipe: form.recipe || undefined };
       if (editing) await api.patch(`/api/dns-profiles/${editing}`, payload);
       else await api.post('/api/dns-profiles', payload);
       setOpen(false);
+      setNotice(t.saved);
       await load();
-    } catch (e: any) { setError(e.message || t.invalidJson); } finally { setBusy(false); }
+    } catch (e: any) { setModalError(e.message || t.invalidJson); } finally { setBusy(false); }
   };
 
   const toggle = async (row: Profile) => {
@@ -142,8 +146,8 @@ export default function DnsProfilesPage() {
         }
       />
 
-      {error && <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger"><Icon name="alert" size={15} />{error}</div>}
-      {notice && <div className="mb-4 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
+      {error && <Alert className="mb-4">{error}</Alert>}
+      {notice && <Alert tone="success" className="mb-4">{notice}</Alert>}
 
       {loading ? (
         <Card className="py-16 text-center text-xs text-muted">{t.loading}</Card>
@@ -154,9 +158,9 @@ export default function DnsProfilesPage() {
           {rows.map((row) => (
             <Card key={row.id} className="node-card p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-8 w-8 place-items-center rounded-lg border border-brand/30 bg-brand/10 text-brand"><Icon name="globe" size={20} /></div>
-                  <div>
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-brand/30 bg-brand/10 text-brand"><Icon name="globe" size={16} /></div>
+                  <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold text-fg">{row.name}</p>
                       <Badge tone={row.enabled ? 'success' : 'neutral'} dot>{row.enabled ? t.enabled : t.disabled}</Badge>
@@ -166,7 +170,7 @@ export default function DnsProfilesPage() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1">
-                  <IconButton icon="power" label={t.enabled} onClick={() => toggle(row)} />
+                  <IconButton icon="power" label={row.enabled ? t.disable : t.enable} onClick={() => toggle(row)} />
                   <IconButton icon="edit" label={t.edit} onClick={() => startEdit(row)} />
                   <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => remove(row)} />
                 </div>
@@ -192,11 +196,13 @@ export default function DnsProfilesPage() {
           <>
             <Button onClick={() => setOpen(false)}>{t.cancel}</Button>
             <Button icon="shield" onClick={validate}>{t.routingValidate}</Button>
-            <Button variant="primary" icon="check" onClick={save} loading={busy}>{t.save}</Button>
+            <Button variant="primary" icon="check" form="dns-profile-form" loading={busy}>{t.save}</Button>
           </>
         }
       >
-        <div className="space-y-4">
+        <form id="dns-profile-form" onSubmit={save} className="space-y-4">
+          <Alert>{modalError}</Alert>
+          <Alert tone="success">{modalNotice}</Alert>
           <Field label={t.routingRecipe}>
             <select className="field" value={form.recipe} onChange={(e) => chooseRecipe(e.target.value)}>
               <option value="">—</option>
@@ -204,9 +210,9 @@ export default function DnsProfilesPage() {
             </select>
           </Field>
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label={t.name}><input className="field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+            <Field label={t.name}><input className="field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></Field>
             <Field label={t.dnsProfilePriority}><input className="field" type="number" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} /></Field>
-            <Field label={t.enabled}><Toggle checked={form.enabled} onChange={(value) => setForm({ ...form, enabled: value })} /></Field>
+            <Field label={t.enabled}><Toggle checked={form.enabled} onChange={(value) => setForm({ ...form, enabled: value })} ariaLabel={t.enabled} /></Field>
           </div>
           <Field label={t.comment}><input className="field" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
           <div className="grid gap-4 lg:grid-cols-3">
@@ -220,7 +226,7 @@ export default function DnsProfilesPage() {
               <textarea className="field mono min-h-40 text-[11px]" value={form.optionsText} onChange={(e) => setForm({ ...form, optionsText: e.target.value })} />
             </Field>
           </div>
-        </div>
+        </form>
       </Modal>
     </>
   );

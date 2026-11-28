@@ -28,7 +28,7 @@ export class BalancersService {
   private assertOrganization(dto: { organizationId?: string | null }, actor: AuthUser) {
     if (actor.role === Role.ADMIN) return;
     if (!actor.organizationId) throw new ForbiddenException('Organization is required to manage balancers');
-    if (dto.organizationId && dto.organizationId !== actor.organizationId) {
+    if (dto.organizationId !== undefined && dto.organizationId !== actor.organizationId) {
       throw new ForbiddenException('Cannot assign a balancer to another organization');
     }
   }

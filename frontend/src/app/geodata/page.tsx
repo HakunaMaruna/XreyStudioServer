@@ -7,7 +7,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
-import { Badge, Button, Card, Field, IconButton, Modal, PageHeader, StatCard, Toggle, cn } from '../../components/ui';
+import { Alert, Badge, Button, Card, Field, IconButton, Modal, PageHeader, StatCard, Toggle, cn } from '../../components/ui';
 
 type Category = {
   id: string;
@@ -27,6 +27,8 @@ export default function GeodataPage() {
   const [filter, setFilter] = useState<'all' | 'geosite' | 'geoip'>('all');
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
+  const [modalError, setModalError] = useState('');
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [busy, setBusy] = useState(false);
@@ -37,7 +39,8 @@ export default function GeodataPage() {
       const params = filter === 'all' ? '' : `?type=${filter}`;
       const data = await api.get(`/api/geodata${params}`);
       setRows(Array.isArray(data) ? data : data.data || []);
-    } catch (e: any) { setNotice(e.message); }
+      setError('');
+    } catch (e: any) { setError(e.message); }
     finally { setLoading(false); }
   }, [filter]);
 
@@ -50,7 +53,7 @@ export default function GeodataPage() {
     try {
       await navigator.clipboard.writeText(`"${type}:${code}"`);
       setNotice(`"${type}:${code}"`);
-    } catch { setNotice('Clipboard unavailable'); }
+    } catch { setError(t.clipboardUnavailable); }
   };
 
   const resync = async () => {
@@ -59,19 +62,21 @@ export default function GeodataPage() {
       const result = await api.post('/api/geodata/seed');
       setNotice(`${t.resync}: +${result.added}`);
       await load();
-    } catch (e: any) { setNotice(e.message); }
+    } catch (e: any) { setError(e.message); }
     finally { setBusy(false); }
   };
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
+    setModalError('');
     try {
       await api.post('/api/geodata', form);
       setOpen(false);
       setForm(emptyForm);
+      setNotice(t.saved);
       await load();
-    } catch (e: any) { setNotice(e.message); }
+    } catch (e: any) { setModalError(e.message); }
     finally { setBusy(false); }
   };
 
@@ -79,13 +84,13 @@ export default function GeodataPage() {
     try {
       await api.patch(`/api/geodata/${row.id}`, { enabled: !row.enabled });
       await load();
-    } catch (e: any) { setNotice(e.message); }
+    } catch (e: any) { setError(e.message); }
   };
 
   const remove = async (row: Category) => {
     if (!confirm(t.confirmDelete)) return;
     try { await api.delete(`/api/geodata/${row.id}`); await load(); }
-    catch (e: any) { setNotice(e.message); }
+    catch (e: any) { setError(e.message); }
   };
 
   const columns = useMemo<ColumnDef<Category>[]>(
@@ -113,7 +118,7 @@ export default function GeodataPage() {
         accessorKey: 'source', header: t.source, size: 110,
         cell: ({ row }) => <span className="text-xs text-subtle">{row.original.source}</span>,
       },
-      { accessorKey: 'enabled', header: t.enabled, size: 90, meta: { noTruncate: true, align: 'center' }, cell: ({ row }) => <Toggle checked={row.original.enabled} onChange={() => toggle(row.original)} label="" /> },
+      { accessorKey: 'enabled', header: t.enabled, size: 90, meta: { noTruncate: true, align: 'center' }, cell: ({ row }) => <Toggle checked={row.original.enabled} onChange={() => toggle(row.original)} ariaLabel={`${t.enabled}: ${row.original.type}:${row.original.code}`} /> },
       {
         id: 'actions', header: t.actions, enableSorting: false, size: 96, meta: { noTruncate: true, align: 'right' },
         cell: ({ row }) => (
@@ -137,9 +142,10 @@ export default function GeodataPage() {
         actions={
           <div className="flex gap-2">
             <Button icon="refresh" onClick={resync} loading={busy}>{t.resync}</Button>
-            <Button icon="plus" variant="primary" onClick={() => { setForm(emptyForm); setOpen(true); }}>{t.create}</Button>
+            <Button icon="plus" variant="primary" onClick={() => { setForm(emptyForm); setModalError(''); setOpen(true); }}>{t.create}</Button>
           </div>
         } />
+      {error && <Alert className="mb-4">{error}</Alert>}
       {notice && (
         <div role="status" aria-live="polite" className="mb-4 rounded-lg border border-brand/25 bg-brand-soft px-3 py-2 text-xs text-brand">
           {notice}
@@ -154,7 +160,7 @@ export default function GeodataPage() {
 
       <Card className="mt-3 mb-4 flex flex-wrap gap-2 p-2.5">
         {(['all', 'geosite', 'geoip'] as const).map((item) => (
-          <button key={item} onClick={() => setFilter(item)}
+          <button key={item} type="button" aria-pressed={filter === item} onClick={() => setFilter(item)}
             className={cn('h-7 rounded-lg border px-2.5 text-xs font-medium transition-colors',
               filter === item ? 'border-brand/40 bg-brand-soft text-brand' : 'border-line bg-surface-2 text-muted hover:text-fg')}>
             {item === 'all' ? t.all : item.toUpperCase()}
@@ -165,8 +171,9 @@ export default function GeodataPage() {
       <DataTable data={rows} columns={columns} loading={loading} getRowId={(row) => row.id} />
 
       <Modal open={open} onClose={() => setOpen(false)} title={t.custom} subtitle={t.geodataSubtitle} icon={<Icon name="globe" size={16} />}
-        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="check" onClick={create} loading={busy}>{t.save}</Button></>}>
-        <form onSubmit={create} className="space-y-4">
+        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="check" form="geodata-form" loading={busy}>{t.save}</Button></>}>
+        <form id="geodata-form" onSubmit={create} className="space-y-4">
+          <Alert>{modalError}</Alert>
           <Field label={t.type}>
             <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="field">
               <option value="geosite">geosite</option>

@@ -88,7 +88,7 @@ export default function TrafficPage() {
       />
 
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+        <div role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
         </div>
       )}

@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import { Icon } from '../../components/icons';
-import { Badge, Button, Card, Field, IconButton, Modal, PageHeader } from '../../components/ui';
+import { Alert, Badge, Button, Card, Field, IconButton, Modal, PageHeader } from '../../components/ui';
 
 type Organization = {
   id: string;
@@ -28,6 +28,8 @@ export default function OrganizationsPage() {
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<Form>(emptyForm);
   const [error, setError] = useState('');
+  const [modalError, setModalError] = useState('');
+  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
@@ -52,13 +54,13 @@ export default function OrganizationsPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setModalError('');
     let branding: Record<string, unknown>;
     try {
       branding = JSON.parse(form.brandingText || '{}');
       if (!branding || typeof branding !== 'object' || Array.isArray(branding)) throw new Error(t.invalidJson);
     } catch {
-      setError(t.invalidJson);
+      setModalError(t.invalidJson);
       return;
     }
     setBusy(true);
@@ -69,9 +71,11 @@ export default function OrganizationsPage() {
       setForm(emptyForm);
       setEditing(null);
       setOpen(false);
+      setNotice(t.saved);
+      setTimeout(() => setNotice(''), 3000);
       await load();
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
     } finally {
       setBusy(false);
     }
@@ -80,6 +84,7 @@ export default function OrganizationsPage() {
   const startEdit = (item: Organization) => {
     setEditing(item.id);
     setForm({ name: item.name, slug: item.slug, brandingText: JSON.stringify(item.branding || {}, null, 2) });
+    setModalError('');
     setOpen(true);
   };
 
@@ -101,14 +106,15 @@ export default function OrganizationsPage() {
         subtitle={t.organizationsSubtitle}
         icon="shield"
         actions={
-          <Button icon="plus" variant="primary" onClick={() => { setEditing(null); setForm(emptyForm); setOpen(true); }}>
+          <Button icon="plus" variant="primary" onClick={() => { setEditing(null); setForm(emptyForm); setModalError(''); setOpen(true); }}>
             {t.createOrganization}
           </Button>
         }
       />
 
+      {notice && <Alert tone="success" className="mb-4">{notice}</Alert>}
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+        <div role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
         </div>
       )}
@@ -171,12 +177,13 @@ export default function OrganizationsPage() {
         icon={<Icon name="shield" size={16} />}
         footer={
           <>
-            <Button onClick={() => setOpen(false)}>{t.cancel}</Button>
-            <Button variant="primary" icon="check" onClick={submit} loading={busy}>{editing ? t.save : t.create}</Button>
+            <Button onClick={() => { setOpen(false); setEditing(null); setForm(emptyForm); }}>{t.cancel}</Button>
+            <Button variant="primary" icon="check" form="organization-form" loading={busy}>{editing ? t.save : t.create}</Button>
           </>
         }
       >
-        <form onSubmit={submit} className="space-y-4">
+        <form id="organization-form" onSubmit={submit} className="space-y-4">
+          <Alert>{modalError}</Alert>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t.name}><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="field" required /></Field>
             <Field label={t.slug}><input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} className="field" required /></Field>

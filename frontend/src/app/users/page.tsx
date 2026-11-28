@@ -51,9 +51,9 @@ export default function UsersPage() {
   const [pageNotice, setPageNotice] = useState('');
   const [modalError, setModalError] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState({ email: '', password: '', trafficLimit: 100, telegramId: '' });
+  const [form, setForm] = useState<{ email: string; password: string; trafficLimit: number | ''; telegramId: string }>({ email: '', password: '', trafficLimit: 100, telegramId: '' });
   const [editing, setEditing] = useState<UserRow | null>(null);
-  const [editForm, setEditForm] = useState({ role: 'USER', status: 'ACTIVE', trafficLimit: 100, telegramId: '' });
+  const [editForm, setEditForm] = useState<{ role: string; status: string; trafficLimit: number | ''; telegramId: string }>({ role: 'USER', status: 'ACTIVE', trafficLimit: 100, telegramId: '' });
   const [saving, setSaving] = useState(false);
   const [connection, setConnection] = useState<any | null>(null);
   const [inbounds, setInbounds] = useState<{ id: string; tag: string }[]>([]);
@@ -185,7 +185,7 @@ export default function UsersPage() {
       await api.post('/api/users', {
         email: form.email,
         password: form.password || undefined,
-        trafficLimit: form.trafficLimit * 1024 ** 3,
+        trafficLimit: Number(form.trafficLimit || 0) * 1024 ** 3,
         telegramId: form.telegramId || null,
       });
       const email = form.email;
@@ -225,7 +225,7 @@ export default function UsersPage() {
       await api.patch(`/api/users/${editing.id}`, {
         role: editForm.role,
         status: editForm.status,
-        trafficLimit: editForm.trafficLimit * 1024 ** 3,
+        trafficLimit: Number(editForm.trafficLimit || 0) * 1024 ** 3,
         telegramId: editForm.telegramId || null,
       });
       setPageNotice(`${t.userSaved}: ${editing.email}`);
@@ -408,7 +408,7 @@ export default function UsersPage() {
       await navigator.clipboard.writeText(value);
       setNotice(t.copy);
       setTimeout(() => setNotice(''), 1500);
-    } catch {}
+    } catch { setError(t.clipboardUnavailable); }
   };
 
   const handleSortingChange: OnChangeFn<SortingState> = (updater) => {
@@ -535,7 +535,7 @@ export default function UsersPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Access"
+        eyebrow={t.access}
         title={t.users}
         subtitle={t.usersSubtitle}
         icon="users"
@@ -543,7 +543,7 @@ export default function UsersPage() {
       />
 
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+        <div role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
         </div>
       )}
@@ -697,7 +697,7 @@ export default function UsersPage() {
           {modalError && <div role="alert" className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger"><Icon name="alert" size={15} /> {modalError}</div>}
           <Field label={t.email}><input type="email" placeholder="user@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="field" required /></Field>
           <Field label={t.passwordOptional} hint={t.passwordOptionalHint}><input type="password" minLength={6} autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="field" /></Field>
-          <Field label={t.trafficLimit} hint={t.valueInGB}><input type="number" min={1} value={form.trafficLimit} onChange={(e) => setForm({ ...form, trafficLimit: Number(e.target.value) })} className="field" /></Field>
+          <Field label={t.trafficLimit} hint={t.valueInGB}><input type="number" min={1} value={form.trafficLimit} onChange={(e) => setForm({ ...form, trafficLimit: e.target.value === '' ? '' : Number(e.target.value) })} className="field" /></Field>
           <Field label={t.telegramId} hint={t.telegramIdHint}><input inputMode="numeric" pattern="[0-9]{5,12}" value={form.telegramId} onChange={(e) => setForm({ ...form, telegramId: e.target.value })} className="field" /></Field>
         </form>
       </Modal>
@@ -717,7 +717,7 @@ export default function UsersPage() {
             </select>
           </Field>
           <Field label={t.trafficLimit} hint={t.valueInGB}>
-            <input type="number" min={0} value={editForm.trafficLimit} onChange={(e) => setEditForm({ ...editForm, trafficLimit: Number(e.target.value) })} className="field" />
+            <input type="number" min={0} value={editForm.trafficLimit} onChange={(e) => setEditForm({ ...editForm, trafficLimit: e.target.value === '' ? '' : Number(e.target.value) })} className="field" />
           </Field>
           <Field label={t.telegramId} hint={t.telegramIdHint}>
             <input
@@ -761,7 +761,7 @@ export default function UsersPage() {
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
               {Object.entries(connection.links || {}).map(([name, url]) => (
-                <button key={name} onClick={() => copyText(String(url))} className="flex items-center justify-between rounded-lg border border-line bg-surface-2/50 px-3 py-2 text-xs text-muted transition-colors hover:border-brand/30 hover:text-fg">
+                <button key={name} type="button" onClick={() => copyText(String(url))} className="flex items-center justify-between rounded-lg border border-line bg-surface-2/50 px-3 py-2 text-xs text-muted transition-colors hover:border-brand/30 hover:text-fg">
                   <span className="font-medium uppercase">{name}</span><Icon name="copy" size={13} />
                 </button>
               ))}
@@ -939,7 +939,7 @@ export default function UsersPage() {
               <p className="text-xs font-semibold text-subtle">{t.externalLinks}</p>
               <p className="mb-2 text-[10px] text-muted">{t.externalLinksSubtitle}</p>
               {externalLinkError && (
-                <div className="mb-2 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+                <div role="alert" className="mb-2 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
                   <Icon name="alert" size={14} /> {externalLinkError}
                 </div>
               )}

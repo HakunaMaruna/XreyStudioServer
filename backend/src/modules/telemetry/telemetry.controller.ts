@@ -33,7 +33,7 @@ export class TelemetryController {
   @Post('consent')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(Role.ADMIN, Role.OPERATOR)
+  @Roles(Role.ADMIN)
   consent(@Body() body: { accepted: boolean; enabled: boolean }) {
     return this.service.consent(body);
   }
@@ -41,7 +41,7 @@ export class TelemetryController {
   @Post('send')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(Role.ADMIN, Role.OPERATOR)
+  @Roles(Role.ADMIN)
   send() {
     return this.service.send();
   }
@@ -58,14 +58,14 @@ export class TelemetryController {
   /** MAIN SERVER: overview of all installations and received logs. */
   @Get('installations')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(Role.ADMIN, Role.OPERATOR)
+  @Roles(Role.ADMIN)
   installations() {
     return this.service.installations();
   }
 
   @Get('logs')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(Role.ADMIN, Role.OPERATOR)
+  @Roles(Role.ADMIN)
   logs(@Query('limit') limit?: string) {
     return this.service.logs(Number(limit) || 100);
   }

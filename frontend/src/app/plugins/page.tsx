@@ -6,7 +6,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import { Icon } from '../../components/icons';
 import {
-  Badge, Button, Card, Field, HelpButton, IconButton, Modal, PageHeader, SectionTitle, Segmented, Toggle, cn,
+  Alert, Badge, Button, Card, Field, HelpButton, Modal, PageHeader, SectionTitle, Segmented, Toggle, cn,
 } from '../../components/ui';
 
 type Installed = {
@@ -40,6 +40,7 @@ export default function PluginsPage() {
   const [publishFindings, setPublishFindings] = useState<any[]>([]);
   const [reviewRows, setReviewRows] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
+  const [modalError, setModalError] = useState('');
 
   const load = useCallback(async () => {
     setError('');
@@ -62,7 +63,7 @@ export default function PluginsPage() {
 
   useEffect(() => {
     if (tab === 'reviews') {
-      api.get<any[]>('/api/plugins/reviews').then((rows) => setReviewRows(Array.isArray(rows) ? rows : (rows as any).data || [])).catch(() => setReviewRows([]));
+      api.get<any[]>('/api/plugins/reviews').then((rows) => setReviewRows(Array.isArray(rows) ? rows : (rows as any).data || [])).catch((e: any) => { setReviewRows([]); setError(e.message); });
     }
   }, [tab]);
 
@@ -88,24 +89,39 @@ export default function PluginsPage() {
 
   const openSettings = async (row: Installed) => {
     setSettingsFor(row);
+    setSettingsDraft({});
+    setModalError('');
     try { setSettingsDraft(await api.get(`/api/plugins/${encodeURIComponent(row.pluginId)}/settings`)); }
-    catch { setSettingsDraft({}); }
+    catch (e: any) { setModalError(e.message); }
   };
 
-  const saveSettings = async () => {
+  const saveSettings = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!settingsFor) return;
-    setBusy(true); setError('');
+    setBusy(true); setModalError(''); setNotice('');
     try {
       await api.patch(`/api/plugins/${encodeURIComponent(settingsFor.pluginId)}/settings`, settingsDraft);
       setSettingsFor(null);
+      setNotice(t.settingsSaved);
       await load();
-    } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+    } catch (e: any) { setModalError(e.message); } finally { setBusy(false); }
   };
 
   const openLogs = async (id: string) => {
     setLogsFor(id);
+    setLogs([]);
+    setModalError('');
     try { setLogs(await api.get(`/api/plugins/${encodeURIComponent(id)}/logs`)); }
-    catch (e: any) { setError(e.message); }
+    catch (e: any) { setModalError(e.message); }
+  };
+
+  const uninstall = async (row: Installed) => {
+    if (!confirm(`${t.pluginsUninstall}: ${row.manifest?.name || row.pluginId}?`)) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      await api.delete(`/api/plugins/${encodeURIComponent(row.pluginId)}`);
+      await load();
+    } catch (e: any) { setError(e.message); } finally { setBusy(false); }
   };
 
   const savePolicy = async () => {
@@ -157,8 +173,8 @@ export default function PluginsPage() {
         actions={<><HelpButton title={t.help}>
           <p>{lang === 'ru' ? 'Плагины исполняются в отдельном воркере с лимитами, без доступа к БД ядра и окружению. Все действия аудируются и предваряются снимком.' : 'Plugins run in a limited worker without core DB or env access. All actions are audited and preceded by a snapshot.'}</p>
         </HelpButton><Button icon="refresh" size="sm" onClick={load}>{t.refresh}</Button></>} />
-      {error && <div className="mb-4 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>}
-      {notice && <div className="mb-4 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
+      {error && <div role="alert" className="mb-4 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>}
+      {notice && <div role="status" className="mb-4 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
       <div className="mb-4"><Segmented value={tab} onChange={setTab} options={[
         { value: 'installed', label: t.pluginsInstalled, icon: 'box' },
         { value: 'catalog', label: t.pluginsCatalog, icon: 'globe' },
@@ -190,11 +206,7 @@ export default function PluginsPage() {
                   <Button size="sm" variant="subtle" icon="activity" onClick={() => action(row.pluginId, 'health')} loading={busy}>{t.pluginsHealth}</Button>
                   <Button size="sm" variant="subtle" icon="sliders" onClick={() => openSettings(row)}>{t.pluginsSettings}</Button>
                   <Button size="sm" variant="subtle" icon="file" onClick={() => openLogs(row.pluginId)}>{t.pluginsLogs}</Button>
-                  <Button size="sm" variant="danger" icon="trash" onClick={() => {
-                    setBusy(true); setError('');
-                    api.delete(`/api/plugins/${encodeURIComponent(row.pluginId)}`)
-                      .then(() => load()).catch((e: any) => setError(e.message)).finally(() => setBusy(false));
-                  }} loading={busy}>{t.pluginsUninstall}</Button>
+                  <Button size="sm" variant="danger" icon="trash" onClick={() => void uninstall(row)} loading={busy}>{t.pluginsUninstall}</Button>
                 </div>
               </Card>
             ))}
@@ -231,7 +243,7 @@ export default function PluginsPage() {
                         </div>
                         <div className="flex min-w-0 items-center gap-1.5 text-[10px]">
                           <span className={cn('truncate', ours ? 'font-semibold text-success' : 'text-subtle')}>{plugin.author}</span>
-                          {authorUrl && <a href={authorUrl} target="_blank" rel="noopener noreferrer" title={t.pluginAuthorTelegram} className="shrink-0 text-brand hover:underline"><Icon name="external" size={11} /></a>}
+                          {authorUrl && <a href={authorUrl} target="_blank" rel="noopener noreferrer" title={t.pluginAuthorTelegram} aria-label={t.pluginAuthorTelegram} className="shrink-0 text-brand hover:underline"><Icon name="external" size={11} /></a>}
                           <span className="shrink-0 text-subtle">· {plugin.latestVersion || '—'}</span>
                         </div>
                       </div>
@@ -272,7 +284,7 @@ export default function PluginsPage() {
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 text-xs text-muted hover:border-brand hover:text-brand">
                 <Icon name="upload" size={14} /> {lang === 'ru' ? 'Выбрать .plugin.json' : 'Choose .plugin.json'}
-                <input type="file" accept=".json,application/json" className="hidden" onChange={(e) => readPackage(e.target.files?.[0])} />
+                <input type="file" accept=".json,application/json" className="hidden" onChange={(e) => { void readPackage(e.target.files?.[0]); e.target.value = ''; }} />
               </label>
               {publishPkg && <Badge tone="brand">{publishPkg.manifest?.id} · v{publishPkg.manifest?.version}</Badge>}
             </div>
@@ -333,26 +345,32 @@ export default function PluginsPage() {
       )}
 
       <Modal open={Boolean(settingsFor)} onClose={() => setSettingsFor(null)} title={t.pluginsSettings} icon={<Icon name="sliders" size={16} />}
-        footer={<><Button onClick={() => setSettingsFor(null)}>{t.cancel}</Button><Button variant="primary" icon="check" loading={busy} onClick={saveSettings}>{t.save}</Button></>}>
+        footer={<><Button onClick={() => setSettingsFor(null)}>{t.cancel}</Button><Button variant="primary" icon="check" loading={busy} form="plugin-settings-form">{t.save}</Button></>}>
+        <form id="plugin-settings-form" onSubmit={saveSettings}>
+        <Alert className="mb-3">{modalError}</Alert>
+        {!Object.keys(settingsFor?.manifest?.settingsSchema?.properties || {}).length && <p className="py-6 text-center text-xs text-subtle">{t.noData}</p>}
         {Object.entries(settingsFor?.manifest?.settingsSchema?.properties || {}).map(([key, schema]: [string, any]) => (
           <div key={key} className="mb-3">
             {schema.type === 'boolean' ? (
-              <Field label={schema.title || key}>
-                <Toggle checked={Boolean(settingsDraft[key])} onChange={(value) => setSettingsDraft({ ...settingsDraft, [key]: value })} />
+              <Field label={schema.title || key} hint={schema.description}>
+                <Toggle checked={Boolean(settingsDraft[key])} onChange={(value) => setSettingsDraft({ ...settingsDraft, [key]: value })} ariaLabel={schema.title || key} />
               </Field>
             ) : (
-              <Field label={schema.title || key}>
+              <Field label={schema.title || key} hint={schema.description}>
                 <input className="field" type={schema.type === 'number' ? 'number' : 'text'}
                   value={String(settingsDraft[key] ?? '')}
-                  onChange={(e) => setSettingsDraft({ ...settingsDraft, [key]: schema.type === 'number' ? Number(e.target.value) : e.target.value })} />
+                  onChange={(e) => setSettingsDraft({ ...settingsDraft, [key]: schema.type === 'number' && e.target.value !== '' ? Number(e.target.value) : e.target.value })} />
               </Field>
             )}
           </div>
         ))}
+        </form>
       </Modal>
 
       <Modal open={Boolean(logsFor)} onClose={() => setLogsFor(null)} title={`${t.pluginsLogs}: ${logsFor}`} icon={<Icon name="file" size={16} />} size="lg">
+        <Alert className="mb-3">{modalError}</Alert>
         <div className="max-h-96 space-y-1 overflow-auto">
+          {!logs.length && !modalError && <p className="py-6 text-center text-xs text-subtle">{t.noData}</p>}
           {logs.map((entry) => <div key={entry.id} className="rounded-lg border border-line bg-surface-2/40 px-3 py-2 text-[11px]">
             <span className="mono text-subtle">{new Date(entry.createdAt).toLocaleString()}</span>{' '}
             <Badge tone={entry.level === 'error' ? 'danger' : 'neutral'}>{entry.level}</Badge>{' '}

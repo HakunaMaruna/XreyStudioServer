@@ -356,23 +356,16 @@ fi
 cd "$DIR"
 DIR="$(pwd)"
 run_sh "printf '%s\\n' '$MODE' > .xss-mode"
-# Existing installations upgraded in place must also get an updater token.
-if ! grep -q '^UPDATER_TOKEN=' .env 2>/dev/null; then
-  UPDATER="$(openssl rand -hex 24)"
-  run_sh "printf 'UPDATER_TOKEN=%s\\n' '$UPDATER' >> .env"
-fi
-
 if [ ! -f .env ]; then
   say "${C_BLUE}▸ $(t generating_env)${C_RESET}"
   run cp .env.example .env
+  run chmod 600 .env
   JWT="$(openssl rand -hex 32)"; REFRESH="$(openssl rand -hex 32)"; ADMIN="$(openssl rand -hex 24)"
   AGENT="${AGENT_TOKEN:-$(openssl rand -hex 32)}"; ALERT="$(openssl rand -hex 24)"; POSTGRES="$(openssl rand -hex 16)"
   UPDATER="$(openssl rand -hex 24)"
   if [ "$MODE" = "control" ]; then
     PDNS_KEY="$(openssl rand -hex 24)"; MASTER_KEY="$(openssl rand 32 | base64 -w0)"; STORE_TOKEN="$(openssl rand -hex 24)"
-    say "  ${C_DIM}PDNS_API_KEY=$PDNS_KEY${C_RESET}"
-    say "  ${C_DIM}PANEL_MASTER_KEY=$MASTER_KEY${C_RESET}"
-    say "  ${C_DIM}STORE_ADMIN_TOKEN=$STORE_TOKEN${C_RESET}"
+    say "  ${C_DIM}PDNS_API_KEY, PANEL_MASTER_KEY, STORE_ADMIN_TOKEN -> .env${C_RESET}"
     run_sh "printf 'PANEL_MODE=control\\nSTORE_ADMIN_TOKEN=%s\\n' '$STORE_TOKEN' >> .env"
   fi
   run_sh "sed -i 's|^JWT_SECRET=.*|JWT_SECRET=$JWT|' .env"
@@ -398,6 +391,14 @@ else
   ADMIN_PASSWORD="$(grep '^ADMIN_PASSWORD=' .env | cut -d= -f2 || true)"
   ADMIN_EMAIL="$(grep '^ADMIN_EMAIL=' .env | cut -d= -f2 || true)"
 fi
+
+# Existing installations upgraded in place must also get an updater token.
+# Runs after .env generation: earlier it created a bare .env and skipped secret generation.
+if ! grep -q '^UPDATER_TOKEN=' .env 2>/dev/null; then
+  UPDATER="$(openssl rand -hex 24)"
+  run_sh "printf 'UPDATER_TOKEN=%s\\n' '$UPDATER' >> .env"
+fi
+[ "$DRY_RUN" -eq 1 ] || chmod 600 .env 2>/dev/null || true
 
 # docker-compose.yml монтирует агенту только .agent.env, а не весь .env.
 write_agent_env

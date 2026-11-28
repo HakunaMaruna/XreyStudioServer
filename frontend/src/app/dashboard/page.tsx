@@ -150,7 +150,7 @@ export default function DashboardPage() {
                   <a
                     href={update.releaseUrl}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-brand hover:underline"
                   >
                     {t.updateNotes}

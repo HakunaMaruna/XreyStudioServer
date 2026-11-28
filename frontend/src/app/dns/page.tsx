@@ -6,7 +6,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import { Icon } from '../../components/icons';
 import {
-  Badge, Button, Card, Field, HelpButton, Modal, PageHeader, SectionTitle, Segmented,
+  Alert, Badge, Button, Card, Field, HelpButton, Modal, PageHeader, SectionTitle, Segmented,
 } from '../../components/ui';
 
 type Status = {
@@ -30,7 +30,7 @@ type Status = {
 type ZoneRow = { id: string; name: string; kind: string; serial?: number; records?: number; managed: boolean };
 type RecordRow = { name: string; type: string; ttl: number; content: string; disabled: boolean };
 type Settings = {
-  apiUrl: string; zone: string; ttl: number; ns1: string; ns2: string;
+  apiUrl: string; zone: string; ttl: number | ''; ns1: string; ns2: string;
   bindIp: string; apiKeyConfigured: boolean; mode: string;
 };
 type Tab = 'overview' | 'zones' | 'records' | 'dnssec' | 'metrics' | 'settings';
@@ -56,13 +56,14 @@ export default function DnsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [apiKeyDraft, setApiKeyDraft] = useState('');
   const [zoneForm, setZoneForm] = useState({ name: '', ns1: 'ns1.h2onetwork.pro.', ns2: 'ns2.h2onetwork.pro.' });
-  const [recordForm, setRecordForm] = useState({ name: '', type: 'A', ttl: 60, content: '' });
+  const [recordForm, setRecordForm] = useState<{ name: string; type: string; ttl: number | ''; content: string }>({ name: '', type: 'A', ttl: 60, content: '' });
   const [keyForm, setKeyForm] = useState({ keytype: 'ksk', algorithm: '', bits: '' });
   const [zoneModal, setZoneModal] = useState(false);
   const [recordModal, setRecordModal] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [modalError, setModalError] = useState('');
 
   const load = useCallback(async () => {
     setError('');
@@ -115,7 +116,7 @@ export default function DnsPage() {
 
   const toggleDnssec = async (enabled: boolean) => {
     if (!selectedZone) return;
-    setBusy(true); setError(''); setNotice('');
+    setBusy(true); setModalError(''); setNotice(''); setNotice('');
     try {
       await api.patch(`/api/dns/zone/${encodeURIComponent(selectedZone)}/dnssec`, { enabled });
       setNotice(`${t.dnssec}: ${enabled ? 'ON' : 'OFF'}`);
@@ -125,7 +126,7 @@ export default function DnsPage() {
 
   const createDnssecKey = async () => {
     if (!selectedZone) return;
-    setBusy(true); setError('');
+    setBusy(true); setModalError(''); setNotice('');
     try {
       const body: Record<string, unknown> = { keytype: keyForm.keytype, active: true, published: true };
       if (keyForm.algorithm) body.algorithm = keyForm.algorithm;
@@ -138,7 +139,7 @@ export default function DnsPage() {
 
   const toggleKey = async (key: DnssecKey, field: 'active' | 'published') => {
     if (!selectedZone) return;
-    setBusy(true); setError('');
+    setBusy(true); setModalError(''); setNotice('');
     try {
       await api.patch(`/api/dns/zone/${encodeURIComponent(selectedZone)}/dnssec/keys/${key.id}`, { [field]: !key[field] });
       await loadDnssec(selectedZone);
@@ -156,12 +157,12 @@ export default function DnsPage() {
 
   const createZone = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBusy(true); setError('');
+    setBusy(true); setModalError(''); setNotice('');
     try {
       await api.post('/api/dns/zones', zoneForm);
       setZoneModal(false); setNotice(`${t.dnsCreateZone}: ${zoneForm.name}`);
       await load();
-    } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+    } catch (e: any) { setModalError(e.message); } finally { setBusy(false); }
   };
 
   const deleteZone = async (name: string) => {
@@ -177,18 +178,19 @@ export default function DnsPage() {
   const addRecord = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedZone) return;
-    setBusy(true); setError('');
+    setBusy(true); setModalError(''); setNotice('');
     try {
       await api.post(`/api/dns/zone/${encodeURIComponent(selectedZone)}/records`, {
         name: recordForm.name,
         type: recordForm.type,
-        ttl: Number(recordForm.ttl),
+        ttl: Number(recordForm.ttl || 60),
         records: [{ content: recordForm.content }],
       });
       setRecordModal(false);
       setRecordForm({ name: '', type: 'A', ttl: 60, content: '' });
+      setNotice(t.saved);
       await loadRecords(selectedZone);
-    } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+    } catch (e: any) { setModalError(e.message); } finally { setBusy(false); }
   };
 
   const deleteRecord = async (row: RecordRow) => {
@@ -208,7 +210,7 @@ export default function DnsPage() {
       const patch: Record<string, unknown> = {
         PDNS_API_URL: settings.apiUrl,
         NODE_DNS_ZONE: settings.zone,
-        NODE_DNS_TTL: Number(settings.ttl),
+        NODE_DNS_TTL: Number(settings.ttl || 60),
         DNS_NS1: settings.ns1,
         DNS_NS2: settings.ns2,
         PDNS_BIND_IP: settings.bindIp,
@@ -247,10 +249,10 @@ export default function DnsPage() {
         }
       />
 
-      {error && <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger"><Icon name="alert" size={15} />{error}</div>}
-      {notice && <div className="mb-4 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
+      {error && <Alert className="mb-4">{error}</Alert>}
+      {notice && <Alert tone="success" className="mb-4">{notice}</Alert>}
       {status && !status.available && status.error && (
-        <div className="mb-4 rounded-lg border border-warning/25 bg-warning/10 px-3 py-2 text-xs text-warning">{status.error}</div>
+        <div role="alert" className="mb-4 rounded-lg border border-warning/25 bg-warning/10 px-3 py-2 text-xs text-warning">{status.error}</div>
       )}
 
       <div className="mb-4">
@@ -325,7 +327,7 @@ export default function DnsPage() {
         <Card>
           <SectionTitle
             title={t.dnsZones}
-            action={<Button size="sm" icon="plus" variant="primary" onClick={() => setZoneModal(true)}>{t.dnsCreateZone}</Button>}
+            action={<Button size="sm" icon="plus" variant="primary" onClick={() => { setModalError(''); setZoneModal(true); }}>{t.dnsCreateZone}</Button>}
           />
           <div className="space-y-2">
             {zones.map((zone) => (
@@ -357,7 +359,7 @@ export default function DnsPage() {
                 <select className="field w-auto" value={selectedZone} onChange={(e) => setSelectedZone(e.target.value)}>
                   {zones.map((zone) => <option key={zone.id} value={zone.name}>{zone.name}</option>)}
                 </select>
-                <Button size="sm" icon="plus" variant="primary" onClick={() => setRecordModal(true)} disabled={!selectedZone}>{t.dnsAddRecord}</Button>
+                <Button size="sm" icon="plus" variant="primary" onClick={() => { setModalError(''); setRecordModal(true); }} disabled={!selectedZone}>{t.dnsAddRecord}</Button>
               </div>
             }
           />
@@ -471,7 +473,7 @@ export default function DnsPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t.dnsApiUrl}><input className="field" value={settings.apiUrl} onChange={(e) => setSettings({ ...settings, apiUrl: e.target.value })} /></Field>
             <Field label={t.dnsZone}><input className="field" value={settings.zone} onChange={(e) => setSettings({ ...settings, zone: e.target.value })} /></Field>
-            <Field label={t.dnsTtl}><input className="field" type="number" min={30} max={86400} value={settings.ttl} onChange={(e) => setSettings({ ...settings, ttl: Number(e.target.value) })} /></Field>
+            <Field label={t.dnsTtl}><input className="field" type="number" min={30} max={86400} value={settings.ttl} onChange={(e) => setSettings({ ...settings, ttl: e.target.value === '' ? '' : Number(e.target.value) })} /></Field>
             <Field label={t.dnsNs}><input className="field" value={settings.ns1} onChange={(e) => setSettings({ ...settings, ns1: e.target.value })} /></Field>
             <Field label="NS2"><input className="field" value={settings.ns2} onChange={(e) => setSettings({ ...settings, ns2: e.target.value })} /></Field>
             <Field label={t.dnsBindIp}><input className="field" value={settings.bindIp} onChange={(e) => setSettings({ ...settings, bindIp: e.target.value })} /></Field>
@@ -486,8 +488,9 @@ export default function DnsPage() {
       )}
 
       <Modal open={zoneModal} onClose={() => setZoneModal(false)} title={t.dnsCreateZone} icon={<Icon name="database" size={16} />}
-        footer={<><Button onClick={() => setZoneModal(false)}>{t.cancel}</Button><Button variant="primary" icon="check" loading={busy} onClick={createZone}>{t.create}</Button></>}>
-        <form onSubmit={createZone} className="space-y-4">
+        footer={<><Button onClick={() => setZoneModal(false)}>{t.cancel}</Button><Button variant="primary" icon="check" loading={busy} form="dns-zone-form">{t.create}</Button></>}>
+        <form id="dns-zone-form" onSubmit={createZone} className="space-y-4">
+          <Alert>{modalError}</Alert>
           <Field label={t.dnsZone}><input className="field" required value={zoneForm.name} onChange={(e) => setZoneForm({ ...zoneForm, name: e.target.value })} placeholder="node.example.com" /></Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="NS1"><input className="field" value={zoneForm.ns1} onChange={(e) => setZoneForm({ ...zoneForm, ns1: e.target.value })} /></Field>
@@ -497,8 +500,9 @@ export default function DnsPage() {
       </Modal>
 
       <Modal open={recordModal} onClose={() => setRecordModal(false)} title={t.dnsAddRecord} icon={<Icon name="list" size={16} />}
-        footer={<><Button onClick={() => setRecordModal(false)}>{t.cancel}</Button><Button variant="primary" icon="check" loading={busy} onClick={addRecord}>{t.create}</Button></>}>
-        <form onSubmit={addRecord} className="space-y-4">
+        footer={<><Button onClick={() => setRecordModal(false)}>{t.cancel}</Button><Button variant="primary" icon="check" loading={busy} form="dns-record-form">{t.create}</Button></>}>
+        <form id="dns-record-form" onSubmit={addRecord} className="space-y-4">
+          <Alert>{modalError}</Alert>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t.name}><input className="field" required value={recordForm.name} onChange={(e) => setRecordForm({ ...recordForm, name: e.target.value })} placeholder={`host.${settings?.zone || ''}`} /></Field>
             <Field label={t.type}>
@@ -506,8 +510,8 @@ export default function DnsPage() {
                 {RECORD_TYPES.map((type) => <option key={type}>{type}</option>)}
               </select>
             </Field>
-            <Field label="TTL"><input className="field" type="number" min={30} max={86400} value={recordForm.ttl} onChange={(e) => setRecordForm({ ...recordForm, ttl: Number(e.target.value) })} /></Field>
-            <Field label="Value"><input className="field" required value={recordForm.content} onChange={(e) => setRecordForm({ ...recordForm, content: e.target.value })} /></Field>
+            <Field label="TTL"><input className="field" type="number" min={30} max={86400} value={recordForm.ttl} onChange={(e) => setRecordForm({ ...recordForm, ttl: e.target.value === '' ? '' : Number(e.target.value) })} /></Field>
+            <Field label={t.value}><input className="field" required value={recordForm.content} onChange={(e) => setRecordForm({ ...recordForm, content: e.target.value })} /></Field>
           </div>
         </form>
       </Modal>

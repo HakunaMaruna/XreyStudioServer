@@ -39,6 +39,13 @@ function isPrivateHost(host: string) {
   if (isIP(host) === 6) {
     const mapped = host.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
     if (mapped) return isPrivateIpv4(mapped[1].split('.').map(Number));
+    // URL нормализует ::ffff:127.0.0.1 в ::ffff:7f00:1
+    const hex = host.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
+    if (hex) {
+      const hi = parseInt(hex[1], 16);
+      const lo = parseInt(hex[2], 16);
+      return isPrivateIpv4([hi >> 8, hi & 255, lo >> 8, lo & 255]);
+    }
     return host.startsWith('fe80') || host.startsWith('fc') || host.startsWith('fd');
   }
   return false;

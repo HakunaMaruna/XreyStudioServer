@@ -35,9 +35,15 @@ export class ReverseService {
     name: string; nodeId: string; portalInboundId: string; publicPort: number;
     internalAddress?: string; internalPort: number; enabled?: boolean; organizationId?: string | null;
   }, actor: AuthUser) {
-    const node = await this.prisma.node.findFirst({ where: { id: dto.nodeId, ...(actor.role === Role.ADMIN ? {} : { organizationId: actor.organizationId }) } });
+    const org = actor.organizationId || '__none__';
+    const node = await this.prisma.node.findFirst({ where: { id: dto.nodeId, ...(actor.role === Role.ADMIN ? {} : { organizationId: org }) } });
     if (!node) throw new NotFoundException('Target node not found');
-    const inbound = await this.prisma.inbound.findFirst({ where: { id: dto.portalInboundId, enabled: true, protocol: 'vless' } });
+    const inbound = await this.prisma.inbound.findFirst({
+      where: {
+        id: dto.portalInboundId, enabled: true, protocol: 'vless',
+        ...(actor.role === Role.ADMIN ? {} : { OR: [{ node: { organizationId: org } }, { user: { organizationId: org } }] }),
+      },
+    });
     if (!inbound) throw new BadRequestException('Portal inbound must be an enabled VLESS inbound');
     if (dto.publicPort < 1 || dto.publicPort > 65535) throw new BadRequestException('Invalid public port');
     if (dto.internalPort < 1 || dto.internalPort > 65535) throw new BadRequestException('Invalid internal port');

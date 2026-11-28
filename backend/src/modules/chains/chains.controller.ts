@@ -22,7 +22,7 @@ export class ChainsController {
 
   @Get('binding/user/:userId')
   bindingForUser(@Param('userId') userId: string, @CurrentUser() user: AuthUser) {
-    return this.service.bindingForUser(userId, user.role === 'ADMIN' ? null : user.organizationId, (user as any).squadId || null);
+    return this.service.bindingForUser(userId, user.role === 'ADMIN' ? null : (user.organizationId || '__none__'), null);
   }
 
   @Delete('binding/user/:userId')

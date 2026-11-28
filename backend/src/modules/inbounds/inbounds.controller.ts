@@ -86,7 +86,8 @@ export class InboundsController {
   }
 
   @Get(':id/squads')
-  async listSquads(@Param('id') id: string) {
+  async listSquads(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    await this.service.findOne(id, user);
     return { items: await this.squadBindings.list(id) };
   }
 
@@ -98,7 +99,8 @@ export class InboundsController {
     @Req() req: any,
   ) {
     if (!body?.squadId) throw new BadRequestException('squadId is required');
-    const result = await this.squadBindings.bind(id, body.squadId);
+    await this.service.findOne(id, user);
+    const result = await this.squadBindings.bind(id, body.squadId, user);
     await this.audit.log({
       userId: user.userId, action: 'inbound.squad.bind', entity: 'Inbound', entityId: id,
       ip: req.ip, metadata: { squadId: body.squadId },
@@ -113,6 +115,7 @@ export class InboundsController {
     @CurrentUser() user: AuthUser,
     @Req() req: any,
   ) {
+    await this.service.findOne(id, user);
     const result = await this.squadBindings.unbind(id, squadId);
     await this.audit.log({
       userId: user.userId, action: 'inbound.squad.unbind', entity: 'Inbound', entityId: id,

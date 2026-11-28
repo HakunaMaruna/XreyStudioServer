@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 HakunaMaruna
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Role } from '@prisma/client';
+import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 
 /**
@@ -29,10 +31,14 @@ export class SquadBindingService {
     }));
   }
 
-  async bind(inboundId: string, squadId: string) {
+  async bind(inboundId: string, squadId: string, actor?: AuthUser) {
     const inbound = await this.prisma.inbound.findUnique({ where: { id: inboundId } });
     if (!inbound) throw new NotFoundException('Inbound not found');
-    const squad = await this.prisma.squad.findUnique({ where: { id: squadId } });
+    // Оператор может привязать только сквад своей организации или глобальный.
+    const scope = actor && actor.role !== Role.ADMIN
+      ? { OR: [{ organizationId: actor.organizationId || null }, { organizationId: null }] }
+      : {};
+    const squad = await this.prisma.squad.findFirst({ where: { id: squadId, ...scope } });
     if (!squad) throw new NotFoundException('Squad not found');
     await this.prisma.inboundSquad.upsert({
       where: { inboundId_squadId: { inboundId, squadId } },

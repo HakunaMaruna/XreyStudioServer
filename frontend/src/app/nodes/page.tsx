@@ -8,7 +8,7 @@ import { useLang } from '../../lib/i18n';
 import { APP_VERSION } from '../../lib/version';
 import { Icon } from '../../components/icons';
 import {
-  Badge, Button, Card, CodeBlock, Field, HelpButton, IconButton, Modal, PageHeader,
+  Alert, Badge, Button, Card, CodeBlock, Field, HelpButton, IconButton, Modal, PageHeader,
   ProgressBar, SectionTitle, StatusBadge, Toggle, formatBytes,
 } from '../../components/ui';
 
@@ -71,6 +71,7 @@ export default function NodesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [modalError, setModalError] = useState('');
   const [uiSettings, setUiSettings] = useState<{ autoRefresh?: boolean; metricsEnabled?: boolean }>({});
   const [updatingAgentId, setUpdatingAgentId] = useState<string | null>(null);
   const [busyNode, setBusyNode] = useState<{ id: string; label: string } | null>(null);
@@ -203,6 +204,7 @@ export default function NodesPage() {
     setIpv6Selected(node.ipv6Address || '');
     setClientIpv6(node.clientIpv6Enabled !== false);
     setIpv6Check(null);
+    setModalError('');
     setIpv6Busy(true);
     try {
       const data: any = await api.get(`/api/nodes/${node.id}/ipv6/addresses`);
@@ -210,7 +212,7 @@ export default function NodesPage() {
       setIpv6Addresses(addresses);
       setIpv6Selected((current) => current || addresses[0] || '');
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
     } finally {
       setIpv6Busy(false);
     }
@@ -222,7 +224,7 @@ export default function NodesPage() {
     try {
       setIpv6Check(await api.post(`/api/nodes/${ipv6Node.id}/ipv6/check`, { address: ipv6Selected }));
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
     } finally {
       setIpv6Busy(false);
     }
@@ -232,12 +234,13 @@ export default function NodesPage() {
     if (!ipv6Node) return;
     setClientIpv6(enabled);
     setIpv6Busy(true);
+    setModalError('');
     try {
       await api.patch(`/api/nodes/${ipv6Node.id}/client-ipv6`, { enabled });
       setNotice(t.clientIpv6Changed);
       await load();
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
       setClientIpv6(!enabled);
     } finally {
       setIpv6Busy(false);
@@ -247,12 +250,14 @@ export default function NodesPage() {
   const saveIpv6 = async (enabled: boolean) => {
     if (!ipv6Node) return;
     setIpv6Busy(true);
+    setModalError('');
     try {
       await api.post(`/api/nodes/${ipv6Node.id}/ipv6`, { enabled, address: enabled ? ipv6Selected : null });
       setIpv6Node(null);
+      setNotice(t.saved);
       await load();
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
     } finally {
       setIpv6Busy(false);
     }
@@ -314,13 +319,13 @@ export default function NodesPage() {
   const openRevisions = async (node: NodeRow) => {
     setRevisionsNode(node);
     setRevisions([]);
-    setError('');
+    setModalError('');
     setRevisionsLoading(true);
     try {
       const data = await api.get(`/api/nodes/${node.id}/revisions`);
       setRevisions(Array.isArray(data) ? data : data.data || []);
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
     } finally {
       setRevisionsLoading(false);
     }
@@ -333,30 +338,31 @@ export default function NodesPage() {
       await openRevisions(revisionsNode);
       await load();
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
     }
   };
 
   const rollback = async (revisionId: string) => {
-    if (!revisionsNode) return;
+    if (!revisionsNode || !confirm(`${t.rollback}?`)) return;
     try {
       await api.post(`/api/nodes/${revisionsNode.id}/rollback/${revisionId}`, {});
       await openRevisions(revisionsNode);
       await load();
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
     }
   };
 
   const openHealth = async (node: NodeRow) => {
     setHealthNode(node);
     setHealth(null);
+    setModalError('');
     setHealthLoading(true);
     try {
       const data = await api.get(`/api/nodes/${node.id}/health`);
       setHealth(data);
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
     } finally {
       setHealthLoading(false);
     }
@@ -365,12 +371,13 @@ export default function NodesPage() {
   const openLogs = async (node: NodeRow) => {
     setLogsNode(node);
     setLogsData(null);
+    setModalError('');
     setLogsLoading(true);
     try {
       const data = await api.get(`/api/nodes/${node.id}/logs?limit=200`);
       setLogsData(data);
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
     } finally {
       setLogsLoading(false);
     }
@@ -380,6 +387,7 @@ export default function NodesPage() {
     setEditNodeId(node.id);
     setEditData(null);
     setError('');
+    setModalError('');
     try {
       const data = await api.get(`/api/wizard/nodes/${node.id}`);
       setEditData({ ...data, name: data.name || node.name, address: data.address || node.address });
@@ -393,7 +401,8 @@ export default function NodesPage() {
     e.preventDefault();
     if (!editNodeId || !editData) return;
     setEditBusy(true);
-    setError('');
+    setModalError('');
+    setNotice('');
     try {
       const body: Record<string, unknown> = {
         name: editData.name,
@@ -411,9 +420,10 @@ export default function NodesPage() {
       if (editData.passphrase) body.passphrase = editData.passphrase;
       await api.patch(`/api/wizard/nodes/${editNodeId}`, body);
       setEditNodeId(null);
+      setNotice(t.saved);
       await load();
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
     } finally {
       setEditBusy(false);
     }
@@ -422,11 +432,12 @@ export default function NodesPage() {
   const openMetrics = async (node: NodeRow) => {
     setMetricsNode(node);
     setMetricsData(null);
+    setModalError('');
     setMetricsLoading(true);
     try {
       setMetricsData(await api.get(`/api/nodes/${node.id}/health`));
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
     } finally {
       setMetricsLoading(false);
     }
@@ -437,14 +448,14 @@ export default function NodesPage() {
     setCheckData(null);
     setCheckStep(1);
     setCheckBusy(true);
-    setError('');
+    setModalError('');
     const timer = window.setInterval(() => setCheckStep((current) => Math.min(3, current + 1)), 6000);
     try {
       const data = await api.post('/api/cheburcheck/check', { nodeId: node.id });
       setCheckData(data);
       setCheckStep(4);
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
       setCheckStep(4);
     } finally {
       window.clearInterval(timer);
@@ -464,7 +475,7 @@ export default function NodesPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Infrastructure"
+        eyebrow={t.infrastructure}
         title={t.nodes}
         subtitle={t.nodesSubtitle}
         icon="server"
@@ -574,7 +585,7 @@ export default function NodesPage() {
                     {node.domain && (
                       <p className="mt-0.5 flex min-w-0 items-center gap-1 text-[10px] text-brand">
                         <Icon name="globe" size={12} className="shrink-0" />
-                        <a href={`https://${node.domain}`} target="_blank" rel="noreferrer" className="truncate hover:underline">
+                        <a href={`https://${node.domain}`} target="_blank" rel="noopener noreferrer" className="truncate hover:underline">
                           {node.domain}
                         </a>
                       </p>
@@ -658,7 +669,8 @@ export default function NodesPage() {
         </div>
       )}
 
-      <Modal open={Boolean(revisionsNode)} onClose={() => setRevisionsNode(null)} title={`${t.revisions} — ${revisionsNode?.name || ''}`} subtitle="Version history and deployment control" size="lg">
+      <Modal open={Boolean(revisionsNode)} onClose={() => setRevisionsNode(null)} title={`${t.revisions} — ${revisionsNode?.name || ''}`} size="lg">
+        <Alert className="mb-3">{modalError}</Alert>
         <SectionTitle title={t.configHistory} action={<Button size="sm" icon="play" onClick={() => applyRevision('')} loading={revisionsLoading}>{t.applyLatest}</Button>} />
         {revisionsLoading ? (
           <div className="flex items-center justify-center gap-2 py-10 text-xs text-muted"><Icon name="refresh" size={15} className="animate-spin text-brand" />{t.loading}</div>
@@ -694,6 +706,7 @@ export default function NodesPage() {
         subtitle={healthNode?.name}
         icon={<Icon name="activity" size={16} />}
       >
+        <Alert className="mb-3">{modalError}</Alert>
         {healthLoading ? (
           <div className="flex items-center justify-center gap-2 py-12 text-xs text-muted">
             <Icon name="refresh" size={15} className="animate-spin text-brand" />{t.loading}
@@ -722,7 +735,7 @@ export default function NodesPage() {
             <div>
               <p className="mb-2 text-[11px] text-subtle">{t.lastError}</p>
               {health.lastError ? (
-                <div className="flex items-start gap-2 rounded-lg border border-danger/25 bg-danger/10 p-3 text-xs text-danger">
+                <div role="alert" className="flex items-start gap-2 rounded-lg border border-danger/25 bg-danger/10 p-3 text-xs text-danger">
                   <Icon name="alert" size={14} className="mt-0.5 shrink-0" />{health.lastError}
                 </div>
               ) : (
@@ -811,6 +824,7 @@ export default function NodesPage() {
         icon={<Icon name="server" size={16} />}
         size="lg"
       >
+        <Alert className="mb-3">{modalError}</Alert>
         {logsLoading ? (
           <div className="flex items-center justify-center gap-2 py-12 text-xs text-muted">
             <Icon name="refresh" size={15} className="animate-spin text-brand" />{t.loading}
@@ -847,6 +861,7 @@ export default function NodesPage() {
       >
         {editData ? (
           <form id="edit-node-form" onSubmit={saveEdit} className="space-y-4">
+            <Alert>{modalError}</Alert>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label={t.name}>
                 <input className="field" value={editData.name || ''} onChange={(e) => setEditData({ ...editData, name: e.target.value })} required />
@@ -911,6 +926,7 @@ export default function NodesPage() {
         subtitle={metricsNode?.name}
         icon={<Icon name="gauge" size={16} />}
       >
+        <Alert className="mb-3">{modalError}</Alert>
         {metricsLoading ? (
           <div className="flex items-center justify-center gap-2 py-12 text-xs text-muted">
             <Icon name="refresh" size={15} className="animate-spin text-brand" />{t.loading}
@@ -956,6 +972,7 @@ export default function NodesPage() {
         size="lg"
         footer={<Button onClick={() => { setCheckNode(null); setCheckData(null); }}>{t.close}</Button>}
       >
+        <Alert className="mb-3">{modalError}</Alert>
         {checkBusy && (
           <div className="flex flex-col items-center gap-5 py-6">
             <div className="cheb-radar"><span /><span /><span /><i /></div>
@@ -1032,6 +1049,7 @@ export default function NodesPage() {
             : <Button variant="primary" onClick={() => saveIpv6(true)} loading={ipv6Busy} disabled={!ipv6Selected}>{t.enable}</Button>}
         </>}>
         <div className="space-y-4">
+          <Alert>{modalError}</Alert>
           <p className="text-xs text-muted">{t.ipv6EntryHint}</p>
           <div className="flex min-h-10 items-center rounded-lg border border-line bg-surface-2/40 px-3">
             <Toggle checked={clientIpv6} onChange={saveClientIpv6} label={t.clientIpv6} className="w-full justify-between gap-3" />
@@ -1053,7 +1071,7 @@ export default function NodesPage() {
               <span className="mono ml-2">{(ipv6Check.results || []).map((r: any) => `${r.port}:${r.reachable ? 'OK' : '—'}`).join(' ')}</span>
             </div>
           )}
-          {ipv6Node?.ipv6LastError && <p className="text-xs text-danger">{ipv6Node.ipv6LastError}</p>}
+          {ipv6Node?.ipv6LastError && <p role="alert" className="text-xs text-danger">{ipv6Node.ipv6LastError}</p>}
         </div>
       </Modal>
 

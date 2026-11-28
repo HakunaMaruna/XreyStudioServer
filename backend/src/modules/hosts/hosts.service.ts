@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 HakunaMaruna
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma, Role } from '@prisma/client';
+import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateHostDto, UpdateHostDto, ApplyHostDto } from './dto/host.dto';
 import { HOST_RECIPES } from './host-recipes';
@@ -29,9 +31,14 @@ export class HostsService {
 
   // Применяет хост (и его рецепт) к подключению: SNI, путь, transport/security
   // и публичный адрес, чтобы подписка сразу отдавала рабочую ссылку.
-  async applyToInbound(hostId: string, dto: ApplyHostDto) {
+  async applyToInbound(hostId: string, dto: ApplyHostDto, actor?: AuthUser) {
     const host = await this.findOne(hostId);
-    const inbound = await this.prisma.inbound.findUnique({ where: { id: dto.inboundId } });
+    // Оператор применяет хост только к подключениям своей организации.
+    const org = actor?.organizationId || '__none__';
+    const tenant: Prisma.InboundWhereInput = !actor || actor.role === Role.ADMIN
+      ? {}
+      : { OR: [{ node: { organizationId: org } }, { user: { organizationId: org } }] };
+    const inbound = await this.prisma.inbound.findFirst({ where: { id: dto.inboundId, ...tenant } });
     if (!inbound) throw new NotFoundException('Inbound not found');
     const recipe = HOST_RECIPES.find((r) => r.id === host.recipe);
     const settings = (inbound.settings || {}) as Record<string, unknown>;

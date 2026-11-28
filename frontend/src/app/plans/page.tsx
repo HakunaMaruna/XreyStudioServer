@@ -19,7 +19,9 @@ type PlanRow = {
   createdAt: string;
 };
 
-const emptyForm = { name: '', price: 10, trafficGb: 100, durationDays: 30 };
+type NumInput = number | '';
+const toNum = (value: string): NumInput => (value === '' ? '' : Number(value));
+const emptyForm: { name: string; price: NumInput; trafficGb: NumInput; durationDays: NumInput } = { name: '', price: 10, trafficGb: 100, durationDays: 30 };
 
 export default function PlansPage() {
   const { t } = useLang();
@@ -28,6 +30,8 @@ export default function PlansPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
+  const [modalError, setModalError] = useState('');
+  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
@@ -53,14 +57,16 @@ export default function PlansPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    setError('');
+    setModalError('');
     try {
       await api.post('/api/payments/plans', form);
       setForm(emptyForm);
       setOpen(false);
+      setNotice(t.saved);
+      setTimeout(() => setNotice(''), 3000);
       await load();
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
     } finally {
       setBusy(false);
     }
@@ -116,12 +122,18 @@ export default function PlansPage() {
         title={t.plans}
         subtitle={t.paymentPlans}
         icon="list"
-        actions={<Button icon="plus" variant="primary" onClick={() => { setForm(emptyForm); setOpen(true); }}>{t.createPlan}</Button>}
+        actions={<Button icon="plus" variant="primary" onClick={() => { setForm(emptyForm); setModalError(''); setOpen(true); }}>{t.createPlan}</Button>}
       />
 
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+        <div role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
+        </div>
+      )}
+
+      {notice && (
+        <div role="status" className="mb-4 flex items-center gap-2 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">
+          <Icon name="checkCircle" size={15} /> {notice}
         </div>
       )}
 
@@ -148,14 +160,15 @@ export default function PlansPage() {
         title={t.createPlan}
         subtitle={t.paymentPlans}
         icon={<Icon name="list" size={16} />}
-        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="plus" onClick={create} loading={busy}>{t.create}</Button></>}
+        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="plus" form="plan-form" loading={busy}>{t.create}</Button></>}
       >
-        <form onSubmit={create} className="space-y-4">
+        <form id="plan-form" onSubmit={create} className="space-y-4">
+          {modalError && <div role="alert" className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger"><Icon name="alert" size={15} /> {modalError}</div>}
           <Field label={t.name}><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="field" required /></Field>
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label={t.price}><input type="number" min={0} step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} className="field" required /></Field>
-            <Field label={t.trafficGb}><input type="number" min={1} value={form.trafficGb} onChange={(e) => setForm({ ...form, trafficGb: Number(e.target.value) })} className="field" required /></Field>
-            <Field label={t.durationDays}><input type="number" min={1} value={form.durationDays} onChange={(e) => setForm({ ...form, durationDays: Number(e.target.value) })} className="field" required /></Field>
+            <Field label={t.price}><input type="number" min={0} step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: toNum(e.target.value) })} className="field" required /></Field>
+            <Field label={t.trafficGb}><input type="number" min={1} value={form.trafficGb} onChange={(e) => setForm({ ...form, trafficGb: toNum(e.target.value) })} className="field" required /></Field>
+            <Field label={t.durationDays}><input type="number" min={1} value={form.durationDays} onChange={(e) => setForm({ ...form, durationDays: toNum(e.target.value) })} className="field" required /></Field>
           </div>
         </form>
       </Modal>

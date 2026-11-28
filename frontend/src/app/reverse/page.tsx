@@ -6,7 +6,7 @@ import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import { Icon } from '../../components/icons';
 import {
-  Badge, Button, Card, Field, HelpButton, IconButton, Modal, PageHeader, Toggle,
+  Alert, Badge, Button, Card, Field, HelpButton, IconButton, Modal, PageHeader, Toggle,
 } from '../../components/ui';
 
 type Tunnel = {
@@ -33,6 +33,8 @@ export default function ReversePage() {
   const [form, setForm] = useState(emptyForm());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [modalError, setModalError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -53,7 +55,7 @@ export default function ReversePage() {
     load();
   }, [load]);
 
-  const startCreate = () => { setEditing(null); setForm(emptyForm()); setError(''); setOpen(true); };
+  const startCreate = () => { setEditing(null); setForm(emptyForm()); setModalError(''); setOpen(true); };
   const startEdit = (row: Tunnel) => {
     setEditing(row.id);
     setForm({
@@ -65,11 +67,12 @@ export default function ReversePage() {
       internalPort: String(row.internalPort),
       enabled: row.enabled,
     });
-    setError(''); setOpen(true);
+    setModalError(''); setOpen(true);
   };
 
-  const save = async () => {
-    setBusy(true); setError('');
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true); setModalError(''); setNotice('');
     try {
       const payload = {
         name: form.name,
@@ -83,8 +86,9 @@ export default function ReversePage() {
       if (editing) await api.patch(`/api/reverse/${editing}`, payload);
       else await api.post('/api/reverse', payload);
       setOpen(false);
+      setNotice(t.saved);
       await load();
-    } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+    } catch (e: any) { setModalError(e.message); } finally { setBusy(false); }
   };
 
   const toggle = async (row: Tunnel) => {
@@ -108,7 +112,7 @@ export default function ReversePage() {
         actions={
           <>
             <HelpButton title={t.help}>
-              <p>{lang === 'ru' ? t.reverseHelp : t.reverseHelp}</p>
+              <p>{t.reverseHelp}</p>
               <p>{lang === 'ru' ? 'Документация: https://xtls.github.io/en/document/level-2/vless_reverse.html' : 'Docs: https://xtls.github.io/en/document/level-2/vless_reverse.html'}</p>
             </HelpButton>
             <Button icon="plus" variant="primary" onClick={startCreate}>{t.reverseNew}</Button>
@@ -116,7 +120,8 @@ export default function ReversePage() {
         }
       />
 
-      {error && <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger"><Icon name="alert" size={15} />{error}</div>}
+      {error && <Alert className="mb-4">{error}</Alert>}
+      {notice && <Alert tone="success" className="mb-4">{notice}</Alert>}
 
       {!rows.length ? (
         <Card className="py-16 text-center text-xs text-subtle">{t.noData}</Card>
@@ -125,18 +130,18 @@ export default function ReversePage() {
           {rows.map((row) => (
             <Card key={row.id} className="node-card p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-8 w-8 place-items-center rounded-lg border border-brand/30 bg-brand/10 text-brand"><Icon name="network" size={20} /></div>
-                  <div>
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-brand/30 bg-brand/10 text-brand"><Icon name="network" size={16} /></div>
+                  <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold text-fg">{row.name}</p>
                       <Badge tone={row.enabled ? 'success' : 'neutral'} dot>{row.enabled ? t.enabled : t.disabled}</Badge>
                     </div>
-                    <p className="mono mt-0.5 text-[10px] text-subtle">{row.node?.name || '—'} → :{row.publicPort} → {row.internalAddress}:{row.internalPort}</p>
+                    <p className="mono mt-0.5 break-all text-[10px] text-subtle">{row.node?.name || '—'} → :{row.publicPort} → {row.internalAddress}:{row.internalPort}</p>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1">
-                  <IconButton icon="power" label={t.enabled} onClick={() => toggle(row)} />
+                  <IconButton icon="power" label={row.enabled ? t.disable : t.enable} onClick={() => toggle(row)} />
                   <IconButton icon="edit" label={t.edit} onClick={() => startEdit(row)} />
                   <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => remove(row)} />
                 </div>
@@ -153,29 +158,30 @@ export default function ReversePage() {
         title={editing ? `${t.edit}: ${form.name}` : t.reverseNew}
         subtitle={t.reverseSubtitle}
         icon={<Icon name="network" size={16} />}
-        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="check" onClick={save} loading={busy}>{t.save}</Button></>}
+        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="check" form="reverse-form" loading={busy}>{t.save}</Button></>}
       >
-        <div className="space-y-4">
-          <Field label={t.name}><input className="field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+        <form id="reverse-form" onSubmit={save} className="space-y-4">
+          <Alert>{modalError}</Alert>
+          <Field label={t.name}><input className="field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t.reverseTargetNode}>
-              <select className="field" value={form.nodeId} onChange={(e) => setForm({ ...form, nodeId: e.target.value })}>
+              <select className="field" value={form.nodeId} onChange={(e) => setForm({ ...form, nodeId: e.target.value })} required>
                 <option value="">—</option>
                 {nodes.map((node) => <option key={node.id} value={node.id}>{node.name} ({node.address})</option>)}
               </select>
             </Field>
             <Field label={t.reversePortalInbound}>
-              <select className="field" value={form.portalInboundId} onChange={(e) => setForm({ ...form, portalInboundId: e.target.value })}>
+              <select className="field" value={form.portalInboundId} onChange={(e) => setForm({ ...form, portalInboundId: e.target.value })} required>
                 <option value="">—</option>
                 {inbounds.map((inbound) => <option key={inbound.id} value={inbound.id}>{inbound.tag} :{inbound.port}</option>)}
               </select>
             </Field>
-            <Field label={t.reversePublicPort}><input className="field" type="number" min={1} max={65535} value={form.publicPort} onChange={(e) => setForm({ ...form, publicPort: e.target.value })} /></Field>
-            <Field label={t.reverseInternalAddress}><input className="field" value={form.internalAddress} onChange={(e) => setForm({ ...form, internalAddress: e.target.value })} /></Field>
-            <Field label={t.reverseInternalPort}><input className="field" type="number" min={1} max={65535} value={form.internalPort} onChange={(e) => setForm({ ...form, internalPort: e.target.value })} /></Field>
-            <Field label={t.enabled}><Toggle checked={form.enabled} onChange={(value) => setForm({ ...form, enabled: value })} /></Field>
+            <Field label={t.reversePublicPort}><input className="field" type="number" min={1} max={65535} value={form.publicPort} onChange={(e) => setForm({ ...form, publicPort: e.target.value })} required /></Field>
+            <Field label={t.reverseInternalAddress}><input className="field" value={form.internalAddress} onChange={(e) => setForm({ ...form, internalAddress: e.target.value })} required /></Field>
+            <Field label={t.reverseInternalPort}><input className="field" type="number" min={1} max={65535} value={form.internalPort} onChange={(e) => setForm({ ...form, internalPort: e.target.value })} required /></Field>
+            <Field label={t.enabled}><Toggle checked={form.enabled} onChange={(value) => setForm({ ...form, enabled: value })} ariaLabel={t.enabled} /></Field>
           </div>
-        </div>
+        </form>
       </Modal>
     </>
   );

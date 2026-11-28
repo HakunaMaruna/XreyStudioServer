@@ -39,6 +39,8 @@ export default function RoutingPage() {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [modalError, setModalError] = useState('');
+  const [modalNotice, setModalNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [inbounds, setInbounds] = useState<{ id: string; tag: string; port: number }[]>([]);
@@ -73,24 +75,24 @@ export default function RoutingPage() {
       enabled: false,
       inboundId: form.inboundId,
     });
-    setError('');
-    setNotice('');
+    setModalError('');
+    setModalNotice('');
   };
 
   const validate = async () => {
-    setError('');
-    setNotice('');
+    setModalError('');
+    setModalNotice('');
     try {
       const payload = JSON.parse(form.payloadText);
       const result = await api.post('/api/routing/validate', { payload });
-      if (result.valid) setNotice(t.routingValid);
-      else setError(result.errors?.join('; ') || t.routingInvalid);
+      if (result.valid) setModalNotice(t.routingValid);
+      else setModalError(result.errors?.join('; ') || t.routingInvalid);
     } catch (e: any) {
-      setError(e.message || t.invalidJson);
+      setModalError(e.message || t.invalidJson);
     }
   };
 
-  const startCreate = () => { setEditing(null); setForm(emptyForm); setError(''); setNotice(''); setOpen(true); };
+  const startCreate = () => { setEditing(null); setForm(emptyForm); setModalError(''); setModalNotice(''); setOpen(true); };
   const startEdit = (row: Profile) => {
     setEditing(row.id);
     setForm({
@@ -101,24 +103,27 @@ export default function RoutingPage() {
       enabled: row.enabled,
       inboundId: row.inboundId || '',
     });
-    setError('');
-    setNotice('');
+    setModalError('');
+    setModalNotice('');
     setOpen(true);
   };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     let payload: unknown;
-    try { payload = JSON.parse(form.payloadText); } catch { setError(t.invalidJson); return; }
+    try { payload = JSON.parse(form.payloadText); } catch { setModalError(t.invalidJson); return; }
     setBusy(true);
+    setModalError('');
     try {
       const body = { name: form.name, description: form.description || undefined, payload, recipe: form.recipe || undefined, enabled: form.enabled, inboundId: form.inboundId || null };
       if (editing) await api.patch(`/api/routing/${editing}`, body);
       else await api.post('/api/routing', body);
       setOpen(false);
+      setNotice(t.saved);
+      setTimeout(() => setNotice(''), 3000);
       await load();
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
     } finally {
       setBusy(false);
     }
@@ -170,7 +175,7 @@ export default function RoutingPage() {
         id: 'actions', size: 120, header: t.actions, enableSorting: false,
         cell: ({ row }) => (
           <div className="flex items-center gap-1">
-            <IconButton icon="power" label={t.enabled} onClick={() => toggle(row.original)} />
+            <IconButton icon="power" label={row.original.enabled ? t.disable : t.enable} onClick={() => toggle(row.original)} />
             <IconButton icon="edit" label={t.edit} onClick={() => startEdit(row.original)} />
             <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => remove(row.original.id)} />
           </div>
@@ -184,13 +189,15 @@ export default function RoutingPage() {
     <>
       <PageHeader eyebrow={t.infrastructure} title={t.routing} subtitle={t.routingSubtitle} icon="route"
         actions={<><HelpButton title={t.help}><p>{lang === 'ru' ? 'Рецепты заполняют форму проверенными наборами правил. Включённые профили добавляются в dns.servers, outbounds и routing.rules генерируемого конфига Xray. Кнопка «Проверить» не сохраняет профиль, а показывает ошибки валидации.' : 'Recipes fill the form with verified presets. Enabled profiles are merged into dns.servers, outbounds and routing.rules of the generated Xray config. Validate shows errors without saving.'}</p></HelpButton><Button icon="plus" variant="primary" onClick={startCreate}>{t.create}</Button></>} />
-      {error && <div className="mb-4 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>}
-      {notice && <div className="mb-4 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
+      {error && <div role="alert" className="mb-4 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>}
+      {notice && <div role="status" className="mb-4 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
       <DataTable data={rows} columns={columns} loading={loading} getRowId={(row) => row.id} />
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? t.edit : t.create} subtitle={t.routingSubtitle} icon={<Icon name="route" size={16} />} size="lg"
-        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button icon="shield" onClick={validate}>{t.routingValidate}</Button><Button variant="primary" icon="check" onClick={submit} loading={busy}>{t.save}</Button></>}>
+        footer={<><Button onClick={() => setOpen(false)}>{t.cancel}</Button><Button icon="shield" onClick={validate}>{t.routingValidate}</Button><Button variant="primary" icon="check" form="routing-form" loading={busy}>{t.save}</Button></>}>
         <form id="routing-form" onSubmit={submit} className="space-y-4">
+          {modalError && <div role="alert" className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger"><Icon name="alert" size={15} /> {modalError}</div>}
+          {modalNotice && <div role="status" className="flex items-center gap-2 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success"><Icon name="check" size={15} /> {modalNotice}</div>}
           <Field label={t.routingRecipe}>
             <select className="field" value={form.recipe} onChange={(e) => chooseRecipe(e.target.value)}>
               <option value="">—</option>

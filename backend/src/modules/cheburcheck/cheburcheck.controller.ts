@@ -27,6 +27,7 @@ export class CheburcheckController {
 
   /** Trigger the scheduled Cheburcheck digest immediately (useful for verification). */
   @Post('digest')
+  @Roles(Role.ADMIN)
   digest() {
     return this.service.runScheduled();
   }

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, isLoggedIn } from '../../lib/api';
 import { useLang } from '../../lib/i18n';
 import { Icon } from '../../components/icons';
-import { Badge, Button, Card, Field, IconButton, Modal, PageHeader, SectionTitle } from '../../components/ui';
+import { Alert, Badge, Button, Card, Field, IconButton, Modal, PageHeader, SectionTitle } from '../../components/ui';
 
 type Group = {
   id: string; name: string; description: string | null; system: boolean;
@@ -28,13 +28,14 @@ export default function UserGroupsPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [modalError, setModalError] = useState('');
 
   const load = useCallback(async () => {
     setError('');
     try {
       const [list, perms] = await Promise.all([
-        api.get<Group[]>('/api/user-groups').catch(() => []),
-        api.get<Catalog>('/api/user-groups/permissions').catch(() => null),
+        api.get<Group[]>('/api/user-groups'),
+        api.get<Catalog>('/api/user-groups/permissions'),
       ]);
       setGroups(Array.isArray(list) ? list : (list as any).data || []);
       setCatalog(perms);
@@ -50,11 +51,11 @@ export default function UserGroupsPage() {
   const openCreate = () => {
     setEditing(null); setCreateOpen(true);
     setDraft({ name: '', description: '', permissions: [] });
-    setError(''); setNotice('');
+    setModalError(''); setNotice('');
   };
 
   const openEdit = async (group: Group) => {
-    setBusy(true);
+    setBusy(true); setError(''); setModalError('');
     try {
       const detail = await api.get<GroupDetail>(`/api/user-groups/${group.id}`);
       setEditing(detail);
@@ -64,7 +65,7 @@ export default function UserGroupsPage() {
   };
 
   const openMembers = async (group: Group) => {
-    setBusy(true);
+    setBusy(true); setError(''); setModalError('');
     try {
       const detail = await api.get<GroupDetail>(`/api/user-groups/${group.id}`);
       setMembersFor(detail);
@@ -73,8 +74,9 @@ export default function UserGroupsPage() {
     finally { setBusy(false); }
   };
 
-  const save = async () => {
-    setBusy(true); setError(''); setNotice('');
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true); setModalError(''); setNotice('');
     try {
       const body = { name: draft.name, description: draft.description, permissions: draft.permissions };
       if (editing) await api.patch(`/api/user-groups/${editing.id}`, body);
@@ -82,19 +84,19 @@ export default function UserGroupsPage() {
       setEditing(null); setCreateOpen(false);
       setNotice(lang === 'ru' ? 'Группа сохранена' : 'Group saved');
       await load();
-    } catch (e: any) { setError(e.message); }
+    } catch (e: any) { setModalError(e.message); }
     finally { setBusy(false); }
   };
 
   const saveMembers = async () => {
     if (!membersFor) return;
-    setBusy(true); setError(''); setNotice('');
+    setBusy(true); setModalError(''); setNotice('');
     try {
       await api.post(`/api/user-groups/${membersFor.id}/members`, { userIds: selectedUsers });
       setMembersFor(null);
       setNotice(lang === 'ru' ? 'Участники обновлены' : 'Members updated');
       await load();
-    } catch (e: any) { setError(e.message); }
+    } catch (e: any) { setModalError(e.message); }
     finally { setBusy(false); }
   };
 
@@ -116,12 +118,13 @@ export default function UserGroupsPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Access" title={lang === 'ru' ? 'Группы доступа' : 'User groups'}
+      <PageHeader eyebrow={t.access} title={lang === 'ru' ? 'Группы доступа' : 'User groups'}
         subtitle={lang === 'ru' ? 'Права пользователей поверх ролей панели' : 'Permissions layered on top of panel roles'}
         icon="users"
         actions={<Button icon="plus" variant="primary" onClick={openCreate}>{lang === 'ru' ? 'Новая группа' : 'New group'}</Button>} />
-      {error && <div className="mb-4 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>}
-      {notice && <div className="mb-4 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
+      {error && <Alert className="mb-4">{error}</Alert>}
+      {notice && <Alert tone="success" className="mb-4">{notice}</Alert>}
+      {!groups.length && !error && <Card className="py-16 text-center text-xs text-subtle">{t.noData}</Card>}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[repeat(auto-fill,minmax(260px,1fr))]">
         {groups.map((group) => (
@@ -141,8 +144,8 @@ export default function UserGroupsPage() {
               {!group.permissions.includes('*') && group.permissions.length > 4 && <Badge tone="neutral">+{group.permissions.length - 4}</Badge>}
             </div>
             <div className="mt-auto flex flex-wrap gap-1 pt-3">
-              <Button size="sm" variant="subtle" icon="sliders" onClick={() => openEdit(group)}>{lang === 'ru' ? 'Права' : 'Permissions'}</Button>
-              <Button size="sm" variant="subtle" icon="users" onClick={() => openMembers(group)}>{lang === 'ru' ? 'Участники' : 'Members'}</Button>
+              <Button size="sm" variant="subtle" icon="sliders" disabled={busy} onClick={() => openEdit(group)}>{lang === 'ru' ? 'Права' : 'Permissions'}</Button>
+              <Button size="sm" variant="subtle" icon="users" disabled={busy} onClick={() => openMembers(group)}>{lang === 'ru' ? 'Участники' : 'Members'}</Button>
               {!group.system && <IconButton icon="trash" label={t.delete} tone="danger" onClick={() => remove(group)} />}
             </div>
           </Card>
@@ -152,11 +155,12 @@ export default function UserGroupsPage() {
       <Modal open={createOpen || Boolean(editing)} onClose={() => { setEditing(null); setCreateOpen(false); setDraft({ name: '', description: '', permissions: [] }); }}
         title={editing ? `${lang === 'ru' ? 'Права' : 'Permissions'}: ${editing.name}` : (lang === 'ru' ? 'Новая группа' : 'New group')}
         size="lg"
-        footer={<><Button onClick={() => { setEditing(null); setCreateOpen(false); }}>{t.cancel}</Button><Button variant="primary" icon="check" loading={busy} onClick={save}>{t.save}</Button></>}>
-        <div className="space-y-4">
+        footer={<><Button onClick={() => { setEditing(null); setCreateOpen(false); }}>{t.cancel}</Button><Button variant="primary" icon="check" loading={busy} form="user-group-form">{t.save}</Button></>}>
+        <form id="user-group-form" onSubmit={save} className="space-y-4">
+          <Alert>{modalError}</Alert>
           {!editing && (
             <>
-              <Field label={t.name}><input className="field" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></Field>
+              <Field label={t.name}><input className="field" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required /></Field>
               <Field label={t.comment}><input className="field" value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} /></Field>
             </>
           )}
@@ -173,11 +177,13 @@ export default function UserGroupsPage() {
               </div>
             </div>
           ))}
-        </div>
+        </form>
       </Modal>
 
       <Modal open={Boolean(membersFor)} onClose={() => setMembersFor(null)} title={`${lang === 'ru' ? 'Участники' : 'Members'}: ${membersFor?.name || ''}`} size="lg"
         footer={<><Button onClick={() => setMembersFor(null)}>{t.cancel}</Button><Button variant="primary" icon="check" loading={busy} onClick={saveMembers}>{t.save}</Button></>}>
+        <Alert className="mb-3">{modalError}</Alert>
+        {!users.length && <p className="py-6 text-center text-xs text-subtle">{t.noData}</p>}
         <div className="grid max-h-[60vh] gap-1 overflow-auto sm:grid-cols-2">
           {users.map((user) => (
             <label key={user.id} className="flex items-center gap-2 rounded-lg border border-line px-2 py-2 text-xs text-muted">

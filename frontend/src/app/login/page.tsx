@@ -115,14 +115,14 @@ export default function LoginPage() {
                   className="field px-9"
                   required
                 />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-subtle transition-colors hover:text-fg" aria-label="Toggle password">
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-subtle transition-colors hover:text-fg" aria-label={t.togglePasswordVisibility} aria-pressed={showPassword}>
                   <Icon name="eye" size={15} />
                 </button>
               </div>
             </Field>
 
             {error && (
-              <div className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+              <div role="alert" className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
                 <Icon name="alert" size={14} /> {error}
               </div>
             )}

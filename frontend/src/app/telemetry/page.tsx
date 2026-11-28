@@ -72,7 +72,7 @@ export default function TelemetryPage() {
             ? 'Отправляются только агрегированные счётчики и обезличенные события. Данные можно отключить в любой момент. Сбор включён только после принятия лицензионного соглашения.'
             : 'Only aggregated counters and anonymized events are sent. You can disable it at any time. Collection starts only after the license agreement is accepted.'}</p>
         </HelpButton><Button icon="refresh" size="sm" onClick={load}>{t.refresh}</Button></>} />
-      {error && <div className="mb-4 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>}
+      {error && <div role="alert" className="mb-4 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>}
       {notice && <div className="mb-4 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">{notice}</div>}
 
       <div className="grid gap-3 md:grid-cols-2">

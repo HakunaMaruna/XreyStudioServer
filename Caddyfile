@@ -1,4 +1,10 @@
 {$DOMAIN:localhost} {
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
 	handle /.well-known/acme-challenge/* {
 		root * /var/www/certbot
 		file_server

@@ -527,11 +527,11 @@ export default function ChainsPage() {
         footer={
           <>
             <Button onClick={closeForm}>{t.cancel}</Button>
-            <Button variant="primary" icon="check" loading={saving} onClick={save}>{t.save}</Button>
+            <Button variant="primary" icon="check" loading={saving} form="chain-form">{t.save}</Button>
           </>
         }
       >
-        <form onSubmit={(event) => { event.preventDefault(); void save(); }} className="space-y-4">
+        <form id="chain-form" onSubmit={(event) => { event.preventDefault(); void save(); }} className="space-y-4">
           {error && <p className="text-xs text-danger" role="alert">{error}</p>}
           <div>
             <Field label={t.name}>
@@ -719,7 +719,7 @@ export default function ChainsPage() {
               </select>
             </Field>
           )}
-          {bindError && <p className="text-[11px] text-danger">{bindError}</p>}
+          {bindError && <p role="alert" className="text-[11px] text-danger">{bindError}</p>}
         </div>
       </Modal>
 

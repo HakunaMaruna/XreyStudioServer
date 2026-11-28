@@ -17,19 +17,19 @@ export class GeodataController {
     return this.service.list(query);
   }
 
-  @Post('seed') seed() {
+  @Post('seed') @Roles(Role.ADMIN) seed() {
     return this.service.seed();
   }
 
-  @Post() create(@Body() body: { type: string; code: string; name: string; description?: string; enabled?: boolean }) {
+  @Post() @Roles(Role.ADMIN) create(@Body() body: { type: string; code: string; name: string; description?: string; enabled?: boolean }) {
     return this.service.create(body);
   }
 
-  @Patch(':id') update(@Param('id') id: string, @Body() body: { name?: string; description?: string; enabled?: boolean }) {
+  @Patch(':id') @Roles(Role.ADMIN) update(@Param('id') id: string, @Body() body: { name?: string; description?: string; enabled?: boolean }) {
     return this.service.update(id, body);
   }
 
-  @Delete(':id') remove(@Param('id') id: string) {
+  @Delete(':id') @Roles(Role.ADMIN) remove(@Param('id') id: string) {
     return this.service.remove(id);
   }
 }

@@ -13,8 +13,8 @@ type BackupFile = { name: string; size: number; createdAt: string };
 type BackupSettings = {
   id: string;
   enabled: boolean;
-  intervalHours: number;
-  retention: number;
+  intervalHours: number | '';
+  retention: number | '';
   lastRunAt: string | null;
   nextRunAt: string | null;
 };
@@ -58,8 +58,8 @@ export default function BackupsPage() {
     try {
       const data = await api.patch('/api/backups/settings', {
         enabled: settings.enabled,
-        intervalHours: settings.intervalHours,
-        retention: settings.retention,
+        intervalHours: Number(settings.intervalHours || 1),
+        retention: Number(settings.retention || 1),
       });
       setSettings(data);
       setNotice(t.save);
@@ -162,7 +162,7 @@ export default function BackupsPage() {
       />
 
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+        <div role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
           <Icon name="alert" size={15} /> {error}
         </div>
       )}
@@ -199,7 +199,7 @@ export default function BackupsPage() {
                 min={1}
                 max={720}
                 value={settings.intervalHours}
-                onChange={(e) => setSettings({ ...settings, intervalHours: Number(e.target.value) })}
+                onChange={(e) => setSettings({ ...settings, intervalHours: e.target.value === '' ? '' : Number(e.target.value) })}
                 className="field"
               />
             </Field>
@@ -209,7 +209,7 @@ export default function BackupsPage() {
                 min={1}
                 max={100}
                 value={settings.retention}
-                onChange={(e) => setSettings({ ...settings, retention: Number(e.target.value) })}
+                onChange={(e) => setSettings({ ...settings, retention: e.target.value === '' ? '' : Number(e.target.value) })}
                 className="field"
               />
             </Field>
