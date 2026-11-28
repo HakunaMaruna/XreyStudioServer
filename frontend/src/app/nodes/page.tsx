@@ -23,6 +23,7 @@ type NodeRow = {
   location?: string | null; geo?: NodeGeo | null; metrics?: NodeMetricRow[];
   agentVersion?: string | null;
   agentOutdated?: boolean;
+  lastError?: string | null;
   domain?: string | null;
   ipv6Enabled?: boolean;
   ipv6Address?: string | null;
@@ -588,6 +589,12 @@ export default function NodesPage() {
                         <a href={`https://${node.domain}`} target="_blank" rel="noopener noreferrer" className="truncate hover:underline">
                           {node.domain}
                         </a>
+                      </p>
+                    )}
+                    {node.status === 'ERROR' && node.lastError && (
+                      <p className="mt-1 flex items-start gap-1 text-[10px] text-danger" title={node.lastError}>
+                        <Icon name="alert" size={12} className="mt-px shrink-0" />
+                        <span className="line-clamp-2 break-all">{node.lastError}</span>
                       </p>
                     )}
                     {(node.geo?.city || node.geo?.ip || node.geo?.asn) && (

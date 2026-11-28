@@ -4,6 +4,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { Prisma, Role } from '@prisma/client';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
+import { isSocket, nodeUsedPorts, pickFreePort } from '../../common/node-ports';
 import { BulkInboundUsersDto, CreateInboundDto, UpdateInboundDto } from './dto/inbound.dto';
 
 @Injectable()
@@ -49,6 +50,21 @@ export class InboundsService {
     }
   }
 
+  /**
+   * Two inbounds on one port make `xray run -test` fail, and the agent then
+   * rejects the whole node config. Reject the collision up front instead.
+   */
+  private async assertPortFree(nodeId: string | null | undefined, port: number | undefined, listen?: string | null, excludeId?: string) {
+    if (!nodeId || !port || isSocket(listen)) return;
+    const owners = await nodeUsedPorts(this.prisma, nodeId, excludeId);
+    const owner = owners.get(port);
+    if (!owner) return;
+    const free = pickFreePort(new Set(owners.keys()));
+    throw new BadRequestException(
+      `Port ${port} on this node is already used by "${owner}"` + (free ? `; free port: ${free}` : ''),
+    );
+  }
+
   findAll(nodeId?: string, user?: AuthUser) {
     return this.prisma.inbound.findMany({
       where: { ...this.tenantWhere(user), ...(nodeId ? { nodeId } : {}) },
@@ -78,6 +94,7 @@ export class InboundsService {
 
   async create(dto: CreateInboundDto, user?: AuthUser) {
     await this.assertOwner(dto, user);
+    await this.assertPortFree(dto.nodeId, dto.port, dto.listen);
     return this.prisma.inbound.create({
       data: {
         tag: dto.tag,
@@ -109,8 +126,16 @@ export class InboundsService {
   }
 
   async update(id: string, dto: UpdateInboundDto, user?: AuthUser) {
-    await this.findOne(id, user);
+    const current = await this.findOne(id, user);
     await this.assertOwner(dto, user);
+    if (dto.nodeId !== undefined || dto.port !== undefined || dto.listen !== undefined) {
+      await this.assertPortFree(
+        dto.nodeId !== undefined ? dto.nodeId : current.nodeId,
+        dto.port ?? current.port,
+        dto.listen !== undefined ? dto.listen : current.listen,
+        id,
+      );
+    }
     const ops: any[] = [];
     if (dto.clients !== undefined) {
       ops.push(this.prisma.inboundClient.deleteMany({ where: { inboundId: id } }));

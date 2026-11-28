@@ -4,6 +4,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { generateKeyPairSync, randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PluginRecipeService } from '../plugins/plugin-recipe.service';
+import { nodeUsedPorts, pickFreePort } from '../../common/node-ports';
 
 export type InboundRecipe = {
   id: string;
@@ -71,7 +72,8 @@ export class InboundRecipesService {
         where: { nodeId, releasedAt: null },
         orderBy: { createdAt: 'desc' },
       });
-      if (domain) return domain.fqdn;
+      // A foreign node's domain would give Reality a wrong SNI.
+      return domain?.fqdn || null;
     }
     const fallback = await this.prisma.nodeDomain.findFirst({
       where: { releasedAt: null },
@@ -91,10 +93,34 @@ export class InboundRecipesService {
     };
   }
 
+  /** Recipe port if free on the node, otherwise the first free published port. */
+  private async port(nodeId: string | undefined, preferred: number) {
+    if (!nodeId) return { port: preferred, autoPort: false, busyBy: null as string | null };
+    const owners = await nodeUsedPorts(this.prisma, nodeId);
+    const port = pickFreePort(new Set(owners.keys()), preferred);
+    if (!port) throw new BadRequestException('All published ports on this node are taken');
+    return { port, autoPort: port !== preferred, busyBy: port !== preferred ? owners.get(preferred) || null : null };
+  }
+
+  /** Tags are globally unique; add a suffix instead of failing on the second use of a recipe. */
+  private async uniqueTag(base: string) {
+    const root = base.slice(0, 56);
+    for (let i = 1; i < 100; i += 1) {
+      const tag = i === 1 ? root : `${root}-${i}`;
+      if (!(await this.prisma.inbound.findFirst({ where: { tag }, select: { id: true } }))) return tag;
+    }
+    return `${root}-${randomBytes(3).toString('hex')}`;
+  }
+
   async prepare(id: string, input: { nodeId?: string; tag?: string }) {
     const recipe = (await this.list()).find((item) => item.id === id);
     if (!recipe) throw new NotFoundException('Inbound recipe not found');
+    if ((recipe.generateKeys || recipe.security === 'reality') && !input.nodeId) {
+      throw new BadRequestException('Select a node first: Reality uses the node domain as SNI');
+    }
     const domain = await this.nodeDomain(input.nodeId);
+    const preferred = Number(recipe.port || 443);
+    const { port, autoPort, busyBy } = await this.port(input.nodeId, preferred);
     const settings: Record<string, unknown> = { ...(recipe.settings || {}) };
     if (recipe.generateKeys || recipe.security === 'reality') {
       if (!domain) throw new BadRequestException('Assign a domain to the node before applying a Reality recipe');
@@ -110,12 +136,15 @@ export class InboundRecipesService {
       settings.spiderX = '/';
     }
     return {
-      tag: input.tag || recipe.id,
+      tag: await this.uniqueTag(input.tag || recipe.id),
       nodeId: input.nodeId || null,
       protocol: recipe.protocol || 'vless',
       transport: recipe.transport || 'tcp',
       security: recipe.security || 'none',
-      port: Number(recipe.port || 443),
+      port,
+      autoPort,
+      recipePort: preferred,
+      portBusyBy: busyBy,
       listen: '0.0.0.0',
       flow: recipe.flow || null,
       path: recipe.path || null,

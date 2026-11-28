@@ -8,6 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AgentClientService } from '../config/agent-client.service';
 import { ConfigGeneratorService } from '../config/config-generator.service';
 import { BindChainDto, ChainExitDto, CreateChainDto, UpdateChainDto } from './dto/chain.dto';
+import { NODE_PUBLISHED_PORTS } from '../../common/node-ports';
 
 export type ChainServer = {
   host: string;
@@ -132,6 +133,10 @@ export class ChainsService {
   private async pickPort(nodeId: string, preferred?: number) {
     const used = await this.usedPorts(nodeId);
     if (preferred && !used.has(preferred)) return preferred;
+    // Ports outside the agent's published set are unreachable on Docker nodes.
+    const published = [...NODE_PUBLISHED_PORTS.filter((port) => port >= 10000), ...NODE_PUBLISHED_PORTS.filter((port) => port >= 5050 && port < 10000)]
+      .find((port) => !used.has(port));
+    if (published) return published;
     for (let port = 10000; port <= 65000; port += 1) if (!used.has(port)) return port;
     throw new BadRequestException('No free port on the node');
   }

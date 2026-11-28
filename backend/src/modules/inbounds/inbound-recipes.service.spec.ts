@@ -10,6 +10,11 @@ const prisma = {
   nodeDomain: {
     findFirst: jest.fn(async () => ({ fqdn: 'abc123.node.h2onetwork.pro' })),
   },
+  inbound: {
+    findMany: jest.fn(async (): Promise<any[]> => []),
+    findFirst: jest.fn(async (): Promise<any> => null),
+  },
+  proxyChainHop: { findMany: jest.fn(async () => []) },
 } as any;
 
 describe('InboundRecipesService', () => {
@@ -52,5 +57,21 @@ describe('InboundRecipesService', () => {
 
   it('rejects an unknown recipe', async () => {
     await expect(service.prepare('missing', {})).rejects.toThrow('not found');
+  });
+
+  it('picks the next free published port when the recipe port is taken', async () => {
+    prisma.inbound.findMany.mockResolvedValueOnce([{ id: 'w', tag: 'wizard-abc', port: 443, listen: '0.0.0.0' }]);
+    const dto: any = await service.prepare('vless-reality-selfsni', { nodeId: 'n1' });
+    expect(dto).toMatchObject({ port: 2054, autoPort: true, recipePort: 443, portBusyBy: 'wizard-abc' });
+  });
+
+  it('suffixes the tag instead of colliding with an existing inbound', async () => {
+    prisma.inbound.findFirst.mockResolvedValueOnce({ id: 'x' });
+    const dto: any = await service.prepare('vmess-ws', { nodeId: 'n1' });
+    expect(dto.tag).toBe('vmess-ws-2');
+  });
+
+  it('requires a node for Reality recipes', async () => {
+    await expect(service.prepare('vless-reality-selfsni', {})).rejects.toThrow('Select a node');
   });
 });

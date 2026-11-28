@@ -59,6 +59,8 @@ let xrayStatus = 'unknown';
 let singboxStatus = 'unknown';
 let lastGood = null;
 let lastConfigVersion = 0;
+// Last rejected config (xray -test output) so the panel can show why Xray is not running.
+let configError = null;
 let lastConfigHash = { xray: null, singbox: null };
 let lastNet = null;
 let lastAppliedConfig = null;
@@ -512,6 +514,7 @@ async function collectMetrics() {
     connections: countConnections(),
     xray: xrayStatus,
     singbox: singboxStatus,
+    configError: configError ? configError.message : null,
   };
 }
 
@@ -592,7 +595,14 @@ async function pullConfig() {
     }
     const data = await res.json();
     if (!data.config || data.version <= lastConfigVersion) return;
-    const result = await applyConfig(data.config, data.version);
+    let result;
+    try {
+      result = await applyConfig(data.config, data.version);
+    } catch (e) {
+      configError = { version: data.version, message: String(e.message || e).slice(-1500) };
+      throw e;
+    }
+    configError = null;
     console.log('pulled config', result);
   } catch (e) {
     console.error('pull config failed', e.message);
@@ -641,6 +651,8 @@ function globalIPv6Addresses() {
 
 app.get('/health', (req, res) => {
   const base = { status: 'ok', nodeId: NODE_ID, xray: xrayStatus, singbox: singboxStatus, version: lastConfigVersion, agentVersion: AGENT_VERSION };
+  // The error text may include config details, so only the panel sees it.
+  if (isAuthorized(req) && configError) base.configError = configError;
   // Relay targets and node addresses are only for the panel.
   if (!isAuthorized(req)) return res.json(base);
   res.json({ ...base, relays: getRelaySummary(), ipv6Addresses: globalIPv6Addresses() });
@@ -657,7 +669,13 @@ app.post('/config', auth, async (req, res) => {
     const hasConfig = body.config != null;
     let result = {};
     if (hasConfig || !hasRelays) {
-      result = await applyConfig(body.config || body, body.version || 0);
+      try {
+        result = await applyConfig(body.config || body, body.version || 0);
+      } catch (e) {
+        configError = { version: body.version || 0, message: String(e.message || e).slice(-1500) };
+        throw e;
+      }
+      configError = null;
     }
     // A panel "apply" can push Xray config and relays in one request.
     if (hasRelays) {

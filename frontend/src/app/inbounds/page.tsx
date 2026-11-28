@@ -127,13 +127,14 @@ const clientPayload = (c: Client) => ({
 });
 
 export default function InboundsPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [inbounds, setInbounds] = useState<InboundRow[]>([]);
   const [nodes, setNodes] = useState<{ id: string; name: string }[]>([]);
   const [users, setUsers] = useState<{ id: string; email: string }[]>([]);
   const [squads, setSquads] = useState<Array<{ id: string; name: string; _count?: { users: number }; userCount?: number }>>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [recipeId, setRecipeId] = useState('');
+  const [portNote, setPortNote] = useState('');
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -182,7 +183,7 @@ export default function InboundsPage() {
     load();
   }, []);
 
-  const startCreate = () => { setEditing(null); setForm(emptyForm); setRecipeId(''); setError(''); setNotice(''); setOpen(true); };
+  const startCreate = () => { setEditing(null); setForm(emptyForm); setRecipeId(''); setPortNote(''); setError(''); setNotice(''); setOpen(true); };
 
   const startEdit = (row: InboundRow) => {
     setEditing(row.id);
@@ -221,17 +222,23 @@ export default function InboundsPage() {
     }));
   };
 
-  const chooseRecipe = async (id: string) => {
+  const chooseRecipe = async (id: string, nodeId = form.nodeId) => {
     setRecipeId(id);
     setError('');
+    setPortNote('');
     if (!id) return;
     setBusy(true);
     try {
-      const dto = await api.post(`/api/inbounds/recipes/${encodeURIComponent(id)}/prepare`, {
-        nodeId: form.nodeId,
-        tag: form.tag,
+      const dto: any = await api.post(`/api/inbounds/recipes/${encodeURIComponent(id)}/prepare`, {
+        nodeId: nodeId || undefined,
+        tag: form.tag || undefined,
       });
       applyPrepared(dto);
+      if (dto?.autoPort) {
+        setPortNote(lang === 'ru'
+          ? `Порт ${dto.recipePort} на ноде занят подключением «${dto.portBusyBy || '—'}», выбран свободный ${dto.port}. Если нужно просто добавить пользователей, привяжите их к существующему подключению.`
+          : `Port ${dto.recipePort} is taken on this node by "${dto.portBusyBy || '—'}", picked free port ${dto.port}. To add users, bind them to the existing inbound instead.`);
+      }
     } catch (e: any) {
       setError(e.message || t.recipeFailed);
     } finally {
@@ -475,6 +482,12 @@ export default function InboundsPage() {
 
           <div className="rounded-lg border border-line bg-surface-2/40 p-3">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <Field label={t.node} hint={!editing ? (lang === 'ru' ? 'Выберите ноду до рецепта: от неё зависят домен (SNI) и свободный порт. Пусто — подключение для всех нод.' : 'Pick the node before the recipe: it defines the domain (SNI) and the free port. Empty means all nodes.') : undefined}>
+                <select value={form.nodeId} onChange={(e) => { const nodeId = e.target.value; setForm((prev) => ({ ...prev, nodeId })); if (recipeId && !editing) chooseRecipe(recipeId, nodeId); }} className="field" disabled={Boolean(editing) || busy}>
+                  <option value="">{t.global}</option>
+                  {nodes.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}
+                </select>
+              </Field>
               <Field label={t.inboundRecipe} hint={t.recipeAutoHint}>
                 <select value={recipeId} onChange={(e) => chooseRecipe(e.target.value)} className="field" disabled={busy}>
                   <option value="">{t.noRecipe}</option>
@@ -482,13 +495,19 @@ export default function InboundsPage() {
                 </select>
               </Field>
               {selectedRecipe && (
-                <div className="self-end space-y-0.5 text-[11px] text-subtle">
+                <div className="self-end space-y-0.5 text-[11px] text-subtle sm:col-span-2">
                   {selectedRecipe.description && <p>{selectedRecipe.description}</p>}
                   <p>{[selectedRecipe.source, selectedRecipe.pluginId].filter(Boolean).join(' · ')}</p>
                 </div>
               )}
             </div>
           </div>
+
+          {portNote && (
+            <div role="status" className="flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/10 px-3 py-2 text-xs text-warning">
+              <Icon name="alert" size={14} className="mt-0.5 shrink-0" /> {portNote}
+            </div>
+          )}
 
           <div>
             <p className="mb-3 text-xs font-semibold text-subtle">{t.name} / {t.protocol}</p>
@@ -499,16 +518,8 @@ export default function InboundsPage() {
                   {PROTOCOLS.map((p) => <option key={p} value={p}>{p.toUpperCase()}</option>)}
                 </select>
               </Field>
-              <Field label={t.port}><input type="number" min={1} max={65535} value={form.port} onChange={(e) => setForm({ ...form, port: e.target.value === '' ? '' : Number(e.target.value) })} className="field" required /></Field>
+              <Field label={t.port} hint={lang === 'ru' ? 'На ноде снаружи доступны только порты 443, 2053, 2054, 4436, 5050–5060, 10000–10010. Один порт — одно подключение на ноде.' : 'Only ports 443, 2053, 2054, 4436, 5050–5060, 10000–10010 are reachable on a node. One port per inbound per node.'}><input type="number" min={1} max={65535} value={form.port} onChange={(e) => setForm({ ...form, port: e.target.value === '' ? '' : Number(e.target.value) })} className="field" required /></Field>
               <Field label={t.listen}><input value={form.listen} onChange={(e) => setForm({ ...form, listen: e.target.value })} className="field" /></Field>
-            </div>
-            <div className="mt-4 max-w-md">
-              <Field label={t.node} hint={!editing ? t.leaveEmptyGlobal : undefined}>
-                <select value={form.nodeId} onChange={(e) => setForm({ ...form, nodeId: e.target.value })} className="field" disabled={Boolean(editing)}>
-                  <option value="">{t.global}</option>
-                  {nodes.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}
-                </select>
-              </Field>
             </div>
           </div>
 

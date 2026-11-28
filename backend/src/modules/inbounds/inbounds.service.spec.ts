@@ -29,4 +29,19 @@ describe('InboundsService update', () => {
     expect(prisma.inboundClient.createMany).toHaveBeenCalledWith(expect.objectContaining({ skipDuplicates: true }));
     expect(prisma.inboundFallback.deleteMany).toHaveBeenCalledWith({ where: { masterId: 'i1' } });
   });
+
+  it('rejects a second inbound on a taken node port', async () => {
+    const prisma: any = {
+      inbound: {
+        findMany: jest.fn(async () => [{ id: 'w', tag: 'wizard-abc', port: 443, listen: '0.0.0.0' }]),
+        create: jest.fn(),
+      },
+      proxyChainHop: { findMany: jest.fn(async () => []) },
+    };
+    const service = new InboundsService(prisma);
+    await expect(service.create({ tag: 'x', protocol: 'vless', port: 443, nodeId: 'n1' } as any))
+      .rejects.toThrow('Port 443 on this node is already used by "wizard-abc"; free port: 2054');
+    expect(prisma.inbound.create).not.toHaveBeenCalled();
+    await expect(service.create({ tag: 'y', protocol: 'vless', port: 2054, nodeId: 'n1' } as any)).resolves.toBeUndefined();
+  });
 });

@@ -39,7 +39,7 @@ export class NodesService {
 
   private displayStatus(node: { status: NodeStatus; lastSeenAt: Date | null }): NodeStatus {
     const stale = !node.lastSeenAt || Date.now() - node.lastSeenAt.getTime() > OFFLINE_AFTER_MS;
-    return node.status === NodeStatus.ONLINE && stale ? NodeStatus.OFFLINE : node.status;
+    return node.status !== NodeStatus.OFFLINE && stale ? NodeStatus.OFFLINE : node.status;
   }
 
   private isOnline(node: { lastSeenAt: Date | null }) {
@@ -239,12 +239,15 @@ export class NodesService {
         xrayStatus: dto.xray || null,
       },
     });
+    // The agent is alive, but if it rejected the config Xray is not serving
+    // clients: show ERROR with the Xray message instead of ONLINE.
+    const configError = dto.configError ? `Config rejected by Xray: ${dto.configError}`.slice(0, 2000) : null;
     await this.prisma.node.update({
       where: { id: nodeId },
       data: {
-        status: NodeStatus.ONLINE,
+        status: configError ? NodeStatus.ERROR : NodeStatus.ONLINE,
         lastSeenAt: new Date(),
-        lastError: null,
+        lastError: configError,
         ...this.agentVersionData(dto.agentVersion, node.agentVersion),
       },
     });

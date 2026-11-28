@@ -102,6 +102,11 @@ export class NodeMetricsDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
+  configError?: string | null;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(64)
   agentVersion?: string;
 }
