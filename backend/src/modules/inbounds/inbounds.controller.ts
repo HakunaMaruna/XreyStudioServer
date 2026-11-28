@@ -51,8 +51,8 @@ export class InboundsController {
   }
 
   @Get('recipes')
-  recipeList() {
-    return this.recipes.list();
+  recipeList(@Query('nodeId') nodeId?: string) {
+    return this.recipes.list(nodeId || undefined);
   }
 
   @Post('recipes/:id/prepare')

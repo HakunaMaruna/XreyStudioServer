@@ -10,6 +10,12 @@ export type InboundRecipe = {
   id: string;
   name: string;
   description?: string;
+  nameRu?: string;
+  descriptionRu?: string;
+  /** main — everyday client access, spare — second port, test — diagnostics only. */
+  purpose?: 'main' | 'spare' | 'test';
+  /** Filled by list(nodeId) when the recipe port is already used on that node. */
+  portBusyBy?: string | null;
   source: 'builtin' | 'plugin';
   pluginId?: string;
   protocol?: string;
@@ -27,29 +33,39 @@ const BUILTIN: InboundRecipe[] = [
   {
     id: 'vless-reality-selfsni', name: 'VLESS Reality (selfSNI)', source: 'builtin',
     description: 'Port 443, xtls-rprx-vision, masks as the node domain, local decoy site.',
+    nameRu: 'Основной (Reality, 443)', purpose: 'main',
+    descriptionRu: 'Рекомендуется для клиентов. Порт 443, Vision, маскировка под домен ноды и локальный сайт-заглушка.',
     protocol: 'vless', transport: 'tcp', security: 'reality', port: 443,
     flow: 'xtls-rprx-vision', generateKeys: true,
   },
   {
     id: 'vless-reality-alt', name: 'VLESS Reality (alt port)', source: 'builtin',
     description: 'Same as the default but on port 2054 for testing multiple connections.',
+    nameRu: 'Запасной порт (Reality, 2054)', purpose: 'spare',
+    descriptionRu: 'Как основной, но на порту 2054. Пригодится, если 443 занят или блокируется у провайдера.',
     protocol: 'vless', transport: 'tcp', security: 'reality', port: 2054,
     flow: 'xtls-rprx-vision', generateKeys: true,
   },
   {
     id: 'vless-reality-4436', name: 'VLESS Reality (4436)', source: 'builtin',
     description: 'Reality on port 4436; publish this port on the node.',
+    nameRu: 'Запасной порт (Reality, 4436)', purpose: 'spare',
+    descriptionRu: 'Reality на порту 4436 — ещё один запасной вариант.',
     protocol: 'vless', transport: 'tcp', security: 'reality', port: 4436,
     flow: 'xtls-rprx-vision', generateKeys: true,
   },
   {
     id: 'vless-plain', name: 'VLESS (no TLS)', source: 'builtin',
     description: 'Plain VLESS on port 2053 for a quick transport check.',
+    nameRu: 'Проверка: VLESS без шифрования (2053)', purpose: 'test',
+    descriptionRu: 'Только для диагностики: трафик не маскируется. Не выдавайте клиентам.',
     protocol: 'vless', transport: 'tcp', security: 'none', port: 2053,
   },
   {
     id: 'vmess-ws', name: 'VMess WebSocket', source: 'builtin',
     description: 'VMess over WebSocket with /ws path on port 2053.',
+    nameRu: 'Проверка: VMess WebSocket (2053)', purpose: 'test',
+    descriptionRu: 'Для проверки транспорта WebSocket и работы через CDN. Не основной вариант для клиентов.',
     protocol: 'vmess', transport: 'ws', security: 'none', port: 2053, path: '/ws',
   },
 ];
@@ -61,9 +77,12 @@ export class InboundRecipesService {
     private readonly pluginRecipes: PluginRecipeService,
   ) {}
 
-  async list(): Promise<InboundRecipe[]> {
+  async list(nodeId?: string): Promise<InboundRecipe[]> {
     const plugin = await this.pluginRecipes.listForInbounds().catch(() => []);
-    return [...BUILTIN, ...plugin];
+    const all = [...BUILTIN, ...plugin];
+    if (!nodeId) return all;
+    const owners = await nodeUsedPorts(this.prisma, nodeId);
+    return all.map((recipe) => ({ ...recipe, portBusyBy: owners.get(Number(recipe.port || 443)) || null }));
   }
 
   private async nodeDomain(nodeId?: string) {

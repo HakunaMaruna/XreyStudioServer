@@ -74,4 +74,11 @@ describe('InboundRecipesService', () => {
   it('requires a node for Reality recipes', async () => {
     await expect(service.prepare('vless-reality-selfsni', {})).rejects.toThrow('Select a node');
   });
+
+  it('marks recipes whose port is taken on the node', async () => {
+    prisma.inbound.findMany.mockResolvedValueOnce([{ id: 'w', tag: 'wizard-abc', port: 443, listen: '0.0.0.0' }]);
+    const rows = await service.list('n1');
+    expect(rows.find((r) => r.id === 'vless-reality-selfsni')?.portBusyBy).toBe('wizard-abc');
+    expect(rows.find((r) => r.id === 'vless-reality-alt')?.portBusyBy).toBeNull();
+  });
 });

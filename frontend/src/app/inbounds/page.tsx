@@ -8,6 +8,7 @@ import { useLang } from '../../lib/i18n';
 import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
 import { Badge, Button, Field, IconButton, Modal, PageHeader, Toggle, formatBytes } from '../../components/ui';
+import { QRCodeSVG } from 'qrcode.react';
 
 type InboundRow = {
   id: string;
@@ -36,9 +37,16 @@ type Recipe = {
   id: string;
   name: string;
   description?: string;
+  nameRu?: string;
+  descriptionRu?: string;
+  purpose?: 'main' | 'spare' | 'test';
+  port?: number;
+  portBusyBy?: string | null;
   source?: string;
   pluginId?: string;
 };
+
+type Created = { id: string; tag: string; nodeId: string; applied: boolean; applyError: string; bound: number | null };
 
 type Client = { userId: string; trafficLimitGb: number; expiresAt: string; enabled: boolean; comment: string; sortIndex: number };
 
@@ -135,6 +143,10 @@ export default function InboundsPage() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [recipeId, setRecipeId] = useState('');
   const [portNote, setPortNote] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [created, setCreated] = useState<Created | null>(null);
+  const [qrUser, setQrUser] = useState('');
+  const [qrUrl, setQrUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -183,13 +195,35 @@ export default function InboundsPage() {
     load();
   }, []);
 
-  const startCreate = () => { setEditing(null); setForm(emptyForm); setRecipeId(''); setPortNote(''); setError(''); setNotice(''); setOpen(true); };
+  const loadRecipes = async (nodeId: string) => {
+    const rc: any = await api.get(`/api/inbounds/recipes${nodeId ? `?nodeId=${encodeURIComponent(nodeId)}` : ''}`).catch(() => []);
+    setRecipes(Array.isArray(rc) ? rc : rc.data || []);
+  };
+
+  const recipeLabel = (r: Recipe) => {
+    const name = lang === 'ru' && r.nameRu ? r.nameRu : r.name;
+    return r.portBusyBy ? `${name} — ${lang === 'ru' ? 'порт занят' : 'port taken'}` : name;
+  };
+
+  const startCreate = () => {
+    setEditing(null); setForm(emptyForm); setRecipeId(''); setPortNote(''); setError(''); setNotice('');
+    setShowAdvanced(false); setOpen(true);
+    void loadRecipes('');
+  };
+
+  const changeNode = (nodeId: string) => {
+    setForm((prev) => ({ ...prev, nodeId }));
+    if (editing) return;
+    void loadRecipes(nodeId);
+    if (recipeId) void chooseRecipe(recipeId, nodeId);
+  };
 
   const startEdit = (row: InboundRow) => {
     setEditing(row.id);
     setForm(formFromRow(row));
     setRecipeId((row as any).recipe || '');
     setError('');
+    setShowAdvanced(true);
     setOpen(true);
   };
 
@@ -280,8 +314,18 @@ export default function InboundsPage() {
       clients: form.clients.filter((c) => c.userId).map(clientPayload),
     };
     try {
-      if (editing) await api.patch(`/api/inbounds/${editing}`, body);
-      else await api.post('/api/inbounds', body);
+      if (editing) {
+        await api.patch(`/api/inbounds/${editing}`, body);
+      } else {
+        const row: any = await api.post('/api/inbounds', body);
+        const next: Created = { id: row.id, tag: row.tag, nodeId: form.nodeId, applied: false, applyError: '', bound: null };
+        // A new inbound only serves clients once the node runs the new config.
+        if (form.nodeId) {
+          try { await api.post(`/api/nodes/${form.nodeId}/apply`, {}); next.applied = true; }
+          catch (err: any) { next.applyError = err.message || 'apply failed'; }
+        }
+        setCreated(next); setQrUser(''); setQrUrl('');
+      }
       setForm(emptyForm);
       setEditing(null);
       setOpen(false);
@@ -292,6 +336,8 @@ export default function InboundsPage() {
       setBusy(false);
     }
   };
+
+  const closeCreated = () => { setCreated(null); setQrUrl(''); setQrUser(''); setError(''); };
 
   const remove = async (id: string) => {
     if (!confirm(t.confirmDelete)) return;
@@ -377,6 +423,40 @@ export default function InboundsPage() {
       setError(e.message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const bindCreated = async (scope: 'all' | 'selected') => {
+    if (!created) return;
+    if (scope === 'selected' && !qrUser) return;
+    setError(''); setBusy(true);
+    try {
+      const result: any = await api.post(`/api/inbounds/${created.id}/users/bulk`, {
+        mode: 'add', scope, ...(scope === 'selected' ? { userIds: [qrUser] } : {}),
+      });
+      let applyError = created.applyError;
+      if (created.nodeId) {
+        try { await api.post(`/api/nodes/${created.nodeId}/apply`, {}); applyError = ''; }
+        catch (err: any) { applyError = err.message || 'apply failed'; }
+      }
+      setCreated({ ...created, bound: (created.bound || 0) + Number(result.affected || 0), applied: !applyError, applyError });
+      if (scope === 'selected') await showQr(qrUser);
+      await load();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const showQr = async (userId: string) => {
+    setQrUser(userId); setQrUrl('');
+    if (!userId) return;
+    try {
+      const data: any = await api.get(`/api/users/${userId}`);
+      setQrUrl(data.subscriptionUrl || '');
+    } catch (e: any) {
+      setError(e.message);
     }
   };
 
@@ -483,7 +563,7 @@ export default function InboundsPage() {
           <div className="rounded-lg border border-line bg-surface-2/40 p-3">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Field label={t.node} hint={!editing ? (lang === 'ru' ? 'Выберите ноду до рецепта: от неё зависят домен (SNI) и свободный порт. Пусто — подключение для всех нод.' : 'Pick the node before the recipe: it defines the domain (SNI) and the free port. Empty means all nodes.') : undefined}>
-                <select value={form.nodeId} onChange={(e) => { const nodeId = e.target.value; setForm((prev) => ({ ...prev, nodeId })); if (recipeId && !editing) chooseRecipe(recipeId, nodeId); }} className="field" disabled={Boolean(editing) || busy}>
+                <select value={form.nodeId} onChange={(e) => changeNode(e.target.value)} className="field" disabled={Boolean(editing) || busy}>
                   <option value="">{t.global}</option>
                   {nodes.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}
                 </select>
@@ -491,17 +571,45 @@ export default function InboundsPage() {
               <Field label={t.inboundRecipe} hint={t.recipeAutoHint}>
                 <select value={recipeId} onChange={(e) => chooseRecipe(e.target.value)} className="field" disabled={busy}>
                   <option value="">{t.noRecipe}</option>
-                  {recipes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  {(['main', 'spare', 'test'] as const).map((purpose) => {
+                    const list = recipes.filter((r) => (r.purpose || (r.source === 'plugin' ? 'spare' : 'main')) === purpose);
+                    if (!list.length) return null;
+                    const label = lang === 'ru'
+                      ? { main: 'Для клиентов', spare: 'Запасные и плагины', test: 'Для проверки' }[purpose]
+                      : { main: 'For clients', spare: 'Spare and plugins', test: 'Diagnostics' }[purpose];
+                    return <optgroup key={purpose} label={label}>{list.map((r) => <option key={r.id} value={r.id}>{recipeLabel(r)}</option>)}</optgroup>;
+                  })}
                 </select>
               </Field>
               {selectedRecipe && (
                 <div className="self-end space-y-0.5 text-[11px] text-subtle sm:col-span-2">
-                  {selectedRecipe.description && <p>{selectedRecipe.description}</p>}
+                  {(lang === 'ru' ? selectedRecipe.descriptionRu || selectedRecipe.description : selectedRecipe.description) && (
+                    <p>{lang === 'ru' ? selectedRecipe.descriptionRu || selectedRecipe.description : selectedRecipe.description}</p>
+                  )}
                   <p>{[selectedRecipe.source, selectedRecipe.pluginId].filter(Boolean).join(' · ')}</p>
                 </div>
               )}
             </div>
           </div>
+
+          {!editing && form.nodeId && (() => {
+            const existing = inbounds.filter((i: any) => i.nodeId === form.nodeId || i.node?.id === form.nodeId);
+            if (!existing.length) return null;
+            return (
+              <div className="rounded-lg border border-brand/25 bg-brand/5 px-3 py-2 text-xs text-muted">
+                <p className="mb-1.5 text-fg">{lang === 'ru'
+                  ? 'На этой ноде уже есть подключения. Чтобы дать доступ новым пользователям, новое подключение не нужно — привяжите их к существующему:'
+                  : 'This node already has inbounds. To give new users access, bind them to an existing one instead of creating another:'}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {existing.map((i) => (
+                    <Button key={i.id} size="sm" variant="ghost" icon="users" onClick={() => { setOpen(false); openClients(i, true); }}>
+                      {i.tag} :{i.port}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {portNote && (
             <div role="status" className="flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/10 px-3 py-2 text-xs text-warning">
@@ -523,7 +631,14 @@ export default function InboundsPage() {
             </div>
           </div>
 
-          <div className="border-t border-line pt-5">
+          <button type="button" onClick={() => setShowAdvanced((v) => !v)} className="flex w-full items-center gap-2 border-t border-line pt-4 text-left text-xs font-semibold text-subtle hover:text-fg" aria-expanded={showAdvanced}>
+            <Icon name={showAdvanced ? 'chevronDown' : 'chevronRight'} size={14} />
+            {lang === 'ru' ? 'Расширенные настройки' : 'Advanced settings'}
+            <span className="font-normal text-subtle">— {lang === 'ru' ? 'транспорт, ключи, лимиты, fallback, JSON. Рецепт уже заполнил их.' : 'transport, keys, limits, fallbacks, JSON. The recipe has filled them.'}</span>
+          </button>
+
+          {showAdvanced && (<>
+          <div className="pt-1">
             <p className="mb-3 text-xs font-semibold text-subtle">{t.transport} / {t.security}</p>
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label={t.transport}>
@@ -597,9 +712,66 @@ export default function InboundsPage() {
               <textarea rows={6} value={form.settingsText} onChange={(e) => setForm({ ...form, settingsText: e.target.value })} className="field mono text-[11px]" />
             </Field>
             </div>
-            <div className="mt-4"><Toggle checked={form.enabled} onChange={(value) => setForm({ ...form, enabled: value })} label={t.enabled} /></div>
           </div>
+          </>)}
+
+          <Toggle checked={form.enabled} onChange={(value) => setForm({ ...form, enabled: value })} label={t.enabled} />
         </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(created)}
+        onClose={closeCreated}
+        title={lang === 'ru' ? 'Подключение создано' : 'Inbound created'}
+        subtitle={created?.tag}
+        icon={<Icon name="checkCircle" size={16} />}
+        size="lg"
+        footer={<Button variant="primary" onClick={closeCreated}>{lang === 'ru' ? 'Готово' : 'Done'}</Button>}
+      >
+        {created && (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-line bg-surface-2/40 px-3 py-2 text-xs">
+              <p className={created.applied ? 'text-success' : 'text-warning'}>
+                {created.applied
+                  ? (lang === 'ru' ? 'Конфигурация ноды применена — подключение готово к работе.' : 'Node configuration applied — the inbound is ready.')
+                  : (lang === 'ru' ? 'Примените конфигурацию ноды в разделе «Ноды», чтобы подключение заработало.' : 'Apply the node configuration in the Nodes section to activate it.')}
+              </p>
+              {created.applyError && <p className="mt-1 break-all text-danger">{created.applyError}</p>}
+              {!created.nodeId && <p className="mt-1 text-subtle">{lang === 'ru' ? 'Подключение создано для всех нод; примените конфигурацию на нужной ноде.' : 'Created for all nodes; apply the config on the node you need.'}</p>}
+            </div>
+            <div>
+              <p className="mb-2 text-xs font-semibold text-subtle">
+                {created.bound !== null
+                  ? (lang === 'ru' ? `Привязано пользователей: ${created.bound}` : `Users bound: ${created.bound}`)
+                  : (lang === 'ru' ? 'Привязать пользователей' : 'Bind users')}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="primary" icon="users" disabled={busy} onClick={() => bindCreated('all')}>
+                  {lang === 'ru' ? 'Все пользователи' : 'All users'}
+                </Button>
+                <select className="field max-w-xs" value={qrUser} onChange={(e) => showQr(e.target.value)} aria-label={t.user}>
+                  <option value="">{lang === 'ru' ? 'Выберите пользователя…' : 'Select a user…'}</option>
+                  {users.map((u) => <option key={u.id} value={u.id}>{u.email}</option>)}
+                </select>
+                <Button size="sm" icon="plus" disabled={busy || !qrUser} onClick={() => bindCreated('selected')}>
+                  {lang === 'ru' ? 'Привязать и показать QR' : 'Bind and show QR'}
+                </Button>
+              </div>
+            </div>
+            {qrUrl && (
+              <div className="flex flex-col items-center gap-2 rounded-lg border border-line p-4">
+                <QRCodeSVG value={qrUrl} size={160} />
+                <p className="text-[11px] break-all text-center text-subtle">{qrUrl}</p>
+                <Button size="sm" icon="copy" onClick={() => void navigator.clipboard.writeText(qrUrl)}>{t.copyLink}</Button>
+              </div>
+            )}
+            <p className="text-[11px] text-subtle">
+              {lang === 'ru'
+                ? 'QR — ссылка на подписку пользователя. Отсканируйте её в клиенте. Ссылка обновится автоматически, если к подключению добавится ещё пользователей.'
+                : 'QR is the user subscription link. Scan it in the client. It updates automatically when users are added.'}
+            </p>
+          </div>
+        )}
       </Modal>
 
       <Modal
