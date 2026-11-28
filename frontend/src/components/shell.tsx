@@ -278,9 +278,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const sidebar = (
     <div className="animate-slide-left flex h-full flex-col border-r border-line bg-surface">
       <div className="flex h-14 items-center gap-2.5 border-b border-line px-4">
-        <div className="grid h-8 w-8 place-items-center rounded-lg bg-brand text-white">
-          <Icon name="zap" size={16} />
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="XreyStudio" className="h-8 w-8 rounded-full object-contain" />
         <div className="leading-tight">
           <p className="text-[13px] font-semibold text-fg">XreyStudio</p>
           <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-subtle">{t.controlPanel}</p>

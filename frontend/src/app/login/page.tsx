@@ -43,9 +43,8 @@ export default function LoginPage() {
       <div className="animate-fade-up relative grid w-full max-w-4xl overflow-hidden rounded-xl border border-line bg-surface shadow-[var(--ui-shadow-3)] lg:grid-cols-2">
         <div className="relative hidden flex-col justify-between border-r border-line bg-surface-2 p-8 lg:flex">
           <div className="flex items-center gap-2.5">
-            <div className="grid h-8 w-8 place-items-center rounded-lg bg-brand text-white">
-              <Icon name="zap" size={16} />
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="XreyStudio" className="h-8 w-8 rounded-full object-contain" />
             <div>
               <p className="text-[13px] font-semibold text-fg">XreyStudio</p>
               <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-subtle">{t.controlPanel}</p>
