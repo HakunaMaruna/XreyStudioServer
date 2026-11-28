@@ -60,6 +60,8 @@ export default function UsersPage() {
   const [attachMode, setAttachMode] = useState<'all' | 'selected' | 'one'>('selected');
   const [attachIds, setAttachIds] = useState<string[]>([]);
   const [attachError, setAttachError] = useState('');
+  const [deviceLimitInput, setDeviceLimitInput] = useState('0');
+  const [deviceLimitError, setDeviceLimitError] = useState('');
   const [profiles, setProfiles] = useState<{ id: string; name: string }[]>([]);
   const [subTemplates, setSubTemplates] = useState<{ id: string; name: string }[]>([]);
   const [devices, setDevices] = useState<{ id: string; hwid: string; name: string | null; lastSeenAt: string | null }[]>([]);
@@ -240,6 +242,8 @@ export default function UsersPage() {
     try {
       const data = await api.get(`/api/users/${user.id}`);
       setConnection(data);
+      setDeviceLimitInput(String(data.deviceLimit ?? 0));
+      setDeviceLimitError('');
       const manualIds: string[] = (data.inboundClients || [])
         .filter((c: any) => !c.sourceSquadId)
         .map((c: any) => c.inboundId);
@@ -764,23 +768,48 @@ export default function UsersPage() {
             </div>
             <div className="border-t border-line pt-4">
               <div className="mb-3 flex items-end gap-2">
-                <Field label={t.deviceLimit}>
+                <Field label={t.deviceLimit} hint={t.deviceLimitHint}>
                   <input
                     type="number"
+                    inputMode="numeric"
                     min={0}
                     max={100}
-                    value={connection.deviceLimit ?? 0}
-                    onChange={(e) => setConnection({ ...connection, deviceLimit: Number(e.target.value) })}
+                    step={1}
+                    placeholder="0"
+                    value={deviceLimitInput}
+                    onChange={(e) => setDeviceLimitInput(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
                     className="field"
                   />
                 </Field>
-                <Button icon="check" onClick={async () => {
+                <Button icon="check" loading={saving} onClick={async () => {
+                  const value = deviceLimitInput === '' ? 0 : Number(deviceLimitInput);
+                  if (!Number.isInteger(value) || value < 0 || value > 100) {
+                    setDeviceLimitError(t.deviceLimitRange);
+                    return;
+                  }
+                  setDeviceLimitError('');
+                  setSaving(true);
                   try {
-                    await api.patch(`/api/users/${connection.id}`, { deviceLimit: connection.deviceLimit });
-                    setNotice(t.save);
-                  } catch (e: any) { setError(e.message); }
+                    await api.patch(`/api/users/${connection.id}`, { deviceLimit: value });
+                    setConnection({ ...connection, deviceLimit: value });
+                    setDeviceLimitInput(String(value));
+                    setNotice(value === 0 ? t.deviceLimitSavedUnlimited : `${t.deviceLimitSaved}: ${value}`);
+                    setTimeout(() => setNotice(''), 3000);
+                  } catch (e: any) {
+                    setDeviceLimitError(e.message);
+                  } finally {
+                    setSaving(false);
+                  }
                 }}>{t.save}</Button>
               </div>
+              {deviceLimitError && (
+                <div role="alert" className="mb-2 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+                  <Icon name="alert" size={14} /> {deviceLimitError}
+                </div>
+              )}
+              <p className="-mt-2 mb-3 text-[11px] text-subtle">
+                {t.devices}: {devices.length} / {Number(connection.deviceLimit || 0) === 0 ? '∞' : connection.deviceLimit}
+              </p>
               <p className="mb-2 text-xs font-semibold text-subtle">{t.devices}</p>
               <div className="mb-2 flex gap-2">
                 <input value={hwidInput} onChange={(e) => setHwidInput(e.target.value)} placeholder={t.hwid} className="field" />

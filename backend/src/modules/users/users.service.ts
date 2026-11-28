@@ -101,6 +101,7 @@ export class UsersService implements OnModuleInit {
         status: true,
         trafficLimit: true,
         trafficUsed: true,
+        deviceLimit: true,
         expiresAt: true,
         subscriptionToken: true,
         telegramId: true,
