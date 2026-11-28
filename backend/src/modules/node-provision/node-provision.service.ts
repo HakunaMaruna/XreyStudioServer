@@ -230,17 +230,20 @@ export class NodeProvisionService {
     const clean = `${git} reset --hard HEAD >/dev/null 2>&1 || true`;
     const restore = `${sudo}cp /tmp/xss-agent-compose-backup docker-compose.node.yml 2>/dev/null || true`;
     const parts = [backup, clean];
+    const pullBranch = [
+      `branch=$(${git} symbolic-ref -q --short HEAD || ${git} for-each-ref --format='%(refname:short)' refs/heads | head -n 1)`,
+      `${git} checkout -q "\${branch:-main}"`,
+      `${git} pull -q --ff-only`,
+    ];
     if (targetVersion) {
+      // Не каждый релиз панели помечается тегом: без тега берём свежую ветку.
       parts.push(
-        `( ${git} rev-parse -q --verify "refs/tags/${targetVersion}" >/dev/null && tag=${targetVersion} || tag=v${targetVersion}; ` +
-        `${git} checkout -q "$tag" )`,
+        `if ${git} rev-parse -q --verify "refs/tags/${targetVersion}" >/dev/null; then ${git} checkout -q "${targetVersion}"; ` +
+        `elif ${git} rev-parse -q --verify "refs/tags/v${targetVersion}" >/dev/null; then ${git} checkout -q "v${targetVersion}"; ` +
+        `else ${pullBranch.join('; ')}; fi`,
       );
     } else {
-      parts.push(
-        `branch=$(${git} symbolic-ref -q --short HEAD || ${git} for-each-ref --format='%(refname:short)' refs/heads | head -n 1)`,
-        `${git} checkout -q "\${branch:-main}"`,
-        `${git} pull -q --ff-only`,
-      );
+      parts.push(...pullBranch);
     }
     parts.push(restore);
     return parts.join('; ');

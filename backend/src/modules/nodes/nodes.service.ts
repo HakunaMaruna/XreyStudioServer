@@ -12,7 +12,7 @@ import * as net from 'net';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { encryptSecret } from '../../common/secret-crypto';
-import { APP_VERSION, isAgentOutdated } from '../../version';
+import { APP_VERSION, isAgentOutdated, isAgentUpdateAvailable } from '../../version';
 import { ConfigGeneratorService } from '../config/config-generator.service';
 import { AgentClientService } from '../config/agent-client.service';
 import { CreateNodeDto, NodeMetricsDto, RegisterNodeDto, UpdateNodeDto } from './dto/node.dto';
@@ -72,6 +72,7 @@ export class NodesService {
       status: this.displayStatus(n),
       online: this.isOnline(n),
       agentOutdated: isAgentOutdated(n.agentVersion),
+      agentUpdateAvailable: isAgentUpdateAvailable(n.agentVersion),
       domain: domainByNode.get(n.id) || null,
     }));
   }
@@ -366,6 +367,7 @@ export class NodesService {
         version: node.agentVersion || null,
         expectedVersion: APP_VERSION,
         outdated: isAgentOutdated(node.agentVersion),
+        updateAvailable: isAgentUpdateAvailable(node.agentVersion),
       },
       xray: last?.xrayStatus || 'unknown',
       network: {

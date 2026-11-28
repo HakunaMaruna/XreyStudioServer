@@ -1,6 +1,6 @@
 {
   "name": "xss-agent",
-  "version": "2.60.3",
+  "version": "2.60.4",
   "license": "AGPL-3.0-or-later",
   "private": true,
   "scripts": {

@@ -1091,6 +1091,9 @@ export default function SettingsPage() {
               {update.agents.outdated > 0 && (
                 <p className="text-[11px] text-danger">{t.agentsOutdated.replace('{count}', String(update.agents.outdated))}</p>
               )}
+              {!update.agents.outdated && Number(update.agents.updateAvailable || 0) > 0 && (
+                <p className="text-[11px] text-warning">{t.agentsUpdateAvailable.replace('{count}', String(update.agents.updateAvailable))}</p>
+              )}
               {update.apply.mode === 'manual' && <CodeBlock>{update.apply.command}</CodeBlock>}
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" icon="refresh" onClick={checkUpdate} loading={updateLoading}>

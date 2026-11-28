@@ -23,6 +23,7 @@ type NodeRow = {
   location?: string | null; geo?: NodeGeo | null; metrics?: NodeMetricRow[];
   agentVersion?: string | null;
   agentOutdated?: boolean;
+  agentUpdateAvailable?: boolean;
   lastError?: string | null;
   domain?: string | null;
   ipv6Enabled?: boolean;
@@ -572,7 +573,7 @@ export default function NodesPage() {
                       )}
                       {node.geo?.countryCode && <Badge tone="neutral">{node.geo.countryCode}</Badge>}
                       {node.agentVersion && (
-                        <Badge tone={node.agentOutdated ? 'warning' : 'success'} dot>
+                        <Badge tone={node.agentOutdated ? 'warning' : node.agentUpdateAvailable ? 'brand' : 'success'} dot>
                           {t.agentVersion}: {node.agentVersion}
                         </Badge>
                       )}
@@ -657,8 +658,9 @@ export default function NodesPage() {
                   <IconButton icon="play" label={t.apply} tone="brand" disabled={Boolean(busyNode)} onClick={() => runNodeAction(node, t.apply, () => apply(node.id))} />
                   <IconButton icon="download" label={t.updateAgent} tone="brand" onClick={() => openAgentUpdate(node)} />
                   <IconButton icon="network" label={t.ipv6Entry} tone={node.ipv6Enabled ? 'brand' : 'default'} onClick={() => openIpv6(node)} />
-                  {node.agentOutdated && (
+                  {(node.agentOutdated || node.agentUpdateAvailable) && (
                     <Button size="sm" variant="primary" icon="refresh" loading={updatingAgentId === node.id}
+                      title={`${node.agentVersion || '—'} → ${APP_VERSION}`}
                       disabled={Boolean(updatingAgentId)} onClick={() => updateAgentLatest(node)}>
                       {t.updateAgentLatest}
                     </Button>

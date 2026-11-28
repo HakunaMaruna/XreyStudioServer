@@ -25,7 +25,7 @@ export type UpdateStatus = {
   canApply: boolean;
   error: string | null;
   apply: { mode: 'auto' | 'manual'; command: string };
-  agents: { total: number; outdated: number; unknown: number };
+  agents: { total: number; outdated: number; updateAvailable?: number; unknown: number };
   job: UpdateJob | null;
 };
 

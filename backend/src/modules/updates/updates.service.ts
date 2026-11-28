@@ -2,7 +2,7 @@
 // Copyright (C) 2026 HakunaMaruna
 import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { verify } from 'crypto';
-import { APP_VERSION, isAgentOutdated } from '../../version';
+import { APP_VERSION, isAgentOutdated, isAgentUpdateAvailable } from '../../version';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { VerifyUpdateDto } from './dto/verify-update.dto';
@@ -38,7 +38,7 @@ export type UpdateStatus = {
   canApply: boolean;
   error: string | null;
   apply: { mode: 'auto' | 'manual'; command: string };
-  agents: { total: number; outdated: number; unknown: number };
+  agents: { total: number; outdated: number; updateAvailable: number; unknown: number };
   job: UpdateJob | null;
 };
 
@@ -293,6 +293,7 @@ export class UpdatesService {
     return {
       total: nodes.length,
       outdated: nodes.filter((node) => isAgentOutdated(node.agentVersion)).length,
+      updateAvailable: nodes.filter((node) => isAgentUpdateAvailable(node.agentVersion)).length,
       unknown: nodes.filter((node) => !node.agentVersion).length,
     };
   }
