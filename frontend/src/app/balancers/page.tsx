@@ -22,6 +22,9 @@ type MemberForm = {
   transport: string;
   sni: string;
   path: string;
+  publicKey: string;
+  shortId: string;
+  flow: string;
   enabled: boolean;
 };
 
@@ -71,7 +74,7 @@ const PROTECTED_PROTOCOLS = ['vless', 'vmess', 'trojan', 'shadowsocks', 'freedom
 
 const emptyMember = (): MemberForm => ({
   protocol: 'vless', address: '', port: '443', uuid: '', password: '',
-  method: 'aes-256-gcm', security: 'none', transport: 'tcp', sni: '', path: '', enabled: true,
+  method: 'aes-256-gcm', security: 'none', transport: 'tcp', sni: '', path: '', publicKey: '', shortId: '', flow: '', enabled: true,
 });
 
 const emptyForm = (): FormState => ({
@@ -126,8 +129,11 @@ export default function BalancersPage() {
       method: String(settings.clients?.[0]?.method || 'aes-256-gcm'),
       security: String(stream.security || 'none'),
       transport: String(stream.network || 'tcp'),
-      sni: String(stream.tlsSettings?.serverName || ''),
+      sni: String(stream.realitySettings?.serverName || stream.tlsSettings?.serverName || ''),
       path: String(stream.wsSettings?.path || ''),
+      publicKey: String(stream.realitySettings?.publicKey || ''),
+      shortId: String(stream.realitySettings?.shortId || ''),
+      flow: String(settings.clients?.[0]?.flow || ''),
       enabled: member.enabled,
     };
   };
@@ -187,6 +193,9 @@ export default function BalancersPage() {
         password: String(m.password || ''),
         security: String(m.security || 'none'),
         sni: String(m.sni || ''),
+        publicKey: String(m.publicKey || ''),
+        shortId: String(m.shortId || ''),
+        flow: String(m.flow || ''),
         enabled: m.enabled !== false,
       })),
     });
@@ -223,6 +232,8 @@ export default function BalancersPage() {
       transport: member.transport,
       sni: member.sni,
       path: member.path,
+      ...(member.security === 'reality' ? { publicKey: member.publicKey.trim(), shortId: member.shortId.trim() } : {}),
+      ...(member.protocol === 'vless' ? { flow: member.flow } : {}),
       enabled: member.enabled,
     })),
   });
@@ -449,6 +460,19 @@ export default function BalancersPage() {
                     </Field>
                     <Field label={t.balancerTransport} hint={hint('Транспорт: tcp, ws, grpc и т.д.','Transport: tcp, ws, grpc, etc.')}><input className="field" value={member.transport} onChange={(e) => updateMember(index, { transport: e.target.value })} /></Field>
                     <Field label={t.balancerSni} hint={hint('Имя сервера для TLS/REALITY','Server name for TLS/REALITY')}><input className="field" value={member.sni} onChange={(e) => updateMember(index, { sni: e.target.value })} /></Field>
+                    {member.security === 'reality' && (
+                      <>
+                        <Field label="REALITY public key" hint={hint('Публичный ключ (pbk) подключения на ноде-выходе. Есть в ссылке vless://…&pbk=…','Public key (pbk) of the exit node inbound, found in the vless:// link as pbk=…')}><input className="field font-mono" required value={member.publicKey} onChange={(e) => updateMember(index, { publicKey: e.target.value })} /></Field>
+                        <Field label="REALITY shortId" hint={hint('Short ID (sid) из ссылки подключения, до 16 hex-символов','Short ID (sid) from the connection link, up to 16 hex chars')}><input className="field font-mono" value={member.shortId} onChange={(e) => updateMember(index, { shortId: e.target.value })} /></Field>
+                      </>
+                    )}
+                    {member.protocol === 'vless' && (
+                      <Field label="Flow" hint={hint('xtls-rprx-vision — если подключение на выходе использует Vision (так создаёт мастер)','xtls-rprx-vision if the exit inbound uses Vision (wizard default)')}>
+                        <select className="field" value={member.flow} onChange={(e) => updateMember(index, { flow: e.target.value })}>
+                          <option value="">none</option><option value="xtls-rprx-vision">xtls-rprx-vision</option>
+                        </select>
+                      </Field>
+                    )}
                   </div>
                 </div>
               ))}

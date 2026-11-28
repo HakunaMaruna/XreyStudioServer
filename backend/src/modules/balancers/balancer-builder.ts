@@ -55,6 +55,43 @@ function normalizeRule(raw: unknown): Record<string, unknown> | null {
   return Object.keys(rule).some((key) => MATCHERS.includes(key)) ? rule : null;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Turns a stored member into an Xray outbound or returns null when Xray would
+ * reject it. One broken member must not make `xray run -test` fail for the
+ * whole node config.
+ */
+export function memberOutbound(protocol: string, parsed: Record<string, any>): Record<string, unknown> | null {
+  const settings = { ...(parsed.settings || {}) } as Record<string, any>;
+  const stream = parsed.streamSettings ? { ...parsed.streamSettings } as Record<string, any> : undefined;
+  if (stream?.security === 'reality') {
+    const reality = stream.realitySettings || {};
+    if (!reality.publicKey) return null;
+    delete stream.tlsSettings;
+  }
+  if (protocol === 'vless' || protocol === 'vmess') {
+    if (!settings.vnext) {
+      const client = Array.isArray(settings.clients) ? settings.clients[0] || {} : {};
+      const id = String(settings.id || client.id || '');
+      if (!UUID_RE.test(id)) return null;
+      const user: Record<string, unknown> = { id };
+      if (protocol === 'vless') {
+        user.encryption = 'none';
+        if (client.flow || settings.flow) user.flow = client.flow || settings.flow;
+      } else {
+        user.alterId = 0;
+      }
+      return {
+        protocol,
+        settings: { vnext: [{ address: settings.address, port: settings.port, users: [user] }] },
+        ...(stream ? { streamSettings: stream } : {}),
+      };
+    }
+  }
+  return { protocol, settings, ...(stream ? { streamSettings: stream } : {}) };
+}
+
 export function buildBalancers(list: BalancerInput[], quarantined?: ReadonlySet<string>): BuiltBalancers {
   const result: BuiltBalancers = { outbounds: [], balancers: [], rules: [], observerSelectors: [] };
   let burstSource: BalancerInput | null = null;
@@ -78,13 +115,10 @@ export function buildBalancers(list: BalancerInput[], quarantined?: ReadonlySet<
       // rotation without deleting the balancer member.
       const address = String(parsed?.settings?.address || parsed?.address || '');
       if (quarantined?.has(address)) return;
+      const outbound = memberOutbound(member.protocol, parsed);
+      if (!outbound) return;
       const tag = `${prefix}${index + 1}`;
-      result.outbounds.push({
-        tag,
-        protocol: member.protocol,
-        settings: parsed.settings || {},
-        ...(parsed.streamSettings ? { streamSettings: parsed.streamSettings } : {}),
-      });
+      result.outbounds.push({ tag, ...outbound });
       memberTags.push(tag);
     });
 

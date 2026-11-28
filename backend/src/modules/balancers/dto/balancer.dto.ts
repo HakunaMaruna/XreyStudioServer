@@ -20,6 +20,10 @@ export class BalancerMemberDto {
   @IsOptional() @IsString() @MaxLength(64) transport?: string;
   @IsOptional() @IsString() @MaxLength(253) sni?: string;
   @IsOptional() @IsString() @MaxLength(512) path?: string;
+  @IsOptional() @IsString() @Matches(/^[A-Za-z0-9_-]{20,64}$/, { message: 'REALITY publicKey must be base64url' }) publicKey?: string;
+  @IsOptional() @IsString() @Matches(/^[0-9a-fA-F]{0,16}$/, { message: 'REALITY shortId must be up to 16 hex chars' }) shortId?: string;
+  @IsOptional() @IsString() @MaxLength(32) fingerprint?: string;
+  @IsOptional() @IsIn(['', 'xtls-rprx-vision']) flow?: string;
   @IsOptional() @IsBoolean() enabled?: boolean;
 }
 

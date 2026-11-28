@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 HakunaMaruna
 import { encryptSecret } from '../../common/secret-crypto';
-import { buildBalancers } from './balancer-builder';
+import { buildBalancers, memberOutbound } from './balancer-builder';
 
 describe('buildBalancers', () => {
   it('creates Xray balancer, selector, rule and observatory prefix', () => {
@@ -21,7 +21,7 @@ describe('buildBalancers', () => {
       burstTimeoutSec: 5,
       rule: { domain: ['example.com'] },
       members: [
-        { id: 'm1', protocol: 'vless', enabled: true, config: encryptSecret(JSON.stringify({ settings: { address: 'a.example.com', port: 443 } })) },
+        { id: 'm1', protocol: 'vless', enabled: true, config: encryptSecret(JSON.stringify({ settings: { address: 'a.example.com', port: 443, clients: [{ id: '9b2f87ac-e87e-42c9-91b6-01e36fba3bdc' }] } })) },
         { id: 'm2', protocol: 'trojan', enabled: true, config: encryptSecret(JSON.stringify({ settings: { address: 'b.example.com', port: 443 } })) },
       ],
     } as any]);
@@ -47,5 +47,16 @@ describe('buildBalancers', () => {
       probeUrl: '', probeIntervalSec: 30, name: '',
     } as any]);
     expect(built).toEqual({ outbounds: [], balancers: [], rules: [], observerSelectors: [] });
+  });
+
+  it('builds a vnext VLESS outbound and skips members Xray would reject', () => {
+    const id = '9b2f87ac-e87e-42c9-91b6-01e36fba3bdc';
+    expect(memberOutbound('vless', { settings: { address: 'x', port: 443, clients: [{ id }] } })).toEqual({
+      protocol: 'vless',
+      settings: { vnext: [{ address: 'x', port: 443, users: [{ id, encryption: 'none' }] }] },
+    });
+    // REALITY without a public key and an empty UUID both break `xray run -test`.
+    expect(memberOutbound('vless', { settings: { address: 'x', port: 443, clients: [{ id }] }, streamSettings: { security: 'reality', tlsSettings: { serverName: 'x' } } })).toBeNull();
+    expect(memberOutbound('vless', { settings: { address: 'x', port: 443, clients: [{ id: '' }] } })).toBeNull();
   });
 });

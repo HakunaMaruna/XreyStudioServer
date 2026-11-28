@@ -44,7 +44,10 @@ export class BalancersService {
     }
     switch (dto.protocol) {
       case 'vless':
-        settings.clients = [{ id: dto.uuid || '', email: `${dto.uuid || 'member'}@balancer.local` }];
+        settings.clients = [{
+          id: dto.uuid || '', email: `${dto.uuid || 'member'}@balancer.local`,
+          ...(dto.flow ? { flow: dto.flow } : {}),
+        }];
         settings.decryption = 'none';
         break;
       case 'vmess':
@@ -68,7 +71,15 @@ export class BalancersService {
       streamSettings.network = dto.transport;
       if (dto.path) streamSettings.wsSettings = { path: dto.path };
     }
-    if (dto.sni) {
+    if (dto.security === 'reality') {
+      if (!dto.publicKey) throw new BadRequestException('REALITY member needs publicKey');
+      streamSettings.realitySettings = {
+        serverName: dto.sni || '',
+        publicKey: dto.publicKey,
+        shortId: dto.shortId || '',
+        fingerprint: dto.fingerprint || 'chrome',
+      };
+    } else if (dto.sni) {
       streamSettings.tlsSettings = { serverName: dto.sni };
     }
     return { settings, ...(Object.keys(streamSettings).length ? { streamSettings } : {}) };
