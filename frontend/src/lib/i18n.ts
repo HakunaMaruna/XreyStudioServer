@@ -311,6 +311,8 @@ const dict = {
     // Users
     usersSubtitle: 'Управление аккаунтами, ролями и лимитами трафика',
     newUser: 'Новый пользователь',
+    userCreated: 'Пользователь создан',
+    userSaved: 'Изменения сохранены',
     createAccount: 'Создать аккаунт и выпустить подписку',
     atLeast6Chars: 'Не менее 6 символов',
     valueInGB: 'Значение в ГБ',
@@ -1258,6 +1260,8 @@ clientIpv6: 'Разрешить IPv6-выход',
 
     usersSubtitle: 'Manage accounts, roles and traffic allowances',
     newUser: 'New user',
+    userCreated: 'User created',
+    userSaved: 'Changes saved',
     createAccount: 'Create an account and issue a subscription',
     atLeast6Chars: 'At least 6 characters',
     valueInGB: 'Value in GB',

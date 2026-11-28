@@ -48,6 +48,8 @@ export default function UsersPage() {
   const [total, setTotal] = useState(0);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [pageNotice, setPageNotice] = useState('');
+  const [modalError, setModalError] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({ email: '', password: '', trafficLimit: 100, telegramId: '' });
   const [editing, setEditing] = useState<UserRow | null>(null);
@@ -173,7 +175,7 @@ export default function UsersPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setModalError('');
     setSaving(true);
     try {
       await api.post('/api/users', {
@@ -182,11 +184,13 @@ export default function UsersPage() {
         trafficLimit: form.trafficLimit * 1024 ** 3,
         telegramId: form.telegramId || null,
       });
+      const email = form.email;
       setForm({ email: '', password: '', trafficLimit: 100, telegramId: '' });
       setCreateOpen(false);
+      setPageNotice(`${t.userCreated}: ${email}`);
       await load();
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
     } finally {
       setSaving(false);
     }
@@ -211,6 +215,7 @@ export default function UsersPage() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editing) return;
+    setModalError('');
     setSaving(true);
     try {
       await api.patch(`/api/users/${editing.id}`, {
@@ -219,10 +224,11 @@ export default function UsersPage() {
         trafficLimit: editForm.trafficLimit * 1024 ** 3,
         telegramId: editForm.telegramId || null,
       });
+      setPageNotice(`${t.userSaved}: ${editing.email}`);
       setEditing(null);
       await load();
     } catch (e: any) {
-      setError(e.message);
+      setModalError(e.message);
     } finally {
       setSaving(false);
     }
@@ -518,6 +524,13 @@ export default function UsersPage() {
         </div>
       )}
 
+      {pageNotice && (
+        <div role="status" className="mb-4 flex items-center gap-2 rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-xs text-success">
+          <Icon name="check" size={15} /> <span className="flex-1">{pageNotice}</span>
+          <IconButton icon="close" label={t.close} onClick={() => setPageNotice('')} className="h-6 w-6" />
+        </div>
+      )}
+
       <Card className="mb-5 p-4">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-[220px] flex-1">
@@ -654,9 +667,10 @@ export default function UsersPage() {
         </div>
       </Modal>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t.newUser} subtitle={t.createAccount} icon={<Icon name="users" size={16} />}
-        footer={<><Button onClick={() => setCreateOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="plus" onClick={create} loading={saving}>{t.create}</Button></>}>
-        <form onSubmit={create} className="space-y-4">
+      <Modal open={createOpen} onClose={() => { setCreateOpen(false); setModalError(''); }} title={t.newUser} subtitle={t.createAccount} icon={<Icon name="users" size={16} />}
+        footer={<><Button onClick={() => setCreateOpen(false)}>{t.cancel}</Button><Button variant="primary" icon="plus" type="submit" form="create-user-form" loading={saving}>{t.create}</Button></>}>
+        <form id="create-user-form" onSubmit={create} className="space-y-4">
+          {modalError && <div role="alert" className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger"><Icon name="alert" size={15} /> {modalError}</div>}
           <Field label={t.email}><input type="email" placeholder="user@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="field" required /></Field>
           <Field label={t.password} hint={t.atLeast6Chars}><input type="password" minLength={6} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="field" required /></Field>
           <Field label={t.trafficLimit} hint={t.valueInGB}><input type="number" min={1} value={form.trafficLimit} onChange={(e) => setForm({ ...form, trafficLimit: Number(e.target.value) })} className="field" /></Field>
@@ -664,9 +678,10 @@ export default function UsersPage() {
         </form>
       </Modal>
 
-      <Modal open={Boolean(editing)} onClose={() => setEditing(null)} title={editing?.email || ''} subtitle={t.editUserSubtitle}
-        footer={<><Button onClick={() => setEditing(null)}>{t.cancel}</Button><Button variant="primary" icon="check" onClick={save} loading={saving}>{t.save}</Button></>}>
-        <form onSubmit={save} className="space-y-4">
+      <Modal open={Boolean(editing)} onClose={() => { setEditing(null); setModalError(''); }} title={editing?.email || ''} subtitle={t.editUserSubtitle}
+        footer={<><Button onClick={() => setEditing(null)}>{t.cancel}</Button><Button variant="primary" icon="check" type="submit" form="edit-user-form" loading={saving}>{t.save}</Button></>}>
+        <form id="edit-user-form" onSubmit={save} className="space-y-4">
+          {modalError && <div role="alert" className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger"><Icon name="alert" size={15} /> {modalError}</div>}
           <Field label={t.role}>
             <select value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })} className="field">
               <option value="ADMIN">ADMIN</option><option value="OPERATOR">OPERATOR</option><option value="USER">USER</option>
