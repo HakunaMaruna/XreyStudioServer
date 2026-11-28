@@ -7,6 +7,7 @@ import { SnapshotsModule } from '../snapshots/snapshots.module';
 import { EnvAuthProvider } from './auth-provider';
 import { PluginCatalogService } from './plugin-catalog.service';
 import { PluginManagerService } from './plugin-manager.service';
+import { PluginPublishService } from './plugin-publish.service';
 import { PluginRecipeService } from './plugin-recipe.service';
 import { PluginRuntimeService } from './plugin-runtime.service';
 import { PluginStorageService } from './plugin-storage.service';
@@ -22,7 +23,8 @@ import { PluginsController } from './plugins.controller';
     PluginRuntimeService,
     PluginCatalogService,
     PluginManagerService,
+    PluginPublishService,
   ],
-  exports: [PluginManagerService, PluginCatalogService, PluginRecipeService],
+  exports: [PluginManagerService, PluginCatalogService, PluginRecipeService, PluginPublishService],
 })
 export class PluginsModule {}

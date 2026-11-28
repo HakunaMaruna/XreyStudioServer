@@ -897,6 +897,27 @@ model StoreVersion {
   @@unique([pluginId, version])
 }
 
+enum StoreReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model StoreReview {
+  id        String           @id @default(uuid())
+  pluginId  String
+  version   String
+  developer String
+  checks    Json
+  status    StoreReviewStatus @default(PENDING)
+  reviewer  String?
+  note      String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([pluginId, version])
+}
+
 model StoreRevocation {
   id        String   @id @default(uuid())
   pluginId  String

@@ -54,3 +54,24 @@ PLUGIN_AUTO_SNAPSHOT=true
 PLUGINS_DISABLED=false
 PLUGIN_SAFE_MODE=false
 ```
+
+
+## Upload and moderation (master panel)
+
+The master panel has two extra tabs under **Plugins**:
+
+- **Upload** — select a `.plugin.json` package. The panel validates the manifest,
+  runs static checks (no direct DB/env/fs/network APIs), signs the package with
+  `PLUGIN_STORE_PRIVATE_KEY` and publishes it to the store with status `REVIEW`.
+- **Review** — list of pending submissions with approve/reject buttons. Approving
+  sets the store plugin status to `PUBLISHED`.
+
+Only ADMIN can upload or review. Plugins are currently free and authored by us.
+
+### Key rotation
+
+`PLUGIN_STORE_PUBLIC_KEY` is the current verification key, `PLUGIN_STORE_PUBLIC_KEY_OLD`
+is still accepted so previously published plugins keep working. When rotating,
+generate a new Ed25519 pair with `node scripts/plugin-cli.mjs keygen`, keep the
+private key in a secret store, publish the public key to all panels and keep the
+old public key until every installed plugin has been re-signed.

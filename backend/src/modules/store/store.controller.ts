@@ -49,6 +49,17 @@ export class StoreController {
     return this.service.revoke(slug, body.version || null, body.reason || null, token);
   }
 
+  @Get('api/store/reviews')
+  reviews(@Headers('x-store-token') token?: string) { return this.service.reviews(token); }
+
+  @Post('api/store/reviews')
+  createReview(@Body() body: any, @Headers('x-store-token') token?: string) { return this.service.createReview(body, token); }
+
+  @Post('api/store/reviews/:id/decide')
+  decideReview(@Param('id') id: string, @Body() body: any, @Headers('x-store-token') token?: string) {
+    return this.service.decideReview(id, body, token);
+  }
+
   @Get('api/store/revocations')
   revocations() { return this.service.revocations(); }
 }

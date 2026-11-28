@@ -94,7 +94,7 @@ export class PluginManagerService implements OnModuleInit {
 
   async install(pkg: PluginPackage, actor?: AuthUser) {
     const value = validatePackage(pkg);
-    verifyPackageSignature(value, process.env.PLUGIN_STORE_PUBLIC_KEY, this.allowUnsigned());
+    verifyPackageSignature(value, [process.env.PLUGIN_STORE_PUBLIC_KEY, process.env.PLUGIN_STORE_PUBLIC_KEY_OLD], this.allowUnsigned());
     await this.catalog.assertNotRevoked(value.manifest.id, value.manifest.version).catch((error) => { throw new ForbiddenException(error.message); });
     await this.catalog.assertPolicyAllowed(value.manifest.id).catch((error) => { throw new ForbiddenException(error.message); });
     const existing = await this.prisma.plugin.findUnique({ where: { pluginId: value.manifest.id } });
@@ -164,7 +164,7 @@ export class PluginManagerService implements OnModuleInit {
   async update(pluginId: string, pkg: PluginPackage, actor?: AuthUser) {
     const value = validatePackage(pkg);
     if (value.manifest.id !== pluginId) throw new BadRequestException('Plugin id does not match');
-    verifyPackageSignature(value, process.env.PLUGIN_STORE_PUBLIC_KEY, this.allowUnsigned());
+    verifyPackageSignature(value, [process.env.PLUGIN_STORE_PUBLIC_KEY, process.env.PLUGIN_STORE_PUBLIC_KEY_OLD], this.allowUnsigned());
     await this.catalog.assertNotRevoked(pluginId, value.manifest.version).catch((error) => { throw new ForbiddenException(error.message); });
     const row = await this.find(pluginId);
     if (row.version === value.manifest.version) throw new BadRequestException('Plugin version is unchanged');

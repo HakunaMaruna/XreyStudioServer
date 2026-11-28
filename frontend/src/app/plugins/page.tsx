@@ -21,7 +21,7 @@ type CatalogPlugin = {
 };
 type Catalog = { plugins: CatalogPlugin[]; categories?: string[]; offline?: boolean; cached?: boolean; error?: string };
 type Policy = { whitelist?: string[]; blacklist?: string[]; mandatory?: string[]; forcedUpdates?: string[] };
-type Tab = 'installed' | 'catalog' | 'policy';
+type Tab = 'installed' | 'catalog' | 'policy' | 'publish' | 'reviews';
 
 export default function PluginsPage() {
   const { t, lang } = useLang();
@@ -36,6 +36,9 @@ export default function PluginsPage() {
   const [settingsDraft, setSettingsDraft] = useState<Record<string, unknown>>({});
   const [logsFor, setLogsFor] = useState<string | null>(null);
   const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
+  const [publishPkg, setPublishPkg] = useState<any>(null);
+  const [publishFindings, setPublishFindings] = useState<any[]>([]);
+  const [reviewRows, setReviewRows] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
 
   const load = useCallback(async () => {
@@ -56,6 +59,12 @@ export default function PluginsPage() {
     if (!isLoggedIn()) { window.location.href = '/login'; return; }
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (tab === 'reviews') {
+      api.get<any[]>('/api/plugins/reviews').then((rows) => setReviewRows(Array.isArray(rows) ? rows : (rows as any).data || [])).catch(() => setReviewRows([]));
+    }
+  }, [tab]);
 
   const action = async (id: string, name: string, payload: Record<string, unknown> = {}) => {
     setBusy(true); setError(''); setNotice('');
@@ -108,6 +117,38 @@ export default function PluginsPage() {
     } catch (e: any) { setError(e.message); } finally { setBusy(false); }
   };
 
+  const readPackage = async (file: File | undefined) => {
+    if (!file) return;
+    setError(''); setNotice(''); setPublishFindings([]);
+    try {
+      const pkg = JSON.parse(await file.text());
+      setPublishPkg(pkg);
+      const result: any = await api.post('/api/plugins/review', { pkg });
+      setPublishFindings(result.findings || []);
+    } catch (e: any) { setError(e.message); setPublishPkg(null); }
+  };
+
+  const submitPackage = async () => {
+    if (!publishPkg) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const result: any = await api.post('/api/plugins/publish', { pkg: publishPkg });
+      setNotice(`${lang === 'ru' ? 'Отправлено на модерацию' : 'Submitted for review'}: ${result.pluginId} v${result.version}`);
+      setPublishPkg(null); setPublishFindings([]);
+    } catch (e: any) { setError(e.message); }
+    finally { setBusy(false); }
+  };
+
+  const decide = async (id: string, status: string) => {
+    setBusy(true); setError(''); setNotice('');
+    try {
+      await api.post(`/api/plugins/reviews/${id}/decide`, { status });
+      setNotice(`${id}: ${status}`);
+      setReviewRows(await api.get<any[]>('/api/plugins/reviews'));
+    } catch (e: any) { setError(e.message); }
+    finally { setBusy(false); }
+  };
+
   const listField = (value: string | undefined) => value ? value.split(',').map((v) => v.trim()).filter(Boolean) : [];
 
   return (
@@ -122,6 +163,8 @@ export default function PluginsPage() {
         { value: 'installed', label: t.pluginsInstalled, icon: 'box' },
         { value: 'catalog', label: t.pluginsCatalog, icon: 'globe' },
         { value: 'policy', label: t.pluginsPolicy, icon: 'shield' },
+        { value: 'publish', label: lang === 'ru' ? 'Загрузка' : 'Upload', icon: 'upload' },
+        { value: 'reviews', label: lang === 'ru' ? 'Модерация' : 'Review', icon: 'checkCircle' },
       ]} /></div>
 
       {tab === 'installed' && (
@@ -219,6 +262,61 @@ export default function PluginsPage() {
             </div>
           )}
         </div>
+      )}
+
+      {tab === 'publish' && (
+        <div className="space-y-4">
+          <Card className="p-4">
+            <SectionTitle title={lang === 'ru' ? 'Загрузка плагина' : 'Upload a plugin'}
+              subtitle={lang === 'ru' ? 'Пакет .plugin.json проверяется, подписывается и уходит на модерацию' : 'A .plugin.json package is validated, signed and sent for review'} />
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 text-xs text-muted hover:border-brand hover:text-brand">
+                <Icon name="upload" size={14} /> {lang === 'ru' ? 'Выбрать .plugin.json' : 'Choose .plugin.json'}
+                <input type="file" accept=".json,application/json" className="hidden" onChange={(e) => readPackage(e.target.files?.[0])} />
+              </label>
+              {publishPkg && <Badge tone="brand">{publishPkg.manifest?.id} · v{publishPkg.manifest?.version}</Badge>}
+            </div>
+            {publishFindings.length > 0 && (
+              <div className="mt-3 space-y-1">
+                {publishFindings.map((finding, index) => (
+                  <div key={index} className={`rounded-lg border px-3 py-2 text-[11px] ${finding.level === 'blocking' ? 'border-danger/30 bg-danger/10 text-danger' : finding.level === 'warning' ? 'border-warning/30 bg-warning/10 text-warning' : 'border-line bg-surface-2/40 text-muted'}`}>
+                    <span className="mono mr-2">{finding.code}</span>{finding.message}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="mt-4 flex justify-end">
+              <Button variant="primary" icon="check" loading={busy} disabled={!publishPkg || publishFindings.some((f) => f.level === 'blocking')} onClick={submitPackage}>
+                {lang === 'ru' ? 'Отправить на модерацию' : 'Submit for review'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {tab === 'reviews' && (
+        <Card padded={false}>
+          <div className="flex items-center justify-between border-b border-line px-3 py-2.5">
+            <h2 className="text-[13px] font-semibold text-fg">{lang === 'ru' ? 'Заявки на публикацию' : 'Publication requests'}</h2>
+            <Badge tone="neutral">{reviewRows.length}</Badge>
+          </div>
+          {!reviewRows.length ? <p className="p-6 text-center text-xs text-subtle">{t.noData}</p> : (
+            <div className="divide-y divide-line/40">
+              {reviewRows.map((row) => (
+                <div key={row.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-[11px]">
+                  <span className="font-medium text-fg">{row.pluginId}</span>
+                  <Badge tone="brand">v{row.version}</Badge>
+                  <span className="text-subtle">{row.developer}</span>
+                  <Badge tone={row.status === 'APPROVED' ? 'success' : row.status === 'REJECTED' ? 'danger' : 'warning'}>{row.status}</Badge>
+                  <span className="ml-auto flex gap-1">
+                    <Button size="sm" variant="subtle" icon="check" disabled={busy || row.status === 'APPROVED'} onClick={() => decide(row.id, 'APPROVED')}>{lang === 'ru' ? 'Одобрить' : 'Approve'}</Button>
+                    <Button size="sm" variant="danger" icon="xCircle" disabled={busy || row.status === 'REJECTED'} onClick={() => decide(row.id, 'REJECTED')}>{lang === 'ru' ? 'Отклонить' : 'Reject'}</Button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
       )}
 
       {tab === 'policy' && (

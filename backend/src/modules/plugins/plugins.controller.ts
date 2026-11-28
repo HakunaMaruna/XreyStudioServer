@@ -8,6 +8,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { PluginCatalogService } from './plugin-catalog.service';
 import { PluginManagerService } from './plugin-manager.service';
+import { PluginPublishService } from './plugin-publish.service';
 
 @Controller('plugins')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -16,6 +17,7 @@ export class PluginsController {
   constructor(
     private readonly manager: PluginManagerService,
     private readonly catalog: PluginCatalogService,
+    private readonly publish: PluginPublishService,
   ) {}
 
   @Get() list() { return this.manager.list(); }
@@ -23,6 +25,20 @@ export class PluginsController {
   @Post('catalog/refresh') catalogRefresh() { return this.catalog.refresh(); }
   @Get('policy') policy() { return this.catalog.policy(); }
   @Patch('policy') policyUpdate(@Body() body: Record<string, unknown>) { return this.catalog.updatePolicy(body); }
+
+  @Post('review')
+  review(@Body() body: { pkg: any }) { return this.publish.review(body.pkg); }
+
+  @Post('publish')
+  publishPlugin(@Body() body: any, @CurrentUser() user: AuthUser) { return this.publish.submit(body, user); }
+
+  @Get('reviews')
+  reviews(@CurrentUser() user: AuthUser) { return this.publish.listReviews(user); }
+
+  @Post('reviews/:id/decide')
+  decideReview(@Param('id') id: string, @Body() body: { status: string; note?: string }, @CurrentUser() user: AuthUser) {
+    return this.publish.decide(id, body, user);
+  }
 
   @Post('download/:versionId') download(@Param('versionId') id: string) { return this.catalog.downloadUrl(id); }
   @Post('install') install(@Body() body: { pkg: any }, @CurrentUser() user: AuthUser) {

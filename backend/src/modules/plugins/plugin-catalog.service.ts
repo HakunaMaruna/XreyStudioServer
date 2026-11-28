@@ -108,6 +108,38 @@ export class PluginCatalogService {
     return response.json();
   }
 
+  private async storeAdminRequest(path: string, method = 'GET', body?: unknown) {
+    const token = this.auth.masterToken();
+    if (!token) throw new ForbiddenException('STORE_API_TOKEN is not configured');
+    const response = await fetch(`${await this.storeUrl(path)}`, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'X-Store-Token': token },
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      signal: AbortSignal.timeout(15_000),
+    });
+    const text = await response.text();
+    let data: any;
+    try { data = text ? JSON.parse(text) : {}; } catch { data = { error: text.slice(0, 400) }; }
+    if (!response.ok) throw new ForbiddenException(data?.message || data?.error || `Store responded ${response.status}`);
+    return data;
+  }
+
+  async publishToStore(body: unknown) {
+    return this.storeAdminRequest('/api/store/publish', 'POST', body);
+  }
+
+  async createReview(body: unknown) {
+    return this.storeAdminRequest('/api/store/reviews', 'POST', body);
+  }
+
+  async reviews() {
+    return this.storeAdminRequest('/api/store/reviews');
+  }
+
+  async decideReview(id: string, body: { status: string; note?: string; reviewer?: string }) {
+    return this.storeAdminRequest(`/api/store/reviews/${encodeURIComponent(id)}/decide`, 'POST', body);
+  }
+
   async revocations() {
     const path = this.auth.mode() === 'control'
       ? '/api/store/revocations'

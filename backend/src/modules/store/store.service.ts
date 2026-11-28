@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 HakunaMaruna
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { StorePluginStatus } from '@prisma/client';
+import { StorePluginStatus, StoreReviewStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PluginPackage, sha256Package, validatePackage } from '../plugins/plugin-package';
 
@@ -174,6 +174,37 @@ export class StoreService {
   async revoke(slug: string, version: string | null, reason: string | null, adminToken?: string) {
     this.assertAdmin(adminToken);
     return this.prisma.storeRevocation.create({ data: { pluginId: slug, version, reason } });
+  }
+
+  async createReview(body: { pluginId: string; version: string; developer: string; checks: unknown }, adminToken?: string) {
+    this.assertAdmin(adminToken);
+    return this.prisma.storeReview.create({
+      data: {
+        pluginId: body.pluginId,
+        version: body.version,
+        developer: body.developer,
+        checks: (body.checks || []) as any,
+      },
+    });
+  }
+
+  async reviews(adminToken?: string) {
+    this.assertAdmin(adminToken);
+    return this.prisma.storeReview.findMany({ orderBy: { createdAt: 'desc' }, take: 100 });
+  }
+
+  async decideReview(id: string, body: { status: StoreReviewStatus; note?: string; reviewer?: string }, adminToken?: string) {
+    this.assertAdmin(adminToken);
+    const review = await this.prisma.storeReview.findUnique({ where: { id } });
+    if (!review) throw new NotFoundException('Review not found');
+    const updated = await this.prisma.storeReview.update({
+      where: { id },
+      data: { status: body.status, note: body.note || null, reviewer: body.reviewer || 'admin' },
+    });
+    if (body.status === StoreReviewStatus.APPROVED) {
+      await this.prisma.storePlugin.updateMany({ where: { slug: review.pluginId }, data: { status: StorePluginStatus.PUBLISHED } });
+    }
+    return updated;
   }
 
   async revocations() {

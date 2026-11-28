@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 HakunaMaruna
 import { BadRequestException } from '@nestjs/common';
-import { createHash, verify as ed25519Verify } from 'crypto';
+import { createHash, sign as ed25519Sign, verify as ed25519Verify } from 'crypto';
 import { APP_VERSION } from '../../version';
 
 export type PluginManifest = {
@@ -45,7 +45,17 @@ export function sha256Package(value: Pick<PluginPackage, 'manifest' | 'files'>) 
   return createHash('sha256').update(canonicalPayload(value)).digest('hex');
 }
 
-export function verifyPackageSignature(value: PluginPackage, publicKeyPem: string | undefined, allowUnsigned: boolean) {
+function keyList(value?: string | string[]): string[] {
+  if (!value) return [];
+  const values = Array.isArray(value) ? value : [value];
+  return values
+    .flatMap((item) => String(item).split(','))
+    .map((item) => item.replace(/\\n/g, '\n').trim())
+    .filter(Boolean);
+}
+
+/** Accepts a single PEM, a comma-separated list, or an array (current + previous keys). */
+export function verifyPackageSignature(value: PluginPackage, publicKeys: string | string[] | undefined, allowUnsigned: boolean) {
   const expected = sha256Package(value);
   if (value.signature?.sha256 && value.signature.sha256 !== expected) {
     throw new BadRequestException('Plugin checksum mismatch');
@@ -55,22 +65,57 @@ export function verifyPackageSignature(value: PluginPackage, publicKeyPem: strin
     return false;
   }
   if (value.signature.algorithm !== 'Ed25519') throw new BadRequestException('Unsupported signature algorithm');
-  if (!publicKeyPem) throw new BadRequestException('Store public key is not configured');
-  // .env often stores PEM with literal "\n" sequences, sometimes mixed with real newlines.
-  const pem = publicKeyPem.replace(/\\n/g, '\n').trim();
-  let valid: boolean;
-  try {
-    valid = ed25519Verify(
-      null,
-      canonicalPayload(value),
-      pem,
-      Buffer.from(value.signature.signature, 'base64'),
-    );
-  } catch {
-    valid = false;
-  }
+  const pems = keyList(publicKeys);
+  if (!pems.length) throw new BadRequestException('Store public key is not configured');
+  const signature = Buffer.from(value.signature.signature, 'base64');
+  const payload = canonicalPayload(value);
+  const valid = pems.some((pem) => {
+    try { return ed25519Verify(null, payload, pem, signature); } catch { return false; }
+  });
   if (!valid) throw new BadRequestException('Invalid plugin signature');
   return true;
+}
+
+/** Server-side signing used by the App Store upload flow. */
+export function signPackage(value: PluginPackage, privateKeyPem: string): PluginPackage {
+  const pem = privateKeyPem.replace(/\\n/g, '\n').trim();
+  const signature = ed25519Sign(null, canonicalPayload(value), pem).toString('base64');
+  return { ...value, signature: { algorithm: 'Ed25519', signature, sha256: sha256Package(value) } };
+}
+
+export type ReviewFinding = { level: 'blocking' | 'warning' | 'info'; code: string; message: string };
+
+/** Static review before a package enters moderation. Blocks obviously unsafe code. */
+export function reviewPackage(value: PluginPackage): ReviewFinding[] {
+  const findings: ReviewFinding[] = [];
+  const m = value.manifest;
+  const files = Object.entries(value.files);
+  const decoded = files.map(([name, content]) => {
+    try { return { name, text: Buffer.from(content, 'base64').toString('utf8') }; }
+    catch { return { name, text: '' }; }
+  });
+  const forbidden: Array<[RegExp, string]> = [
+    [/@prisma\/client|from ['"]prisma|require\(['"]prisma/, 'direct database access'],
+    [/process\.env/, 'direct environment access'],
+    [/child_process|node:child_process/, 'process spawning'],
+    [/\beval\s*\(|new Function\s*\(/, 'dynamic code execution'],
+    [/\bfetch\s*\(|require\(['"]https?['"]\)|from ['"]https?['"]/, 'direct network access (use SDK http.request)'],
+    [/\bfs\b.*(readFile|writeFile|readFileSync|writeFileSync)/, 'direct filesystem access'],
+  ];
+  for (const { name, text } of decoded) {
+    for (const [pattern, reason] of forbidden) {
+      if (pattern.test(text)) findings.push({ level: 'blocking', code: 'forbidden-api', message: `${name}: ${reason}` });
+    }
+  }
+  if (!findings.some((item) => item.code === 'forbidden-api')) {
+    findings.push({ level: 'info', code: 'static-clean', message: 'No forbidden direct APIs found' });
+  }
+  if (!files.some(([name]) => name === 'README.md')) findings.push({ level: 'warning', code: 'readme', message: 'README.md is missing' });
+  if (!files.some(([name]) => name === 'CHANGELOG.md')) findings.push({ level: 'warning', code: 'changelog', message: 'CHANGELOG.md is missing' });
+  if (!m.license) findings.push({ level: 'warning', code: 'license', message: 'License is not declared' });
+  if (m.permissions.length > 3) findings.push({ level: 'warning', code: 'permissions', message: `${m.permissions.length} permissions requested — review manually` });
+  if (m.entrypoints.migrations) findings.push({ level: 'warning', code: 'migrations', message: 'Package contains SQL migrations — review manually' });
+  return findings;
 }
 
 function compareVersions(a: string, b: string): number {
