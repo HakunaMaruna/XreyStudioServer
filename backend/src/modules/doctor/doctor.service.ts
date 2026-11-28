@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 HakunaMaruna
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { Role } from '@prisma/client';
 import { ConfigGeneratorService } from '../config/config-generator.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { isAgentOutdated } from '../../version';
+import { AuthUser } from '../../common/decorators/current-user.decorator';
+import { NodeProvisionService } from '../node-provision/node-provision.service';
+import { CertificatesService } from '../certificates/certificates.service';
 
 export type DoctorCheck = {
   id: string;
@@ -19,6 +23,8 @@ export class DoctorService {
   constructor(
     private prisma: PrismaService,
     private config: ConfigGeneratorService,
+    private provision: NodeProvisionService,
+    private certificates: CertificatesService,
   ) {}
 
   private async checkDatabase(): Promise<DoctorCheck> {
@@ -97,7 +103,8 @@ export class DoctorService {
       severity: expiredCerts.length ? 'critical' : 'ok',
       title: 'Node certificates',
       detail: expiredCerts.length ? `${expiredCerts.length} expired certificate(s)` : 'No expired certificates',
-      fixable: false,
+      fixable: expiredCerts.length > 0,
+      ...(expiredCerts[0] ? { entityId: expiredCerts[0].id } : {}),
     });
 
     const latestByNode = new Map(revisions.map((r) => [r.nodeId, r._max.createdAt]));
@@ -107,12 +114,19 @@ export class DoctorService {
       portKeys.set(key, (portKeys.get(key) || 0) + 1);
     }
     const duplicates = [...portKeys.entries()].filter(([, count]) => count > 1);
+    const duplicateInbound = duplicates.length
+      ? inbounds.find((inbound) => {
+          const key = `${inbound.nodeId || 'global'}:${inbound.port}`;
+          return duplicates.some(([candidate]) => candidate === key);
+        })
+      : undefined;
     checks.push({
       id: 'duplicate_ports',
       severity: duplicates.length ? 'warning' : 'ok',
       title: 'Inbound ports',
       detail: duplicates.length ? `${duplicates.length} port collision(s): ${duplicates.slice(0, 3).map(([key]) => key).join(', ')}` : 'No duplicate inbound ports',
-      fixable: false,
+      fixable: Boolean(duplicateInbound),
+      ...(duplicateInbound ? { entityId: duplicateInbound.id } : {}),
     });
 
     const outdated = nodes.filter((node) => isAgentOutdated(node.agentVersion));
@@ -121,7 +135,8 @@ export class DoctorService {
       severity: outdated.length ? 'warning' : 'ok',
       title: 'Agent versions',
       detail: outdated.length ? `${outdated.length} node(s) below minimum agent version` : 'All agents compatible',
-      fixable: false,
+      fixable: outdated.length > 0,
+      ...(outdated[0] ? { entityId: outdated[0].id } : {}),
     });
 
     const missingSni = inbounds.filter((inbound) => {
@@ -134,7 +149,8 @@ export class DoctorService {
       severity: missingSni.length ? 'warning' : 'ok',
       title: 'Reality SNI',
       detail: missingSni.length ? `${missingSni.length} Reality inbound(s) without camouflage SNI` : 'All Reality inbounds have SNI',
-      fixable: false,
+      fixable: missingSni.length > 0,
+      ...(missingSni[0] ? { entityId: missingSni[0].id } : {}),
     });
 
     for (const node of nodes) {
@@ -153,14 +169,55 @@ export class DoctorService {
     return checks;
   }
 
-  async fix(checkId: string, entityId?: string) {
-    if (checkId !== 'stale_revision') throw new BadRequestException('Check is not fixable');
-    if (!entityId || !/^[A-Za-z0-9_-]{1,64}$/.test(entityId)) {
-      throw new BadRequestException('Valid node id is required');
+  async fix(checkId: string, entityId?: string, actor?: AuthUser) {
+    const systemActor: AuthUser = actor || { userId: 'system', email: 'system', role: Role.ADMIN };
+    if (checkId === 'stale_revision') {
+      if (!entityId || !/^[A-Za-z0-9_-]{1,64}$/.test(entityId)) {
+        throw new BadRequestException('Valid node id is required');
+      }
+      const node = await this.prisma.node.findUnique({ where: { id: entityId }, select: { id: true, status: true } });
+      if (!node) throw new BadRequestException('Node not found');
+      if (node.status !== 'ONLINE') throw new BadRequestException('Node must be ONLINE before applying a revision');
+      return this.config.applyRevision(node.id);
     }
-    const node = await this.prisma.node.findUnique({ where: { id: entityId }, select: { id: true, status: true } });
-    if (!node) throw new BadRequestException('Node not found');
-    if (node.status !== 'ONLINE') throw new BadRequestException('Node must be ONLINE before applying a revision');
-    return this.config.applyRevision(node.id);
+    if (checkId === 'agent_versions') {
+      if (!entityId) throw new BadRequestException('Node id is required');
+      return this.provision.updateAgentLatest(entityId, systemActor);
+    }
+    if (checkId === 'certificates') {
+      if (!entityId) throw new BadRequestException('Node id is required');
+      return this.certificates.issue(entityId);
+    }
+    if (checkId === 'duplicate_ports') {
+      if (!entityId) throw new BadRequestException('Inbound id is required');
+      const inbound = await this.prisma.inbound.findUnique({ where: { id: entityId } });
+      if (!inbound) throw new BadRequestException('Inbound not found');
+      const used = new Set(
+        (await this.prisma.inbound.findMany({ where: { OR: [{ nodeId: inbound.nodeId }, { nodeId: null }] }, select: { port: true } })).map((row) => row.port),
+      );
+      let port = inbound.port + 1;
+      while (used.has(port) && port < 65535) port += 1;
+      if (port >= 65535) throw new BadRequestException('No free port available');
+      await this.prisma.inbound.update({ where: { id: entityId }, data: { port } });
+      if (inbound.nodeId) await this.config.createRevision(inbound.nodeId);
+      return { inboundId: entityId, port };
+    }
+    if (checkId === 'reality_sni') {
+      if (!entityId) throw new BadRequestException('Inbound id is required');
+      const inbound = await this.prisma.inbound.findUnique({ where: { id: entityId } });
+      if (!inbound) throw new BadRequestException('Inbound not found');
+      const pool = (process.env.REALITY_SNI_POOL || 'www.microsoft.com').split(',').map((value) => value.trim()).filter(Boolean);
+      const settings: Record<string, any> = (inbound.settings as any) || {};
+      await this.prisma.inbound.update({
+        where: { id: entityId },
+        data: {
+          settings: { ...settings, realityServerNames: [pool[0]] },
+          sni: pool[0],
+        },
+      });
+      if (inbound.nodeId) await this.config.createRevision(inbound.nodeId);
+      return { inboundId: entityId, sni: pool[0] };
+    }
+    throw new BadRequestException('Check is not fixable');
   }
 }

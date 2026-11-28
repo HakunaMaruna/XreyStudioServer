@@ -15,7 +15,9 @@ describe('DoctorService', () => {
     inbound: { findMany: jest.fn().mockResolvedValue([]) },
   };
   const config = { applyRevision: jest.fn().mockResolvedValue({ applied: true }) };
-  const service = new DoctorService(prisma as never, config as never);
+  const provision = { updateAgentLatest: jest.fn(async () => ({ updated: true })) };
+  const certificates = { issue: jest.fn(async () => ({ status: 'issued' })) };
+  const service = new DoctorService(prisma as never, config as never, provision as never, certificates as never);
 
   it('reports clean state when there are no nodes', async () => {
     const checks = await service.check();

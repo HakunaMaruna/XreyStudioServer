@@ -6,6 +6,7 @@ import { Role } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { DoctorService } from './doctor.service';
+import { AuthUser, CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @Controller('doctor')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -19,7 +20,7 @@ export class DoctorController {
   }
 
   @Post('fix')
-  fix(@Body() body: { checkId: string; entityId?: string }) {
-    return this.service.fix(body.checkId, body.entityId);
+  fix(@Body() body: { checkId: string; entityId?: string }, @CurrentUser() user: AuthUser) {
+    return this.service.fix(body.checkId, body.entityId, user);
   }
 }

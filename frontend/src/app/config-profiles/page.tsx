@@ -27,6 +27,9 @@ const RECIPES: Record<string, string> = {
   base: JSON.stringify({ routingRules: [], dnsServers: ['1.1.1.1', '8.8.8.8'], outbounds: [] }, null, 2),
   mobile: JSON.stringify({ routingRules: [], dnsServers: ['https://cloudflare-dns.com/dns-query'], outbounds: [] }, null, 2),
   performance: JSON.stringify({ routingRules: [{ type: 'field', domain: ['geosite:category-ads-all'], outboundTag: 'blocked' }], dnsServers: ['1.1.1.1'], outbounds: [] }, null, 2),
+  cdn: JSON.stringify({ routingRules: [{ type: 'field', domain: ['geosite:cloudflare', 'geosite:telegram'], outboundTag: 'direct' }], dnsServers: ['https://cloudflare-dns.com/dns-query'], outbounds: [] }, null, 2),
+  privacy: JSON.stringify({ routingRules: [{ type: 'field', domain: ['geosite:category-ads-all', 'geosite:category-trackers'], outboundTag: 'blocked' }], dnsServers: ['https://dns.quad9.net/dns-query'], outbounds: [] }, null, 2),
+  minimal: JSON.stringify({ routingRules: [], dnsServers: ['localhost'], outbounds: [] }, null, 2),
 };
 
 const mutatePayload = (text: string, patch: (value: Record<string, unknown>) => void) => {
@@ -194,6 +197,9 @@ export default function ConfigProfilesPage() {
               <option value="base">{lang === 'ru' ? 'Базовый' : 'Basic'}</option>
               <option value="mobile">{lang === 'ru' ? 'Для мобильных' : 'Mobile'}</option>
               <option value="performance">{lang === 'ru' ? 'Максимальная производительность' : 'Max performance'}</option>
+              <option value="cdn">{lang === 'ru' ? 'Для CDN и мессенджеров' : 'CDN & messaging'}</option>
+              <option value="privacy">{lang === 'ru' ? 'Строгая приватность' : 'Strict privacy'}</option>
+              <option value="minimal">{lang === 'ru' ? 'Минимальный' : 'Minimal'}</option>
             </select>
           </Field>
           <div className="flex flex-wrap gap-4 rounded-lg border border-line p-3">
