@@ -12,6 +12,7 @@ import {
   Min,
   Max,
   IsDateString,
+  IsUUID,
   IsIn,
   Matches,
 } from 'class-validator';
@@ -149,4 +150,15 @@ export class BulkUsersDto {
 
   @IsIn(['disable', 'enable', 'delete', 'resetTraffic'])
   action: 'disable' | 'enable' | 'delete' | 'resetTraffic';
+}
+
+export class SetUserInboundsDto {
+  @IsIn(['all', 'selected', 'one'])
+  mode: 'all' | 'selected' | 'one';
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(1000)
+  @IsUUID('4', { each: true })
+  inboundIds?: string[];
 }

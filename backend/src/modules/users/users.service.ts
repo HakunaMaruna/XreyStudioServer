@@ -6,8 +6,9 @@ import { Prisma, Role, UserStatus } from '@prisma/client';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PasswordService } from '../../common/password.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { InboundsService } from '../inbounds/inbounds.service';
 import { SquadBindingService } from '../inbounds/squad-binding.service';
-import { BulkUsersDto, CreateUserDto, UpdateUserDto, UsersQueryDto } from './dto/user.dto';
+import { BulkUsersDto, CreateUserDto, SetUserInboundsDto, UpdateUserDto, UsersQueryDto } from './dto/user.dto';
 
 @Injectable()
 export class UsersService implements OnModuleInit {
@@ -17,6 +18,7 @@ export class UsersService implements OnModuleInit {
     private prisma: PrismaService,
     private passwords: PasswordService,
     private squadBindings: SquadBindingService,
+    private inboundsService: InboundsService,
   ) {}
 
   onModuleInit() {
@@ -108,10 +110,46 @@ export class UsersService implements OnModuleInit {
         subscriptionTemplateId: true,
         createdAt: true,
         inbounds: true,
+        inboundClients: { select: { inboundId: true, sourceSquadId: true } },
       },
     });
     if (!found) throw new NotFoundException('User not found');
     return found;
+  }
+
+  // Ручные привязки пользователя к подключениям. Привязки, пришедшие из сквада, не трогаем.
+  async setInbounds(id: string, dto: SetUserInboundsDto, actor: AuthUser) {
+    await this.findRaw(id, actor);
+    const visible = await this.inboundsService.findAll(undefined, actor);
+    const allowed = new Set(visible.map((inbound) => inbound.id));
+    let wanted: string[];
+    if (dto.mode === 'all') {
+      wanted = [...allowed];
+    } else {
+      wanted = [...new Set(dto.inboundIds || [])];
+      if (dto.mode === 'one' && wanted.length !== 1) {
+        throw new BadRequestException('Выберите ровно одно подключение');
+      }
+      if (wanted.some((inboundId) => !allowed.has(inboundId))) {
+        throw new BadRequestException('Подключение не найдено');
+      }
+    }
+    const existing = await this.prisma.inboundClient.findMany({
+      where: { userId: id },
+      select: { inboundId: true, sourceSquadId: true },
+    });
+    const manual = new Set(existing.filter((row) => !row.sourceSquadId).map((row) => row.inboundId));
+    const present = new Set(existing.map((row) => row.inboundId));
+    const toRemove = [...manual].filter((inboundId) => !wanted.includes(inboundId));
+    const toAdd = wanted.filter((inboundId) => !present.has(inboundId));
+    await this.prisma.$transaction([
+      this.prisma.inboundClient.deleteMany({ where: { userId: id, sourceSquadId: null, inboundId: { in: toRemove } } }),
+      this.prisma.inboundClient.createMany({
+        data: toAdd.map((inboundId) => ({ inboundId, userId: id, enabled: true })),
+        skipDuplicates: true,
+      }),
+    ]);
+    return { mode: dto.mode, inboundIds: wanted, added: toAdd.length, removed: toRemove.length };
   }
 
   async create(dto: CreateUserDto, actor: AuthUser) {

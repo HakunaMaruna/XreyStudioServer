@@ -9,8 +9,8 @@ import DataTable from '../../components/data-table';
 import { Icon } from '../../components/icons';
 import ChainCard from '../../components/chain-card';
 import {
-  Avatar, Badge, Button, Card, Field, IconButton, Modal, PageHeader,
-  StatusBadge, formatBytes,
+  Avatar, Badge, Button, Card, Field, HelpTip, IconButton, Modal, PageHeader,
+  Segmented, StatusBadge, formatBytes,
 } from '../../components/ui';
 
 type UserRow = {
@@ -57,7 +57,9 @@ export default function UsersPage() {
   const [saving, setSaving] = useState(false);
   const [connection, setConnection] = useState<any | null>(null);
   const [inbounds, setInbounds] = useState<{ id: string; tag: string }[]>([]);
-  const [attachId, setAttachId] = useState('');
+  const [attachMode, setAttachMode] = useState<'all' | 'selected' | 'one'>('selected');
+  const [attachIds, setAttachIds] = useState<string[]>([]);
+  const [attachError, setAttachError] = useState('');
   const [profiles, setProfiles] = useState<{ id: string; name: string }[]>([]);
   const [subTemplates, setSubTemplates] = useState<{ id: string; name: string }[]>([]);
   const [devices, setDevices] = useState<{ id: string; hwid: string; name: string | null; lastSeenAt: string | null }[]>([]);
@@ -238,13 +240,19 @@ export default function UsersPage() {
     try {
       const data = await api.get(`/api/users/${user.id}`);
       setConnection(data);
-      setAttachId('');
+      const manualIds: string[] = (data.inboundClients || [])
+        .filter((c: any) => !c.sourceSquadId)
+        .map((c: any) => c.inboundId);
+      setAttachIds(manualIds);
+      setAttachMode(manualIds.length === 1 ? 'one' : 'selected');
+      setAttachError('');
       setExternalLinkError('');
       setExternalLinkForm({ kind: 'link', value: '', remark: '' });
       setExternalLinks([]);
       const list = await api.get('/api/inbounds');
       const rows = Array.isArray(list) ? list : list.data || [];
       setInbounds(rows.map((i: any) => ({ id: i.id, tag: i.tag })));
+      if (manualIds.length && manualIds.length === rows.length) setAttachMode('all');
       const profileList = await api.get('/api/config-profiles').catch(() => ({ data: [] }));
       const profileRows = Array.isArray(profileList) ? profileList : profileList.data || [];
       setProfiles(profileRows.map((p: any) => ({ id: p.id, name: p.name })));
@@ -363,20 +371,32 @@ export default function UsersPage() {
   };
 
   const attach = async () => {
-    if (!connection || !attachId) return;
+    if (!connection) return;
+    setAttachError('');
     setSaving(true);
     try {
-      const current = await api.get(`/api/inbounds/${attachId}`);
-      const clients = current.clients || [];
-      if (!clients.some((c: any) => c.userId === connection.id)) {
-        await api.patch(`/api/inbounds/${attachId}`, { clients: [...clients, { userId: connection.id, enabled: true }] });
-      }
-      setConnection(await api.get(`/api/users/${connection.id}`));
+      const result = await api.put(`/api/users/${connection.id}/inbounds`, {
+        mode: attachMode,
+        inboundIds: attachMode === 'all' ? undefined : attachIds,
+      });
+      const fresh = await api.get(`/api/users/${connection.id}`);
+      setConnection(fresh);
+      setAttachIds(result.inboundIds || []);
+      setNotice(`${t.inboundsSaved}: +${result.added ?? 0} / −${result.removed ?? 0}`);
+      setTimeout(() => setNotice(''), 3000);
     } catch (e: any) {
-      setError(e.message);
+      setAttachError(e.message);
     } finally {
       setSaving(false);
     }
+  };
+
+  const toggleAttach = (id: string) => {
+    if (attachMode === 'one') {
+      setAttachIds([id]);
+      return;
+    }
+    setAttachIds((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
   };
 
   const copyText = async (value: string) => {
@@ -825,13 +845,65 @@ export default function UsersPage() {
               </select>
             </div>
             <div className="border-t border-line pt-4">
-              <p className="mb-2 text-xs font-semibold text-subtle">{t.attachToInbound}</p>
-              <div className="flex gap-2">
-                <select value={attachId} onChange={(e) => setAttachId(e.target.value)} className="field">
-                  <option value="">{t.selectInbound}</option>
-                  {inbounds.map((i) => <option key={i.id} value={i.id}>{i.tag}</option>)}
-                </select>
-                <Button icon="plus" onClick={attach} loading={saving} disabled={!attachId}>{t.attachToInbound}</Button>
+              <div className="mb-2 flex items-center gap-1.5">
+                <p className="text-xs font-semibold text-subtle">{t.attachToInbound}</p>
+                <HelpTip text={t.attachModeHint} />
+              </div>
+              <div className="mb-2">
+                <Segmented
+                  value={attachMode}
+                  onChange={(mode) => {
+                    setAttachMode(mode);
+                    if (mode === 'one') setAttachIds((current) => current.slice(0, 1));
+                  }}
+                  options={[
+                    { value: 'all', label: t.attachAll },
+                    { value: 'selected', label: t.attachSelected },
+                    { value: 'one', label: t.attachOne },
+                  ]}
+                />
+              </div>
+              {attachError && (
+                <div role="alert" className="mb-2 flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger">
+                  <Icon name="alert" size={14} /> {attachError}
+                </div>
+              )}
+              {inbounds.length === 0 ? (
+                <p className="text-xs text-subtle">{t.noInboundsYet}</p>
+              ) : attachMode === 'all' ? (
+                <p className="text-xs text-muted">{t.attachAllHint.replace('{n}', String(inbounds.length))}</p>
+              ) : (
+                <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-line p-1">
+                  {inbounds.map((inbound) => {
+                    const fromSquad = (connection.inboundClients || []).some((c: any) => c.inboundId === inbound.id && c.sourceSquadId);
+                    return (
+                      <label key={inbound.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-surface-2">
+                        <input
+                          type={attachMode === 'one' ? 'radio' : 'checkbox'}
+                          name="attach-inbound"
+                          checked={attachIds.includes(inbound.id)}
+                          onChange={() => toggleAttach(inbound.id)}
+                        />
+                        <span className="mono flex-1 truncate">{inbound.tag}</span>
+                        {fromSquad && <Badge tone="cyan">{t.fromSquad}</Badge>}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] text-subtle">
+                  {attachMode === 'all' ? '' : `${t.selectedCount}: ${attachIds.length}`}
+                </span>
+                <Button
+                  variant="primary"
+                  icon="check"
+                  onClick={attach}
+                  loading={saving}
+                  disabled={inbounds.length === 0 || (attachMode === 'one' && attachIds.length !== 1)}
+                >
+                  {t.saveBindings}
+                </Button>
               </div>
             </div>
             <div className="border-t border-line pt-4">

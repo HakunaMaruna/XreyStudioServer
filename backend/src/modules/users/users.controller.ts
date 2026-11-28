@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -18,7 +19,7 @@ import { AuthUser, CurrentUser } from '../../common/decorators/current-user.deco
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { AuditService } from '../audit/audit.service';
-import { BulkUsersDto, CreateUserDto, UpdateUserDto, UsersQueryDto } from './dto/user.dto';
+import { BulkUsersDto, CreateUserDto, SetUserInboundsDto, UpdateUserDto, UsersQueryDto } from './dto/user.dto';
 import { UsersService } from './users.service';
 import { ExternalLinksService } from './external-links.service';
 
@@ -94,6 +95,26 @@ export class UsersController {
       ip: req.ip,
     });
     return updated;
+  }
+
+  @Put(':id/inbounds')
+  @Roles(Role.ADMIN, Role.OPERATOR)
+  async setInbounds(
+    @Param('id') id: string,
+    @Body() body: SetUserInboundsDto,
+    @CurrentUser() user: AuthUser,
+    @Req() req: any,
+  ) {
+    const result = await this.service.setInbounds(id, body, user);
+    await this.audit.log({
+      userId: user.userId,
+      action: 'user.inbounds.set',
+      entity: 'User',
+      entityId: id,
+      ip: req.ip,
+      metadata: result,
+    });
+    return result;
   }
 
   @Get(':id/external-links')
