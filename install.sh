@@ -235,7 +235,7 @@ run_sh() {
 
 # Агент получает только собственный env-файл: секреты панели (JWT_SECRET,
 # POSTGRES_PASSWORD, STRIPE_*, MCP_*) в него не попадают. Список — белый.
-AGENT_ENV_KEYS="PANEL_URL AGENT_TOKEN AGENT_SECRET NODE_ID NODE_ADDRESS PORT DECOY_HOST DECOY_PORT DECOY_HTTP_PORT DECOY_TLS_DIR ACME_WEBROOT WIZARD_DECOY_PORT
+AGENT_ENV_KEYS="PANEL_URL AGENT_ALLOWED_IPS AGENT_TOKEN AGENT_SECRET NODE_ID NODE_ADDRESS PORT DECOY_HOST DECOY_PORT DECOY_HTTP_PORT DECOY_TLS_DIR ACME_WEBROOT WIZARD_DECOY_PORT
 XRAY_MANAGED XRAY_CONFIG_PATH XRAY_BIN XRAY_SERVICE XRAY_STATS_ENABLED
 XRAY_API_HOST XRAY_API_PORT TRAFFIC_REPORT_INTERVAL BACKUP_DIR GEOCHECK_URL
 GEOCHECK_INTERVAL SINGBOX_CONFIG_PATH SINGBOX_BIN SINGBOX_SERVICE XRAY_LOG_PATH
@@ -363,6 +363,7 @@ if [ ! -f .env ]; then
   JWT="$(openssl rand -hex 32)"; REFRESH="$(openssl rand -hex 32)"; ADMIN="$(openssl rand -hex 24)"
   AGENT="${AGENT_TOKEN:-$(openssl rand -hex 32)}"; ALERT="$(openssl rand -hex 24)"; POSTGRES="$(openssl rand -hex 16)"
   UPDATER="$(openssl rand -hex 24)"
+  GRAFANA="$(openssl rand -hex 16)"
   if [ "$MODE" = "control" ]; then
     PDNS_KEY="$(openssl rand -hex 24)"; MASTER_KEY="$(openssl rand 32 | base64 -w0)"; STORE_TOKEN="$(openssl rand -hex 24)"
     say "  ${C_DIM}PDNS_API_KEY, PANEL_MASTER_KEY, STORE_ADMIN_TOKEN -> .env${C_RESET}"
@@ -376,6 +377,7 @@ if [ ! -f .env ]; then
   run_sh "sed -i 's|^ALERT_WEBHOOK_TOKEN=.*|ALERT_WEBHOOK_TOKEN=$ALERT|' .env"
   run_sh "sed -i 's|^UPDATER_TOKEN=.*|UPDATER_TOKEN=$UPDATER|' .env"
   run_sh "sed -i 's|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$POSTGRES|' .env"
+  run_sh "sed -i 's|^GRAFANA_PASSWORD=.*|GRAFANA_PASSWORD=$GRAFANA|' .env"
   run_sh "sed -i 's|^DOMAIN=.*|DOMAIN=$DOMAIN|' .env"
   run_sh "sed -i 's|^PANEL_URL=.*|PANEL_URL=$PANEL_URL|' .env"
   run_sh "sed -i 's|^CORS_ORIGIN=.*|CORS_ORIGIN=$PANEL_URL|' .env"
@@ -397,6 +399,9 @@ fi
 if ! grep -q '^UPDATER_TOKEN=' .env 2>/dev/null; then
   UPDATER="$(openssl rand -hex 24)"
   run_sh "printf 'UPDATER_TOKEN=%s\\n' '$UPDATER' >> .env"
+fi
+if [ "$MODE" != "node" ] && { ! grep -Eq '^GRAFANA_PASSWORD=.+' .env 2>/dev/null || grep -q '^GRAFANA_PASSWORD=change-me-grafana$' .env; }; then
+  run_sh "sed -i '/^GRAFANA_PASSWORD=/d' .env; printf 'GRAFANA_PASSWORD=%s\\n' '$(openssl rand -hex 16)' >> .env"
 fi
 [ "$DRY_RUN" -eq 1 ] || chmod 600 .env 2>/dev/null || true
 

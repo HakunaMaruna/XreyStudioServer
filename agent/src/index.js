@@ -94,6 +94,21 @@ function isAuthorized(req) {
 
 // Authenticate before parsing the (large) JSON body: unauthenticated requests
 // must not be able to make the agent buffer 20 MB. `/health` stays public.
+// Optional source allowlist (comma-separated IPs), e.g. master IP plus jump nodes.
+const AGENT_ALLOWED_IPS = new Set(
+  String(process.env.AGENT_ALLOWED_IPS || '').split(',').map((v) => v.trim()).filter(Boolean),
+);
+function clientIp(req) {
+  const ip = String(req.socket?.remoteAddress || '');
+  return ip.startsWith('::ffff:') ? ip.slice(7) : ip;
+}
+app.use((req, res, next) => {
+  if (AGENT_ALLOWED_IPS.size === 0 || req.path === '/health') return next();
+  const ip = clientIp(req);
+  if (ip === '127.0.0.1' || ip === '::1' || AGENT_ALLOWED_IPS.has(ip)) return next();
+  return res.status(403).json({ error: 'Forbidden' });
+});
+
 app.use((req, res, next) => {
   if (req.path === '/health') return next();
   if (!isAuthorized(req)) return res.status(403).json({ error: 'Forbidden' });
@@ -625,16 +640,10 @@ function globalIPv6Addresses() {
 }
 
 app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    nodeId: NODE_ID,
-    xray: xrayStatus,
-    singbox: singboxStatus,
-    version: lastConfigVersion,
-    agentVersion: AGENT_VERSION,
-    relays: getRelaySummary(),
-    ipv6Addresses: globalIPv6Addresses(),
-  });
+  const base = { status: 'ok', nodeId: NODE_ID, xray: xrayStatus, singbox: singboxStatus, version: lastConfigVersion, agentVersion: AGENT_VERSION };
+  // Relay targets and node addresses are only for the panel.
+  if (!isAuthorized(req)) return res.json(base);
+  res.json({ ...base, relays: getRelaySummary(), ipv6Addresses: globalIPv6Addresses() });
 });
 
 app.get('/metrics', auth, async (req, res) => {

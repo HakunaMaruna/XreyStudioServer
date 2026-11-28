@@ -5,7 +5,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-xss}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-xss}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
       POSTGRES_DB: ${POSTGRES_DB:-xss}
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -33,7 +33,7 @@ services:
     env_file: .env
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      DATABASE_URL: postgres://${POSTGRES_USER:-xss}:${POSTGRES_PASSWORD:-xss}@postgres:5432/${POSTGRES_DB:-xss}
+      DATABASE_URL: postgres://${POSTGRES_USER:-xss}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@postgres:5432/${POSTGRES_DB:-xss}
       REDIS_URL: redis://redis:6379
       BACKUP_DIR: /app/backups
       AGENT_BASE_URL: http://agent:9090
@@ -51,7 +51,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "${PANEL_BIND_IP:-127.0.0.1}:3000:3000"
     restart: unless-stopped
 
   frontend:
@@ -68,7 +68,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "3001:3000"
+      - "${PANEL_BIND_IP:-127.0.0.1}:3001:3000"
     restart: unless-stopped
 
   agent:
@@ -127,21 +127,21 @@ services:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     ports:
-      - "9091:9090"
+      - "127.0.0.1:9091:9090"
     restart: unless-stopped
 
   grafana:
     image: grafana/grafana:11.2.0
     profiles: ["monitoring"]
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
-      ALERT_WEBHOOK_TOKEN: ${ALERT_WEBHOOK_TOKEN:-change-me-alert-token}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?GRAFANA_PASSWORD must be set in .env}
+      ALERT_WEBHOOK_TOKEN: ${ALERT_WEBHOOK_TOKEN:-}
     volumes:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana_data:/var/lib/grafana
     ports:
-      - "3002:3000"
+      - "127.0.0.1:3002:3000"
     depends_on:
       - prometheus
     restart: unless-stopped
