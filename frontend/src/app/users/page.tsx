@@ -180,7 +180,7 @@ export default function UsersPage() {
     try {
       await api.post('/api/users', {
         email: form.email,
-        password: form.password,
+        password: form.password || undefined,
         trafficLimit: form.trafficLimit * 1024 ** 3,
         telegramId: form.telegramId || null,
       });
@@ -672,7 +672,7 @@ export default function UsersPage() {
         <form id="create-user-form" onSubmit={create} className="space-y-4">
           {modalError && <div role="alert" className="flex items-center gap-2 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 text-xs text-danger"><Icon name="alert" size={15} /> {modalError}</div>}
           <Field label={t.email}><input type="email" placeholder="user@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="field" required /></Field>
-          <Field label={t.password} hint={t.atLeast6Chars}><input type="password" minLength={6} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="field" required /></Field>
+          <Field label={t.passwordOptional} hint={t.passwordOptionalHint}><input type="password" minLength={6} autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="field" /></Field>
           <Field label={t.trafficLimit} hint={t.valueInGB}><input type="number" min={1} value={form.trafficLimit} onChange={(e) => setForm({ ...form, trafficLimit: Number(e.target.value) })} className="field" /></Field>
           <Field label={t.telegramId} hint={t.telegramIdHint}><input inputMode="numeric" pattern="[0-9]{5,12}" value={form.telegramId} onChange={(e) => setForm({ ...form, telegramId: e.target.value })} className="field" /></Field>
         </form>

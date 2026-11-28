@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 HakunaMaruna
+import { randomBytes } from 'node:crypto';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { Prisma, Role, UserStatus } from '@prisma/client';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
@@ -127,7 +128,7 @@ export class UsersService implements OnModuleInit {
     return this.prisma.user.create({
       data: {
         email,
-        passwordHash: await this.passwords.hash(dto.password),
+        passwordHash: await this.passwords.hash(dto.password || randomBytes(24).toString('base64url')),
         role: dto.role || Role.USER,
         status: dto.status || UserStatus.ACTIVE,
         telegramId: dto.telegramId || null,

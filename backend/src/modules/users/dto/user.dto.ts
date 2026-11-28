@@ -22,12 +22,14 @@ export class CreateUserDto {
   @Matches(/^[0-9]{5,12}$/, { message: 'telegramId must contain 5-12 digits' })
   telegramId?: string;
 
-  @IsEmail()
+  @IsEmail({}, { message: 'Укажите корректный email' })
   email: string;
 
+  // Пароль нужен только для входа в панель; VPN-клиент работает по ссылке подписки.
+  @IsOptional()
   @IsString()
-  @MinLength(6)
-  password: string;
+  @MinLength(6, { message: 'Пароль должен быть не короче 6 символов' })
+  password?: string;
 
   @IsOptional()
   @IsEnum(Role)
